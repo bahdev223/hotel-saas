@@ -303,7 +303,7 @@ def recu_paiement(request, paiement_id):
         'paiement': paiement,
         'source_info': source_info,
         'societe': {
-            'nom': 'Résidence DAMOU',
+            'nom': 'HotelERP',
             'slogan': '',
             'adresse': '',
             'telephone': '',
