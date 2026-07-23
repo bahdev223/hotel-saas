@@ -1,0 +1,43 @@
+<div class="overflow-x-auto">
+    <table class="w-full min-w-[820px]">
+        <thead class="bg-surface-container-high">
+            <tr class="border-b border-outline/10 text-sm text-on-surface-variant">
+                <th class="px-4 py-3 text-left font-medium">Client</th>
+                <th class="px-4 py-3 text-left font-medium">Unite</th>
+                <th class="px-4 py-3 text-left font-medium">Type</th>
+                <th class="px-4 py-3 text-left font-medium">Debut</th>
+                <th class="px-4 py-3 text-right font-medium">Duree</th>
+                <th class="px-4 py-3 text-right font-medium">Montant</th>
+                <th class="px-4 py-3 text-center font-medium">Statut</th>
+                <th class="px-4 py-3 text-center font-medium">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-outline/10">
+            <template x-for="loc in locations" :key="loc.id">
+                <tr class="hover:bg-surface-container-low transition-colors">
+                    <td class="px-4 py-3 text-on-surface" x-text="loc.client_nom"></td>
+                    <td class="px-4 py-3 text-on-surface" x-text="loc.unite_nom"></td>
+                    <td class="px-4 py-3 text-on-surface" x-text="loc.type_display || loc.type"></td>
+                    <td class="px-4 py-3 text-sm text-on-surface" x-text="formatDate(loc.date_debut)"></td>
+                    <td class="px-4 py-3 text-right text-sm text-on-surface-variant" x-text="loc.duree_display || (loc.duree_heures + 'h')"></td>
+                    <td class="px-4 py-3 text-right font-mono text-on-surface" x-text="formatMoney(loc.montant_total) + ' F'"></td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="rounded-full px-2 py-1 text-xs font-medium" :class="{
+                            'bg-green-900/30 text-green-300': loc.statut === 'CONFIRMEE',
+                            'bg-gray-700 text-gray-300': loc.statut === 'TERMINEE',
+                            'bg-red-900/30 text-red-300': loc.statut === 'ANNULEE'
+                        }" x-text="getStatutLabel(loc.statut)"></span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <button @click="openModal('paiement', loc)" class="px-2 text-green-400 hover:text-green-300 text-sm">Paiement</button>
+                        <button x-show="loc.statut === 'CONFIRMEE'" @click="openModal('checkout', loc)" class="px-2 text-orange-400 hover:text-orange-300 text-sm">Terminer</button>
+                        <button @click="openModal('annuler', loc)" class="px-2 text-red-400 hover:text-red-300 text-sm">Annuler</button>
+                    </td>
+                </tr>
+            </template>
+            <tr x-show="locations.length === 0">
+                <td colspan="8" class="px-4 py-8 text-center text-on-surface-variant">Aucune location chargee</td>
+            </tr>
+        </tbody>
+    </table>
+</div>

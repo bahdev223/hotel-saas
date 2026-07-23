@@ -1,0 +1,110 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}{{ client.nom_complet }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-4">
+            <a href="{% url 'clients:liste' %}" class="text-on-surface-variant hover:text-on-surface"><i class="fas fa-arrow-left text-xl"></i></a>
+            <div>
+                <h1 class="text-2xl font-bold text-on-surface">
+                    <i class="fas fa-user text-secondary mr-2"></i>{{ client.nom_complet }}
+                </h1>
+                <p class="text-sm text-on-surface-variant font-mono">{{ client.id }}</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'clients:modifier' client.id %}" class="btn-md3-primary text-sm px-4 py-2 rounded-lg"><i class="fas fa-edit mr-1"></i>Modifier</a>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="card-md3 p-4 flex items-center gap-3">
+            <div class="stat-icon bg-green-900/30"><i class="fas fa-check-circle text-green-400"></i></div>
+            <div>
+                <div class="text-lg font-bold {% if client.statut == 'ACTIF' %}text-green-400{% elif client.statut == 'INACTIF' %}text-yellow-400{% else %}text-red-400{% endif %}">{{ client.get_statut_display }}</div>
+                <div class="text-xs text-on-surface-variant">Statut</div>
+            </div>
+        </div>
+        <div class="card-md3 p-4 flex items-center gap-3">
+            <div class="stat-icon bg-secondary/10"><i class="fas fa-tag text-secondary"></i></div>
+            <div>
+                <div class="text-lg font-bold text-secondary">{{ client.get_type_client_display }}</div>
+                <div class="text-xs text-on-surface-variant">Type</div>
+            </div>
+        </div>
+        <div class="card-md3 p-4 flex items-center gap-3">
+            <div class="stat-icon bg-blue-900/30"><i class="fas fa-calendar text-blue-400"></i></div>
+            <div>
+                <div class="text-lg font-bold text-blue-400">{{ client.date_inscription|date:'d/m/Y' }}</div>
+                <div class="text-xs text-on-surface-variant">Inscription</div>
+            </div>
+        </div>
+        <div class="card-md3 p-4 flex items-center gap-3">
+            <div class="stat-icon {% if solde_actuel >= 0 %}bg-green-900/30{% else %}bg-red-900/30{% endif %}">
+                <i class="fas fa-wallet {% if solde_actuel >= 0 %}text-green-400{% else %}text-red-400{% endif %}"></i>
+            </div>
+            <div>
+                <div class="text-lg font-bold font-mono {% if solde_actuel >= 0 %}text-green-400{% else %}text-red-400{% endif %}">{{ solde_actuel|floatformat:0 }} F</div>
+                <div class="text-xs text-on-surface-variant">Solde</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card-md3 divide-y divide-outline/10">
+        <div class="p-4">
+            <h2 class="font-semibold mb-3"><i class="fas fa-address-card text-secondary mr-2"></i>Informations</h2>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                    <span class="text-on-surface-variant">Téléphone</span>
+                    <p class="font-medium">{{ client.telephone|default:'-' }}</p>
+                </div>
+                <div>
+                    <span class="text-on-surface-variant">Email</span>
+                    <p class="font-medium">{{ client.email|default:'-' }}</p>
+                </div>
+                <div class="col-span-2">
+                    <span class="text-on-surface-variant">Adresse</span>
+                    <p class="font-medium">{{ client.adresse|default:'-' }}</p>
+                </div>
+                {% if client.identifiant_fiscal %}
+                <div>
+                    <span class="text-on-surface-variant">Identifiant fiscal</span>
+                    <p class="font-medium font-mono">{{ client.identifiant_fiscal }}</p>
+                </div>
+                {% endif %}
+                {% if client.piece_identite and client.numero_piece %}
+                <div>
+                    <span class="text-on-surface-variant">Pièce d'identité</span>
+                    <p class="font-medium">{{ client.piece_identite }} · {{ client.numero_piece }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% if client.notes %}
+        <div class="p-4">
+            <span class="text-on-surface-variant text-sm">Notes</span>
+            <p class="text-sm mt-1">{{ client.notes }}</p>
+        </div>
+        {% endif %}
+        <div class="p-4 flex justify-between text-xs text-on-surface-variant">
+            <span>Créé le {{ client.created_at|date:'d/m/Y H:i' }}</span>
+            <span>Mis à jour le {{ client.updated_at|date:'d/m/Y H:i' }}</span>
+        </div>
+    </div>
+
+    <div class="flex gap-3">
+        <form method="post" action="{% url 'clients:changer_statut' client.id %}">
+            {% csrf_token %}
+            {% if client.statut == 'ACTIF' %}
+            <button type="submit" name="statut" value="INACTIF" class="border border-yellow-600/30 text-yellow-400 px-4 py-2 rounded-lg text-sm hover:bg-yellow-900/20 transition"><i class="fas fa-pause mr-1"></i>Désactiver</button>
+            {% else %}
+            <button type="submit" name="statut" value="ACTIF" class="border border-green-600/30 text-green-400 px-4 py-2 rounded-lg text-sm hover:bg-green-900/20 transition"><i class="fas fa-play mr-1"></i>Activer</button>
+            {% endif %}
+        </form>
+        <a href="{% url 'clients:supprimer' client.id %}" class="border border-red-800/30 text-red-400 px-4 py-2 rounded-lg text-sm hover:bg-red-900/20 transition ml-auto"><i class="fas fa-trash mr-1"></i>Supprimer</a>
+    </div>
+</div>
+{% endblock %}

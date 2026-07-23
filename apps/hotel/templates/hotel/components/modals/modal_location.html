@@ -1,0 +1,108 @@
+<div x-show="modals.location" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4 py-6" @click.self="closeModal('location')">
+    <div class="flex max-h-full w-full max-w-2xl flex-col overflow-hidden rounded-2xl bg-surface-container-high shadow-xl">
+        <div class="flex items-center justify-between border-b border-outline/10 px-6 py-4">
+            <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary/20 text-secondary">
+                    <i class="fas fa-calendar-plus"></i>
+                </div>
+                <div>
+                    <h2 class="text-lg font-semibold text-on-surface">Nouvelle Réservation</h2>
+                    <p class="text-sm text-on-surface-variant">Chambre, espace ou bar VIP</p>
+                </div>
+            </div>
+            <button @click="closeModal('location')" class="flex h-9 w-9 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="overflow-y-auto p-6">
+            <div class="grid gap-5 lg:grid-cols-2">
+                <section class="space-y-4">
+                    <div class="flex items-center gap-2 text-sm font-semibold text-on-surface">
+                        <i class="fas fa-user text-secondary"></i>
+                        <span>Client</span>
+                    </div>
+
+                    <label class="block">
+                        <span class="mb-1 block text-sm font-medium text-on-surface-variant">Nom complet</span>
+                        <input x-model="locationForm.client_nom" class="input-md3 w-full px-3 py-2 rounded-lg" placeholder="Nom du client">
+                    </label>
+
+                    <label class="block">
+                        <span class="mb-1 block text-sm font-medium text-on-surface-variant">Téléphone <span class="text-red-400">*</span></span>
+                        <input x-model="locationForm.client_telephone" required class="input-md3 w-full px-3 py-2 rounded-lg" placeholder="Téléphone">
+                    </label>
+                </section>
+
+                <section class="space-y-4">
+                    <div class="flex items-center gap-2 text-sm font-semibold text-on-surface">
+                        <i class="fas fa-door-open text-secondary"></i>
+                        <span>Réservation</span>
+                    </div>
+
+                    <label class="block">
+                        <span class="mb-1 block text-sm font-medium text-on-surface-variant">Type</span>
+                        <select x-model="locationForm.type" class="input-md3 w-full px-3 py-2 rounded-lg">
+                            <option value="CHAMBRE">Chambre</option>
+                            <option value="SALLE">Salle</option>
+                            <option value="ESPACE">Espace</option>
+                            <option value="ESPACE_BAR">Espace + Bar</option>
+                            <option value="BAR">Bar VIP</option>
+                        </select>
+                    </label>
+
+                    <label class="block">
+                        <span class="mb-1 block text-sm font-medium text-on-surface-variant" x-text="typeUniteLabel"></span>
+                        <select x-model="locationForm.element_id" class="input-md3 w-full px-3 py-2 rounded-lg">
+                            <option value="">Choisir...</option>
+                            <template x-for="u in filteredUnites" :key="u.id">
+                                <option :value="u.id" x-text="u.code + ' - ' + u.nom + ' (' + formatMoney(u.prix) + ' F/h)'"></option>
+                            </template>
+                        </select>
+                    </label>
+
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <label class="block">
+                            <span class="mb-1 block text-sm font-medium text-on-surface-variant">Début</span>
+                            <input type="datetime-local" x-model="locationForm.date_debut" class="input-md3 w-full px-3 py-2 rounded-lg">
+                        </label>
+                        <label class="block">
+                            <span class="mb-1 block text-sm font-medium text-on-surface-variant">Fin</span>
+                            <input type="datetime-local" x-model="locationForm.date_fin" class="input-md3 w-full px-3 py-2 rounded-lg">
+                        </label>
+                    </div>
+
+                    <div x-show="dureeHeures > 0" class="rounded-xl bg-surface-container-low p-4 border border-outline/10">
+                        <div class="flex items-baseline justify-between">
+                            <span class="text-sm text-on-surface-variant">Durée</span>
+                            <span class="text-lg font-bold text-secondary" x-text="dureeHeures + ' h'"></span>
+                        </div>
+                        <div class="flex items-baseline justify-between mt-2">
+                            <span class="text-sm text-on-surface-variant">Total</span>
+                            <span class="text-2xl font-bold text-secondary" x-text="formatMoney(montantCalcule) + ' F'"></span>
+                        </div>
+                    </div>
+
+                    <label class="block">
+                        <span class="mb-1 block text-sm font-medium text-on-surface-variant">Montant</span>
+                        <input type="number" min="0" x-model="locationForm.montant_avance" class="input-md3 w-full px-3 py-2 rounded-lg" placeholder="0">
+                    </label>
+                </section>
+            </div>
+
+            <label class="mt-5 block">
+                <span class="mb-1 block text-sm font-medium text-on-surface-variant">Notes</span>
+                <textarea x-model="locationForm.notes" rows="2" class="input-md3 w-full px-3 py-2 rounded-lg" placeholder="Demande speciale, reference, commentaire..."></textarea>
+            </label>
+        </div>
+
+        <div class="flex flex-col-reverse gap-3 border-t border-outline/10 bg-surface-container-high px-6 py-4 sm:flex-row sm:justify-end">
+            <button @click="closeModal('location')" class="btn-md3-secondary rounded-lg px-4 py-2 font-medium">
+                Annuler
+            </button>
+            <button @click="saveLocation()" class="btn-md3-primary rounded-lg px-5 py-2 font-medium">
+                <i class="fas fa-check mr-2"></i>Enregistrer
+            </button>
+        </div>
+    </div>
+</div>

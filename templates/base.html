@@ -1,0 +1,232 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Résidence DAMOU - {% block title %}Dashboard{% endblock %}</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-dim": "#131313", "surface": "#131313", "surface-bright": "#393939",
+                        "surface-container-lowest": "#0e0e0e", "surface-container-low": "#1c1b1b",
+                        "surface-container": "#20201f", "surface-container-high": "#2a2a2a",
+                        "surface-container-highest": "#353535",
+                        "on-surface": "#e5e2e1", "on-surface-variant": "#c4c7c7",
+                        "secondary": "#e3c282", "secondary-container": "#5c4611",
+                        "on-secondary": "#402d00",
+                        "error": "#ffb4ab", "error-container": "#93000a",
+                        "outline": "#8e9192",
+                        "background": "#131313",
+                    },
+                    fontFamily: { "body-md": ["Hanken Grotesk", "sans-serif"] },
+                },
+            },
+        }
+    </script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <script>
+        function notificationBell() {
+            return {
+                count: 0, items: [], open: false,
+                async init() { await this.load(); setInterval(() => this.load(), 60000); },
+                async load() {
+                    try {
+                        const r = await fetch('/stock/api/notifications/');
+                        if (!r.ok) return;
+                        const d = await r.json();
+                        if (d.success) { this.count = d.count; this.items = d.items; }
+                    } catch(e) {}
+                },
+                toggle() { this.open = !this.open; if (this.open) this.load(); }
+            }
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        [x-cloak] { display: none !important; }
+        .scrollbar-md::-webkit-scrollbar { width: 6px; }
+        .scrollbar-md::-webkit-scrollbar-track { background: #2a2a2a; border-radius: 10px; }
+        .scrollbar-md::-webkit-scrollbar-thumb { background: #c9c6c5; border-radius: 10px; }
+        .scrollbar-md::-webkit-scrollbar-thumb:hover { background: #e3c282; }
+        .transition-smooth { transition: all 0.2s ease-in-out; }
+
+        /* Uniform card style for all dashboards */
+        .stat-card {
+            background: var(--surface-container-low, #1c1b1b);
+            border: 1px solid rgba(142, 145, 146, 0.1);
+            border-radius: 16px;
+            transition: all 0.2s ease;
+        }
+        .stat-card:hover { background: #20201f; border-color: #e3c282; transform: translateY(-2px); box-shadow: 0 12px 24px -8px rgba(0,0,0,0.3); }
+        .stat-icon {
+            width: 48px; height: 48px; border-radius: 16px;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(227, 194, 130, 0.1);
+        }
+        .stat-icon i { color: #e3c282; font-size: 22px; }
+        @layer components {
+            .input-md3 {
+                @apply w-full border-b-2 border-transparent rounded-t-lg px-4 py-3
+                       focus:border-secondary focus:ring-0 outline-none transition-all duration-200;
+                background-color: #353535 !important; color: #e5e2e1 !important;
+            }
+            .input-md3::placeholder { color: rgba(196, 199, 199, 0.5) !important; }
+            select.input-md3 option { background-color: #1c1b1b !important; color: #e5e2e1 !important; }
+            input:-webkit-autofill,
+            input:-webkit-autofill:hover,
+            input:-webkit-autofill:focus {
+                -webkit-text-fill-color: #e5e2e1 !important;
+                -webkit-box-shadow: 0 0 0px 1000px #353535 inset !important;
+            }
+            .label-md3 {
+                @apply text-[11px] font-bold text-secondary uppercase tracking-wider mb-1 block pl-1;
+            }
+            .btn-md3-primary {
+                @apply bg-secondary text-on-secondary px-6 py-3 rounded-full font-bold
+                       hover:shadow-lg hover:shadow-secondary/20 active:scale-95 transition-all disabled:opacity-30;
+            }
+            .card-md3 {
+                @apply bg-surface-container-low border border-outline/10 rounded-xl;
+            }
+        }
+    </style>
+</head>
+
+<body class="bg-background text-on-surface font-body-md">
+
+<div class="min-h-screen flex flex-col">
+
+    <!-- Top Navbar -->
+    <nav class="bg-surface-container border-b border-outline/10 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <a href="/" class="flex items-center gap-3 hover:opacity-85 transition-smooth">
+                    <img src="{% static 'img/logo.jpg' %}" alt="Résidence DAMOU" class="w-10 h-10 rounded-lg shadow-md object-cover">
+                    <div>
+                        <span class="text-lg font-bold text-on-surface">Résidence DAMOU</span>
+                    </div>
+                </a>
+                <div class="flex items-center gap-4">
+                    {% if a_planning %}
+                    <a href="{% url 'pos:planning' %}" class="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container-high hover:bg-secondary/20 text-on-surface-variant hover:text-secondary transition-smooth" title="Planning">
+                        <i class="fas fa-calendar-alt text-sm"></i>
+                    </a>
+                    {% endif %}
+                    <!-- Notification Bell -->
+                    <div x-data="notificationBell()" x-init="init()" class="relative">
+                        <button @click="toggle()" class="relative w-10 h-10 flex items-center justify-center rounded-full bg-surface-container-high hover:bg-secondary/20 text-on-surface-variant hover:text-secondary transition-smooth" title="Alertes stock">
+                            <i class="fas fa-bell text-sm"></i>
+                            <span x-show="count > 0" x-text="count" class="absolute -top-0.5 -right-0.5 bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">0</span>
+                        </button>
+                        <div x-show="open" @click.outside="open = false" x-cloak class="absolute right-0 mt-2 w-80 bg-surface-container-high border border-outline/10 rounded-xl shadow-xl z-50 max-h-96 overflow-y-auto">
+                            <div class="p-3 border-b border-outline/10 sticky top-0 bg-surface-container-high">
+                                <span class="text-sm font-semibold text-on-surface">Alertes Stock</span>
+                            </div>
+                            <template x-if="items.length === 0">
+                                <div class="p-6 text-sm text-on-surface-variant text-center">Tout est en ordre ✅</div>
+                            </template>
+                            <template x-for="item in items" :key="item.produit_id">
+                                <a :href="'/stock/produits/' + item.produit_id + '/'" class="flex items-center gap-3 p-3 hover:bg-surface-container transition-colors border-b border-outline/5">
+                                    <div class="w-8 h-8 rounded-full flex items-center justify-center" :class="item.type === 'Rupture' ? 'bg-red-900/30' : 'bg-orange-900/30'">
+                                        <i class="fas fa-exclamation-triangle text-xs" :class="item.type === 'Rupture' ? 'text-red-400' : 'text-orange-400'"></i>
+                                    </div>
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium text-on-surface truncate" x-text="item.produit_nom"></p>
+                                        <p class="text-xs text-on-surface-variant" x-text="'Stock: ' + item.quantite + ' / Seuil: ' + item.seuil"></p>
+                                    </div>
+                                    <span class="text-xs font-medium whitespace-nowrap" :class="item.type === 'Rupture' ? 'text-red-400' : 'text-orange-400'" x-text="item.type"></span>
+                                </a>
+                            </template>
+                        </div>
+                    </div>
+                    <a href="{% url 'authentication:mon_profil' %}" class="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container-high hover:bg-secondary/20 text-on-surface-variant hover:text-secondary transition-smooth" title="Mon profil">
+                        <i class="fas fa-user text-sm"></i>
+                    </a>
+                    <a href="{% url 'authentication:logout' %}" class="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container-high hover:bg-error-container/20 text-on-surface-variant hover:text-error transition-smooth" title="Déconnexion">
+                        <i class="fas fa-sign-out-alt text-sm"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Messages -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 w-full">
+        {% if messages %}
+            <div class="space-y-2 mb-4">
+                {% for message in messages %}
+                    <div class="rounded-lg p-4 border-l-4 text-sm
+                        {% if message.tags == 'success' %}bg-green-900/30 border-green-500 text-green-300
+                        {% elif message.tags == 'error' %}bg-red-900/30 border-red-500 text-red-300
+                        {% else %}bg-secondary-container/20 border-secondary text-on-surface{% endif %}">
+                        <div class="flex items-center gap-3">
+                            <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %}"></i>
+                            <span>{{ message }}</span>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+
+    {% block subnav %}{% endblock %}
+
+    <!-- Page Header -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 w-full">
+        <h1 class="text-xl font-bold text-on-surface">{% block header %}Dashboard{% endblock %}</h1>
+        {% block subtitle %}{% endblock %}
+    </div>
+
+    <!-- Page Content -->
+    <div class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
+        {% block content %}{% endblock %}
+    </div>
+
+    <!-- Footer -->
+    <div class="border-t border-outline/10 px-6 py-3 text-center text-xs text-on-surface-variant/60">
+        &copy; {% now "Y" %} Résidence DAMOU - Solution int&eacute;gr&eacute;e de gestion h&ocirc;teli&egrave;re
+    </div>
+</div>
+
+{% if est_raf %}
+<!-- ⚡ FAB RAF — visible partout -->
+<div class="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-2">
+    <a href="{% url 'pos:raf_dashboard' %}"
+       class="flex items-center gap-2 px-4 py-2 bg-surface-container-high text-on-surface border border-outline/10 rounded-full shadow-lg hover:bg-surface-container-higher transition-all duration-200 text-sm"
+       title="Supervision">
+        <i class="fas fa-chart-pie text-secondary"></i> Supervision
+    </a>
+    <a href="{% url 'pos:pos_raf' %}"
+       class="flex items-center gap-2.5 px-5 py-3 bg-secondary text-black font-bold rounded-full shadow-2xl hover:bg-secondary/90 hover:shadow-secondary/30 hover:scale-105 active:scale-95 transition-all duration-200 animate-bounce-subtle"
+       title="Ouvrir le Guichet RAF"
+       style="box-shadow: 0 8px 32px rgba(227,194,130,0.35);">
+        <span class="text-lg">⚡</span>
+        <span class="text-sm">Guichet RAF</span>
+    </a>
+</div>
+<style>
+    @keyframes bounce-subtle {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-3px); }
+    }
+    .animate-bounce-subtle {
+        animation: bounce-subtle 2s ease-in-out infinite;
+    }
+    .animate-bounce-subtle:hover {
+        animation: none;
+    }
+</style>
+{% endif %}
+
+</body>
+</html>

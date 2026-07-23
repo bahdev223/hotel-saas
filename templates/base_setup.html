@@ -1,0 +1,53 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Initialisation - Résidence DAMOU{% endblock %}</title>
+
+    <!-- Tailwind + daisyUI -->
+    <link href="{% static 'css/dist/styles.css' %}" rel="stylesheet">
+    
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <style>
+        [x-cloak] { display: none !important; }
+    </style>
+</head>
+
+<body class="bg-gradient-to-br from-primary/5 via-base-100 to-secondary/5">
+    
+    <!-- Header minimal sans menu -->
+    <div class="bg-base-100 shadow-sm border-b border-base-200">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-lg bg-gradient-to-r from-primary to-secondary flex items-center justify-center">
+                        <i class="text-sm fas fa-hotel text-white"></i>
+                    </div>
+                    <span class="text-sm font-medium text-base-content/60">Résidence DAMOU</span>
+                </div>
+                <div class="text-xs text-base-content/40">
+                    Configuration initiale
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contenu principal (sans sidebar) -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer minimal -->
+    <div class="text-center py-6 text-xs text-base-content/40">
+        © 2026 Résidence DAMOU - Initialisation du système
+    </div>
+
+</body>
+</html>

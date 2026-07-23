@@ -1,0 +1,113 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load static %}
+
+{% block title %}Nouvelle vente - Comptabilité{% endblock %}
+
+{% block header %}Nouvelle vente{% endblock %}
+{% block subtitle %}Encaissement rapide{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <form method="post" class="bg-surface-container-low rounded-2xl border-outline/10 p-6 space-y-4">
+        {% csrf_token %}
+        
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">Date *</label>
+                <input type="date" name="date_operation" required class="w-full px-3 py-2 input-md3 rounded-lg">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Échéance</label>
+                <input type="date" name="date_echeance" class="w-full px-3 py-2 input-md3 rounded-lg">
+            </div>
+        </div>
+        
+        <div>
+            <label class="block text-sm font-medium mb-1">Client</label>
+            <input type="text" name="client_nom" class="w-full px-3 py-2 input-md3 rounded-lg" placeholder="Nom du client (optionnel)">
+        </div>
+        
+        <div>
+            <label class="block text-sm font-medium mb-1">N° facture client</label>
+            <input type="text" name="reference_client" class="w-full px-3 py-2 input-md3 rounded-lg" placeholder="Facture F-2024-001">
+        </div>
+        
+        <div>
+            <label class="block text-sm font-medium mb-1">Description</label>
+            <input type="text" name="description" class="w-full px-3 py-2 input-md3 rounded-lg" placeholder="Description de la vente">
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">Montant HT (FCFA) *</label>
+                <input type="number" step="1" name="montant_ht" id="montant_ht" required class="w-full px-3 py-2 input-md3 rounded-lg">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">TVA (%)</label>
+                <select name="tva" id="taux_tva" class="w-full px-3 py-2 input-md3 rounded-lg">
+                    <option value="0">0%</option>
+                    <option value="18" selected>18%</option>
+                    <option value="10">10%</option>
+                    <option value="5.5">5.5%</option>
+                </select>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">Montant TVA (FCFA)</label>
+                <input type="text" name="montant_tva" id="montant_tva" readonly class="w-full px-3 py-2 bg-surface-container-high input-md3 rounded-lg">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Montant TTC (FCFA)</label>
+                <input type="text" name="montant_ttc" id="montant_ttc" readonly class="w-full px-3 py-2 bg-surface-container-high input-md3 rounded-lg">
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">Mode de paiement</label>
+                <select name="mode_paiement" class="w-full px-3 py-2 input-md3 rounded-lg">
+                    <option value="ESPECES">💰 Espèces</option>
+                    <option value="CARTE">💳 Carte bancaire</option>
+                    <option value="VIREMENT">🏦 Virement</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Caisse</label>
+                <select name="caisse_id" class="w-full px-3 py-2 input-md3 rounded-lg">
+                    <option value="">-- Sélectionner --</option>
+                    {% for caisse in caisses %}
+                    <option value="{{ caisse.id }}">{{ caisse.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        
+        <div>
+            <label class="block text-sm font-medium mb-1">Notes</label>
+            <textarea name="notes" rows="2" class="w-full px-3 py-2 input-md3 rounded-lg"></textarea>
+        </div>
+        
+        <div class="flex gap-3 pt-4">
+            <button type="submit" class="flex-1 bg-secondary text-on-secondary py-2 rounded-lg">Enregistrer la vente</button>
+            <a href="{% url 'comptabilite:operations' %}" class="flex-1 border-outline/10 py-2 rounded-lg text-center text-on-surface">Annuler</a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.getElementById('montant_ht').addEventListener('input', calculerTVA);
+document.getElementById('taux_tva').addEventListener('change', calculerTVA);
+
+function calculerTVA() {
+    const ht = parseFloat(document.getElementById('montant_ht').value) || 0;
+    const taux = parseFloat(document.getElementById('taux_tva').value) || 0;
+    const tva = ht * taux / 100;
+    const ttc = ht + tva;
+    document.getElementById('montant_tva').value = tva.toFixed(0);
+    document.getElementById('montant_ttc').value = ttc.toFixed(0);
+}
+</script>
+{% endblock %}
+

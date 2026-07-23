@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Annuler facture {{ facture.numero }}{% endblock %}
+
+{% block header %}Annuler la facture{% endblock %}
+{% block subtitle %}{{ facture.numero }} - {{ facture.client_nom }}{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto">
+    <div class="bg-surface-container-low rounded-xl border-outline/10 p-6 text-center space-y-4">
+        <div class="w-16 h-16 mx-auto rounded-full bg-red-900/30 flex items-center justify-center">
+            <i class="fas fa-exclamation-triangle text-2xl text-red-400"></i>
+        </div>
+        
+        <h2 class="text-xl font-bold">Confirmer l'annulation</h2>
+        
+        <p class="text-on-surface-variant">
+            Êtes-vous sûr de vouloir annuler la facture <strong>{{ facture.numero }}</strong> de <strong>{{ facture.client_nom }}</strong> ?
+        </p>
+        
+        <div class="bg-surface-container-high rounded-lg p-4 text-sm">
+            <div class="flex justify-between mb-2">
+                <span class="text-on-surface-variant">Montant total :</span>
+                <span class="font-mono font-semibold">{{ facture.montant_total|floatformat:0 }} F</span>
+            </div>
+            <div class="flex justify-between">
+                <span class="text-on-surface-variant">Statut actuel :</span>
+                <span>
+                    {% if facture.statut == 'BROUILLON' %}
+                    <span class="text-yellow-400">Brouillon</span>
+                    {% elif facture.statut == 'EMISE' %}
+                    <span class="text-blue-400">Émise</span>
+                    {% endif %}
+                </span>
+            </div>
+        </div>
+        
+        <form method="post" class="space-y-3">
+            {% csrf_token %}
+            <button type="submit" class="w-full bg-red-700 text-white py-3 rounded-lg font-bold hover:bg-red-700/80 transition">
+                <i class="fas fa-times mr-2"></i> Confirmer l'annulation
+            </button>
+            <a href="{% url 'facturation:detail' facture.id %}" class="block w-full bg-surface-container-highest text-on-surface py-3 rounded-lg text-center hover:bg-surface-container-highest transition">
+                Retour
+            </a>
+        </form>
+    </div>
+</div>
+{% endblock %}

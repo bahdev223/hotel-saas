@@ -1,0 +1,827 @@
+{% extends 'rh/base_rh.html' %}
+{% load static %}
+
+{% block title %}Liste des employés{% endblock %}
+
+{% block content %}
+<div x-data="employeManagement()" x-init="init()">
+    <div class="container mx-auto px-4 py-6">
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold">Liste des employés</h1>
+            <button @click="resetForm(); openModal = true" class="bg-secondary text-white px-4 py-2 rounded-lg hover:bg-secondary/80 transition">
+                <i class="fas fa-plus"></i> Nouvel employé
+            </button>
+        </div>
+        
+        <!-- Stats -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+            <div class="bg-surface-container-low rounded-xl shadow-md p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-on-surface-variant text-sm">Total</p>
+                        <p class="text-2xl font-bold">{{ employes.paginator.count }}</p>
+                    </div>
+                    <i class="fas fa-users text-3xl text-secondary/20"></i>
+                </div>
+            </div>
+            <div class="bg-surface-container-low rounded-xl shadow-md p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-on-surface-variant text-sm">Actifs</p>
+                        <p class="text-2xl font-bold text-green-400">{{ total_actifs|default:0 }}</p>
+                    </div>
+                    <i class="fas fa-user-check text-3xl text-green-500/50"></i>
+                </div>
+            </div>
+            <div class="bg-surface-container-low rounded-xl shadow-md p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-on-surface-variant text-sm">Hommes</p>
+                        <p class="text-2xl font-bold text-blue-400">{{ total_hommes|default:0 }}</p>
+                    </div>
+                    <i class="fas fa-mars text-3xl text-blue-500/50"></i>
+                </div>
+            </div>
+            <div class="bg-surface-container-low rounded-xl shadow-md p-4">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-on-surface-variant text-sm">Femmes</p>
+                        <p class="text-2xl font-bold text-pink-600">{{ total_femmes|default:0 }}</p>
+                    </div>
+                    <i class="fas fa-venus text-3xl text-pink-500/50"></i>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Tableau -->
+        <div class="bg-surface-container-low rounded-xl shadow-md overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead class="bg-surface-container-high">
+                        <tr>
+                            <th class="px-4 py-3 text-left text-sm font-semibold">Matricule</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold">Nom & Prénom</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold">Email</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold">Téléphone</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold">Compte</th>
+                            <th class="px-4 py-3 text-left text-sm font-semibold">Statut</th>
+                            <th class="px-4 py-3 text-center text-sm font-semibold">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-outline/10">
+                        {% for employe in employes %}
+                        <tr class="hover:bg-surface-container-low transition">
+                            <td class="px-4 py-3 text-sm">{{ employe.matricule }}</td>
+                            <td class="px-4 py-3">
+                                <span class="font-medium">{{ employe.nom }}</span> {{ employe.prenom }}
+                                <p class="text-xs text-on-surface-variant">{{ employe.poste.intitule|default:"-" }}</p>
+                            </td>
+                            <td class="px-4 py-3 text-sm">{{ employe.email }}</td>
+                            <td class="px-4 py-3 text-sm">{{ employe.telephone }}</td>
+                            <td class="px-4 py-3 text-center">
+                                {% if employe.user_id %}
+                                <i class="fas fa-check-circle text-green-500" title="Compte: {{ employe.user.username }}"></i>
+                                {% else %}
+                                <i class="fas fa-times-circle text-red-500" title="Aucun compte"></i>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3">
+                                {% if employe.actif %}
+                                <span class="badge badge-success">Actif</span>
+                                {% else %}
+                                <span class="badge badge-error">Inactif</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-center whitespace-nowrap">
+                                <button @click="viewEmploye('{{ employe.matricule }}')" class="text-green-500 hover:text-green-700 mx-1" title="Détails">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <button @click="editEmploye('{{ employe.matricule }}')" class="text-blue-500 hover:text-blue-700 mx-1" title="Modifier">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                {% if employe.point_vente %}
+                                <a href="{% url 'pos:liste_points_vente' %}" class="text-amber-500 hover:text-amber-700 mx-1" title="Accéder au POS">
+                                    <i class="fas fa-cash-register"></i>
+                                </a>
+                                {% elif employe.user_id %}
+                                <a href="{% url 'pos:liste_points_vente' %}" class="text-amber-500 hover:text-amber-700 mx-1" title="Accéder au POS">
+                                    <i class="fas fa-cash-register"></i>
+                                </a>
+                                {% endif %}
+                                <button @click="supprimerEmploye('{{ employe.matricule }}', '{{ employe.nom }} {{ employe.prenom }}')" class="text-red-500 hover:text-red-700 mx-1" title="Supprimer">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="px-4 py-8 text-center text-on-surface-variant">
+                                <i class="fas fa-user-slash text-4xl mb-2 block"></i>
+                                Aucun employé trouvé
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Pagination -->
+            {% if employes.has_other_pages %}
+            <div class="flex justify-center gap-2 px-4 py-3 border-t border-outline/10">
+                {% if employes.has_previous %}
+                <a href="?page=1" class="px-3 py-1 border border-outline/10 rounded-lg hover:bg-surface-container-low">«</a>
+                <a href="?page={{ employes.previous_page_number }}" class="px-3 py-1 border border-outline/10 rounded-lg hover:bg-surface-container-low">‹</a>
+                {% endif %}
+                <span class="px-3 py-1">Page {{ employes.number }} / {{ employes.paginator.num_pages }}</span>
+                {% if employes.has_next %}
+                <a href="?page={{ employes.next_page_number }}" class="px-3 py-1 border border-outline/10 rounded-lg hover:bg-surface-container-low">›</a>
+                <a href="?page={{ employes.paginator.num_pages }}" class="px-3 py-1 border border-outline/10 rounded-lg hover:bg-surface-container-low">»</a>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- MODAL DÉTAILS EMPLOYÉ (lecture seule) -->
+    <div x-show="detailsOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="detailsOpen = false">
+        <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="sticky top-0 bg-surface-container-low px-6 py-4 border-b border-outline/10 flex justify-between items-center">
+                <h2 class="text-xl font-bold">Détails employé</h2>
+                <button @click="detailsOpen = false" class="text-on-surface-variant hover:text-on-surface">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-5">
+                <!-- Photo + Nom complet -->
+                <div class="flex items-center gap-4">
+                    <div class="w-16 h-16 rounded-full bg-surface-container-high overflow-hidden flex items-center justify-center flex-shrink-0">
+                        <template x-if="detail.photo">
+                            <img :src="detail.photo" class="w-full h-full object-cover">
+                        </template>
+                        <template x-if="!detail.photo">
+                            <i class="fas fa-user text-2xl text-on-surface-variant"></i>
+                        </template>
+                    </div>
+                    <div>
+                        <p class="text-lg font-bold" x-text="detail.nom + ' ' + detail.prenom"></p>
+                        <p class="text-sm text-on-surface-variant">
+                            <span x-text="detail.matricule"></span>
+                            <span class="ml-2" x-show="detail.poste" x-text="'| ' + detail.poste"></span>
+                        </p>
+                        <p class="text-xs mt-1">
+                            <span x-show="detail.actif" class="badge badge-success">Actif</span>
+                            <span x-show="!detail.actif" class="badge badge-error">Inactif</span>
+                        </p>
+                    </div>
+                </div>
+
+                <hr class="border-outline/20">
+
+                <!-- Grille d'infos -->
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                        <p class="text-xs text-on-surface-variant">Matricule</p>
+                        <p class="font-medium" x-text="detail.matricule"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-on-surface-variant">Sexe</p>
+                        <p class="font-medium" x-text="detail.sexe === 'M' ? 'Masculin' : 'Féminin'"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-on-surface-variant">Date de naissance</p>
+                        <p class="font-medium" x-text="detail.date_naissance || '-'"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-on-surface-variant">Date d'embauche</p>
+                        <p class="font-medium" x-text="detail.date_embauche || '-'"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-on-surface-variant">Téléphone</p>
+                        <p class="font-medium" x-text="detail.telephone || '-'"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-on-surface-variant">Email</p>
+                        <p class="font-medium" x-text="detail.email || '-'"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-on-surface-variant">Adresse</p>
+                        <p class="font-medium" x-text="detail.adresse || '-'"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-on-surface-variant">Département</p>
+                        <p class="font-medium" x-text="detail.departement || '-'"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-on-surface-variant">Poste</p>
+                        <p class="font-medium" x-text="detail.poste || '-'"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-on-surface-variant">Situation familiale</p>
+                        <p class="font-medium" x-text="detail.situation_familiale || '-'"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-on-surface-variant">Nombre d'enfants</p>
+                        <p class="font-medium" x-text="detail.nombre_enfants ?? 0"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-on-surface-variant">Diplôme</p>
+                        <p class="font-medium" x-text="detail.diplome || '-'"></p>
+                    </div>
+                </div>
+
+                <!-- Conjoint -->
+                <div x-show="detail.situation_familiale && detail.situation_familiale !== 'Celibataire'">
+                    <hr class="border-outline/20 mb-3">
+                    <h3 class="font-semibold text-sm text-secondary mb-2">Conjoint(e)</h3>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                            <p class="text-xs text-on-surface-variant">Civilité</p>
+                            <p class="font-medium" x-text="detail.conjoint_civilite || '-'"></p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-on-surface-variant">Nom</p>
+                            <p class="font-medium" x-text="detail.conjoint_nom || '-'"></p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-on-surface-variant">Prénom</p>
+                            <p class="font-medium" x-text="detail.conjoint_prenom || '-'"></p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-on-surface-variant">Contact</p>
+                            <p class="font-medium" x-text="detail.conjoint_contact || '-'"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Personne de référence -->
+                <hr class="border-outline/20">
+                <h3 class="font-semibold text-sm text-secondary mb-2">Personne de référence</h3>
+                <div class="grid grid-cols-3 gap-3 text-sm">
+                    <div>
+                        <p class="text-xs text-on-surface-variant">Nom</p>
+                        <p class="font-medium" x-text="detail.personne_reference_nom || '-'"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-on-surface-variant">Prénom</p>
+                        <p class="font-medium" x-text="detail.personne_reference_prenom || '-'"></p>
+                    </div>
+                    <div>
+                        <p class="text-xs text-on-surface-variant">Contact</p>
+                        <p class="font-medium" x-text="detail.personne_reference_contact || '-'"></p>
+                    </div>
+                </div>
+
+                <!-- Description -->
+                <div x-show="detail.description">
+                    <hr class="border-outline/20 mb-3">
+                    <h3 class="font-semibold text-sm text-secondary mb-1">Description</h3>
+                    <p class="text-sm" x-text="detail.description"></p>
+                </div>
+
+                <!-- Compte utilisateur -->
+                <hr class="border-outline/20">
+                <h3 class="font-semibold text-sm text-secondary mb-2">Compte utilisateur</h3>
+                <template x-if="detail.has_user">
+                    <div class="text-sm">
+                        <p><i class="fas fa-user-circle mr-1"></i><span x-text="detail.user_username"></span></p>
+                        <p class="text-xs mt-1">
+                            <span x-show="detail.user_is_active" class="text-green-500">Compte actif</span>
+                            <span x-show="!detail.user_is_active" class="text-red-500">Compte inactif</span>
+                        </p>
+                    </div>
+                </template>
+                <template x-if="!detail.has_user">
+                    <p class="text-sm text-on-surface-variant"><i class="fas fa-info-circle mr-1"></i>Aucun compte utilisateur associé</p>
+                </template>
+
+                <div class="flex justify-end pt-2">
+                    <button type="button" @click="detailsOpen = false" class="bg-surface-container-highest text-on-surface px-6 py-2 rounded-lg hover:bg-surface-container-highest/80 transition">
+                        Fermer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MODAL AJOUT / MODIFICATION EMPLOYÉ -->
+    <div x-show="openModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="openModal = false">
+        <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="sticky top-0 bg-surface-container-low px-6 py-4 border-b border-outline/10 flex justify-between items-center">
+                <h2 class="text-xl font-bold" x-text="modalTitle">Ajouter un employé</h2>
+                <button @click="openModal = false" class="text-on-surface-variant hover:text-on-surface">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form @submit.prevent="saveEmploye" enctype="multipart/form-data" class="p-6">
+                {% csrf_token %}
+                <input type="hidden" x-model="form.matricule_edit">
+                
+                <h3 class="font-semibold text-md mb-4 text-secondary">Informations personnelles</h3>
+
+                <!-- Photo sur sa propre ligne -->
+                <div class="flex justify-center mb-5">
+                    <div class="text-center">
+                        <div class="w-20 h-20 rounded-full bg-surface-container-high overflow-hidden flex items-center justify-center mx-auto">
+                            <template x-if="form.photo_preview">
+                                <img :src="form.photo_preview" class="w-full h-full object-cover">
+                            </template>
+                            <template x-if="!form.photo_preview">
+                                <i class="fas fa-user text-2xl text-on-surface-variant"></i>
+                            </template>
+                        </div>
+                        <label class="block text-[10px] mt-1 text-secondary cursor-pointer">
+                            <i class="fas fa-camera mr-0.5"></i>Photo
+                            <input type="file" accept="image/*" class="hidden" @change="previewPhoto">
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Infos clés en grid 3 colonnes -->
+                <div class="grid grid-cols-3 gap-x-4 gap-y-3 mb-5">
+                    <div>
+                        <label class="block text-xs font-medium mb-1">Nom *</label>
+                        <input type="text" x-model="form.nom" required class="w-full px-3 py-2 input-md3 rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium mb-1">Prénom *</label>
+                        <input type="text" x-model="form.prenom" required class="w-full px-3 py-2 input-md3 rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium mb-1">Téléphone *</label>
+                        <input type="tel" x-model="form.telephone" required class="w-full px-3 py-2 input-md3 rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium mb-1">Email</label>
+                        <input type="email" x-model="form.email" class="w-full px-3 py-2 input-md3 rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium mb-1">Date naissance *</label>
+                        <input type="date" x-model="form.date_naissance" required class="w-full px-3 py-2 input-md3 rounded-lg text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium mb-1">Date embauche *</label>
+                        <input type="date" x-model="form.date_embauche" required class="w-full px-3 py-2 input-md3 rounded-lg text-sm">
+                    </div>
+                </div>
+
+                <!-- Deuxième ligne : sexe, diplôme, adresse -->
+                <div class="grid grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Sexe</label>
+                        <select x-model="form.sexe" class="w-full px-3 py-2 input-md3 rounded-lg">
+                            <option value="M">Masculin</option>
+                            <option value="F">Féminin</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Diplôme / Niveau</label>
+                        <input type="text" x-model="form.diplome" class="w-full px-3 py-2 input-md3 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Adresse</label>
+                        <textarea x-model="form.adresse" rows="2" class="w-full px-3 py-2 input-md3 rounded-lg"></textarea>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1">Description</label>
+                    <textarea x-model="form.description" rows="2" class="w-full px-3 py-2 input-md3 rounded-lg" placeholder="Notes, compétences, etc."></textarea>
+                </div>
+                
+                <hr class="my-5 border-outline/20">
+
+                <h3 class="font-semibold text-md mb-3 text-secondary">Informations professionnelles</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Département</label>
+                        <select x-model="form.departement" class="w-full px-3 py-2 input-md3 rounded-lg">
+                            <option value="">Sélectionner...</option>
+                            {% for dept in departements %}
+                            <option value="{{ dept.id }}">{{ dept.libelle }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Poste</label>
+                        <select x-model="form.poste" class="w-full px-3 py-2 input-md3 rounded-lg">
+                            <option value="">Sélectionner...</option>
+                            {% for poste in postes %}
+                            <option value="{{ poste.id }}">{{ poste.intitule }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Situation familiale</label>
+                        <select x-model="form.situation_familiale" @change="toggleConjoint" class="w-full px-3 py-2 input-md3 rounded-lg">
+                            {% for sit in situations %}
+                            <option value="{{ sit.0 }}">{{ sit.1 }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Nombre d'enfants</label>
+                        <input type="number" x-model="form.nombre_enfants" min="0" class="w-full px-3 py-2 input-md3 rounded-lg">
+                    </div>
+                </div>
+
+                <!-- Section Conjoint(e) -->
+                <div x-show="form.situation_familiale !== 'Celibataire'" x-cloak>
+                    <hr class="my-5 border-outline/20">
+                    <h3 class="font-semibold text-md mb-3 text-secondary">Conjoint(e)</h3>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Civilité</label>
+                            <select x-model="form.conjoint_civilite" class="w-full px-3 py-2 input-md3 rounded-lg">
+                                <option value="">Sélectionner...</option>
+                                {% for c in civilites %}
+                                <option value="{{ c.0 }}">{{ c.1 }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Nom</label>
+                            <input type="text" x-model="form.conjoint_nom" class="w-full px-3 py-2 input-md3 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Prénom</label>
+                            <input type="text" x-model="form.conjoint_prenom" class="w-full px-3 py-2 input-md3 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Contact</label>
+                            <input type="tel" x-model="form.conjoint_contact" class="w-full px-3 py-2 input-md3 rounded-lg">
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-5 border-outline/20">
+
+                <h3 class="font-semibold text-md mb-3 text-secondary">Personne de référence</h3>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Nom</label>
+                        <input type="text" x-model="form.personne_reference_nom" class="w-full px-3 py-2 input-md3 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Prénom</label>
+                        <input type="text" x-model="form.personne_reference_prenom" class="w-full px-3 py-2 input-md3 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Contact</label>
+                        <input type="tel" x-model="form.personne_reference_contact" class="w-full px-3 py-2 input-md3 rounded-lg">
+                    </div>
+                </div>
+                
+                <!-- Gestion du compte utilisateur (mode édition seulement) -->
+                <div x-show="form.matricule_edit !== ''" x-cloak class="mt-6 pt-4 border-t border-outline/10">
+                    <h3 class="font-semibold text-md mb-3 text-secondary">Compte utilisateur</h3>
+                    <template x-if="form.has_user">
+                        <div class="space-y-2">
+                            <p class="text-sm">
+                                <i class="fas fa-user-circle mr-1"></i>
+                                <span x-text="form.user_username"></span>
+                                <span :class="form.user_is_active ? 'text-green-500' : 'text-red-500'" class="ml-2 text-xs font-medium">
+                                    <span x-text="form.user_is_active ? '(Actif)' : '(Inactif)'"></span>
+                                </span>
+                            </p>
+                            <div class="flex gap-2">
+                                <template x-if="form.user_is_active">
+                                    <button type="button" @click="toggleCompte('desactiver')" class="text-xs bg-yellow-600/20 text-yellow-500 px-3 py-1.5 rounded-lg hover:bg-yellow-600/30 transition">
+                                        <i class="fas fa-pause mr-1"></i>Désactiver
+                                    </button>
+                                </template>
+                                <template x-if="!form.user_is_active">
+                                    <button type="button" @click="toggleCompte('activer')" class="text-xs bg-green-600/20 text-green-500 px-3 py-1.5 rounded-lg hover:bg-green-600/30 transition">
+                                        <i class="fas fa-play mr-1"></i>Activer
+                                    </button>
+                                </template>
+                                <button type="button" @click="toggleCompte('supprimer')" class="text-xs bg-red-600/20 text-red-500 px-3 py-1.5 rounded-lg hover:bg-red-600/30 transition">
+                                    <i class="fas fa-trash mr-1"></i>Supprimer
+                                </button>
+                            </div>
+                        </div>
+                    </template>
+                    <template x-if="!form.has_user">
+                        <p class="text-sm text-on-surface-variant"><i class="fas fa-info-circle mr-1"></i>Aucun compte utilisateur associé. Un compte sera créé automatiquement si l'employé a un email.</p>
+                    </template>
+                </div>
+
+                <div class="flex gap-3 mt-6 pt-4 border-t border-outline/10">
+                    <button type="submit" class="flex-1 bg-secondary text-white px-4 py-2 rounded-lg hover:bg-secondary/80 transition" :disabled="loading">
+                        <i class="fas fa-save mr-2"></i>
+                        <span x-text="loading ? 'Enregistrement...' : 'Enregistrer'"></span>
+                    </button>
+                    <button type="button" @click="openModal = false" class="flex-1 bg-surface-container-highest text-on-surface px-4 py-2 rounded-lg hover:bg-surface-container-highest transition">
+                        Annuler
+                    </button>
+                    <button type="button" x-show="form.matricule_edit !== ''" @click="supprimerEmploye(form.matricule_edit, form.nom + ' ' + form.prenom)" class="bg-red-600/20 text-red-500 px-4 py-2 rounded-lg hover:bg-red-600/30 transition">
+                        <i class="fas fa-trash mr-1"></i>Supprimer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function employeManagement() {
+    return {
+        openModal: false,
+        detailsOpen: false,
+        loading: false,
+        modalTitle: 'Ajouter un employé',
+        form: {
+            matricule_edit: '',
+            nom: '',
+            prenom: '',
+            date_naissance: '',
+            email: '',
+            telephone: '',
+            adresse: '',
+            sexe: 'M',
+            date_embauche: '',
+            departement: '',
+            poste: '',
+            situation_familiale: 'Celibataire',
+            nombre_enfants: 0,
+            diplome: '',
+            description: '',
+            conjoint_civilite: '',
+            conjoint_nom: '',
+            conjoint_prenom: '',
+            conjoint_contact: '',
+            personne_reference_nom: '',
+            personne_reference_prenom: '',
+            personne_reference_contact: '',
+            photo: null,
+            photo_preview: '',
+            has_user: false,
+            user_is_active: false,
+            user_username: ''
+        },
+        detail: {
+            matricule: '',
+            nom: '',
+            prenom: '',
+            date_naissance: '',
+            email: '',
+            telephone: '',
+            adresse: '',
+            sexe: '',
+            date_embauche: '',
+            departement: '',
+            poste: '',
+            situation_familiale: '',
+            nombre_enfants: 0,
+            diplome: '',
+            description: '',
+            conjoint_civilite: '',
+            conjoint_nom: '',
+            conjoint_prenom: '',
+            conjoint_contact: '',
+            personne_reference_nom: '',
+            personne_reference_prenom: '',
+            personne_reference_contact: '',
+            photo: '',
+            actif: true,
+            has_user: false,
+            user_is_active: false,
+            user_username: ''
+        },
+        
+        init() {
+        },
+        
+        previewPhoto(event) {
+            const file = event.target.files[0];
+            if (file) {
+                this.form.photo = file;
+                const reader = new FileReader();
+                reader.onload = (e) => { this.form.photo_preview = e.target.result; };
+                reader.readAsDataURL(file);
+            }
+        },
+        
+        toggleConjoint() {
+            if (this.form.situation_familiale === 'Celibataire') {
+                this.form.conjoint_civilite = '';
+                this.form.conjoint_nom = '';
+                this.form.conjoint_prenom = '';
+                this.form.conjoint_contact = '';
+            }
+        },
+
+        toggleCompte(action) {
+            const matricule = this.form.matricule_edit;
+            const urls = {
+                supprimer: `/rh/employes/${matricule}/api/supprimer-compte/`,
+                desactiver: `/rh/employes/${matricule}/api/desactiver-compte/`,
+                activer: `/rh/employes/${matricule}/api/activer-compte/`
+            };
+            const messages = {
+                supprimer: 'Supprimer le compte utilisateur ? Cette action est irréversible.',
+                desactiver: 'Désactiver le compte utilisateur ?',
+                activer: 'Activer le compte utilisateur ?'
+            };
+            if (!confirm(messages[action])) return;
+
+            fetch(urls[action], {
+                method: 'POST',
+                headers: { 'X-CSRFToken': this.getCookie('csrftoken') }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert('Erreur: ' + data.error);
+                }
+            })
+            .catch(e => {
+                console.error('Erreur:', e);
+                alert('Erreur réseau');
+            });
+        },
+
+        supprimerEmploye(matricule, nom) {
+            if (!confirm(`Supprimer définitivement l'employé ${nom} ? Cette action est irréversible.`)) return;
+            fetch(`/rh/employes/${matricule}/api/supprimer/`, {
+                method: 'POST',
+                headers: { 'X-CSRFToken': this.getCookie('csrftoken') }
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert('Erreur: ' + data.error);
+                }
+            })
+            .catch(e => {
+                console.error('Erreur:', e);
+                alert('Erreur réseau');
+            });
+        },
+        
+        viewEmploye(matricule) {
+            this.loading = true;
+            fetch(`/rh/employes/${matricule}/api/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.employe) {
+                        const e = data.employe;
+                        this.detail.matricule = e.matricule;
+                        this.detail.nom = e.nom;
+                        this.detail.prenom = e.prenom;
+                        this.detail.date_naissance = e.date_naissance;
+                        this.detail.email = e.email;
+                        this.detail.telephone = e.telephone;
+                        this.detail.adresse = e.adresse || '';
+                        this.detail.sexe = e.sexe || 'M';
+                        this.detail.date_embauche = e.date_embauche;
+                        this.detail.departement = e.departement || '';
+                        this.detail.poste = e.poste || '';
+                        this.detail.situation_familiale = e.situation_familiale || '';
+                        this.detail.nombre_enfants = e.nombre_enfants || 0;
+                        this.detail.diplome = e.diplome || '';
+                        this.detail.description = e.description || '';
+                        this.detail.conjoint_civilite = e.conjoint_civilite || '';
+                        this.detail.conjoint_nom = e.conjoint_nom || '';
+                        this.detail.conjoint_prenom = e.conjoint_prenom || '';
+                        this.detail.conjoint_contact = e.conjoint_contact || '';
+                        this.detail.personne_reference_nom = e.personne_reference_nom || '';
+                        this.detail.personne_reference_prenom = e.personne_reference_prenom || '';
+                        this.detail.personne_reference_contact = e.personne_reference_contact || '';
+                        this.detail.photo = e.photo || '';
+                        this.detail.actif = e.actif !== undefined ? e.actif : true;
+                        this.detail.has_user = e.has_user || false;
+                        this.detail.user_is_active = e.user_is_active || false;
+                        this.detail.user_username = e.user_username || '';
+                        this.detailsOpen = true;
+                    }
+                })
+                .catch(error => console.error('Erreur:', error))
+                .finally(() => { this.loading = false; });
+        },
+
+        editEmploye(matricule) {
+            this.modalTitle = 'Modifier un employé';
+            this.loading = true;
+            
+            fetch(`/rh/employes/${matricule}/api/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const e = data.employe;
+                        this.form.matricule_edit = e.matricule;
+                        this.form.matricule = e.matricule;
+                        this.form.nom = e.nom;
+                        this.form.prenom = e.prenom;
+                        this.form.date_naissance = e.date_naissance;
+                        this.form.email = e.email;
+                        this.form.telephone = e.telephone;
+                        this.form.adresse = e.adresse || '';
+                        this.form.sexe = e.sexe || 'M';
+                        this.form.date_embauche = e.date_embauche;
+                        this.form.departement = e.departement || '';
+                        this.form.poste = e.poste || '';
+                        this.form.situation_familiale = e.situation_familiale || 'Celibataire';
+                        this.form.nombre_enfants = e.nombre_enfants || 0;
+                        this.form.diplome = e.diplome || '';
+                        this.form.description = e.description || '';
+                        this.form.conjoint_civilite = e.conjoint_civilite || '';
+                        this.form.conjoint_nom = e.conjoint_nom || '';
+                        this.form.conjoint_prenom = e.conjoint_prenom || '';
+                        this.form.conjoint_contact = e.conjoint_contact || '';
+                        this.form.personne_reference_nom = e.personne_reference_nom || '';
+                        this.form.personne_reference_prenom = e.personne_reference_prenom || '';
+                        this.form.personne_reference_contact = e.personne_reference_contact || '';
+                        this.form.photo_preview = e.photo || '';
+                        this.form.has_user = e.has_user || false;
+                        this.form.user_is_active = e.user_is_active || false;
+                        this.form.user_username = e.user_username || '';
+                    }
+                })
+                .catch(error => console.error('Erreur:', error))
+                .finally(() => {
+                    this.loading = false;
+                    this.openModal = true;
+                });
+        },
+        
+        resetForm() {
+            this.modalTitle = 'Ajouter un employé';
+            this.form = {
+                matricule_edit: '',
+                nom: '',
+                prenom: '',
+                date_naissance: '',
+                email: '',
+                telephone: '',
+                adresse: '',
+                sexe: 'M',
+                date_embauche: '',
+                departement: '',
+                poste: '',
+                situation_familiale: 'Celibataire',
+                nombre_enfants: 0,
+                diplome: '',
+                description: '',
+                conjoint_civilite: '',
+                conjoint_nom: '',
+                conjoint_prenom: '',
+                conjoint_contact: '',
+                personne_reference_nom: '',
+                personne_reference_prenom: '',
+                personne_reference_contact: '',
+                photo: null,
+                photo_preview: '',
+                has_user: false,
+                user_is_active: false,
+                user_username: ''
+            };
+        },
+        
+        async saveEmploye() {
+            this.loading = true;
+            const isEdit = this.form.matricule_edit !== '';
+            const url = isEdit ? `/rh/employes/${this.form.matricule_edit}/api/modifier/` : '/rh/employes/api/ajouter/';
+            
+            const fd = new FormData();
+            for (const key in this.form) {
+                if (key === 'photo_preview') continue;
+                fd.append(key, this.form[key]);
+            }
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': this.getCookie('csrftoken') },
+                    body: fd
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert('Erreur: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur réseau');
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        getCookie(name) {
+            let value = `; ${document.cookie}`;
+            let parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+    }
+}
+</script>
+
+{% endblock %}

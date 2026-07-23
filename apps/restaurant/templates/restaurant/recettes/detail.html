@@ -1,0 +1,381 @@
+{% extends 'restaurant/base_restaurant.html' %}
+{% load static %}
+
+{% block title %}{{ recette.nom }}{% endblock %}
+
+{% block content %}
+<div x-data="detailRecetteApp()" x-init="init()" class="max-w-5xl mx-auto">
+    
+    <!-- En-tête -->
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <h1 class="text-2xl font-bold">{{ recette.nom }}</h1>
+            <p class="text-on-surface-variant">{{ recette.get_type_recette_display }}</p>
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'restaurant:recette_modifier' recette.id %}" class="px-4 py-2 text-white rounded-lg bg-secondary hover:bg-secondary/80 {% if est_bloque_restaurant %}pointer-events-none opacity-30{% endif %}" {% if est_bloque_restaurant %}aria-disabled="true" tabindex="-1"{% endif %}>
+                <i class="fas fa-edit"></i> Modifier
+            </a>
+            <a href="{% url 'restaurant:recettes' %}" class="px-4 py-2 text-on-surface bg-surface-container-highest rounded-lg hover:bg-surface-container-highest">
+                <i class="fas fa-arrow-left"></i> Retour
+            </a>
+        </div>
+    </div>
+    
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <!-- Colonne principale -->
+        <div class="space-y-6 lg:col-span-2">
+            
+            <!-- Image et infos -->
+            <div class="overflow-hidden bg-surface-container-low shadow-md rounded-xl">
+                {% if recette.image %}
+                <div class="h-48 bg-surface-container-high">
+                    <img src="{{ recette.image.url }}" alt="{{ recette.nom }}" class="object-cover w-full h-full">
+                </div>
+                {% endif %}
+                <div class="p-6">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><p class="text-sm text-on-surface-variant">Code</p><p class="font-medium">{{ recette.code|default:"-" }}</p></div>
+                        <div><p class="text-sm text-on-surface-variant">Temps prép</p><p class="font-medium">{{ recette.temps_preparation_minutes }} min</p></div>
+                        <div><p class="text-sm text-on-surface-variant">Prix vente</p><p class="font-bold text-secondary">{{ recette.prix_vente|floatformat:0|default:"-" }} F</p></div>
+                        <div><p class="text-sm text-on-surface-variant">Coût revient</p><p class="font-medium">{{ cout_total|floatformat:0 }} F</p></div>
+                        <div><p class="text-sm text-on-surface-variant">Marge</p><p class="font-medium {% if marge > 0 %}text-green-400{% else %}text-red-400{% endif %}">{{ marge|floatformat:0 }} F ({{ marge_pourcentage|floatformat:1 }}%)</p></div>
+                        <div><p class="text-sm text-on-surface-variant">POS</p>{% if recette.visible_dans_pos %}<span class="text-green-400"><i class="fas fa-eye"></i> Visible</span>{% else %}<span class="text-on-surface-variant"><i class="fas fa-eye-slash"></i> Masqué</span>{% endif %}</div>
+                    </div>
+                    {% if recette.description %}<div class="mt-4"><p class="text-sm text-on-surface-variant">Description</p><p class="text-on-surface">{{ recette.description }}</p></div>{% endif %}
+                </div>
+            </div>
+            
+            <!-- INGRÉDIENTS AVEC MODAL -->
+            <div class="overflow-hidden bg-surface-container-low shadow-md rounded-xl">
+                <div class="p-4 border-b bg-surface-container-high flex justify-between items-center">
+                    <h3 class="font-semibold"><i class="mr-2 fas fa-list text-secondary"></i> Ingrédients</h3>
+                    <button @click="openIngredientModal()" :disabled="{{ est_bloque_restaurant|lower }}" class="text-sm text-secondary hover:underline">
+                        <i class="fas fa-plus mr-1"></i> Ajouter
+                    </button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full">
+                        <thead class="bg-surface-container-high">
+                            <tr class="border-b">
+                                <th class="px-4 py-2 text-sm text-left">Produit</th>
+                                <th class="px-4 py-2 text-sm text-right">Quantité</th>
+                                <th class="px-4 py-2 text-sm text-left">Unité</th>
+                                <th class="px-4 py-2 text-sm text-right">Coût</th>
+                                <th class="px-4 py-2 text-center">Type</th>
+                                <th class="px-4 py-2 text-center"></th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y">
+                            <template x-for="(ing, idx) in ingredients" :key="ing.id">
+                                <tr class="hover:bg-surface-container-low">
+                                    <td class="px-4 py-2">
+                                        <span x-text="ing.nom_display"></span>
+                                        <span x-show="ing.quantite_approximative" class="text-xs text-orange-500 ml-1">
+                                            <i class="fas fa-chart-line"></i> approx
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-2 text-right" x-text="ing.quantite_display"></td>
+                                    <td class="px-4 py-2" x-text="ing.unite"></td>
+                                    <td class="px-4 py-2 text-right" x-text="formatMoney(ing.cout) + ' F'"></td>
+                                    <td class="px-4 py-2 text-center">
+                                        <span x-show="ing.type_ingredient === 'DEDUIRE'" class="text-xs bg-blue-900/30 text-blue-300 px-2 py-0.5 rounded">Stockable</span>
+                                        <span x-show="ing.type_ingredient === 'NE_PAS_DEDUIRE'" class="text-xs bg-surface-container-high text-on-surface-variant px-2 py-0.5 rounded">Consommable</span>
+                                    </td>
+                                    <td class="px-4 py-2 text-center">
+                                        <button @click="editIngredient(idx)" :disabled="{{ est_bloque_restaurant|lower }}" class="text-on-surface-variant hover:text-on-surface mr-2"><i class="fas fa-edit"></i></button>
+                                        <button @click="deleteIngredient(idx)" :disabled="{{ est_bloque_restaurant|lower }}" class="text-red-400 hover:text-red-600"><i class="fas fa-trash"></i></button>
+                                    </td>
+                                </tr>
+                            </template>
+                            <tr x-show="ingredients.length === 0">
+                                <td colspan="6" class="px-4 py-8 text-center text-on-surface-variant">
+                                    <i class="fas fa-shopping-basket text-3xl mb-2 block"></i>
+                                    Aucun ingrédient
+                                </td>
+                            </tr>
+                        </tbody>
+                        <tfoot class="bg-surface-container-high border-t">
+                            <tr>
+                                <td colspan="3" class="px-4 py-2 font-bold text-right">Total :</td>
+                                <td class="px-4 py-2 font-bold text-right" x-text="formatMoney(totalCout) + ' F'"></td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                
+                <!-- Production possible -->
+                <div x-show="nbPortions > 0" class="p-4 border-t bg-blue-900/20">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <span class="font-semibold">📦 Production possible avec stock actuel</span>
+                            <p class="text-sm text-on-surface-variant">Basé sur les ingrédients mesurables</p>
+                        </div>
+                        <div class="text-3xl font-bold text-secondary" x-text="nbPortions"></div>
+                    </div>
+                </div>
+                <div x-show="nbPortions === 0" class="p-4 border-t bg-yellow-900/20">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-info-circle text-yellow-400"></i>
+                        <p class="text-sm text-yellow-300">Production non calculable (ingrédients approximatifs)</p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Étapes -->
+            <div class="overflow-hidden bg-surface-container-low shadow-md rounded-xl">
+                <div class="p-4 border-b bg-surface-container-high">
+                    <h3 class="font-semibold"><i class="mr-2 fas fa-utensils text-secondary"></i> Préparation</h3>
+                </div>
+                <div class="p-4 space-y-4">
+                    {% for etape in etapes %}
+                    <div class="flex gap-3">
+                        <div class="flex items-center justify-center w-8 h-8 font-bold rounded-full bg-secondary/20 text-secondary">{{ etape.ordre }}</div>
+                        <div class="flex-1"><p>{{ etape.instruction }}</p>{% if etape.duree_minutes %}<p class="mt-1 text-sm text-on-surface-variant">⏱️ {{ etape.duree_minutes }} min</p>{% endif %}</div>
+                    </div>
+                    {% empty %}
+                    <div class="py-4 text-center text-on-surface-variant">Aucune étape définie</div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Sidebar -->
+        <div class="space-y-6">
+            <div class="p-6 bg-surface-container-low shadow-md rounded-xl">
+                <h3 class="mb-4 font-semibold">Actions</h3>
+                <div class="space-y-2">
+                    <a href="{% url 'restaurant:calcul_cout' recette.id %}" class="block w-full px-4 py-2 text-center text-white bg-secondary rounded-lg hover:bg-secondary/80">
+                        <i class="fas fa-calculator"></i> Calcul coût détaillé
+                    </a>
+                    <a href="{% url 'restaurant:recette_dupliquer' recette.id %}" class="block w-full px-4 py-2 text-center text-on-surface bg-surface-container-highest rounded-lg hover:bg-surface-container-highest {% if est_bloque_restaurant %}pointer-events-none opacity-30{% endif %}" {% if est_bloque_restaurant %}aria-disabled="true" tabindex="-1"{% endif %}>
+                        <i class="fas fa-copy"></i> Dupliquer
+                    </a>
+                    <a href="{% url 'restaurant:recette_supprimer' recette.id %}" class="block w-full px-4 py-2 text-center text-white bg-red-600 rounded-lg hover:bg-red-700 {% if est_bloque_restaurant %}pointer-events-none opacity-30{% endif %}" onclick="return confirm('Supprimer cette recette ?')" {% if est_bloque_restaurant %}aria-disabled="true" tabindex="-1"{% endif %}>
+                        <i class="fas fa-trash"></i> Supprimer
+                    </a>
+                </div>
+            </div>
+            <div class="p-6 bg-surface-container-low shadow-md rounded-xl">
+                <h3 class="mb-4 font-semibold">Infos</h3>
+                <div class="space-y-2 text-sm">
+                    <div class="flex justify-between"><span class="text-on-surface-variant">Créée le :</span><span>{{ recette.created_at|date:"d/m/Y" }}</span></div>
+                    <div class="flex justify-between"><span class="text-on-surface-variant">Modifiée le :</span><span>{{ recette.updated_at|date:"d/m/Y" }}</span></div>
+                    <div class="flex justify-between"><span class="text-on-surface-variant">Statut :</span>{% if recette.actif %}<span class="text-green-400">Actif</span>{% else %}<span class="text-red-400">Inactif</span>{% endif %}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MODAL INGRÉDIENT -->
+    <div x-show="ingredientModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="closeIngredientModal()">
+        <div class="bg-surface-container-low rounded-xl shadow-2xl w-full max-w-md mx-4" @click.stop>
+            <div class="px-5 py-3 border-b flex justify-between items-center">
+                <h2 class="font-semibold text-lg" x-text="ingredientModalTitle"></h2>
+                <button @click="closeIngredientModal()" class="text-on-surface-variant hover:text-on-surface">✕</button>
+            </div>
+            <div class="p-5 space-y-4">
+                <!-- Type -->
+                <div>
+                    <label class="text-sm font-medium">Type d'ingrédient</label>
+                    <div class="flex gap-3 mt-1">
+                        <label><input type="radio" x-model="ingredientForm.type_ingredient" value="DEDUIRE" class="mr-1"> 📦 Déduire du stock</label>
+                        <label><input type="radio" x-model="ingredientForm.type_ingredient" value="NE_PAS_DEDUIRE" class="mr-1"> 🧂 Ne pas déduire (charge)</label>
+                    </div>
+                </div>
+                <!-- Produit (traçable) -->
+                <div x-show="ingredientForm.type_ingredient === 'DEDUIRE'">
+                    <label class="text-sm font-medium">Produit</label>
+                    <select x-model="ingredientForm.produit_id" class="w-full px-3 py-2 input-md3 rounded-lg mt-1">
+                        <option value="">Sélectionner...</option>
+                        {% for p in produits %}
+                        <option value="{{ p.id }}">{{ p.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <!-- Nom (consommable) -->
+                <div x-show="ingredientForm.type_ingredient === 'NE_PAS_DEDUIRE'">
+                    <label class="text-sm font-medium">Nom</label>
+                    <input type="text" x-model="ingredientForm.nom" placeholder="Ex: Sel, Poivre" class="w-full px-3 py-2 input-md3 rounded-lg mt-1">
+                </div>
+                <!-- Quantité -->
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-sm font-medium">Quantité</label>
+                        <input type="number" step="0.01" x-model="ingredientForm.quantite" class="w-full px-3 py-2 input-md3 rounded-lg mt-1">
+                        <p class="text-xs text-on-surface-variant mt-1">Laisser vide si approximatif</p>
+                    </div>
+                    <div>
+                        <label class="text-sm font-medium">Unité</label>
+                        <select x-model="ingredientForm.unite" class="w-full px-3 py-2 input-md3 rounded-lg mt-1">
+                            {% for v,l in unites_ingredient %}
+                            <option value="{{ v }}">{{ l }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <!-- Coût unitaire -->
+                <div>
+                    <label class="text-sm font-medium">Coût unitaire (F)</label>
+                    <input type="number" step="1" x-model="ingredientForm.cout_unitaire" class="w-full px-3 py-2 input-md3 rounded-lg mt-1" placeholder="Optionnel">
+                    <p class="text-xs text-on-surface-variant mt-1">Pour les consommables, le coût est obligatoire</p>
+                </div>
+                <div class="flex gap-3 pt-3">
+                    <button @click="saveIngredient()" :disabled="{{ est_bloque_restaurant|lower }}" class="flex-1 bg-secondary text-white py-2 rounded-lg">Enregistrer</button>
+                    <button @click="closeIngredientModal()" class="flex-1 border-outline/10 rounded-lg py-2">Annuler</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function detailRecetteApp() {
+    return {
+        ingredients: [],
+        ingredientModal: false,
+        ingredientModalTitle: 'Ajouter un ingrédient',
+        ingredientEditIndex: null,
+        ingredientForm: { type_ingredient: 'DEDUIRE', produit_id: '', produit_nom: '', nom: '', quantite: null, unite: 'piece', cout_unitaire: null },
+        totalCout: {{ cout_total|default:0 }},
+        nbPortions: {{ nb_portions|default:0 }},
+        
+        init() {
+            {% for ing in ingredients %}
+            this.ingredients.push({
+                id: '{{ ing.id }}',
+                type_ingredient: '{{ ing.type_ingredient }}',
+                produit_id: '{{ ing.produit_id|default:"" }}',
+                produit_nom: '{{ ing.produit.nom|default:"" }}',
+                nom: '{{ ing.nom|default:"" }}',
+                nom_display: '{{ ing.produit.nom|default:ing.nom|default:"Ingrédient" }}',
+                quantite: {{ ing.quantite|default:"null" }},
+                quantite_display: {% if not ing.quantite or ing.quantite == 0 %}'variable'{% else %}{{ ing.quantite }}{% endif %},
+                quantite_approximative: {% if not ing.quantite or ing.quantite == 0 %}true{% else %}false{% endif %},
+                unite: '{{ ing.unite }}',
+                cout_unitaire: {{ ing.cout_unitaire|default:"null" }},
+                cout: ({ 
+                    let q = {{ ing.quantite|default:0 }};
+                    let cu = {{ ing.cout_unitaire|default:0 }};
+                    return q * cu;
+                })()
+            });
+            {% endfor %}
+            this.updateTotalCost();
+        },
+        
+        updateTotalCost() {
+            let total = 0;
+            for (let ing of this.ingredients) {
+                let q = ing.quantite || 0;
+                let cu = ing.cout_unitaire || 0;
+                total += q * cu;
+            }
+            this.totalCout = total;
+        },
+        
+        openIngredientModal(ing = null) {
+            if (ing) {
+                this.ingredientModalTitle = 'Modifier ingrédient';
+                this.ingredientForm = { 
+                    type_ingredient: ing.type_ingredient,
+                    produit_id: ing.produit_id || '',
+                    produit_nom: ing.produit_nom || '',
+                    nom: ing.nom || '',
+                    quantite: ing.quantite,
+                    unite: ing.unite,
+                    cout_unitaire: ing.cout_unitaire
+                };
+                this.ingredientEditIndex = this.ingredients.indexOf(ing);
+            } else {
+                this.ingredientModalTitle = 'Ajouter ingrédient';
+                this.ingredientForm = { type_ingredient: 'DEDUIRE', produit_id: '', produit_nom: '', nom: '', quantite: null, unite: 'piece', cout_unitaire: null };
+                this.ingredientEditIndex = null;
+            }
+            this.ingredientModal = true;
+        },
+        
+        closeIngredientModal() { this.ingredientModal = false; },
+        
+        editIngredient(idx) { this.openIngredientModal(this.ingredients[idx]); },
+        
+        async saveIngredient() {
+            if (this.ingredientForm.type_ingredient === 'DEDUIRE' && !this.ingredientForm.produit_id) {
+                alert('Sélectionnez un produit');
+                return;
+            }
+            if (this.ingredientForm.type_ingredient === 'NE_PAS_DEDUIRE' && !this.ingredientForm.nom) {
+                alert('Entrez un nom');
+                return;
+            }
+            
+            // Récupérer le nom du produit pour le display
+            let produitNom = this.ingredientForm.produit_nom;
+            if (this.ingredientForm.type_ingredient === 'DEDUIRE' && this.ingredientForm.produit_id) {
+                const select = document.querySelector('select[x-model="ingredientForm.produit_id"]');
+                const option = select?.options[select.selectedIndex];
+                produitNom = option?.text || 'Produit';
+            }
+            
+            const quantite = this.ingredientForm.quantite ? parseFloat(this.ingredientForm.quantite) : null;
+            const coutUnitaire = this.ingredientForm.cout_unitaire ? parseFloat(this.ingredientForm.cout_unitaire) : null;
+            
+            const ing = {
+                id: Date.now(),
+                type_ingredient: this.ingredientForm.type_ingredient,
+                produit_id: this.ingredientForm.produit_id || '',
+                produit_nom: produitNom || '',
+                nom: this.ingredientForm.nom || '',
+                nom_display: this.ingredientForm.type_ingredient === 'DEDUIRE' ? (produitNom || 'Produit') : (this.ingredientForm.nom || 'Ingrédient'),
+                quantite: quantite,
+                quantite_display: quantite ? quantite : 'variable',
+                quantite_approximative: !quantite || quantite <= 0,
+                unite: this.ingredientForm.unite,
+                cout_unitaire: coutUnitaire,
+                cout: (quantite || 0) * (coutUnitaire || 0)
+            };
+            
+            if (this.ingredientEditIndex !== null) {
+                this.ingredients[this.ingredientEditIndex] = ing;
+            } else {
+                this.ingredients.push(ing);
+            }
+            this.closeIngredientModal();
+            this.updateTotalCost();
+            await this.saveIngredients();
+        },
+        
+        deleteIngredient(idx) {
+            if (confirm('Supprimer cet ingrédient ?')) {
+                this.ingredients.splice(idx, 1);
+                this.updateTotalCost();
+                this.saveIngredients();
+            }
+        },
+        
+        async saveIngredients() {
+            const ingredientsToSend = this.ingredients.map(ing => ({
+                id: ing.id,
+                type_ingredient: ing.type_ingredient,
+                produit_id: ing.produit_id,
+                nom: ing.nom,
+                quantite: ing.quantite,
+                unite: ing.unite,
+                cout_unitaire: ing.cout_unitaire
+            }));
+            
+            await fetch('/restaurant/api/recette/{{ recette.id }}/ingredients/save/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCookie('csrftoken') },
+                body: JSON.stringify({ ingredients: ingredientsToSend })
+            });
+            window.location.reload();
+        },
+        
+        formatMoney(v) { return new Intl.NumberFormat('fr-FR').format(v || 0); },
+        getCookie(n) { let v = `; ${document.cookie}`, p = v.split(`; ${n}=`); return p.length === 2 ? p.pop().split(';').shift() : null; }
+    }
+}
+</script>
+{% endblock %}

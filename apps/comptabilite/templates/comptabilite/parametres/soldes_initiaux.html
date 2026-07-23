@@ -1,0 +1,211 @@
+{% extends 'comptabilite/base_compta.html' %}
+{% load static %}
+
+{% block title %}Soldes initiaux{% endblock %}
+
+{% block header %}Initialisation comptable{% endblock %}
+
+{% block subtitle %}Saisie des soldes d'ouverture{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    
+    <!-- Info exercice -->
+    <div class="bg-blue-900/20 rounded-2xl p-4 border-outline/10">
+        <div class="flex items-center gap-3">
+            <i class="fas fa-info-circle text-blue-400"></i>
+            <div>
+                <p class="text-sm text-blue-300 font-semibold">Exercice d'ouverture</p>
+                <p class="text-sm">{{ exercice_courant.code|default:"Non défini" }} - Du {{ exercice_courant.date_debut|date:"d/m/Y"|default:"-" }} au {{ exercice_courant.date_fin|date:"d/m/Y"|default:"-" }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Formulaire des soldes -->
+    <form method="post" action="{% url 'comptabilite:enregistrer_initialisation' %}" class="space-y-6">
+        {% csrf_token %}
+        
+        <!-- Informations entreprise -->
+        <div class="bg-surface-container-low rounded-2xl shadow-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-outline/10 bg-surface-container-high">
+                <h3 class="font-semibold text-on-surface">
+                    <i class="fas fa-building mr-2 text-emerald-600"></i>Informations générales
+                </h3>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface mb-1">Nom de l'entreprise</label>
+                        <input type="text" name="nom_entreprise" value="{{ soldes.configuration.nom|default:'Mon Entreprise' }}" required
+                               class="w-full px-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface mb-1">Exercice</label>
+                        <input type="text" value="{{ exercice_courant.code|default:'2026' }}" disabled
+                               class="w-full px-3 py-2 input-md3 rounded-lg bg-surface-container-high">
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ACTIFS -->
+        <div class="bg-surface-container-low rounded-2xl shadow-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-outline/10 bg-surface-container-high">
+                <h3 class="font-semibold text-on-surface">
+                    <i class="fas fa-chart-line mr-2 text-emerald-600"></i>Actifs (Débit)
+                </h3>
+                <p class="text-xs text-on-surface-variant mt-1">Ce que l'entreprise possède</p>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface mb-1">
+                            <i class="fas fa-money-bill-wave text-green-400 mr-1"></i>Caisse
+                        </label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-2 text-on-surface-variant">F</span>
+                            <input type="number" name="caisse" value="{{ soldes.caisse|default:'0' }}" step="1000"
+                                   class="w-full pl-8 pr-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50"
+                                   placeholder="0">
+                        </div>
+                        <p class="text-xs text-on-surface-variant mt-1">Solde des caisses physiques</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface mb-1">
+                            <i class="fas fa-building-columns text-blue-400 mr-1"></i>Banque
+                        </label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-2 text-on-surface-variant">F</span>
+                            <input type="number" name="banque" value="{{ soldes.banque|default:'0' }}" step="1000"
+                                   class="w-full pl-8 pr-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50"
+                                   placeholder="0">
+                        </div>
+                        <p class="text-xs text-on-surface-variant mt-1">Solde des comptes bancaires</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface mb-1">
+                            <i class="fas fa-boxes text-orange-400 mr-1"></i>Stocks
+                        </label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-2 text-on-surface-variant">F</span>
+                            <input type="number" name="stocks" value="{{ soldes.stocks|default:'0' }}" step="1000"
+                                   class="w-full pl-8 pr-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50"
+                                   placeholder="0">
+                        </div>
+                        <p class="text-xs text-on-surface-variant mt-1">Valeur du stock initial</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface mb-1">
+                            <i class="fas fa-users text-purple-400 mr-1"></i>Clients (créances)
+                        </label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-2 text-on-surface-variant">F</span>
+                            <input type="number" name="clients" value="{{ soldes.clients|default:'0' }}" step="1000"
+                                   class="w-full pl-8 pr-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50"
+                                   placeholder="0">
+                        </div>
+                        <p class="text-xs text-on-surface-variant mt-1">Ce que les clients vous doivent</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- PASSIFS -->
+        <div class="bg-surface-container-low rounded-2xl shadow-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-outline/10 bg-surface-container-high">
+                <h3 class="font-semibold text-on-surface">
+                    <i class="fas fa-chart-simple mr-2 text-red-400"></i>Passifs (Crédit)
+                </h3>
+                <p class="text-xs text-on-surface-variant mt-1">Ce que l'entreprise doit</p>
+            </div>
+            <div class="p-6">
+                <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface mb-1">
+                            <i class="fas fa-truck text-indigo-400 mr-1"></i>Fournisseurs (dettes)
+                        </label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-2 text-on-surface-variant">F</span>
+                            <input type="number" name="fournisseurs" value="{{ soldes.fournisseurs|default:'0' }}" step="1000"
+                                   class="w-full pl-8 pr-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50"
+                                   placeholder="0">
+                        </div>
+                        <p class="text-xs text-on-surface-variant mt-1">Ce que vous devez aux fournisseurs</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface mb-1">
+                            <i class="fas fa-coins text-yellow-400 mr-1"></i>Capital social
+                        </label>
+                        <div class="relative">
+                            <span class="absolute left-3 top-2 text-on-surface-variant">F</span>
+                            <input type="number" name="capital_social" value="{{ soldes.capital_social|default:'0' }}" step="1000"
+                                   class="w-full pl-8 pr-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50"
+                                   placeholder="0">
+                        </div>
+                        <p class="text-xs text-on-surface-variant mt-1">Capital déclaré officiellement</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Récapitulatif -->
+        <div class="bg-surface-container-high rounded-2xl p-6 border-outline/10">
+            <h4 class="font-semibold mb-4">📊 Récapitulatif</h4>
+            <div class="grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div class="flex justify-between p-3 bg-surface-container-low rounded-lg">
+                    <span class="text-on-surface-variant">Total Actif :</span>
+                    <span class="font-bold text-emerald-600" id="total-actif">0 F</span>
+                </div>
+                <div class="flex justify-between p-3 bg-surface-container-low rounded-lg">
+                    <span class="text-on-surface-variant">Total Passif :</span>
+                    <span class="font-bold text-red-400" id="total-passif">0 F</span>
+                </div>
+                <div class="flex justify-between p-3 bg-surface-container-low rounded-lg col-span-full">
+                    <span class="text-on-surface-variant">Capital réel (Actif - Dettes) :</span>
+                    <span class="font-bold text-blue-400" id="capital-reel">0 F</span>
+                </div>
+            </div>
+            
+            <!-- Avertissement -->
+            <div class="mt-4 p-3 bg-yellow-900/20 rounded-lg text-sm text-yellow-300">
+                <i class="fas fa-exclamation-triangle mr-2"></i>
+                <strong>Attention :</strong> Cette initialisation ne peut être faite qu'une seule fois. 
+                Assurez-vous que tous les soldes sont corrects avant de valider.
+            </div>
+        </div>
+        
+        <!-- Boutons -->
+        <div class="flex gap-3 justify-end">
+            <a href="{% url 'comptabilite:dashboard' %}" class="px-6 py-2 border-outline/10 rounded-lg hover:bg-surface-container-low">
+                Annuler
+            </a>
+            <button type="submit" class="px-6 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+                <i class="fas fa-save mr-2"></i>Enregistrer l'initialisation
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    function calculerTotaux() {
+        const caisse = parseFloat(document.querySelector('[name="caisse"]').value) || 0;
+        const banque = parseFloat(document.querySelector('[name="banque"]').value) || 0;
+        const stocks = parseFloat(document.querySelector('[name="stocks"]').value) || 0;
+        const clients = parseFloat(document.querySelector('[name="clients"]').value) || 0;
+        const fournisseurs = parseFloat(document.querySelector('[name="fournisseurs"]').value) || 0;
+        
+        const totalActif = caisse + banque + stocks + clients;
+        const capitalReel = totalActif - fournisseurs;
+        
+        document.getElementById('total-actif').innerText = totalActif.toLocaleString() + ' F';
+        document.getElementById('total-passif').innerText = fournisseurs.toLocaleString() + ' F';
+        document.getElementById('capital-reel').innerText = capitalReel.toLocaleString() + ' F';
+    }
+    
+    document.querySelectorAll('input[type="number"]').forEach(input => {
+        input.addEventListener('input', calculerTotaux);
+    });
+    
+    calculerTotaux();
+</script>
+{% endblock %}

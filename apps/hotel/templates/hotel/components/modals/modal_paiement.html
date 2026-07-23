@@ -1,0 +1,16 @@
+<div x-show="modals.paiement" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4" @click.self="closeModal('paiement')">
+    <div class="w-full max-w-sm rounded-2xl bg-surface-container-high shadow-xl">
+        <div class="flex items-center justify-between border-b border-outline/10 px-5 py-4">
+            <h2 class="text-lg font-semibold text-on-surface">Paiement</h2>
+            <button @click="closeModal('paiement')" class="text-on-surface-variant hover:text-on-surface">X</button>
+        </div>
+        <div class="space-y-4 p-5">
+            <p class="text-sm text-on-surface-variant" x-show="selectedLocation" x-text="selectedLocation ? selectedLocation.client_nom : ''"></p>
+            <input type="number" min="0" x-model="paiementMontant" class="input-md3 w-full px-3 py-2 rounded-lg" placeholder="Montant">
+            <div class="flex gap-3 pt-2">
+                <button @click="enregistrerPaiement()" class="flex-1 rounded-lg bg-green-700 py-2 text-white hover:opacity-90">Valider</button>
+                <button @click="closeModal('paiement')" class="btn-md3-secondary flex-1 py-2 rounded-lg">Annuler</button>
+            </div>
+        </div>
+    </div>
+</div>

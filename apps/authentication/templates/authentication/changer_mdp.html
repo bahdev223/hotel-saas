@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Changer mon mot de passe{% endblock %}
+
+{% block header %}Sécurité{% endblock %}
+{% block subtitle %}Modification de votre mot de passe{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto">
+
+    <div class="bg-surface-container-low rounded-2xl shadow-lg overflow-hidden">
+        <div class="px-8 py-5 border-b border-outline/10 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-secondary/10 flex items-center justify-center shrink-0">
+                <i class="fas fa-key text-secondary"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-lg">Modification du mot de passe</h3>
+                <p class="text-sm text-on-surface-variant">Choisissez un mot de passe sécurisé</p>
+            </div>
+        </div>
+
+        <form method="post" class="p-8 space-y-6">
+            {% csrf_token %}
+
+            <div class="space-y-2">
+                <label class="text-sm font-medium text-on-surface-variant">Mot de passe actuel</label>
+                <input type="password" name="old_password" required
+                       class="w-full px-4 py-3 input-md3 rounded-xl bg-surface-container-high focus:ring-2 focus:ring-secondary/50 outline-none transition-all">
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-sm font-medium text-on-surface-variant">Nouveau mot de passe</label>
+                <input type="password" name="new_password" required minlength="8"
+                       class="w-full px-4 py-3 input-md3 rounded-xl bg-surface-container-high focus:ring-2 focus:ring-secondary/50 outline-none transition-all">
+                <p class="text-xs text-on-surface-variant/60 mt-1 flex items-center gap-1">
+                    <i class="fas fa-info-circle"></i> Minimum 8 caractères
+                </p>
+            </div>
+
+            <div class="space-y-2">
+                <label class="text-sm font-medium text-on-surface-variant">Confirmer le nouveau mot de passe</label>
+                <input type="password" name="confirm_password" required
+                       class="w-full px-4 py-3 input-md3 rounded-xl bg-surface-container-high focus:ring-2 focus:ring-secondary/50 outline-none transition-all">
+            </div>
+
+            <div class="flex gap-3 pt-4 border-t border-outline/10">
+                <a href="{% url 'authentication:employe_accueil' %}"
+                   class="flex-1 px-5 py-3 rounded-xl text-sm font-medium text-center border border-outline/10 bg-surface-container-high hover:bg-surface-container transition-all">
+                    Annuler
+                </a>
+                <button type="submit"
+                        class="flex-1 px-5 py-3 rounded-xl text-sm font-bold text-center bg-secondary text-black hover:bg-secondary/90 transition-all">
+                    <i class="fas fa-save mr-2"></i> Modifier
+                </button>
+            </div>
+        </form>
+    </div>
+
+</div>
+{% endblock %}

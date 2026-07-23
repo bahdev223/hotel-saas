@@ -1,0 +1,53 @@
+{% extends "authentication/base_auth.html" %}
+{% load static %}
+
+{% block title %}Réinitialiser mon mot de passe{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto">
+    
+    <div class="mb-8 text-center">
+        <div class="inline-flex items-center justify-center w-20 h-20 mb-4 shadow-lg rounded-2xl bg-gradient-to-r from-secondary to-secondary">
+            <i class="text-4xl text-white fas fa-lock-open"></i>
+        </div>
+        <h1 class="text-2xl font-bold text-secondary">Nouveau mot de passe</h1>
+        <p class="mt-2 text-base-content/60">Choisissez un mot de passe sécurisé</p>
+    </div>
+    
+    <div class="overflow-hidden bg-surface-container-low shadow-xl rounded-2xl">
+        <div class="px-8 py-6 border-b border-outline/10 bg-surface-container-high">
+            <h2 class="text-xl font-semibold">Réinitialisation</h2>
+        </div>
+        
+        <form method="post" class="p-8 space-y-5">
+            {% csrf_token %}
+            
+            <div class="form-control">
+                <label class="label">Nouveau mot de passe</label>
+                <input type="password" name="new_password" class="input input-bordered" required>
+            </div>
+            
+            <div class="form-control">
+                <label class="label">Confirmer le mot de passe</label>
+                <input type="password" name="confirm_password" class="input input-bordered" required>
+            </div>
+            
+            <button type="submit" class="w-full btn btn-primary">
+                <i class="fas fa-check"></i>
+                Réinitialiser
+            </button>
+        </form>
+    </div>
+    
+    {% if messages %}
+    <div class="mt-4 space-y-2">
+        {% for message in messages %}
+        <div class="alert alert-{{ message.tags }} shadow-lg">
+            <i class="fas fa-info-circle"></i>
+            <span>{{ message }}</span>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

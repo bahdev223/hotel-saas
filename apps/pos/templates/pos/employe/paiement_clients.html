@@ -1,0 +1,240 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Paiement Clients{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto py-6 px-4" x-data="paiementClients()" x-init="init()">
+
+    <div class="flex items-center justify-between mb-6">
+        <div>
+            <a href="{% url 'pos:employe_dashboard' %}" class="text-sm text-secondary hover:underline mb-1 inline-block">
+                <i class="fas fa-arrow-left mr-1"></i>Mon espace
+            </a>
+            <h1 class="text-2xl font-bold">Paiement Clients</h1>
+        </div>
+        <div class="text-right text-xs text-on-surface-variant">
+            <p><i class="fas fa-store mr-1"></i>{{ point_vente.nom }}</p>
+            <p><i class="fas fa-cash-register mr-1"></i>{{ caisse.nom }}</p>
+        </div>
+    </div>
+
+    <!-- Barre recherche -->
+    <div class="mb-6">
+        <div class="relative max-w-md">
+            <input type="text" x-model="search" @input.debounce="rechercher()" placeholder="Rechercher un client par nom ou téléphone..."
+                   class="w-full input-md3 rounded-lg text-sm pl-10 pr-4">
+            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm"></i>
+        </div>
+        <div x-show="search.length > 0" class="mt-1 max-h-48 overflow-y-auto divide-y divide-outline/10 bg-surface-container-low rounded-lg border border-outline/10 shadow-lg" x-cloak>
+            <template x-for="c in clients" :key="c.id">
+                <div @click="selectionnerEtPayer(c)" class="flex items-center justify-between p-3 hover:bg-surface-container-high cursor-pointer text-sm">
+                    <div>
+                        <p class="font-medium" x-text="c.nom"></p>
+                        <p class="text-xs text-on-surface-variant" x-text="c.telephone"></p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <span class="font-mono font-bold" :class="c.solde > 0 ? 'text-red-400' : 'text-green-400'" x-text="(c.solde < 0 ? '-' : '') + formatMoney(c.solde) + ' F'"></span>
+                        <i class="fas fa-chevron-right text-on-surface-variant text-xs"></i>
+                    </div>
+                </div>
+            </template>
+            <div x-show="!clients.length && search.length > 0" class="p-4 text-center text-sm text-on-surface-variant">Aucun client trouvé</div>
+        </div>
+    </div>
+
+    <!-- Liste clients -->
+    <div class="space-y-3">
+        {% for c in clients_employe %}
+        <div class="bg-surface-container-low rounded-xl border border-outline/10 overflow-hidden hover:border-secondary/30 transition">
+            <div class="p-4">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3 min-w-0">
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 {% if c.solde > 0 %}bg-red-900/30{% elif c.solde < 0 %}bg-emerald-900/30{% else %}bg-surface-container-high{% endif %}">
+                            <i class="fas fa-user {% if c.solde > 0 %}text-red-400{% elif c.solde < 0 %}text-emerald-400{% else %}text-on-surface-variant{% endif %}"></i>
+                        </div>
+                        <div class="min-w-0">
+                            <p class="font-bold text-on-surface truncate">{{ c.nom }}</p>
+                            <p class="text-xs text-on-surface-variant">{{ c.telephone|default:"-" }}</p>
+                        </div>
+                    </div>
+                    <div class="text-right shrink-0 ml-4">
+                        <div class="flex items-center gap-2 justify-end">
+                            {% if c.solde > 0 %}
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-red-900/30 text-red-300 font-medium">Crédit</span>
+                            {% elif c.solde < 0 %}
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-900/30 text-emerald-300 font-medium">Avance</span>
+                            {% else %}
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-medium">Soldé</span>
+                            {% endif %}
+                        </div>
+                        <p class="text-lg font-bold font-mono mt-1 {% if c.solde > 0 %}text-red-400{% elif c.solde < 0 %}text-emerald-400{% else %}text-on-surface{% endif %}">
+                            {{ c.solde|floatformat:0 }} F
+                        </p>
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-outline/10 text-sm">
+                    <div class="text-center">
+                        <p class="text-xs text-on-surface-variant">Crédit pris</p>
+                        <p class="font-mono font-bold text-red-400">{{ c.total_credit|floatformat:0 }} F</p>
+                    </div>
+                    <div class="text-center">
+                        <p class="text-xs text-on-surface-variant">Remboursé</p>
+                        <p class="font-mono font-bold text-emerald-400">{{ c.total_depots|floatformat:0 }} F</p>
+                    </div>
+                </div>
+                <div class="flex gap-2 mt-3">
+                    <button onclick="ouvrirDialogClient('{{ c.id }}', 'dette', '{{ c.nom|escapejs }}', '{{ c.telephone|escapejs }}')"
+                            class="flex-1 px-4 py-2.5 rounded-lg bg-secondary text-on-secondary text-sm font-bold hover:bg-secondary/90 transition flex items-center justify-center gap-2">
+                        <i class="fas fa-hand-holding-usd"></i>Payer
+                    </button>
+                    <button onclick="ouvrirDialogClient('{{ c.id }}', 'depot', '{{ c.nom|escapejs }}', '{{ c.telephone|escapejs }}')"
+                            class="flex-1 px-4 py-2.5 rounded-lg bg-emerald-600 text-white text-sm font-bold hover:bg-emerald-700 transition flex items-center justify-center gap-2">
+                        <i class="fas fa-plus-circle"></i>Dépôt
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <div class="text-center py-16 text-on-surface-variant">
+            <i class="fas fa-inbox text-5xl mb-4 block"></i>
+            <p class="text-lg font-medium">Aucun client</p>
+            <p class="text-sm">Les clients apparaîtront ici après leurs achats</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    <!-- Dialog -->
+    <div x-show="dialogOuvert" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+         @click.away="dialogOuvert = false">
+        <div class="w-full max-w-sm bg-surface-container-low rounded-2xl shadow-xl mx-4 overflow-hidden" @click.stop>
+            <div class="px-5 py-4 border-b border-outline/10 flex items-center justify-between">
+                <div>
+                    <h3 class="font-bold" x-text="typeOperation === 'dette' ? 'Payer une dette' : 'Dépôt client'"></h3>
+                    <p class="text-xs text-on-surface-variant" x-text="clientSelectionne ? clientSelectionne.nom : ''"></p>
+                </div>
+                <span class="text-lg font-bold font-mono" :class="clientSolde > 0 ? 'text-red-400' : 'text-green-400'">
+                    <span x-text="clientSolde > 0 ? '+' : ''"></span><span x-text="formatMoney(clientSolde)"></span> F
+                </span>
+            </div>
+            <div class="p-5 space-y-4">
+                <div>
+                    <label class="label-md3">Montant (F)</label>
+                    <input type="number" x-model="montant" min="1" step="100" placeholder="0"
+                           class="w-full input-md3 rounded-lg text-right text-lg font-bold font-mono">
+                </div>
+                <div>
+                    <label class="label-md3">Mode</label>
+                    <select x-model="mode" class="w-full input-md3 rounded-lg text-sm">
+                        <option value="ESPECES">Espèces</option>
+                        <option value="CARTE">Carte bancaire</option>
+                        <option value="MOBILE_MONEY">Mobile Money</option>
+                        <option value="CHEQUE">Chèque</option>
+                    </select>
+                </div>
+                <div x-show="erreur" class="text-red-400 text-xs" x-text="erreur"></div>
+            </div>
+            <div class="px-5 py-4 border-t border-outline/10 flex gap-3">
+                <button @click="dialogOuvert = false" class="flex-1 border border-outline/10 py-2.5 rounded-lg text-sm">Annuler</button>
+                <button @click="confirmer()" :disabled="!montant || montant <= 0 || chargement"
+                        class="flex-1 bg-secondary text-on-secondary py-2.5 rounded-lg text-sm font-bold"
+                        :class="(!montant || montant <= 0 || chargement) ? 'opacity-40' : ''">
+                    <i class="fas fa-spinner fa-spin mr-1" x-show="chargement" x-cloak></i>
+                    <span x-text="chargement ? 'Traitement...' : 'Confirmer'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Succès -->
+    <div x-show="succes" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click="succes = false; reinit()">
+        <div class="bg-surface-container-low rounded-2xl p-8 text-center mx-4 max-w-sm">
+            <div class="w-16 h-16 rounded-full bg-green-900/30 mx-auto flex items-center justify-center mb-4">
+                <i class="fas fa-check-circle text-4xl text-green-400"></i>
+            </div>
+            <p class="text-lg font-bold text-on-surface">Opération réussie !</p>
+            <p class="text-sm text-on-surface-variant mt-1" x-text="messageSucces"></p>
+            <button @click="succes = false; reinit()" class="mt-4 bg-secondary text-on-secondary px-6 py-2 rounded-lg font-bold">Fermer</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function paiementClients() {
+    return {
+        search: '', clients: [], clientSelectionne: null, clientSolde: 0,
+        dialogOuvert: false, typeOperation: 'dette', montant: '', mode: 'ESPECES',
+        chargement: false, erreur: '', succes: false, messageSucces: '',
+
+        init() { this.$watch('search', () => { if (!this.search) this.clients = []; }); },
+
+        async rechercher() {
+            if (this.search.length < 2) { this.clients = []; return; }
+            try {
+                const r = await fetch('/paiements/api/clients/recherche/?search=' + encodeURIComponent(this.search));
+                const d = await r.json();
+                this.clients = d.success ? d.clients : [];
+            } catch(e) {}
+        },
+
+        async selectionnerEtPayer(c) {
+            this.clientSelectionne = c; this.search = ''; this.clients = [];
+            try {
+                const r = await fetch('/paiements/api/clients/' + c.id + '/solde/');
+                const d = await r.json();
+                if (d.success) this.clientSolde = d.solde.solde;
+            } catch(e) {}
+            this.ouvrirDialog('dette');
+        },
+
+        ouvrirDialog(type) {
+            this.typeOperation = type; this.montant = ''; this.mode = 'ESPECES'; this.erreur = ''; this.dialogOuvert = true;
+        },
+
+        async confirmer() {
+            if (!this.montant || this.montant <= 0) { this.erreur = 'Montant invalide'; return; }
+            this.chargement = true; this.erreur = '';
+            try {
+                const r = await fetch('/pos/api/paiement-clients/processer/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCookie('csrftoken') },
+                    body: JSON.stringify({
+                        client_id: this.clientSelectionne.id, montant: this.montant,
+                        mode: this.mode, type: this.typeOperation,
+                    })
+                });
+                const d = await r.json();
+                if (d.success) {
+                    this.messageSucces = this.typeOperation === 'dette'
+                        ? `Paiement de ${this.formatMoney(this.montant)} F enregistré`
+                        : `Dépôt de ${this.formatMoney(this.montant)} F effectué`;
+                    this.succes = true; this.dialogOuvert = false;
+                } else { this.erreur = d.error || 'Erreur'; }
+            } catch(e) { this.erreur = 'Erreur réseau'; }
+            finally { this.chargement = false; }
+        },
+
+        reinit() { this.clientSelectionne = null; this.clientSolde = 0; this.search = ''; this.clients = []; this.succes = false; },
+        formatMoney(v) { return new Intl.NumberFormat('fr-FR').format(Math.abs(v || 0)); },
+        getCookie(n) { const v = document.cookie.split('; ').find(r => r.startsWith(n + '=')); return v ? v.split('=')[1] : null; },
+    }
+}
+
+function ouvrirDialogClient(id, type, nom, telephone) {
+    const app = document.querySelector('[x-data="paiementClients()"]');
+    if (app && app.__x) {
+        const data = app.__x.$data;
+        data.clientSelectionne = { id, nom, telephone };
+        data.clientSolde = 0;
+        data.typeOperation = type;
+        data.montant = '';
+        data.mode = 'ESPECES';
+        data.erreur = '';
+        data.dialogOuvert = true;
+        fetch('/paiements/api/clients/' + id + '/solde/').then(r => r.json()).then(d => {
+            if (d.success) data.clientSolde = d.solde.solde;
+        }).catch(() => {});
+    }
+}
+</script>
+{% endblock %}

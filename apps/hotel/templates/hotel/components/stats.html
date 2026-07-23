@@ -1,0 +1,18 @@
+<div class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+    <div class="card-md3 p-5">
+        <p class="text-sm text-on-surface-variant">Total chambres</p>
+        <p class="mt-2 text-2xl font-semibold text-on-surface" x-text="stats.total_chambres"></p>
+    </div>
+    <div class="card-md3 p-5">
+        <p class="text-sm text-on-surface-variant">Disponibles</p>
+        <p class="mt-2 text-2xl font-semibold text-green-400" x-text="stats.chambres_disponibles"></p>
+    </div>
+    <div class="card-md3 p-5">
+        <p class="text-sm text-on-surface-variant">Occupees</p>
+        <p class="mt-2 text-2xl font-semibold text-orange-400" x-text="stats.chambres_occupees"></p>
+    </div>
+    <div class="card-md3 p-5">
+        <p class="text-sm text-on-surface-variant">CA du mois</p>
+        <p class="mt-2 text-2xl font-semibold text-secondary" x-text="formatMoney(stats.ca_mois) + ' F'"></p>
+    </div>
+</div>

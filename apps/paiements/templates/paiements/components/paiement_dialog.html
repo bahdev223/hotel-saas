@@ -1,0 +1,583 @@
+<!-- Paiement Dialog - Composant Alpine.js réutilisable -->
+<!-- Usage: Inclure le template n'importe où dans la page (1x seulement)
+     Puis depuis n'importe quel composant Alpine ou JS:
+       window.dispatchEvent(new CustomEvent('open-paiement-dialog', {
+           detail: { facture_id: '...' | commande_id: 123 | client_id: '...' }
+       }));
+-->
+<div x-data="paiementDialog()" @open-paiement-dialog.window="openDialog($event.detail)">
+<div x-show="dialogOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak
+     @keydown.escape.window="closeDialog()" x-transition.opacity>
+    <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6" @click.stop>
+
+        <!-- Header -->
+        <div class="flex justify-between items-center mb-4">
+            <div>
+                <h3 class="text-lg font-semibold text-on-surface" x-text="dialogTitle"></h3>
+                <p class="text-sm text-on-surface-variant" x-text="dialogSubtitle"></p>
+            </div>
+            <button @click="closeDialog()" class="text-on-surface-variant hover:text-secondary transition-smooth"><i class="fas fa-times"></i></button>
+        </div>
+
+        <!-- Step 1: Sélection source -->
+        <template x-if="step === 1">
+            <div class="space-y-4">
+                <div class="flex gap-2 border-b border-outline/10 pb-3">
+                    <button @click="sourceType = 'facture'; chargerFactures()"
+                            class="px-4 py-2 text-sm rounded-lg transition-smooth"
+                            :class="sourceType === 'facture' ? 'bg-secondary text-black' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'">
+                        <i class="fas fa-file-invoice mr-1"></i> Factures
+                    </button>
+                    <button @click="sourceType = 'commande'; chargerCommandes()"
+                            class="px-4 py-2 text-sm rounded-lg transition-smooth"
+                            :class="sourceType === 'commande' ? 'bg-secondary text-black' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'">
+                        <i class="fas fa-shopping-cart mr-1"></i> Commandes
+                    </button>
+                    <button @click="sourceType = 'client'; chercherClient()"
+                            class="px-4 py-2 text-sm rounded-lg transition-smooth"
+                            :class="sourceType === 'client' ? 'bg-secondary text-black' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'">
+                        <i class="fas fa-user mr-1"></i> Dépôt client
+                    </button>
+                </div>
+
+                <!-- Search -->
+                <div class="relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm"></i>
+                    <input type="text" x-model="searchQuery" @input.debounce.300ms="rechercher()"
+                           class="input-md3 rounded-lg pl-9 text-sm" placeholder="Rechercher...">
+                </div>
+
+                <!-- Factures list -->
+                <template x-if="sourceType === 'facture'">
+                    <div class="space-y-2 max-h-60 overflow-y-auto scrollbar-md">
+                        <template x-for="f in facturesList" :key="f.id">
+                            <label class="flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-smooth"
+                                   :class="selectedId === f.id ? 'bg-secondary-container/20 border border-secondary/50' : 'bg-surface-container-high hover:bg-surface-container'">
+                                <input type="radio" :value="f.id" x-model="selectedId" class="mt-1 accent-secondary">
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-on-surface" x-text="f.numero"></p>
+                                    <p class="text-xs text-on-surface-variant" x-text="f.client_nom"></p>
+                                    <div class="flex gap-3 mt-1 text-xs">
+                                        <span class="text-on-surface-variant">Total: <span class="text-secondary font-medium" x-text="formatMoney(f.montant_total) + ' F'"></span></span>
+                                        <span class="text-on-surface-variant">Reste: <span class="text-error font-medium" x-text="formatMoney(f.reste_a_payer) + ' F'"></span></span>
+                                    </div>
+                                </div>
+                            </label>
+                        </template>
+                        <p x-show="!facturesList.length" class="text-center py-4 text-on-surface-variant text-sm">Aucune facture impayée</p>
+                    </div>
+                </template>
+
+                <!-- Commandes list -->
+                <template x-if="sourceType === 'commande'">
+                    <div class="space-y-2 max-h-60 overflow-y-auto scrollbar-md">
+                        <template x-for="c in commandesList" :key="c.id">
+                            <label class="flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-smooth"
+                                   :class="selectedId === c.id ? 'bg-secondary-container/20 border border-secondary/50' : 'bg-surface-container-high hover:bg-surface-container'">
+                                <input type="radio" :value="c.id" x-model="selectedId" class="mt-1 accent-secondary">
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-on-surface">
+                                        <span x-text="c.numero"></span>
+                                        <span class="text-xs text-on-surface-variant ml-1" x-text="'(' + c.point_vente + ')'"></span>
+                                    </p>
+                                    <p class="text-xs text-on-surface-variant" x-text="'Fact. ' + c.facture_numero + ' - ' + c.client_nom"></p>
+                                    <div class="flex gap-3 mt-1 text-xs">
+                                        <span class="text-on-surface-variant">Total: <span class="text-secondary font-medium" x-text="formatMoney(c.montant_total) + ' F'"></span></span>
+                                        <span class="text-on-surface-variant">Reste: <span class="text-error font-medium" x-text="formatMoney(c.reste_a_payer) + ' F'"></span></span>
+                                    </div>
+                                </div>
+                            </label>
+                        </template>
+                        <p x-show="!commandesList.length" class="text-center py-4 text-on-surface-variant text-sm">Aucune commande impayée</p>
+                    </div>
+                </template>
+
+                <!-- Client deposit -->
+                <template x-if="sourceType === 'client'">
+                    <div class="space-y-3">
+                        <div class="relative">
+                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm"></i>
+                            <input type="text" x-model="clientSearch" @input.debounce.500ms="chercherClient()"
+                                   class="input-md3 rounded-lg pl-9 text-sm" placeholder="Nom ou téléphone client...">
+                        </div>
+                        <template x-for="c in clientsList" :key="c.id">
+                            <label class="flex items-start gap-3 p-3 rounded-lg cursor-pointer transition-smooth"
+                                   :class="selectedClientId === c.id ? 'bg-secondary-container/20 border border-secondary/50' : 'bg-surface-container-high hover:bg-surface-container'">
+                                <input type="radio" :value="c.id" x-model="selectedClientId" class="mt-1 accent-secondary">
+                                <div class="flex-1 min-w-0">
+                                    <p class="text-sm font-medium text-on-surface" x-text="c.nom"></p>
+                                    <p class="text-xs text-on-surface-variant" x-text="c.telephone || ''"></p>
+                                    <p class="text-xs" x-show="c.solde !== undefined">
+                                        Solde: <span class="font-medium" :class="c.solde >= 0 ? 'text-green-400' : 'text-error'" x-text="formatMoney(c.solde) + ' F'"></span>
+                                    </p>
+                                </div>
+                            </label>
+                        </template>
+                    </div>
+                </template>
+
+                <div class="flex gap-3 pt-2">
+                    <button @click="allerEtape2()" :disabled="!selectedId && !selectedClientId"
+                            class="flex-1 btn-md3-primary py-2 rounded-lg text-sm" :class="(!selectedId && !selectedClientId) ? 'opacity-30 cursor-not-allowed' : ''">
+                        Suivant <i class="fas fa-arrow-right ml-1"></i>
+                    </button>
+                    <button @click="closeDialog()" class="px-4 py-2 text-sm border border-outline/10 rounded-lg hover:bg-surface-container transition-smooth">Annuler</button>
+                </div>
+            </div>
+        </template>
+
+        <!-- Step 2: Montant + Mode -->
+        <template x-if="step === 2">
+            <div class="space-y-4">
+                <!-- Récap -->
+                <div class="bg-surface-container-high rounded-lg p-3 text-sm space-y-1">
+                    <div class="flex justify-between"><span class="text-on-surface-variant">Source</span><span class="font-medium" x-text="sourceLabel"></span></div>
+                    <div class="flex justify-between"><span class="text-on-surface-variant">Total</span><span class="font-medium text-secondary" x-text="formatMoney(montantTotal) + ' F'"></span></div>
+                    <div class="flex justify-between"><span class="text-on-surface-variant">Déjà payé</span><span class="font-medium text-green-400" x-text="formatMoney(montantPaye) + ' F'"></span></div>
+                    <div class="border-t border-outline/10 pt-1 flex justify-between font-bold">
+                        <span>Reste à payer</span>
+                        <span class="text-error" x-text="formatMoney(montantReste) + ' F'"></span>
+                    </div>
+                </div>
+
+                <!-- Montant -->
+                <div>
+                    <label class="label-md3">Montant à encaisser</label>
+                    <input type="number" x-model="montant" min="1" :max="montantReste"
+                           class="input-md3 rounded-lg text-lg font-bold text-secondary text-center">
+                    <div class="flex gap-2 mt-2">
+                        <button @click="montant = montantReste" class="px-3 py-1 text-xs rounded-lg bg-surface-container-high text-on-surface-variant hover:bg-surface-container transition-smooth">Total</button>
+                        <button @click="montalt = Math.round(montantReste / 2)" class="px-3 py-1 text-xs rounded-lg bg-surface-container-high text-on-surface-variant hover:bg-surface-container transition-smooth">50%</button>
+                    </div>
+                </div>
+
+                <!-- Mode paiement -->
+                <div>
+                    <label class="label-md3">Mode de paiement</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <template x-for="m in modesPaiement" :key="m.code">
+                            <label class="flex items-center gap-2 p-3 rounded-lg cursor-pointer transition-smooth text-sm"
+                                   :class="modePaiement === m.code ? 'bg-secondary-container/20 border border-secondary/50' : 'bg-surface-container-high hover:bg-surface-container border border-transparent'">
+                                <input type="radio" :value="m.code" x-model="modePaiement" class="accent-secondary">
+                                <i :class="m.icon" class="text-secondary"></i>
+                                <span x-text="m.label"></span>
+                            </label>
+                        </template>
+                    </div>
+                </div>
+
+                <!-- Caisse - auto-affectée -->
+                <div>
+                    <label class="label-md3">Compte</label>
+                    <input type="text" :value="caisseNom" disabled class="input-md3 rounded-lg w-full">
+                </div>
+
+                <!-- Client solde info -->
+                <div x-show="clientSolde !== null" class="bg-surface-container-high rounded-lg p-3 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-on-surface-variant">Solde client</span>
+                        <span class="font-medium" :class="clientSolde >= 0 ? 'text-green-400' : 'text-error'" x-text="formatMoney(clientSolde) + ' F'"></span>
+                    </div>
+                </div>
+
+                <!-- Notes -->
+                <div>
+                    <textarea x-model="notes" class="input-md3 rounded-lg w-full text-sm" rows="2" placeholder="Notes (optionnel)..."></textarea>
+                </div>
+
+                <div class="flex gap-3 pt-2">
+                    <button @click="step = 1" class="px-4 py-2 text-sm border border-outline/10 rounded-lg hover:bg-surface-container transition-smooth">
+                        <i class="fas fa-arrow-left mr-1"></i> Retour
+                    </button>
+                    <button @click="processPaiement()" :disabled="processing || !modePaiement || !montant"
+                            class="flex-1 btn-md3-primary py-2 rounded-lg text-sm"
+                            :class="(processing || !modePaiement || !caisseId || !montant) ? 'opacity-30 cursor-not-allowed' : ''">
+                        <i class="fas fa-spinner fa-spin" x-show="processing" x-cloak></i>
+                        <span x-text="processing ? 'Traitement...' : 'Confirmer le paiement'"></span>
+                        <i class="fas fa-check ml-1" x-show="!processing"></i>
+                    </button>
+                </div>
+            </div>
+        </template>
+
+        <!-- Step 3: Succès -->
+        <template x-if="step === 3">
+            <div class="text-center py-8 space-y-4">
+                <div class="w-20 h-20 rounded-full bg-green-900/30 mx-auto flex items-center justify-center">
+                    <i class="fas fa-check-circle text-4xl text-green-400"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-on-surface">Paiement réussi</h3>
+                    <p class="text-sm text-on-surface-variant mt-1">
+                        Réf: <span class="font-mono text-secondary" x-text="resultat.reference"></span>
+                    </p>
+                    <p class="text-2xl font-bold text-secondary mt-2" x-text="formatMoney(resultat.montant) + ' F'"></p>
+                    <p class="text-xs text-on-surface-variant mt-1" x-text="resultat.mode_label"></p>
+                </div>
+                <div class="flex gap-3 justify-center">
+                    <button @click="imprimerRecu()" class="btn-md3-primary px-6 py-2 rounded-lg text-sm">
+                        <i class="fas fa-print mr-1"></i> Imprimer
+                    </button>
+                    <button @click="closeDialog()" class="px-5 py-2 border border-outline/10 rounded-lg text-sm hover:bg-surface-container transition-smooth">Fermer</button>
+                </div>
+            </div>
+        </template>
+
+    </div>
+</div>
+
+<script>
+function paiementDialog() {
+    return {
+        // États
+        dialogOpen: false,
+        step: 1,
+        dialogTitle: 'Paiement',
+        dialogSubtitle: '',
+
+        // Étape 1
+        sourceType: 'facture',
+        searchQuery: '',
+        facturesList: [],
+        commandesList: [],
+        clientsList: [],
+        selectedId: null,
+        selectedClientId: null,
+        clientSearch: '',
+        clientSolde: null,
+
+        // Étape 2
+        montant: 0,
+        montantTotal: 0,
+        montantPaye: 0,
+        montantReste: 0,
+        sourceLabel: '',
+        modePaiement: 'ESPECES',
+        caisseId: '',
+        caisseNom: '',
+        notes: '',
+        processing: false,
+
+        // Résultat
+        resultat: {},
+
+        modesPaiement: [
+            { code: 'ESPECES', label: 'Espèces', icon: 'fas fa-money-bill-wave' },
+            { code: 'CARTE', label: 'Carte bancaire', icon: 'fas fa-credit-card' },
+            { code: 'MOBILE_MONEY', label: 'Mobile Money', icon: 'fas fa-mobile-alt' },
+            { code: 'VIREMENT', label: 'Virement', icon: 'fas fa-university' },
+            { code: 'CHEQUE', label: 'Chèque', icon: 'fas fa-file-invoice' },
+        ],
+
+        // Ouvrir le dialog avec des options
+        openDialog(options = {}) {
+            this.dialogOpen = true;
+            this.step = 1;
+            this.selectedId = null;
+            this.selectedClientId = null;
+            this.montant = 0;
+            this.modePaiement = 'ESPECES';
+            this.notes = '';
+            this.resultat = {};
+            this.clientSolde = null;
+            this.clientSearch = '';
+            this.clientsList = [];
+
+            if (options.facture_id) {
+                this.sourceType = 'facture';
+                this.chargerFactures();
+                this.dialogTitle = 'Paiement de facture';
+                this.dialogSubtitle = 'Sélectionner une facture';
+            } else if (options.commande_id) {
+                this.sourceType = 'commande';
+                this.selectedId = options.commande_id;
+                this.chargerCommandes();
+                this.dialogTitle = 'Paiement de commande';
+                this.dialogSubtitle = 'Confirmer le paiement';
+            } else if (options.client_id) {
+                this.sourceType = 'client';
+                this.selectedClientId = options.client_id;
+                this.dialogTitle = 'Dépôt client';
+                this.dialogSubtitle = 'Créditer le compte client';
+            } else if (options.type === 'depot') {
+                this.sourceType = 'client';
+                this.dialogTitle = 'Dépôt client';
+                this.dialogSubtitle = 'Rechercher le client à créditer';
+            } else {
+                this.dialogTitle = 'Nouveau paiement';
+                this.dialogSubtitle = 'Sélectionner la source';
+            }
+
+            // Si facture_id ou commande_id fourni direct, passer à l'étape 2
+            if (options.facture_id) {
+                this.chargerFactures().then(() => {
+                    if (this.facturesList.length) {
+                        const f = this.facturesList.find(ff => ff.id === options.facture_id);
+                        if (f) {
+                            this.selectedId = f.id;
+                            this.preparerPaiement(f);
+                        }
+                    }
+                });
+            } else if (options.commande_id) {
+                this.chargerCommandes().then(() => {
+                    if (this.commandesList.length) {
+                        const c = this.commandesList.find(cc => cc.id == options.commande_id);
+                        if (c) {
+                            this.selectedId = c.id;
+                            this.preparerPaiement(c);
+                        }
+                    }
+                });
+            } else if (options.client_id) {
+                this.chercherClient();
+            }
+
+            this.chargerCaisses();
+        },
+
+        closeDialog() {
+            this.dialogOpen = false;
+            this.step = 1;
+        },
+
+        // Charger factures impayées
+        async chargerFactures() {
+            const params = new URLSearchParams({ search: this.searchQuery });
+            const r = await fetch('/paiements/api/factures-impayees/?' + params);
+            const d = await r.json();
+            if (d.success) this.facturesList = d.factures;
+        },
+
+        // Charger commandes impayées
+        async chargerCommandes() {
+            const params = new URLSearchParams({ search: this.searchQuery });
+            const r = await fetch('/paiements/api/commandes-impayees/?' + params);
+            const d = await r.json();
+            if (d.success) this.commandesList = d.commandes;
+        },
+
+        // Chercher clients
+        async chercherClient() {
+            if (!this.clientSearch && !this.selectedClientId) return;
+            const params = new URLSearchParams({ search: this.clientSearch });
+            const r = await fetch('/paiements/api/clients/recherche/?' + params);
+            const d = await r.json();
+            if (d.success) this.clientsList = d.clients || [];
+
+            // Si client déjà sélectionné, charger son solde
+            if (this.selectedClientId) {
+                try {
+                    const s = await fetch('/paiements/api/clients/' + this.selectedClientId + '/solde/');
+                    const sd = await s.json();
+                    if (sd.success) {
+                        this.clientSolde = sd.solde.solde;
+                        // Mettre à jour le client dans la liste
+                        const idx = this.clientsList.findIndex(c => c.id === this.selectedClientId);
+                        if (idx >= 0) this.clientsList[idx].solde = sd.solde.solde;
+                    }
+                } catch(e) {}
+            }
+        },
+
+        // Charger caisses disponibles
+        async chargerCaisses() {
+            const r = await fetch('/paiements/api/caisses/');
+            const d = await r.json();
+            if (d.success) {
+                this.caissesList = d.caisses;
+                if (d.caisses.length === 1) {
+                    this.caisseId = d.caisses[0].id;
+                    this.caisseNom = d.caisses[0].nom;
+                } else if (d.caisses.length > 1) {
+                    // Si multiple, prendre la première par défaut
+                    this.caisseId = d.caisses[0].id;
+                    this.caisseNom = d.caisses[0].nom;
+                }
+            }
+        },
+
+        rechercher() {
+            if (this.sourceType === 'facture') this.chargerFactures();
+            else if (this.sourceType === 'commande') this.chargerCommandes();
+        },
+
+        // Préparer l'étape 2 avec les infos de la source sélectionnée
+        preparerPaiement(source) {
+            this.montantTotal = source.montant_total;
+            this.montantPaye = source.total_paye || 0;
+            this.montantReste = source.reste_a_payer;
+            this.montant = this.montantReste;
+            this.sourceLabel = source.numero || source.client_nom;
+            this.step = 2;
+
+            if (this.sourceType === 'client') {
+                this.dialogTitle = 'Dépôt client';
+                this.dialogSubtitle = 'Créditer le compte';
+            } else {
+                this.dialogTitle = 'Confirmation paiement';
+                this.dialogSubtitle = this.sourceLabel;
+            }
+        },
+
+        // Go to step 2
+        async allerEtape2() {
+            if (this.sourceType === 'facture' && this.selectedId) {
+                const f = this.facturesList.find(ff => ff.id === this.selectedId);
+                if (f) this.preparerPaiement(f);
+            } else if (this.sourceType === 'commande' && this.selectedId) {
+                const c = this.commandesList.find(cc => cc.id == this.selectedId);
+                if (c) this.preparerPaiement(c);
+            } else if (this.sourceType === 'client' && this.selectedClientId) {
+                await this.chercherClient();
+                this.montantTotal = 0;
+                this.montantReste = 0;
+                this.montant = 0;
+                this.sourceLabel = 'Dépôt client';
+                this.step = 2;
+                this.dialogTitle = 'Dépôt client';
+                this.dialogSubtitle = 'Créditer le compte';
+            }
+        },
+
+        // Traiter le paiement
+        async processPaiement() {
+            this.processing = true;
+            try {
+                let payload = {
+                    mode: this.modePaiement,
+                    montant: this.montant,
+                    caisse_id: this.caisseId,
+                    notes: this.notes,
+                    type_paiement: this.sourceType === 'client' ? 'AVANCE' : 'VENTE',
+                };
+
+                if (this.sourceType === 'facture' && this.selectedId) {
+                    payload.facture_id = this.selectedId;
+                } else if (this.sourceType === 'commande' && this.selectedId) {
+                    payload.commande_id = this.selectedId;
+                } else if (this.sourceType === 'client' && this.selectedClientId) {
+                    payload.client_id = this.selectedClientId;
+                }
+
+                const r = await fetch('/paiements/api/processer/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCookie('csrftoken') },
+                    body: JSON.stringify(payload)
+                });
+                const d = await r.json();
+
+                if (d.success) {
+                    this.resultat = d.paiement;
+                    this.step = 3;
+                    if (this.onPaiementReussi) this.onPaiementReussi(d.paiement);
+                } else {
+                    alert('Erreur: ' + d.error);
+                }
+            } catch(e) {
+                alert('Erreur réseau: ' + e.message);
+            } finally {
+                this.processing = false;
+            }
+        },
+
+        imprimerRecu() {
+            if (!this.resultat || !this.resultat.reference) return;
+            const r = this.resultat;
+            const now = new Date(r.date);
+            const dateStr = now.toLocaleDateString('fr-FR') + ' ' + now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+
+            let lignesHtml = '';
+            if (r.lignes && r.lignes.length) {
+                lignesHtml = `
+                    <div class="row row-items items-header">
+                        <span class="item-desc">Article</span>
+                        <span class="item-qty">Qté</span>
+                        <span class="item-price">PU</span>
+                        <span class="item-total">Total</span>
+                    </div>`;
+                r.lignes.forEach(l => {
+                    lignesHtml += `
+                    <div class="row row-items">
+                        <span class="item-desc">${l.description}</span>
+                        <span class="item-qty">${l.quantite}</span>
+                        <span class="item-price">${this.formatMoney(l.prix_unitaire)}</span>
+                        <span class="item-total">${this.formatMoney(l.total_ttc)}</span>
+                    </div>`;
+                });
+            }
+
+            const html = `<!DOCTYPE html>
+<html lang="fr">
+<head><meta charset="UTF-8"><title>Reçu ${r.reference}</title>
+<style>
+@page { size: 80mm auto; margin: 0; }
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Courier New',monospace; font-size:12px; line-height:1.3; color:#000; width:80mm; padding:2mm 3mm; background:#fff; }
+.header { text-align:center; border-bottom:1px dashed #333; padding-bottom:4px; margin-bottom:6px; }
+.header h1 { font-size:16px; font-weight:bold; letter-spacing:1px; text-transform:uppercase; }
+.header .slogan { font-size:10px; }
+.receipt-title { text-align:center; font-size:14px; font-weight:bold; margin:4px 0; }
+.divider { border-top:1px dashed #333; margin:4px 0; }
+.row { display:flex; justify-content:space-between; font-size:11px; }
+.row-items { display:flex; justify-content:space-between; font-size:11px; padding:1px 0; }
+.items-header { border-bottom:1px dashed #333; padding-bottom:2px; margin-bottom:2px; font-weight:bold; }
+.item-desc { flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.item-qty { width:30px; text-align:center; }
+.item-price { width:50px; text-align:right; }
+.item-total { width:60px; text-align:right; }
+.total { font-weight:bold; font-size:13px; border-top:1px solid #333; border-bottom:1px solid #333; padding:4px 0; margin:4px 0; }
+.payment-info { font-size:11px; margin:4px 0; }
+.payment-info div { margin:1px 0; }
+.footer { text-align:center; font-size:10px; margin-top:6px; padding-top:4px; border-top:1px dashed #333; }
+.footer .merci { font-size:14px; font-weight:bold; margin:2px 0; }
+.no-print { text-align:center; margin:10px 0; }
+.no-print button { background:#000; color:#fff; border:none; padding:8px 24px; font-size:14px; border-radius:4px; cursor:pointer; margin:0 4px; }
+.no-print button:hover { opacity:0.8; }
+@media print { .no-print { display:none; } @page { margin:0; } body { margin:0; padding:2mm 3mm; } }
+</style></head>
+<body>
+<div class="no-print">
+    <button onclick="window.print()">🖨️ Imprimer</button>
+    <button onclick="window.close()" style="background:#666;">Fermer</button>
+</div>
+<div class="header">
+    <h1>Résidence DAMOU</h1>
+    <div class="slogan"></div>
+</div>
+<div class="receipt-title">REÇU DE CAISSE</div>
+<div class="divider"></div>
+<div class="row"><span>Réf: <strong>${r.reference}</strong></span><span>${dateStr}</span></div>
+${r.source_numero ? `<div class="row"><span>Facture: <strong>${r.source_numero}</strong></span></div>` : ''}
+${r.client_nom ? `<div class="row"><span>Client: <strong>${r.client_nom}</strong></span></div>` : ''}
+<div class="divider"></div>
+${lignesHtml}
+${lignesHtml ? '<div class="divider"></div>' : ''}
+<div class="row total"><span>MONTANT TOTAL</span><span>${this.formatMoney(r.montant)} F</span></div>
+<div class="divider"></div>
+<div class="payment-info">
+    <div class="row"><span>Mode de paiement</span><span><strong>${r.mode_label}</strong></span></div>
+</div>
+<div class="footer">
+    <div class="merci">MERCI DE VOTRE VISITE</div>
+    <div>À très bientôt</div>
+    <div style="margin-top:2px;font-size:9px;">${r.reference}</div>
+</div>
+</body></html>`;
+
+            const w = window.open('', '_blank', 'width=400,height=600,menubar=no,toolbar=no');
+            w.document.write(html);
+            w.document.close();
+        },
+
+        formatMoney(v) {
+            return new Intl.NumberFormat('fr-FR').format(v || 0);
+        },
+
+        getCookie(name) {
+            const v = document.cookie.split('; ').find(r => r.startsWith(name + '='));
+            return v ? v.split('=')[1] : null;
+        }
+    }
+}
+</script>

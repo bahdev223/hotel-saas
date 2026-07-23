@@ -1,0 +1,46 @@
+<div x-show="modals.client" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4" @click.self="closeModal('client')">
+    <div class="w-full max-w-lg rounded-2xl bg-surface-container-high shadow-xl">
+        <div class="flex items-center justify-between border-b border-outline/10 px-5 py-4">
+            <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary/20 text-secondary">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+                <div>
+                    <h2 class="text-lg font-semibold text-on-surface">Nouveau client</h2>
+                    <p class="text-sm text-on-surface-variant">Identite et contact</p>
+                </div>
+            </div>
+            <button @click="closeModal('client')" class="flex h-9 w-9 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="space-y-4 p-5">
+            <div class="grid gap-4 sm:grid-cols-2">
+                <label class="block">
+                    <span class="mb-1 block text-sm font-medium text-on-surface-variant">Nom</span>
+                    <input x-model="clientForm.nom" class="input-md3 w-full px-3 py-2 rounded-lg" placeholder="Diallo">
+                </label>
+                <label class="block">
+                    <span class="mb-1 block text-sm font-medium text-on-surface-variant">Prenom</span>
+                    <input x-model="clientForm.prenom" class="input-md3 w-full px-3 py-2 rounded-lg" placeholder="Aminata">
+                </label>
+            </div>
+            <label class="block">
+                <span class="mb-1 block text-sm font-medium text-on-surface-variant">Téléphone <span class="text-red-400">*</span></span>
+                <input x-model="clientForm.telephone" required class="input-md3 w-full px-3 py-2 rounded-lg" placeholder="+224 ...">
+            </label>
+            <label class="block">
+                <span class="mb-1 block text-sm font-medium text-on-surface-variant">Email</span>
+                <input x-model="clientForm.email" class="input-md3 w-full px-3 py-2 rounded-lg" placeholder="client@email.com">
+            </label>
+            <label class="block">
+                <span class="mb-1 block text-sm font-medium text-on-surface-variant">Adresse</span>
+                <textarea x-model="clientForm.adresse" class="input-md3 w-full px-3 py-2 rounded-lg" rows="3" placeholder="Adresse"></textarea>
+            </label>
+            <div class="flex gap-3 pt-2">
+                <button @click="saveClient()" class="btn-md3-primary flex-1 py-2 rounded-lg font-medium"><i class="fas fa-check mr-2"></i>Enregistrer</button>
+                <button @click="closeModal('client')" class="btn-md3-secondary flex-1 py-2 rounded-lg font-medium">Annuler</button>
+            </div>
+        </div>
+    </div>
+</div>

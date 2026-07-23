@@ -1,0 +1,287 @@
+{% extends 'restaurant/base_restaurant.html' %}
+{% load static %}
+
+{% block title %}Recettes & Menus — Restaurant{% endblock %}
+
+{% block content %}
+<div x-data="recettesApp()" x-init="init()" class="space-y-6">
+
+    <div class="flex items-center justify-between">
+        <div>
+            <h2 class="text-lg font-bold text-on-surface">Recettes</h2>
+            <p class="text-xs text-on-surface-variant">Composez vos recettes avec les produits du stock</p>
+        </div>
+        <button @click="nouvelleRecette()" :disabled="{{ est_bloque_restaurant|lower }}" class="btn-md3-primary text-sm px-4 py-2 rounded-lg">
+            <i class="fas fa-plus mr-1"></i>Nouvelle recette
+        </button>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left: recette list -->
+        <div class="lg:col-span-1 space-y-2">
+            <input type="text" x-model="search" @input.debounce.300ms="filtrer()" class="input-md3 rounded-lg text-sm w-full" placeholder="Rechercher...">
+            <div class="space-y-1.5 max-h-[70vh] overflow-y-auto">
+                <template x-for="r in recettesFilterees" :key="r.id">
+                    <div @click="selectionner(r)" class="card-md3 p-3 cursor-pointer transition-smooth"
+                         :class="selected?.id === r.id ? 'ring-2 ring-secondary' : 'hover:bg-surface-container'">
+                        <div class="flex items-center justify-between">
+                            <span class="font-medium text-sm truncate" x-text="r.nom"></span>
+                            <span class="text-[10px] px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant shrink-0" x-text="r.type_label"></span>
+                        </div>
+                        <div class="flex items-center gap-2 mt-1 text-xs text-on-surface-variant">
+                            <span x-text="r.nb_ingredients + ' ingrédients'"></span>
+                            <span x-show="r.prix_vente > 0">· <span class="text-secondary font-mono" x-text="formatMoney(r.prix_vente) + ' F'"></span></span>
+                        </div>
+                    </div>
+                </template>
+                <div x-show="!recettesFilterees.length" class="text-center py-8 text-on-surface-variant text-sm">
+                    <i class="fas fa-book-open text-2xl block mb-2"></i>Aucune recette
+                </div>
+            </div>
+        </div>
+
+        <!-- Right: recette detail -->
+        <div class="lg:col-span-2" x-show="selected">
+            <div class="card-md3 overflow-hidden">
+                <!-- Header -->
+                <div class="px-5 py-4 border-b border-outline/10 flex items-center justify-between">
+                    <div class="min-w-0">
+                        <div class="flex items-center gap-2">
+                            <input type="text" x-model="edit.nom" :disabled="{{ est_bloque_restaurant|lower }}" class="bg-transparent border-b border-transparent focus:border-secondary text-lg font-bold text-on-surface outline-none px-0 py-0.5" @blur="sauvegarderRecette()" placeholder="Nom de la recette">
+                            <select x-model="edit.type_recette" :disabled="{{ est_bloque_restaurant|lower }}" @change="sauvegarderRecette()" class="text-xs bg-surface-container-high rounded px-2 py-1 border-none outline-none text-on-surface-variant">
+                                <option value="PLAT">Plat</option>
+                                <option value="BOISSON">Boisson</option>
+                                <option value="DESSERT">Dessert</option>
+                                <option value="COCKTAIL">Cocktail</option>
+                                <option value="PETIT_DEJEUNER">Petit-déjeuner</option>
+                                <option value="ACCOMPAGNEMENT">Accompagnement</option>
+                            </select>
+                        </div>
+                        <p class="text-xs text-on-surface-variant mt-0.5">
+                            Code: <span class="font-mono" x-text="selected.code || '-'"></span>
+                            · <span x-text="selected.nb_ingredients + ' ingrédients'"></span>
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-sm text-on-surface-variant">Prix:</span>
+                        <input type="number" x-model="edit.prix_vente" :disabled="{{ est_bloque_restaurant|lower }}" @blur="sauvegarderRecette()" class="w-24 bg-surface-container-high rounded px-2 py-1 text-right font-mono text-secondary text-sm border-none outline-none" min="0" step="0.01">
+                        <span class="text-secondary text-sm">F</span>
+                    </div>
+                </div>
+
+                <!-- Ingredients -->
+                <div class="p-5 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-semibold text-on-surface"><i class="fas fa-cubes text-secondary mr-1.5"></i>Ingrédients</h3>
+                        <button @click="ajouterIngredient()" :disabled="{{ est_bloque_restaurant|lower }}" class="text-xs bg-secondary/10 text-secondary px-3 py-1.5 rounded-lg hover:bg-secondary/20 transition-smooth">
+                            <i class="fas fa-plus mr-1"></i>Ajouter
+                        </button>
+                    </div>
+
+                    <div class="space-y-2">
+                        <template x-for="(ing, i) in edit.ingredients" :key="ing._key">
+                            <div class="flex items-center gap-2 bg-surface-container-high rounded-lg px-3 py-2 text-sm">
+                                <select x-model="ing.produit_id" :disabled="{{ est_bloque_restaurant|lower }}" @change="changerProduit(ing)" class="flex-1 bg-surface-container-highest rounded px-2 py-1.5 text-sm border-none outline-none min-w-0">
+                                    <option value="">Choisir un produit...</option>
+                                    <template x-for="p in produits" :key="p.id">
+                                        <option :value="p.id" x-text="p.nom + ' (' + p.code + ')'"></option>
+                                    </template>
+                                </select>
+                                <input type="number" x-model="ing.quantite" :disabled="{{ est_bloque_restaurant|lower }}" step="0.01" min="0" class="w-16 bg-surface-container-highest rounded px-2 py-1.5 text-right font-mono text-sm border-none outline-none" placeholder="Qté">
+                                <span class="text-on-surface-variant text-xs w-12" x-text="ing.unite || ''"></span>
+                                <button @click="retirerIngredient(i)" :disabled="{{ est_bloque_restaurant|lower }}" class="text-red-400 hover:text-red-300 text-xs shrink-0"><i class="fas fa-times"></i></button>
+                            </div>
+                        </template>
+                        <div x-show="!edit.ingredients.length" class="text-center py-6 text-on-surface-variant text-xs">
+                            <i class="fas fa-cube text-xl block mb-1"></i>
+                            Aucun ingrédient. Ajoutez des produits depuis le stock.
+                        </div>
+                    </div>
+
+                    <!-- Linked menus -->
+                    <div class="border-t border-outline/10 pt-4">
+                        <h3 class="text-sm font-semibold text-on-surface mb-2"><i class="fas fa-book text-secondary mr-1.5"></i>Lié aux menus</h3>
+                        <div x-show="menusLies.length" class="flex flex-wrap gap-1.5 mb-2">
+                            <template x-for="m in menusLies" :key="m.id">
+                                <span class="text-xs bg-secondary-container/20 text-secondary px-2 py-1 rounded-full" x-text="m.nom"></span>
+                            </template>
+                        </div>
+                        <div class="flex gap-2">
+                            <select x-model="lienMenuId" class="flex-1 bg-surface-container-high rounded px-2 py-1.5 text-sm border-none outline-none">
+                                <option value="">Lier à un menu...</option>
+                                <template x-for="m in menus" :key="m.id">
+                                    <option :value="m.id" x-text="m.nom"></option>
+                                </template>
+                            </select>
+                            <button @click="lierMenu()" :disabled="{{ est_bloque_restaurant|lower }}" class="text-xs bg-secondary text-black px-3 py-1.5 rounded-lg font-medium hover:bg-secondary/80 transition-smooth">Lier</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="lg:col-span-2" x-show="!selected">
+            <div class="card-md3 p-12 text-center text-on-surface-variant">
+                <i class="fas fa-chevron-left text-3xl block mb-3"></i>
+                <p class="text-sm">Sélectionnez une recette à gauche ou créez-en une nouvelle</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function recettesApp() {
+    return {
+        recettes: [],
+        recettesFilterees: [],
+        produits: [],
+        menus: [],
+        menusLies: [],
+        search: '',
+        selected: null,
+        edit: { nom: '', type_recette: 'PLAT', prix_vente: 0, ingredients: [] },
+        lienMenuId: '',
+        saveTimer: null,
+
+        async init() {
+            await Promise.all([this.chargerRecettes(), this.chargerProduits(), this.chargerMenus()]);
+        },
+
+        async chargerRecettes() {
+            const r = await fetch('/restaurant/api/recettes/liste/');
+            const d = await r.json();
+            if (d.success) { this.recettes = d.recettes; this.filtrer(); }
+        },
+
+        async chargerProduits() {
+            const r = await fetch('/restaurant/api/produits/stock/');
+            const d = await r.json();
+            if (d.success) this.produits = d.produits;
+        },
+
+        async chargerMenus() {
+            try {
+                const r = await fetch('/restaurant/api/menus/');
+                const d = await r.json();
+                if (d.success) this.menus = d.menus;
+            } catch(e) {}
+        },
+
+        filtrer() {
+            const q = this.search.toLowerCase();
+            this.recettesFilterees = q ? this.recettes.filter(r => r.nom.toLowerCase().includes(q)) : this.recettes;
+        },
+
+        async selectionner(r) {
+            this.selected = r;
+            this.edit = {
+                nom: r.nom,
+                type_recette: r.type_recette,
+                prix_vente: r.prix_vente || 0,
+                ingredients: (r.ingredients || []).map(ing => ({ ...ing, _key: crypto.randomUUID() })),
+            };
+            await this.chargerMenusLies(r.id);
+        },
+
+        async chargerMenusLies(recetteId) {
+            try {
+                const r = await fetch('/restaurant/api/recette/' + recetteId + '/menus/');
+                const d = await r.json();
+                if (d.success) this.menusLies = d.menus;
+            } catch(e) {}
+        },
+
+        async nouvelleRecette() {
+            const r = await fetch('/restaurant/api/recettes/liste/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCookie('csrftoken') },
+                body: JSON.stringify({ nom: 'Nouvelle recette', type_recette: 'PLAT' })
+            });
+            const d = await r.json();
+            if (d.success) {
+                this.recettes.unshift(d.recette);
+                this.filtrer();
+                this.selectionner(d.recette);
+            }
+        },
+
+        async sauvegarderRecette() {
+            if (!this.selected?.id || !this.edit.nom.trim()) return;
+            try {
+                await fetch('/restaurant/api/recette/' + this.selected.id + '/modifier/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCookie('csrftoken') },
+                    body: JSON.stringify({
+                        nom: this.edit.nom,
+                        type_recette: this.edit.type_recette,
+                        prix_vente: this.edit.prix_vente
+                    })
+                });
+            } catch(e) {}
+        },
+
+        ajouterIngredient() {
+            this.edit.ingredients.push({
+                _key: crypto.randomUUID(),
+                produit_id: '',
+                produit_nom: '',
+                quantite: 1,
+                unite: 'piece',
+            });
+        },
+
+        retirerIngredient(i) { this.edit.ingredients.splice(i, 1); this.sauvegarderIngredients(); },
+
+        async changerProduit(ing) {
+            const p = this.produits.find(pp => pp.id == ing.produit_id);
+            if (p) {
+                ing.unite = p.unite_base || 'piece';
+                ing.produit_nom = p.nom;
+            }
+            this.sauvegarderIngredients();
+        },
+
+        async sauvegarderIngredients() {
+            if (!this.selected?.id) return;
+            clearTimeout(this.saveTimer);
+            this.saveTimer = setTimeout(async () => {
+                try {
+                    await fetch('/restaurant/api/recette/' + this.selected.id + '/ingredients/save/', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCookie('csrftoken') },
+                        body: JSON.stringify({
+                            ingredients: this.edit.ingredients.map(ing => ({
+                                produit_id: ing.produit_id,
+                                quantite: ing.quantite,
+                                unite: ing.unite,
+                            }))
+                        })
+                    });
+                    await this.chargerRecettes();
+                } catch(e) {}
+            }, 500);
+        },
+
+        async lierMenu() {
+            if (!this.lienMenuId || !this.selected?.id) return;
+            try {
+                const r = await fetch('/restaurant/api/menu/' + this.lienMenuId + '/ajouter-recette/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCookie('csrftoken') },
+                    body: JSON.stringify({ recette_id: this.selected.id })
+                });
+                const d = await r.json();
+                if (d.success) {
+                    this.lienMenuId = '';
+                    this.chargerMenusLies(this.selected.id);
+                } else alert('Erreur: ' + d.error);
+            } catch(e) { alert('Erreur réseau'); }
+        },
+
+        formatMoney(v) { return new Intl.NumberFormat('fr-FR').format(v || 0); },
+        getCookie(n) { let v = `; ${document.cookie}`, p = v.split(`; ${n}=`); return p.length === 2 ? p.pop().split(';').shift() : ''; }
+    }
+}
+</script>
+{% endblock %}

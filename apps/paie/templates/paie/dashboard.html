@@ -1,0 +1,64 @@
+
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Paie - Dashboard{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <h1 class="text-2xl font-bold text-on-surface mb-6">Dashboard Paie</h1>
+    
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div class="stat-card p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-on-surface-variant text-sm">Total bulletins</p>
+                    <p class="text-2xl font-bold text-secondary mt-1">{{ stats.total_bulletins }}</p>
+                </div>
+                <div class="stat-icon"><i class="fas fa-file-invoice"></i></div>
+            </div>
+        </div>
+        
+        <div class="stat-card p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-on-surface-variant text-sm">Masse salariale</p>
+                    <p class="text-2xl font-bold text-green-400 mt-1">{{ stats.total_net|floatformat:0 }} F</p>
+                </div>
+                <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+            </div>
+        </div>
+        
+        <div class="stat-card p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-on-surface-variant text-sm">Bulletins du mois</p>
+                    <p class="text-2xl font-bold text-blue-400 mt-1">{{ stats.bulletins_mois }}</p>
+                </div>
+                <div class="stat-icon"><i class="fas fa-calendar"></i></div>
+            </div>
+        </div>
+        
+        <div class="stat-card p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-on-surface-variant text-sm">Masse du mois</p>
+                    <p class="text-2xl font-bold text-purple-400 mt-1">{{ stats.net_mois|floatformat:0 }} F</p>
+                </div>
+                <div class="stat-icon"><i class="fas fa-coins"></i></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-surface-container-low rounded-xl shadow-md p-6">
+        <h2 class="text-xl font-bold text-on-surface mb-4">Actions rapides</h2>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <a href="{% url 'paie:liste_periodes' %}" class="btn btn-primary">Gérer les périodes</a>
+            <a href="{% url 'paie:liste_bulletins' %}" class="btn btn-outline">Voir les bulletins</a>
+            <a href="{% url 'paie:liste_rubriques' %}" class="btn btn-outline">Rubriques de paie</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+

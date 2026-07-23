@@ -1,0 +1,146 @@
+{% extends 'comptabilite/base_compta.html' %}
+{% load static %}
+
+{% block title %}Grand Livre{% endblock %}
+
+{% block header %}Grand Livre{% endblock %}
+
+{% block subtitle %}Détail chronologique des mouvements par compte{% endblock %}
+
+{% block content %}
+<div class="space-y-6" x-data="grandLivreApp()">
+
+    <!-- Filtres -->
+    <div class="bg-surface-container-low rounded-2xl shadow-md p-4">
+        <form method="get" class="flex flex-wrap items-end gap-4">
+            <div class="flex-1 min-w-[250px]">
+                <label class="block text-sm font-medium text-on-surface-variant mb-1">Compte</label>
+                <select name="compte" class="w-full rounded-lg border border-outline/30 px-3 py-2.5 bg-surface-container-high text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary">
+                    <option value="">-- Sélectionner un compte --</option>
+                    {% for c in comptes %}
+                    <option value="{{ c.compte__code }}" {% if compte_selectionne and compte_selectionne.code == c.compte__code %}selected{% endif %}>
+                        {{ c.compte__code }} - {{ c.compte__libelle|truncatechars:50 }} ({{ c.solde|floatformat:0 }} F)
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex-1 min-w-[200px]">
+                <label class="block text-sm font-medium text-on-surface-variant mb-1">Type de mouvement</label>
+                <select name="type_mouvement" class="w-full rounded-lg border border-outline/30 px-3 py-2.5 bg-surface-container-high text-on-surface focus:outline-none focus:ring-2 focus:ring-secondary">
+                    <option value="">-- Tous les types --</option>
+                    {% for code, lib in types_mouvements %}
+                    <option value="{{ code }}" {% if type_mouvement == code %}selected{% endif %}>
+                        {{ code }} - {{ lib }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button type="submit" class="px-5 py-2.5 text-sm font-semibold rounded-lg bg-secondary text-on-secondary hover:bg-secondary/90">
+                <i class="fas fa-search mr-2"></i> Consulter
+            </button>
+        </form>
+    </div>
+
+    {% if compte_selectionne %}
+    <!-- En-tête du compte -->
+    <div class="bg-surface-container-low rounded-2xl shadow-md p-5">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <div>
+                <span class="text-3xl font-mono font-bold text-on-surface">{{ compte_selectionne.code }}</span>
+                <span class="ml-3 text-lg text-on-surface-variant">{{ compte_selectionne.libelle }}</span>
+            </div>
+            <div class="text-right">
+                <p class="text-sm text-on-surface-variant">Solde du compte</p>
+                <p class="text-2xl font-mono font-bold {% if solde_affiche >= 0 %}text-green-400{% else %}text-red-400{% endif %}">
+                    {{ solde_affiche|floatformat:0 }} F
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tableau du Grand Livre -->
+    <div class="bg-surface-container-low rounded-2xl shadow-md overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-surface-container-high">
+                    <tr class="border-b border-outline/10">
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase hidden md:table-cell">Réf.</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase hidden md:table-cell">Pièce</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Libellé</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase">Débit</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase">Crédit</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase">Solde cumulé</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10">
+                    {% for ligne in lignes %}
+                    <tr class="hover:bg-surface-container-low transition">
+                        <td class="px-4 py-2.5 text-sm whitespace-nowrap">{{ ligne.date|date:"d/m/Y" }}</td>
+                        <td class="px-4 py-2.5 text-sm font-mono hidden md:table-cell">{{ ligne.reference }}</td>
+                        <td class="px-4 py-2.5 text-sm text-on-surface-variant hidden md:table-cell">{{ ligne.piece }}</td>
+                        <td class="px-4 py-2.5 text-sm max-w-xs truncate" title="{{ ligne.libelle }}">{{ ligne.libelle|truncatechars:55 }}</td>
+                        <td class="px-4 py-2.5 text-right font-mono text-red-400">
+                            {% if ligne.debit > 0 %}{{ ligne.debit|floatformat:0 }} F{% endif %}
+                        </td>
+                        <td class="px-4 py-2.5 text-right font-mono text-green-400">
+                            {% if ligne.credit > 0 %}{{ ligne.credit|floatformat:0 }} F{% endif %}
+                        </td>
+                        <td class="px-4 py-2.5 text-right font-mono font-semibold {% if ligne.solde_cumule >= 0 %}text-green-400{% else %}text-red-400{% endif %}">
+                            {{ ligne.solde_cumule|floatformat:0 }} F
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-4 py-10 text-center text-on-surface-variant">
+                            <i class="fas fa-book-open text-5xl mb-3 block"></i>
+                            <p>Aucun mouvement pour ce compte</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="bg-surface-container-high font-semibold border-t border-outline/10">
+                    <tr>
+                        <td colspan="2" class="px-4 py-3 text-right text-on-surface-variant">TOTAUX :</td>
+                        <td class="px-4 py-3 text-right font-mono text-red-400">{{ total_debit|floatformat:0 }} F</td>
+                        <td class="px-4 py-3 text-right font-mono text-green-400">{{ total_credit|floatformat:0 }} F</td>
+                        <td class="px-4 py-3 text-right font-mono {% if solde_affiche >= 0 %}text-green-400{% else %}text-red-400{% endif %}">
+                            {{ solde_affiche|floatformat:0 }} F
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Aperçu de tous les comptes -->
+    <div class="bg-surface-container-low rounded-2xl shadow-md overflow-hidden">
+        <div class="px-6 py-4 border-b border-outline/10">
+            <h3 class="font-semibold text-on-surface">Comptes mouvementés</h3>
+            <p class="text-sm text-on-surface-variant">Cliquez sur un compte pour voir son Grand Livre détaillé</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
+            {% for c in comptes %}
+            <a href="{% url 'comptabilite:grand_livre_compte' c.compte__code %}" 
+               class="flex items-center justify-between p-3 rounded-xl bg-surface-container-high hover:bg-surface-container-high/80 transition border border-outline/10">
+                <div>
+                    <span class="font-mono font-bold text-on-surface">{{ c.compte__code }}</span>
+                    <p class="text-xs text-on-surface-variant truncate max-w-[180px]">{{ c.compte__libelle|truncatechars:35 }}</p>
+                </div>
+                <span class="font-mono text-sm font-semibold {% if c.solde >= 0 %}text-green-400{% else %}text-red-400{% endif %}">
+                    {{ c.solde|floatformat:0 }} F
+                </span>
+            </a>
+            {% empty %}
+            <div class="col-span-full text-center text-on-surface-variant py-8">
+                <i class="fas fa-database text-5xl mb-3 block"></i>
+                <p>Aucun compte avec solde non nul</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+</div>
+{% endblock %}

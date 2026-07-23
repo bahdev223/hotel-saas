@@ -1,0 +1,146 @@
+﻿{% load static %}
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Stock{% endblock %} — Résidence DAMOU</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-dim": "#131313", "surface": "#131313", "surface-bright": "#393939",
+                        "surface-container-lowest": "#0e0e0e", "surface-container-low": "#1c1b1b",
+                        "surface-container": "#20201f", "surface-container-high": "#2a2a2a",
+                        "surface-container-highest": "#353535",
+                        "on-surface": "#e5e2e1", "on-surface-variant": "#c4c7c7",
+                        "secondary": "#e3c282", "secondary-container": "#5c4611",
+                        "on-secondary": "#402d00",
+                        "error": "#ffb4ab", "error-container": "#93000a",
+                        "outline": "#8e9192",
+                        "background": "#131313",
+                    },
+                    fontFamily: { "body-md": ["Hanken Grotesk", "sans-serif"] },
+                },
+            },
+        }
+    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        [x-cloak] { display: none !important; }
+        .scrollbar-md::-webkit-scrollbar { width: 6px; }
+        .scrollbar-md::-webkit-scrollbar-track { background: #2a2a2a; border-radius: 10px; }
+        .scrollbar-md::-webkit-scrollbar-thumb { background: #c9c6c5; border-radius: 10px; }
+        .scrollbar-md::-webkit-scrollbar-thumb:hover { background: #e3c282; }
+        .transition-smooth { transition: all 0.2s ease-in-out; }
+        @layer components {
+            .input-md3 {
+                @apply w-full border-b-2 border-transparent rounded-t-lg px-4 py-3
+                       focus:border-secondary focus:ring-0 outline-none transition-all duration-200;
+                background-color: #353535 !important; color: #e5e2e1 !important;
+            }
+            .input-md3::placeholder { color: rgba(196, 199, 199, 0.5) !important; }
+            select.input-md3 option { background-color: #1c1b1b !important; color: #e5e2e1 !important; }
+            input:-webkit-autofill,
+            input:-webkit-autofill:hover,
+            input:-webkit-autofill:focus {
+                -webkit-text-fill-color: #e5e2e1 !important;
+                -webkit-box-shadow: 0 0 0px 1000px #353535 inset !important;
+            }
+            .label-md3 {
+                @apply text-[11px] font-bold text-secondary uppercase tracking-wider mb-1 block pl-1;
+            }
+            .btn-md3-primary {
+                @apply bg-secondary text-on-secondary px-6 py-3 rounded-full font-bold
+                       hover:shadow-lg hover:shadow-secondary/20 active:scale-95 transition-all disabled:opacity-30;
+            }
+            .card-md3 {
+                @apply bg-surface-container-low border border-outline/10 rounded-xl;
+            }
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body-md">
+
+<div class="min-h-screen flex flex-col">
+
+    <!-- Top Navbar -->
+    <nav class="bg-surface-container border-b border-outline/10 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <a href="/" class="flex items-center gap-3 hover:opacity-85 transition-smooth">
+                    <img src="{% static 'img/logo.jpg' %}" alt="Résidence DAMOU" class="w-10 h-10 rounded-lg shadow-md object-cover">
+                    <div>
+                        <span class="text-lg font-bold text-on-surface">Résidence DAMOU</span>
+                    </div>
+                </a>
+                <div class="flex items-center gap-4">
+                    <span class="hidden sm:inline text-sm text-on-surface-variant font-medium">{{ user.username }}</span>
+                    <a href="{% url 'authentication:logout' %}" class="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container-high hover:bg-error-container/20 text-on-surface-variant hover:text-error transition-smooth" title="Déconnexion">
+                        <i class="fas fa-sign-out-alt text-sm"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Messages -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 w-full">
+        {% if messages %}
+        <div class="space-y-2 mb-4">
+            {% for message in messages %}
+            <div class="rounded-lg p-4 border-l-4 text-sm
+                {% if message.tags == 'success' %}bg-green-900/30 border-green-500 text-green-300
+                {% elif message.tags == 'error' %}bg-red-900/30 border-red-500 text-red-300
+                {% else %}bg-secondary-container/20 border-secondary text-on-surface{% endif %}">
+                <div class="flex items-center gap-3">
+                    <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %}"></i>
+                    <span>{{ message }}</span>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Sub Navigation -->
+    <nav class="bg-surface-container border-b border-outline/10 overflow-x-auto">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex gap-1 py-1.5 text-sm whitespace-nowrap">
+                <a href="{% url 'stock:dashboard' %}" class="px-3 py-1.5 rounded-lg hover:bg-surface-container-high transition-smooth {% if request.resolver_match.view_name == 'stock:dashboard' %}text-secondary bg-secondary-container/20{% else %}text-on-surface-variant{% endif %}">
+                    <i class="fas fa-chart-pie mr-1.5"></i>Dashboard
+                </a>
+                <a href="{% url 'stock:liste_achats' %}" class="px-3 py-1.5 rounded-lg hover:bg-surface-container-high transition-smooth {% if 'achats' in request.resolver_match.view_name %}text-secondary bg-secondary-container/20{% else %}text-on-surface-variant{% endif %}">
+                    <i class="fas fa-truck-loading mr-1.5"></i>Achats
+                </a>
+                <a href="{% url 'stock:liste_entrees' %}" class="px-3 py-1.5 rounded-lg hover:bg-surface-container-high transition-smooth {% if 'entrees' in request.resolver_match.view_name %}text-secondary bg-secondary-container/20{% else %}text-on-surface-variant{% endif %}">
+                    <i class="fas fa-arrow-down mr-1.5"></i>Entrées
+                </a>
+                <a href="{% url 'stock:liste_pertes' %}" class="px-3 py-1.5 rounded-lg hover:bg-surface-container-high transition-smooth {% if 'pertes' in request.resolver_match.view_name %}text-secondary bg-secondary-container/20{% else %}text-on-surface-variant{% endif %}">
+                    <i class="fas fa-trash-alt mr-1.5 text-red-400"></i>Pertes
+                </a>
+
+                <a href="{% url 'stock:liste_inventaires' %}" class="px-3 py-1.5 rounded-lg hover:bg-surface-container-high transition-smooth {% if 'inventaires' in request.resolver_match.view_name %}text-secondary bg-secondary-container/20{% else %}text-on-surface-variant{% endif %}">
+                    <i class="fas fa-clipboard-list mr-1.5"></i>Inventaires
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- CONTENT -->
+    <div class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
+        {% block content %}{% endblock %}
+    </div>
+
+    <footer class="border-t border-outline/10 py-3 text-center text-xs text-on-surface-variant/60">
+        Résidence DAMOU &copy; {% now "Y" %}
+    </footer>
+</div>
+
+</body>
+</html>

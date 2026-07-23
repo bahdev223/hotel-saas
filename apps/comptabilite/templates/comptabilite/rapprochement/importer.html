@@ -1,0 +1,59 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load static %}
+
+{% block title %}Importer un relevé{% endblock %}
+
+{% block header %}Import de relevé bancaire{% endblock %}
+{% block subtitle %}CSV, Excel ou PDF{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto">
+    <form method="post" enctype="multipart/form-data" class="bg-surface-container-low rounded-2xl shadow-md p-6 space-y-6">
+        {% csrf_token %}
+        
+        <div>
+            <label class="block text-sm font-medium text-on-surface mb-1">Compte bancaire *</label>
+            <select name="caisse" required class="w-full px-3 py-2 input-md3 rounded-lg">
+                <option value="">Sélectionner...</option>
+                {% for caisse in caisses %}
+                <option value="{{ caisse.id }}">{{ caisse.nom }} ({{ caisse.code }})</option>
+                {% endfor %}
+            </select>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium text-on-surface mb-1">Date début *</label>
+                <input type="date" name="date_debut" required class="w-full px-3 py-2 input-md3 rounded-lg">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-on-surface mb-1">Date fin *</label>
+                <input type="date" name="date_fin" required class="w-full px-3 py-2 input-md3 rounded-lg">
+            </div>
+        </div>
+        
+        <div>
+            <label class="block text-sm font-medium text-on-surface mb-1">Fichier relevé</label>
+            <input type="file" name="fichier" accept=".csv,.xlsx,.pdf" class="w-full px-3 py-2 input-md3 rounded-lg">
+            <p class="text-xs text-on-surface-variant mt-1">Formats acceptés: CSV, Excel, PDF</p>
+        </div>
+        
+        <div class="bg-blue-900/20 rounded-lg p-4 text-sm text-blue-300">
+            <i class="fas fa-info-circle mr-2"></i>
+            Format attendu pour CSV: date, libellé, montant, sens (CREDIT/DEBIT)
+        </div>
+        
+        <div class="flex gap-3 justify-end">
+            <a href="{% url 'comptabilite:releves_liste' %}" class="px-4 py-2 border-outline/10 rounded-lg hover:bg-surface-container-low">Annuler</a>
+            <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+                <i class="fas fa-upload mr-2"></i>Importer
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}
+
+
+
+
+

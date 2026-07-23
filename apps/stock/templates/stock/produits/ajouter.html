@@ -1,0 +1,118 @@
+{% extends 'stock/base_stock.html' %}
+{% load static %}
+
+{% block title %}Nouveau produit{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="card-md3">
+        <div class="px-6 py-4 border-b border-outline/10">
+            <h2 class="text-lg font-bold"><i class="fas fa-box text-secondary mr-2"></i>Nouveau produit</h2>
+        </div>
+        <form method="post" action="{% url 'stock:api_ajouter_produit' %}" enctype="multipart/form-data" class="p-6 space-y-5">
+            {% csrf_token %}
+
+            <!-- Domaine -->
+            <div>
+                <label class="label-md3">Domaine</label>
+                <select name="domaine" class="input-md3 rounded-lg w-full" required>
+                    <option value="">Sélectionner un domaine...</option>
+                    {% for d in domaines %}
+                    <option value="{{ d.id }}">{{ d.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Nom -->
+            <div>
+                <label class="label-md3">Nom du produit</label>
+                <input type="text" name="nom" class="input-md3 rounded-lg w-full" placeholder="Ex: Jus d'orange" required>
+            </div>
+
+            <!-- Catégorie -->
+            <div>
+                <label class="label-md3">Catégorie</label>
+                <select name="categorie" class="input-md3 rounded-lg w-full">
+                    <option value="">Sélectionner une catégorie...</option>
+                    {% for c in categories %}
+                    <option value="{{ c.id }}">{{ c.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Type d'article -->
+            <div>
+                <label class="label-md3">Type d'article</label>
+                <select name="type_article" class="input-md3 rounded-lg w-full">
+                    <option value="MARCHANDISE">Marchandise</option>
+                    <option value="MATIERE_PREMIERE">Matière première</option>
+                    <option value="EMBALLAGE">Emballage</option>
+                    <option value="CONSOMMABLE">Consommable</option>
+                    <option value="IMMOBILISATION">Immobilisation</option>
+                    <option value="SERVICE">Service</option>
+                </select>
+            </div>
+
+            <!-- Unité de base -->
+            <div>
+                <label class="label-md3">Unité de base</label>
+                <input type="text" name="unite_base" class="input-md3 rounded-lg w-full" placeholder="Ex: piece, litre, kg" value="piece">
+            </div>
+
+            <!-- Seuil alerte -->
+            <div>
+                <label class="label-md3">Seuil d'alerte</label>
+                <input type="number" name="seuil_alerte" class="input-md3 rounded-lg w-full" value="5" min="0">
+            </div>
+
+            <!-- Quantité initiale -->
+            <div>
+                <label class="label-md3">Quantité initiale</label>
+                <input type="number" step="any" name="quantite_initiale" class="input-md3 rounded-lg w-full" value="0" min="0">
+            </div>
+
+            <!-- Image -->
+            <div>
+                <label class="label-md3">Image du produit</label>
+                <div class="mt-1 flex items-center gap-4">
+                    <div class="w-24 h-24 rounded-xl bg-surface-container-high border-2 border-dashed border-outline/30 flex items-center justify-center overflow-hidden" id="imagePreview">
+                        <i class="fas fa-camera text-2xl text-on-surface-variant"></i>
+                    </div>
+                    <div class="flex-1">
+                        <input type="file" name="image" accept="image/*" class="w-full text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-secondary file:text-on-secondary hover:file:bg-secondary/80 cursor-pointer" onchange="previewImage(event)">
+                        <p class="text-xs text-on-surface-variant mt-1">PNG, JPG ou WEBP</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div>
+                <label class="label-md3">Description (optionnelle)</label>
+                <textarea name="description" rows="3" class="input-md3 rounded-lg w-full" placeholder="Description du produit..."></textarea>
+            </div>
+
+            <div class="flex gap-3 pt-2">
+                <button type="submit" class="flex-1 btn-md3-primary py-2.5 rounded-lg text-sm" {% if est_bloque_stock %}disabled{% endif %}>
+                    <i class="fas fa-save mr-1"></i> Enregistrer
+                </button>
+                <a href="{% url 'stock:dashboard' %}" class="flex-1 border border-outline/10 py-2.5 rounded-lg text-sm text-center hover:bg-surface-container transition-smooth">
+                    Annuler
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function previewImage(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const preview = document.getElementById('imagePreview');
+        preview.innerHTML = '<img src="' + e.target.result + '" class="w-full h-full object-cover">';
+    };
+    reader.readAsDataURL(file);
+}
+</script>
+{% endblock %}

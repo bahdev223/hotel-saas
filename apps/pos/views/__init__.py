@@ -1,0 +1,121 @@
+# apps/pos/views/__init__.py
+from .pos import pos_by_slug, pos_raf
+from .api import (
+    api_liste_ventes,
+    api_produits,
+    api_ajouter_caisse,
+    api_ajouter_point_vente,
+    api_recherche_clients,
+    api_creer_client,
+)
+from .point_vente import (
+    liste_points_vente,
+    ajouter_point_vente,
+    detail_point_vente,
+    modifier_point_vente,
+    supprimer_point_vente,
+    liste_ventes,
+    changer_mot_de_passe,
+    changer_responsable,
+    changer_entrepot,
+    api_ajouter_entrepot_pv,
+    api_retirer_entrepot_pv,
+    api_point_vente_dashboard,
+)
+from .session_views import (
+    sessions_liste,
+    session_detail,
+    api_ouverture_session,
+    api_fermeture_session,
+    api_cloturer_et_rouvrir,
+    api_session_active,
+    api_caissiers_disponibles,
+    session_export_csv,
+    api_verifier_etat_pos,
+)
+from .planning import (
+    planning_view,
+    api_planning_liste,
+    api_planning_creer,
+    api_planning_creer_masse,
+    api_planning_supprimer,
+    api_planning_employes,
+    api_set_horaire,
+)
+
+# apps/pos/views/__init__.py
+from .commandes import (
+    dashboard_commandes,
+    cuisine_dashboard,
+    detail_commande,
+    liste_commandes_api,
+    changer_statut_commande,
+    api_creer_commande,  
+    api_payer_commande,
+    api_vente_recu,
+    api_raf_annuler_commande,
+    api_raf_liste_commandes_payees,
+)
+from .employe_dashboard import employe_dashboard, employe_paiement_clients, api_paiement_clients_processer
+from .raf_dashboard import raf_dashboard, raf_dashboard_data_api
+from .api_mon_espace import api_mon_espace
+from .raf_collecte import (
+    raf_collecte,
+    raf_transferts,
+    raf_liste_collecte_api,
+    raf_ouvrir_depot_api,
+    raf_declarer_solde_initial_api,
+    raf_collecter_api,
+)
+
+__all__ = [
+    'planning_view',
+    'api_planning_liste',
+    'api_planning_creer',
+    'api_planning_creer_masse',
+    'api_planning_supprimer',
+    'api_planning_employes',
+    'api_set_horaire',
+    'pos_by_slug',
+    'pos_raf',
+    'api_creer_commande',
+    'api_liste_ventes',
+    'api_produits',
+    'api_creer_client',
+    'api_ajouter_caisse',
+    'api_ajouter_point_vente',
+    'api_point_vente_dashboard',
+    'liste_points_vente',
+    'ajouter_point_vente',
+    'detail_point_vente',
+    'modifier_point_vente',
+    'supprimer_point_vente',
+    'liste_ventes',
+    'changer_mot_de_passe',
+    'changer_responsable',
+    'changer_entrepot',
+    'sessions_liste',
+    'session_detail',
+    'api_ouverture_session',
+    'api_fermeture_session',
+    'api_cloturer_et_rouvrir',
+    'api_session_active',
+    'api_caissiers_disponibles',
+    'api_verifier_etat_pos',
+    'session_export_csv',
+    'dashboard_commandes',
+    'cuisine_dashboard',
+    'detail_commande',
+    'liste_commandes_api',
+    'changer_statut_commande',
+    'api_payer_commande',
+    'api_vente_recu',
+    'api_raf_annuler_commande',
+    'api_raf_liste_commandes_payees',
+    'employe_dashboard',
+    'employe_paiement_clients',
+    'api_paiement_clients_processer',
+    'api_mon_espace',
+    'raf_dashboard',
+]
+

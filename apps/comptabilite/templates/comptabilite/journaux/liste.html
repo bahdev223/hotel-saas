@@ -1,0 +1,68 @@
+<!-- apps/comptabilite/templates/comptabilite/journaux/liste.html -->
+{% extends 'comptabilite/base_compta.html' %}
+{% load static %}
+
+{% block title %}Journaux comptables{% endblock %}
+
+{% block header %}Journaux comptables{% endblock %}
+
+{% block subtitle %}Gestion des journaux (ACHATS, VENTES, CAISSE, BANQUE, OD){% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    
+    <!-- Liste des journaux -->
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {% for journal in journaux %}
+        <a href="{% url 'comptabilite:journal_detail' journal.id %}" 
+           class="bg-surface-container-low rounded-2xl shadow-md hover:shadow-md transition-all p-5 border-l-4 
+                  {% if journal.code == 'AC' %}border-secondary
+                  {% elif journal.code == 'VN' %}border-secondary
+                  {% elif journal.code == 'CA' %}border-secondary
+                  {% elif journal.code == 'BQ' %}border-secondary
+                  {% else %}border-outline/10{% endif %}">
+            
+            <div class="flex items-center justify-between mb-3">
+                <div class="text-2xl font-mono font-bold 
+                           {% if journal.code == 'AC' %}text-blue-400
+                           {% elif journal.code == 'VN' %}text-green-400
+                           {% elif journal.code == 'CA' %}text-orange-400
+                           {% elif journal.code == 'BQ' %}text-purple-400
+                           {% else %}text-on-surface-variant{% endif %}">
+                    {{ journal.code }}
+                </div>
+                <i class="fas fa-newspaper text-on-surface-variant text-3xl"></i>
+            </div>
+            
+            <h3 class="font-semibold text-on-surface">{{ journal.libelle }}</h3>
+            <p class="text-xs text-on-surface-variant mt-1">{{ journal.type_journal }}</p>
+            
+            <div class="mt-4 pt-3 border-t border-outline/10 flex justify-between text-sm">
+                <span class="text-on-surface-variant">
+                    <i class="fas fa-book mr-1"></i> {{ journal.nb_ecritures|default:0 }} écritures
+                </span>
+                <span class="text-green-400">
+                    {{ journal.total_credit|floatformat:0|default:"0" }} F
+                </span>
+            </div>
+        </a>
+        {% empty %}
+        <div class="col-span-full bg-surface-container-low rounded-2xl shadow-md p-8 text-center text-on-surface-variant">
+            <i class="fas fa-newspaper text-5xl mb-3 block"></i>
+            <p>Aucun journal configuré</p>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Légende -->
+    <div class="bg-surface-container-high rounded-lg p-4 text-sm text-on-surface-variant">
+        <div class="grid grid-cols-2 gap-2 md:grid-cols-5">
+            <div><span class="font-mono text-blue-400 font-bold">AC</span> = Achats</div>
+            <div><span class="font-mono text-green-400 font-bold">VN</span> = Ventes</div>
+            <div><span class="font-mono text-orange-400 font-bold">CA</span> = Caisse</div>
+            <div><span class="font-mono text-purple-400 font-bold">BQ</span> = Banque</div>
+            <div><span class="font-mono text-on-surface-variant font-bold">OD</span> = Opérations Diverses</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Tableau de bord - Résidence DAMOU{% endblock %}
+
+{% block header %}Tableau de bord{% endblock %}
+{% block subtitle %}Vue d'ensemble de votre établissement{% endblock %}
+
+{% block content %}
+<div class="space-y-4 md:space-y-6">
+
+    <!-- Filtres -->
+    <div class="flex gap-2 overflow-x-auto flex-nowrap pb-1">
+        <a href="?periode=jour" class="px-4 py-2 text-sm rounded-full whitespace-nowrap transition-all {% if periode == 'jour' %}bg-secondary text-on-secondary font-semibold{% else %}bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest{% endif %}">Jour</a>
+        <a href="?periode=semaine" class="px-4 py-2 text-sm rounded-full whitespace-nowrap transition-all {% if periode == 'semaine' %}bg-secondary text-on-secondary font-semibold{% else %}bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest{% endif %}">Semaine</a>
+        <a href="?periode=mois" class="px-4 py-2 text-sm rounded-full whitespace-nowrap transition-all {% if periode == 'mois' %}bg-secondary text-on-secondary font-semibold{% else %}bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest{% endif %}">Mois</a>
+    </div>
+
+    <!-- Cartes KPI -->
+    <div class="flex flex-col md:flex-row gap-3 md:gap-4">
+        <div class="flex-1 card-md3 p-4 md:p-5 border border-outline/20">
+            <div class="flex items-center justify-between">
+                <div class="min-w-0">
+                    <p class="text-xs text-on-surface-variant">Chiffre d'affaires — {{ periode_label }}</p>
+                    <p class="text-xl md:text-2xl font-bold text-primary mt-1 truncate">{{ ca_total|floatformat:0 }} F</p>
+                    <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-xs mt-1 text-on-surface-variant">
+                        <span>Hôtel <strong class="text-info">{{ ca_hotel|floatformat:0 }}</strong></span>
+                        <span>Brasserie <strong class="text-warning">{{ ca_brasserie|floatformat:0 }}</strong></span>
+                        <span>Restaurant <strong class="text-success">{{ ca_restaurant|floatformat:0 }}</strong></span>
+                    </div>
+                </div>
+                <i class="fas fa-chart-line text-2xl md:text-3xl text-primary/50 shrink-0 ml-3"></i>
+            </div>
+        </div>
+        <div class="w-full md:w-72 card-md3 p-4 md:p-5 border border-outline/20 border-l-4 border-l-warning">
+            <div class="flex items-center justify-between">
+                <div class="min-w-0">
+                    <p class="text-xs text-on-surface-variant">Commandes en cours</p>
+                    <p class="text-xl md:text-2xl font-bold text-warning mt-1">{{ total_commandes_en_cours }}</p>
+                    <div class="flex flex-wrap gap-x-3 gap-y-0.5 text-xs mt-1 text-on-surface-variant">
+                        <span>Restaurant {{ commandes_restaurant }}</span>
+                        <span>Bar {{ commandes_bar }}</span>
+                    </div>
+                </div>
+                <i class="fas fa-clipboard-list text-2xl md:text-3xl text-warning/50 shrink-0 ml-3"></i>
+            </div>
+        </div>
+    </div>
+
+    <!-- CA / Dépenses / Résultat par domaine -->
+    <div class="card-md3 border border-outline/20 overflow-hidden">
+        <div class="px-4 md:px-6 py-3 md:py-4 border-b border-outline/10">
+            <h3 class="text-sm font-semibold">Résultats par domaine — {{ periode_label }}</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-surface-container-high">
+                    <tr class="text-on-surface-variant text-xs uppercase">
+                        <th class="px-4 py-3 text-left font-semibold">Domaine</th>
+                        <th class="px-4 py-3 text-right font-semibold">CA</th>
+                        <th class="px-4 py-3 text-right font-semibold">Dépenses</th>
+                        <th class="px-4 py-3 text-right font-semibold">Résultat</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10 text-on-surface">
+                    <tr class="hover:bg-surface-container-high/50">
+                        <td class="px-4 py-3"><span class="inline-block w-2 h-2 rounded-full bg-info mr-2"></span>Hôtel</td>
+                        <td class="px-4 py-3 text-right font-mono text-green-400">{{ ca_hotel|floatformat:0 }} F</td>
+                        <td class="px-4 py-3 text-right font-mono text-red-400">{{ charges_par_domaine.hotel|cut:"-"|floatformat:0 }} F</td>
+                        <td class="px-4 py-3 text-right font-mono">{{ ca_hotel|add:charges_par_domaine.hotel|floatformat:0 }} F</td>
+                    </tr>
+                    <tr class="hover:bg-surface-container-high/50">
+                        <td class="px-4 py-3"><span class="inline-block w-2 h-2 rounded-full bg-warning mr-2"></span>Brasserie</td>
+                        <td class="px-4 py-3 text-right font-mono text-green-400">{{ ca_brasserie|floatformat:0 }} F</td>
+                        <td class="px-4 py-3 text-right font-mono text-red-400">{{ charges_par_domaine.brasserie|cut:"-"|floatformat:0 }} F</td>
+                        <td class="px-4 py-3 text-right font-mono">{{ ca_brasserie|add:charges_par_domaine.brasserie|floatformat:0 }} F</td>
+                    </tr>
+                    <tr class="hover:bg-surface-container-high/50">
+                        <td class="px-4 py-3"><span class="inline-block w-2 h-2 rounded-full bg-success mr-2"></span>Restaurant</td>
+                        <td class="px-4 py-3 text-right font-mono text-green-400">{{ ca_restaurant|floatformat:0 }} F</td>
+                        <td class="px-4 py-3 text-right font-mono text-red-400">{{ charges_par_domaine.restaurant|cut:"-"|floatformat:0 }} F</td>
+                        <td class="px-4 py-3 text-right font-mono">{{ ca_restaurant|add:charges_par_domaine.restaurant|floatformat:0 }} F</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Graphique : Évolution CA 30 jours -->
+    <div class="card-md3 border border-outline/20">
+        <div class="px-4 md:px-6 py-3 md:py-4 border-b border-outline/10">
+            <h3 class="text-sm font-semibold">Évolution du chiffre d'affaires (30 jours)</h3>
+        </div>
+        <div class="p-4 md:p-6">
+            <canvas id="caMensuelChart" height="120"></canvas>
+        </div>
+    </div>
+
+    <!-- Deuxième ligne : Répartition + Top produits -->
+    <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <div class="card-md3 border border-outline/20">
+            <div class="px-4 md:px-6 py-3 md:py-4 border-b border-outline/10">
+                <h3 class="text-sm font-semibold">Répartition (7 jours)</h3>
+            </div>
+            <div class="p-4 md:p-6">
+                <canvas id="repartitionCaChart" height="200"></canvas>
+            </div>
+        </div>
+        <div class="card-md3 border border-outline/20 lg:col-span-2">
+            <div class="px-4 md:px-6 py-3 md:py-4 border-b border-outline/10">
+                <h3 class="text-sm font-semibold">Top 5 produits</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="text-xs text-on-surface-variant uppercase">
+                            <th class="px-4 md:px-6 py-3 text-left font-medium">Produit</th>
+                            <th class="px-4 md:px-6 py-3 text-right font-medium">Qté</th>
+                            <th class="px-4 md:px-6 py-3 text-right font-medium">Montant</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-outline/10">
+                        {% for p in top_produits %}
+                        <tr>
+                            <td class="px-4 md:px-6 py-3 font-medium text-sm md:text-base">{{ p.nom }}</td>
+                            <td class="px-4 md:px-6 py-3 text-right text-sm md:text-base">{{ p.quantite }}</td>
+                            <td class="px-4 md:px-6 py-3 text-right font-mono text-sm md:text-base">{{ p.montant|floatformat:0 }} F</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Activités récentes -->
+    <div class="card-md3 border border-outline/20">
+        <div class="px-4 md:px-6 py-3 md:py-4 border-b border-outline/10">
+            <h3 class="text-sm font-semibold">Activités récentes</h3>
+        </div>
+        <div class="divide-y divide-outline/10">
+            {% for a in activites_recentes %}
+            <div class="flex items-center gap-2 md:gap-3 px-4 md:px-6 py-3">
+                <span class="text-xs text-on-surface-variant shrink-0 w-12 md:w-16">{{ a.heure }}</span>
+                <div class="min-w-0">
+                    <span class="font-medium text-sm md:text-base">{{ a.action }}</span>
+                    <p class="text-xs text-on-surface-variant truncate">{{ a.detail }}</p>
+                </div>
+            </div>
+            {% empty %}
+            <div class="px-4 md:px-6 py-4 text-center text-on-surface-variant text-sm">Aucune activité récente</div>
+            {% endfor %}
+        </div>
+    </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+(function() {
+    var d = [{% for item in ca_mensuel %}'{{ item.date }}',{% endfor %}];
+    var datasets = [
+        { label: 'Hôtel', data: [{% for item in ca_mensuel %}{{ item.hotel }},{% endfor %}], c: '#0284c7', b: 'rgba(2,132,199,0.1)' },
+        { label: 'Brasserie', data: [{% for item in ca_mensuel %}{{ item.brasserie }},{% endfor %}], c: '#d97706', b: 'rgba(217,119,6,0.1)' },
+        { label: 'Restaurant', data: [{% for item in ca_mensuel %}{{ item.restaurant }},{% endfor %}], c: '#16a34a', b: 'rgba(22,163,74,0.1)' },
+    ].map(function(s) { return {
+        label: s.label, data: s.data,
+        borderColor: s.c, backgroundColor: s.b,
+        borderWidth: 2, pointRadius: 0, tension: 0.3, fill: true
+    };});
+    var el = document.getElementById('caMensuelChart');
+    if (el) new Chart(el, {
+        type: 'line', data: { labels: d, datasets: datasets },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { legend: { position: 'top', labels: { boxWidth: 10, usePointStyle: true, padding: 10 } } },
+            scales: {
+                x: { ticks: { maxTicksLimit: 6, maxRotation: 0 }, grid: { display: false } },
+                y: { beginAtZero: true, ticks: { callback: function(v) { return v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'k' : v; } }, grid: { color: 'rgba(255,255,255,0.03)' } }
+            }
+        }
+    });
+    var el2 = document.getElementById('repartitionCaChart');
+    if (el2) new Chart(el2, {
+        type: 'doughnut',
+        data: {
+            labels: ['Hôtel','Brasserie','Restaurant'],
+            datasets: [{ data: [{{ repartition_ca.hotel.montant|floatformat:0 }},{{ repartition_ca.brasserie.montant|floatformat:0 }},{{ repartition_ca.restaurant.montant|floatformat:0 }}], backgroundColor: ['#0284c7','#d97706','#16a34a'], borderWidth: 0 }]
+        },
+        options: { cutout: '65%', responsive: true,
+            plugins: {
+                legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true, padding: 8 } },
+                tooltip: { callbacks: { label: function(ctx) {
+                    var t = ctx.dataset.data.reduce(function(a,b){return a+b;},0);
+                    return ' ' + ctx.label + ': ' + ctx.parsed.toLocaleString() + ' F (' + ((ctx.parsed/t)*100).toFixed(1) + '%)';
+                }}}
+            }
+        }
+    });
+})();
+</script>
+{% endblock %}

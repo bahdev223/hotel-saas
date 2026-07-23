@@ -1,0 +1,173 @@
+{% extends 'hotel/base_hotel.html' %}
+{% load static %}
+
+{% block title %}Chambres{% endblock %}
+{% block header %}<i class="fas fa-door-open text-secondary mr-2"></i>Chambres{% endblock %}
+{% block subtitle %}Gestion des chambres (Standard et VIP){% endblock %}
+
+{% block content %}
+<div x-data="chambreManagement()" x-init="init()" class="space-y-6">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div class="flex gap-2">
+            <a href="?{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-3 py-1.5 rounded-lg text-sm border border-outline/10 hover:bg-surface-container-high transition-smooth" :class="!filtreType ? 'bg-secondary text-black' : ''">Tous</a>
+            {% for key, label in type_choices %}
+            <a href="?type={{ key }}{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-3 py-1.5 rounded-lg text-sm border border-outline/10 hover:bg-surface-container-high transition-smooth {% if filtre_type == key %}bg-secondary-container/20 text-secondary border-secondary{% endif %}">{{ label }}</a>
+            {% endfor %}
+            <button @click="openAddModal()" class="px-3 py-1.5 rounded-lg text-sm bg-secondary text-black font-semibold {% if est_bloque_hotel %}pointer-events-none opacity-30{% endif %}">
+                <i class="fas fa-plus mr-1"></i>Ajouter
+            </button>
+        </div>
+    </div>
+
+    <!-- Grille -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        {% for unite in unites %}
+        <a href="{% url 'hotel:detail_unite' unite.id %}" class="card-md3 overflow-hidden hover:shadow-lg hover:shadow-secondary/5 transition-smooth group">
+            <div class="aspect-video bg-surface-container-high relative overflow-hidden">
+                {% if unite.image %}
+                <img src="{{ unite.image.url }}" alt="{{ unite.nom }}" class="w-full h-full object-cover group-hover:scale-105 transition-smooth duration-300">
+                {% else %}
+                <div class="w-full h-full flex items-center justify-center text-on-surface-variant">
+                    <i class="fas fa-image text-4xl opacity-30"></i>
+                </div>
+                {% endif %}
+                <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-medium
+                    {% if unite.statut == 'DISPONIBLE' %}bg-green-900/60 text-green-300
+                    {% elif unite.statut == 'OCCUPEE' %}bg-red-900/60 text-red-300
+                    {% elif unite.statut == 'NETTOYAGE' %}bg-yellow-900/60 text-yellow-300
+                    {% else %}bg-gray-900/60 text-gray-300{% endif %}">
+                    {{ unite.get_statut_display }}
+                </span>
+            </div>
+            <div class="p-4">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="text-xs font-mono text-secondary/80">{{ unite.code }}</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant">{{ unite.get_type_unite_display }}</span>
+                </div>
+                <h3 class="font-semibold text-on-surface group-hover:text-secondary transition-smooth">{{ unite.nom }}</h3>
+                <div class="flex items-center gap-3 mt-2 text-xs text-on-surface-variant">
+                    <span><i class="fas fa-users mr-1"></i>{{ unite.capacite }} pers.</span>
+                    {% if unite.surface_m2 %}
+                    <span><i class="fas fa-vector-square mr-1"></i>{{ unite.surface_m2 }} m²</span>
+                    {% endif %}
+                </div>
+                <p class="text-sm font-bold text-secondary mt-2">{{ unite.prix|floatformat:0 }} F <span class="text-xs text-on-surface-variant font-normal">/h</span>
+                {% if unite.prix_jour %}<span class="text-sm text-on-surface-variant ml-2">| {{ unite.prix_jour|floatformat:0 }} F <span class="text-xs">/j</span></span>{% endif %}</p>
+            </div>
+        </a>
+        {% empty %}
+        <div class="col-span-full text-center py-12 text-on-surface-variant">
+            <i class="fas fa-door-open text-4xl mb-3 block opacity-30"></i>
+            <p class="text-sm">Aucune chambre trouvée</p>
+        </div>
+        {% endfor %}
+    </div>
+
+    {% if unites.has_other_pages %}
+    <div class="flex justify-center gap-2 mt-6">
+        {% if unites.has_previous %}
+        <a href="?page={{ unites.previous_page_number }}{% if filtre_type %}&type={{ filtre_type }}{% endif %}{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-3 py-1.5 rounded-lg border border-outline/10 text-sm hover:bg-surface-container-high">&laquo; Précédent</a>
+        {% endif %}
+        <span class="px-3 py-1.5 text-sm text-on-surface-variant">Page {{ unites.number }} / {{ unites.paginator.num_pages }}</span>
+        {% if unites.has_next %}
+        <a href="?page={{ unites.next_page_number }}{% if filtre_type %}&type={{ filtre_type }}{% endif %}{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-3 py-1.5 rounded-lg border border-outline/10 text-sm hover:bg-surface-container-high">Suivant &raquo;</a>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- MODAL AJOUT CHAMBRE -->
+    <div x-show="openAdd" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="openAdd = false">
+        <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div class="sticky top-0 bg-surface-container-low px-6 py-4 border-b border-outline/10 flex justify-between items-center">
+                <h2 class="text-xl font-bold">Ajouter une chambre</h2>
+                <button @click="openAdd = false" class="text-on-surface-variant hover:text-on-surface">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form @submit.prevent="saveChambre" class="p-6 space-y-4">
+                {% csrf_token %}
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Code *</label>
+                        <input type="text" x-model="form.code" required class="w-full px-3 py-2 input-md3 rounded-lg" placeholder="CH-101">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Type</label>
+                        <select x-model="form.type_unite" class="w-full px-3 py-2 input-md3 rounded-lg">
+                            <option value="CHAMBRE">Standard</option>
+                            <option value="VIP">VIP</option>
+                        </select>
+                    </div>
+                    <div class="col-span-2">
+                        <label class="block text-sm font-medium mb-1">Nom *</label>
+                        <input type="text" x-model="form.nom" required class="w-full px-3 py-2 input-md3 rounded-lg" placeholder="Chambre Standard 101">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Capacité</label>
+                        <input type="number" x-model="form.capacite" min="1" class="w-full px-3 py-2 input-md3 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Prix / heure (F)</label>
+                        <input type="number" x-model="form.prix" min="0" class="w-full px-3 py-2 input-md3 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Prix / jour (F)</label>
+                        <input type="number" x-model="form.prix_jour" min="0" class="w-full px-3 py-2 input-md3 rounded-lg">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Équipements</label>
+                    <div class="flex flex-wrap gap-2">
+                        <template x-for="eq in equipements" :key="eq">
+                            <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-high cursor-pointer hover:bg-surface-container text-sm transition-smooth">
+                                <input type="checkbox" :value="eq" x-model="form.equipements" class="accent-secondary">
+                                <span x-text="eq"></span>
+                            </label>
+                        </template>
+                    </div>
+                </div>
+                <div class="flex gap-3 pt-4 border-t border-outline/10">
+                    <button type="submit" class="flex-1 bg-secondary text-white px-4 py-2 rounded-lg hover:bg-secondary/80 transition" :disabled="loading" x-text="loading ? 'Enregistrement...' : 'Créer la chambre'"></button>
+                    <button type="button" @click="openAdd = false" class="flex-1 bg-surface-container-highest text-on-surface px-4 py-2 rounded-lg hover:bg-surface-container-highest transition">Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function chambreManagement() {
+    return {
+        openAdd: false,
+        loading: false,
+        equipements: {{ equipements_list|safe }},
+        form: { code: '', nom: '', type_unite: 'CHAMBRE', capacite: 1, prix: 0, prix_jour: 0, equipements: [] },
+        init() {},
+        openAddModal() {
+            this.form = { code: '', nom: '', type_unite: 'CHAMBRE', capacite: 1, prix: 0, prix_jour: 0, equipements: [] };
+            this.openAdd = true;
+        },
+        async saveChambre() {
+            this.loading = true;
+            try {
+                const r = await fetch('/hotel/api/unites/save/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+                    body: JSON.stringify(this.form)
+                });
+                const d = await r.json();
+                if (d.success) {
+                    this.openAdd = false;
+                    window.location.reload();
+                } else {
+                    alert(d.error || 'Erreur');
+                }
+            } catch(e) { alert('Erreur réseau'); }
+            finally { this.loading = false; }
+        }
+    }
+}
+</script>
+{% endblock %}

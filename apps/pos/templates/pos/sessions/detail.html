@@ -1,0 +1,380 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Session #{{ session.id }}{% endblock %}
+
+{% block header %}Détail de la session #{{ session.id }}{% endblock %}
+{% block subtitle %}Du {{ session.date_ouverture|date:"d/m/Y à H:i" }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    
+    <!-- Informations session -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Infos générales -->
+        <div class="bg-surface-container-low rounded-xl border-outline/10 p-6">
+            <h3 class="font-semibold text-lg mb-4">Informations générales</h3>
+            <div class="space-y-3">
+                <div class="flex justify-between">
+                    <span class="text-on-surface-variant">Point de vente:</span>
+                    <span class="font-medium">{{ session.point_vente.nom|default:"-" }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-on-surface-variant">Caisse:</span>
+                    <span class="font-medium">{{ session.caisse.nom|default:"-" }}</span>
+                </div>
+                {% if session.planning %}
+                <div class="flex justify-between">
+                    <span class="text-on-surface-variant">Planning:</span>
+                    <span class="font-medium">{{ session.planning.employe.nom_complet }} {{ session.planning.heure_debut|time:"H:i" }}-{{ session.planning.heure_fin|time:"H:i" }}</span>
+                </div>
+                {% endif %}
+                <div class="flex justify-between">
+                    <span class="text-on-surface-variant">Date ouverture:</span>
+                    <span>{{ session.date_ouverture|date:"d/m/Y H:i" }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-on-surface-variant">Date fermeture:</span>
+                    <span>{{ session.date_fermeture|date:"d/m/Y H:i"|default:"-" }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-on-surface-variant">Statut:</span>
+                    {% if session.statut == 'OUVERTE' %}
+                    <span class="px-2 py-1 bg-green-900/30 text-green-300 rounded-full text-xs">Ouverte</span>
+                    {% elif session.statut == 'FERMEE' %}
+                    <span class="px-2 py-1 bg-surface-container-high text-on-surface-variant rounded-full text-xs">Fermée</span>
+                    {% else %}
+                    <span class="px-2 py-1 bg-yellow-900/30 text-yellow-300 rounded-full text-xs">{{ session.get_statut_display }}</span>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Soldes -->
+        <div class="bg-surface-container-low rounded-xl border-outline/10 p-6">
+            <h3 class="font-semibold text-lg mb-4">Soldes</h3>
+            <div class="space-y-3">
+                <div class="flex justify-between">
+                    <span class="text-on-surface-variant">Solde initial:</span>
+                    <span class="font-mono">{{ session.solde_initial|floatformat:0 }} F</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-on-surface-variant">Total ventes:</span>
+                    <span class="font-mono">{{ session.total_ventes|floatformat:0 }} F</span>
+                </div>
+                <div class="flex justify-between border-t border-outline/10 pt-2">
+                    <span class="font-medium">Solde attendu:</span>
+                    <span class="font-mono font-bold">{{ session.solde_attendu|floatformat:0 }} F</span>
+                </div>
+                {% if session.solde_reel %}
+                <div class="flex justify-between">
+                    <span class="text-on-surface-variant">Solde réel:</span>
+                    <span class="font-mono">{{ session.solde_reel|floatformat:0 }} F</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-on-surface-variant">Dépôt:</span>
+                    <span class="font-mono text-amber-400">{{ session.depot|floatformat:0|default:"0" }} F</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-on-surface-variant">Solde restant:</span>
+                    <span class="font-mono text-blue-400">{{ session.solde_restant|floatformat:0|default:"0" }} F</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-on-surface-variant">Écart:</span>
+                    <span class="font-mono {% if session.difference > 0 %}text-green-400{% elif session.difference < 0 %}text-red-400{% endif %}">
+                        {{ session.difference|floatformat:0 }} F
+                    </span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Caissiers -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        
+        <!-- Caissier ouverture -->
+        <div class="bg-surface-container-low rounded-xl border-outline/10 p-6">
+            <h3 class="font-semibold text-lg mb-4">
+                <i class="fas fa-user-check text-green-400 mr-2"></i>Caissier ouverture
+            </h3>
+            {% if session.caissier_ouverture %}
+            <p class="font-medium">{{ session.caissier_ouverture.nom }} {{ session.caissier_ouverture.prenom }}</p>
+            <p class="text-sm text-on-surface-variant">Matricule: {{ session.caissier_ouverture.matricule }}</p>
+            {% else %}
+            <p class="text-on-surface-variant">Non défini</p>
+            {% endif %}
+        </div>
+        
+        <!-- Caissier fermeture -->
+        <div class="bg-surface-container-low rounded-xl border-outline/10 p-6">
+            <h3 class="font-semibold text-lg mb-4">
+                <i class="fas fa-user-times text-red-400 mr-2"></i>Caissier fermeture
+            </h3>
+            {% if session.caissier_fermeture %}
+            <p class="font-medium">{{ session.caissier_fermeture.nom }} {{ session.caissier_fermeture.prenom }}</p>
+            <p class="text-sm text-on-surface-variant">Matricule: {{ session.caissier_fermeture.matricule }}</p>
+            {% else %}
+            <p class="text-on-surface-variant">Non fermée</p>
+            {% endif %}
+        </div>
+    </div>
+    
+    <!-- Changements de caissier -->
+    {% if changements %}
+    <div class="bg-surface-container-low rounded-xl border-outline/10 overflow-hidden">
+        <div class="px-6 py-4 border-b border-outline/10 bg-surface-container-high">
+            <h3 class="font-semibold">
+                <i class="fas fa-exchange-alt text-secondary mr-2"></i>Changements de caissier
+            </h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-surface-container-high">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-sm">Date</th>
+                        <th class="px-4 py-3 text-left text-sm">Ancien caissier</th>
+                        <th class="px-4 py-3 text-left text-sm">Nouveau caissier</th>
+                        <th class="px-4 py-3 text-left text-sm">Raison</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10">
+                    {% for c in changements %}
+                    <tr>
+                        <td class="px-4 py-3 text-sm">{{ c.date_changement|date:"d/m/Y H:i" }}</td>
+                        <td class="px-4 py-3 text-sm">{{ c.ancien_caissier.nom_complet|default:"Début" }}</td>
+                        <td class="px-4 py-3 text-sm">{{ c.nouveau_caissier.nom_complet|default:"Fin" }}</td>
+                        <td class="px-4 py-3 text-sm">{{ c.raison|default:"-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Stats par mode de paiement + Top produits -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <div class="lg:col-span-2 grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div class="bg-green-900/20 rounded-xl p-3 text-center">
+                <p class="text-xs text-green-400">Espèces</p>
+                <p class="text-lg font-bold text-green-300 font-mono">{{ stats_paiement.ESPECES|floatformat:0 }} F</p>
+            </div>
+            <div class="bg-blue-900/20 rounded-xl p-3 text-center">
+                <p class="text-xs text-blue-400">Carte</p>
+                <p class="text-lg font-bold text-blue-300 font-mono">{{ stats_paiement.CARTE|floatformat:0 }} F</p>
+            </div>
+            <div class="bg-purple-900/20 rounded-xl p-3 text-center">
+                <p class="text-xs text-purple-400">Mobile Money</p>
+                <p class="text-lg font-bold text-purple-300 font-mono">{{ stats_paiement.MOBILE_MONEY|floatformat:0 }} F</p>
+            </div>
+            <div class="bg-amber-900/20 rounded-xl p-3 text-center">
+                <p class="text-xs text-amber-400">Compte client</p>
+                <p class="text-lg font-bold text-amber-300 font-mono">{{ stats_paiement.COMPTE_CLIENT|floatformat:0 }} F</p>
+            </div>
+        </div>
+
+        <!-- Top produits -->
+        <div class="bg-surface-container-low rounded-xl border-outline/10 p-3">
+            <h4 class="text-xs font-semibold text-on-surface-variant mb-2 flex items-center gap-1">
+                <i class="fas fa-chart-bar text-secondary"></i>Top produits
+            </h4>
+            <div class="space-y-1">
+                {% for p in top_produits %}
+                <div class="flex items-center justify-between text-xs">
+                    <div class="flex items-center gap-1.5 min-w-0">
+                        {% if p.type == 'MENU' %}
+                        <i class="fas fa-utensils text-orange-400 shrink-0"></i>
+                        {% else %}
+                        <i class="fas fa-box text-blue-400 shrink-0"></i>
+                        {% endif %}
+                        <span class="truncate" title="{{ p.nom }}">{{ p.nom }}</span>
+                    </div>
+                    <div class="flex items-center gap-2 shrink-0">
+                        <span class="font-mono font-medium">{{ p.quantite|floatformat:0 }}×</span>
+                        <span class="font-mono text-on-surface-variant">{{ p.montant|floatformat:0 }} F</span>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-xs text-on-surface-variant text-center py-2">Aucune vente</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Ventes de la session -->
+    <div class="bg-surface-container-low rounded-xl border-outline/10 overflow-hidden">
+        <div class="px-6 py-4 border-b border-outline/10 bg-surface-container-high flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-3 flex-wrap">
+                <h3 class="font-semibold">
+                    <i class="fas fa-receipt text-secondary mr-2"></i>Ventes de la session
+                </h3>
+                <form method="get" class="flex items-center gap-2">
+                    <select name="produit_nom" onchange="this.form.submit()" class="text-xs bg-surface-container-high rounded-lg px-2 py-1 border-0 text-on-surface">
+                        <option value="">Tous les produits</option>
+                        {% for p in produit_list %}
+                        <option value="{{ p.article_nom }}" {% if request.GET.produit_nom == p.article_nom %}selected{% endif %}>{{ p.article_nom }}</option>
+                        {% endfor %}
+                    </select>
+                    <select name="employe_id" onchange="this.form.submit()" class="text-xs bg-surface-container-high rounded-lg px-2 py-1 border-0 text-on-surface">
+                        <option value="">Tous les caissiers</option>
+                        {% for eid, nom, prenom in employes_session %}
+                        <option value="{{ eid }}" {% if employe_id|stringformat:"s" == eid|stringformat:"s" %}selected{% endif %}>{{ nom }} {{ prenom }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
+            <div class="flex items-center gap-3">
+                <span class="text-sm text-on-surface-variant">{{ ventes|length }} ventes</span>
+                <a href="{% url 'pos:session_export_csv' session.id %}" class="text-xs bg-secondary text-black px-2 py-1 rounded-lg hover:bg-secondary/80">
+                    <i class="fas fa-download mr-1"></i>CSV
+                </a>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-surface-container-high">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-sm">Ticket</th>
+                        <th class="px-4 py-3 text-left text-sm">Date</th>
+                        <th class="px-4 py-3 text-left text-sm">Produits</th>
+                        <th class="px-4 py-3 text-left text-sm">Mode</th>
+                        <th class="px-4 py-3 text-right text-sm">Montant</th>
+                        <th class="px-4 py-3 text-left text-sm">Client</th>
+                        <th class="px-4 py-3 text-center text-sm">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10">
+                    {% for vente in ventes %}
+                    <tr class="hover:bg-surface-container-low">
+                        <td class="px-4 py-3 font-mono text-sm">{{ vente.numero }}</td>
+                        <td class="px-4 py-3 text-sm">{{ vente.created_at|date:"d/m/Y H:i" }}</td>
+                        <td class="px-4 py-3 text-xs text-on-surface-variant">
+                            {% for ligne in vente.lignes.all %}
+                            <span class="block truncate max-w-[180px]">{% if ligne.produit %}{{ ligne.produit.nom }}{% elif ligne.menu %}{{ ligne.menu.nom }}{% else %}—{% endif %} ×{{ ligne.quantite }}</span>
+                            {% empty %}
+                            <span class="text-on-surface-variant/50">—</span>
+                            {% endfor %}
+                        </td>
+                        <td class="px-4 py-3 text-sm">{{ vente.get_mode_paiement_display }}</td>
+                        <td class="px-4 py-3 text-right font-mono">{{ vente.montant_total|floatformat:0 }} F</td>
+                        <td class="px-4 py-3 text-sm">{{ vente.client_nom|default:"-" }}</td>
+                        <td class="px-4 py-3 text-center text-xs">
+                            <button onclick="imprimerRecuVente('{{ vente.id }}')" class="text-green-400 hover:text-green-300" title="Réimprimer le reçu">
+                                <i class="fas fa-print"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-4 py-8 text-center text-on-surface-variant">Aucune vente</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="bg-surface-container-high border-t border-outline/10">
+                    <tr>
+                        <td colspan="5" class="px-4 py-3 text-right font-medium">Total:</td>
+                        <td class="px-4 py-3 text-right font-mono font-bold">{{ session.total_ventes|floatformat:0 }} F</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Notes -->
+    {% if session.notes %}
+    <div class="bg-yellow-900/20 rounded-xl border border-yellow-700/30 p-4">
+        <p class="text-sm text-yellow-300">
+            <i class="fas fa-sticky-note mr-2"></i>
+            {{ session.notes }}
+        </p>
+    </div>
+    {% endif %}
+    
+    <!-- Actions -->
+    <div class="flex justify-end gap-3">
+        <a href="{% url 'pos:sessions_liste' %}" class="border border-outline/10 px-4 py-2 rounded-lg hover:bg-surface-container-low">
+            ← Retour
+        </a>
+        {% if session.statut == 'OUVERTE' %}
+        <button onclick="showFermetureModal()" class="btn-md3-primary bg-red-700 text-white px-4 py-2 rounded-lg hover:bg-red-800">
+            <i class="fas fa-lock mr-2"></i> Fermer la session
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal fermeture session -->
+{% if session.statut == 'OUVERTE' %}
+<div id="fermetureModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-md mx-4">
+        <div class="flex justify-between items-center p-4 border-b border-outline/10">
+            <h2 class="text-sm font-bold">Fermer la session</h2>
+            <button onclick="closeModal('fermetureModal')" class="text-on-surface-variant hover:text-on-surface">✕</button>
+        </div>
+        <form id="fermetureForm" class="p-4 space-y-3">
+            {% csrf_token %}
+            <div>
+                <label class="text-xs text-on-surface-variant">Solde réel (FCFA) *</label>
+                <input type="number" name="solde_reel" id="soldeReel" required step="100"
+                       class="w-full input-md3 rounded-lg text-sm mt-1" placeholder="0">
+                <p class="text-xs text-on-surface-variant mt-1">Attendu: <strong>{{ session.solde_attendu|floatformat:0 }} F</strong></p>
+            </div>
+            <div>
+                <label class="text-xs text-on-surface-variant">Montant à déposer (FCFA)</label>
+                <input type="number" name="depot" id="depot" step="100"
+                       class="w-full input-md3 rounded-lg text-sm mt-1" placeholder="0">
+                <p class="text-xs text-on-surface-variant mt-1">Solde restant dans la caisse = réel — dépôt</p>
+            </div>
+            <div>
+                <textarea name="notes" rows="2" class="w-full input-md3 rounded-lg text-sm" placeholder="Notes (écart)..."></textarea>
+            </div>
+            <div class="flex gap-2 pt-1">
+                <button type="submit" class="flex-1 bg-red-700 text-white py-2 rounded-lg text-sm font-medium hover:bg-red-800">
+                    <i class="fas fa-lock mr-1"></i>Fermer
+                </button>
+                <button type="button" onclick="closeModal('fermetureModal')" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm">Annuler</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function showFermetureModal() { openModal('fermetureModal'); }
+function closeFermetureModal() { closeModal('fermetureModal'); }
+
+function openModal(id) { const el = document.getElementById(id); el.classList.remove('hidden'); el.classList.add('flex'); }
+function closeModal(id) { const el = document.getElementById(id); el.classList.add('hidden'); el.classList.remove('flex'); }
+
+document.getElementById('fermetureForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = this.querySelector('button[type="submit"]');
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>...';
+    try {
+        {% if user.employe %}
+        const caissierId = {{ user.employe.id }};
+        {% else %}
+        const caissierId = null;
+        {% endif %}
+        const depot = document.getElementById('depot').value;
+        const r = await fetch('/pos/api/sessions/fermer/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+            body: JSON.stringify({
+                session_id: {{ session.id }},
+                solde_reel: document.getElementById('soldeReel').value,
+                depot: depot || null,
+                caissier_fermeture_id: caissierId,
+                notes: document.querySelector('textarea[name="notes"]').value
+            })
+        });
+        const d = await r.json();
+        if (d.success) { window.location.reload(); }
+        else { alert('❌ ' + d.error); btn.disabled = false; btn.textContent = 'Fermer'; }
+    } catch(e) { alert('Erreur réseau'); btn.disabled = false; btn.textContent = 'Fermer'; }
+});
+</script>
+{% endif %}
+{% endblock %}

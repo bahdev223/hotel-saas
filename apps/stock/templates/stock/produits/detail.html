@@ -1,0 +1,156 @@
+{% extends 'stock/base_stock.html' %}
+{% load static %}
+
+{% block title %}{{ produit.nom }} — Stock{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Breadcrumb + Back -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div class="flex items-center gap-4">
+            {% if produit.image %}
+            <img src="{{ produit.image.url }}" alt="{{ produit.nom }}" class="w-16 h-16 rounded-xl object-cover border border-outline/10 shadow-sm">
+            {% endif %}
+            <div>
+                <a href="{% url 'stock:dashboard' %}?tab=catalogue" class="text-sm text-secondary/70 hover:text-secondary transition-smooth">
+                    <i class="fas fa-arrow-left mr-1"></i> Retour au catalogue
+                </a>
+                <h1 class="text-2xl font-bold text-on-surface mt-1">{{ produit.nom }}</h1>
+                <p class="text-sm text-on-surface-variant">{{ produit.code }}{% if produit.code_barre %} · {{ produit.code_barre }}{% endif %} · {{ produit.get_type_article_display }}</p>
+            </div>
+        </div>
+        {% if produit.est_vendable %}
+        <span class="text-xs px-3 py-1.5 rounded-full font-medium bg-blue-900/30 text-blue-400 border border-blue-500/30 self-start">
+            <i class="fas fa-store mr-1"></i>Vendable au POS
+        </span>
+        {% endif %}
+    </div>
+
+    <!-- Statut Stock Cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <!-- Stock -->
+        <div class="stat-card p-5">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-sm text-on-surface-variant font-medium">Stock central</span>
+                <div class="stat-icon"><i class="fas fa-boxes-stacked"></i></div>
+            </div>
+            <p class="text-3xl font-bold text-secondary">{{ stock_reel|floatformat:0 }}</p>
+            <p class="text-xs text-on-surface-variant mt-1">{{ produit.unite_base }}</p>
+            <div class="mt-3">
+                {% if stock_reel <= 0 %}
+                <span class="text-xs font-medium text-red-400"><i class="fas fa-circle mr-1"></i>Rupture</span>
+                {% elif stock_reel <= produit.seuil_alerte %}
+                <span class="text-xs font-medium text-orange-400"><i class="fas fa-circle mr-1"></i>Stock bas</span>
+                {% else %}
+                <span class="text-xs font-medium text-green-400"><i class="fas fa-circle mr-1"></i>OK</span>
+                {% endif %}
+            </div>
+        </div>
+        <!-- Prix achat -->
+        <div class="stat-card p-5">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-sm text-on-surface-variant font-medium">Prix achat</span>
+                <div class="stat-icon" style="background: rgba(96, 165, 250, 0.1);"><i class="fas fa-shopping-cart" style="color: #60a5fa;"></i></div>
+            </div>
+            <p class="text-3xl font-bold" style="color: #60a5fa;">{{ produit.prix_achat|floatformat:0 }}</p>
+            <p class="text-xs text-on-surface-variant mt-1">FCFA / {{ produit.unite_base }}</p>
+        </div>
+        <!-- Prix vente -->
+        <div class="stat-card p-5">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-sm text-on-surface-variant font-medium">Prix vente</span>
+                <div class="stat-icon" style="background: rgba(74, 222, 128, 0.1);"><i class="fas fa-tag" style="color: #4ade80;"></i></div>
+            </div>
+            <p class="text-3xl font-bold" style="color: #4ade80;">{{ produit.prix_vente|floatformat:0 }}</p>
+            <p class="text-xs text-on-surface-variant mt-1">FCFA / {{ produit.unite_base }}</p>
+        </div>
+        <!-- Seuil alerte -->
+        <div class="stat-card p-5">
+            <div class="flex items-center justify-between mb-3">
+                <span class="text-sm text-on-surface-variant font-medium">Seuil alerte</span>
+                <div class="stat-icon" style="background: rgba(251, 191, 36, 0.1);"><i class="fas fa-bell" style="color: #fbbf24;"></i></div>
+            </div>
+            <p class="text-3xl font-bold" style="color: #fbbf24;">{{ produit.seuil_alerte|floatformat:0 }}</p>
+            <p class="text-xs text-on-surface-variant mt-1">{{ produit.unite_base }}</p>
+        </div>
+    </div>
+
+    <!-- Sous-unités -->
+    {% if sous_unites %}
+    <div class="card-md3">
+        <div class="px-6 py-4 border-b border-outline/10">
+            <h3 class="font-semibold text-on-surface text-sm"><i class="fas fa-balance-scale mr-2 text-secondary"></i>Sous-unités</h3>
+        </div>
+        <div class="overflow-x-auto scrollbar-md">
+            <table class="w-full text-sm">
+                <thead class="bg-surface-container-high">
+                    <tr class="text-on-surface-variant text-left">
+                        <th class="px-4 py-3 font-medium">Nom</th>
+                        <th class="px-4 py-3 font-medium text-right">Facteur</th>
+                        <th class="px-4 py-3 font-medium text-right">Prix</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10">
+                    {% for su in sous_unites %}
+                    <tr class="hover:bg-surface-container/50 transition-smooth">
+                        <td class="px-4 py-3 font-medium text-on-surface">{{ su.nom }}</td>
+                        <td class="px-4 py-3 text-right font-mono">1 {{ su.nom }} = {{ su.facteur|floatformat:0 }} {{ produit.unite_base }}</td>
+                        <td class="px-4 py-3 text-right font-mono">{% if su.prix %}{{ su.prix|floatformat:0 }} FCFA{% else %}—{% endif %}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Mouvements récents -->
+    <div class="card-md3">
+        <div class="px-6 py-4 border-b border-outline/10">
+            <h3 class="font-semibold text-on-surface text-sm"><i class="fas fa-history mr-2 text-secondary"></i>Derniers mouvements</h3>
+        </div>
+        <div class="overflow-x-auto scrollbar-md">
+            <table class="w-full text-sm">
+                <thead class="bg-surface-container-high">
+                    <tr class="text-on-surface-variant text-left">
+                        <th class="px-4 py-3 font-medium">Date</th>
+                        <th class="px-4 py-3 font-medium">Type</th>
+                        <th class="px-4 py-3 font-medium">Motif</th>
+                        <th class="px-4 py-3 font-medium text-right">Quantité</th>
+                        <th class="px-4 py-3 font-medium hidden sm:table-cell">Référence</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10">
+                    {% for m in mouvements %}
+                    <tr class="hover:bg-surface-container/50 transition-smooth">
+                        <td class="px-4 py-3 text-on-surface-variant text-sm">{{ m.date_mouvement|date:"d/m/Y H:i" }}</td>
+                        <td class="px-4 py-3">
+                            <span class="text-xs px-2 py-1 rounded-full font-medium
+                                {% if m.type_mouvement == 'ENTREE' %}bg-green-900/30 text-green-400
+                                {% elif m.type_mouvement == 'SORTIE' %}bg-red-900/30 text-red-400
+                                {% else %}bg-blue-900/30 text-blue-400{% endif %}">
+                                {{ m.get_type_mouvement_display }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-on-surface-variant">{{ m.get_motif_display }}</td>
+                        <td class="px-4 py-3 text-right font-mono {% if m.type_mouvement == 'ENTREE' %}text-green-400{% else %}text-red-400{% endif %}">
+                            {% if m.type_mouvement == 'ENTREE' %}+{% else %}-{% endif %}{{ m.quantite|floatformat:0 }}
+                        </td>
+                        <td class="px-4 py-3 text-on-surface-variant text-sm hidden sm:table-cell">{{ m.reference|default:'—' }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-4 py-12 text-center text-on-surface-variant">
+                            <i class="fas fa-exchange-alt text-2xl mb-2 block opacity-50"></i>
+                            Aucun mouvement
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

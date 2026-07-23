@@ -1,0 +1,377 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comptabilité - {% block title %}Dashboard{% endblock %}</title>
+
+    <!-- Tailwind + daisyUI -->
+    <link href="{% static 'css/dist/styles.css' %}" rel="stylesheet">
+    
+    <!-- Font Awesome 6 -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+    <style>
+        [x-cloak] { display: none !important; }
+        
+        /* Scrollbar personnalisée */
+        .scrollbar-thin::-webkit-scrollbar { width: 4px; }
+        .scrollbar-thin::-webkit-scrollbar-track { background: #1f2937; border-radius: 4px; }
+        .scrollbar-thin::-webkit-scrollbar-thumb { background: #10b981; border-radius: 4px; }
+        .scrollbar-md::-webkit-scrollbar { width: 6px; }
+        .scrollbar-md::-webkit-scrollbar-track { background: #2a2a2a; border-radius: 10px; }
+        .scrollbar-md::-webkit-scrollbar-thumb { background: #c9c6c5; border-radius: 10px; }
+        .scrollbar-md::-webkit-scrollbar-thumb:hover { background: #e3c282; }
+        
+        /* Transition smooth */
+        .transition-smooth { transition: all 0.2s ease-in-out; }
+        .sidebar-transition { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        
+        /* Style comptable */
+        .compte-debit { color: #dc2626; font-family: monospace; }
+        .compte-credit { color: #10b981; font-family: monospace; }
+        .compte-solde { font-weight: bold; font-family: monospace; }
+        .table-compta td, .table-compta th { padding: 0.75rem; border-bottom: 1px solid #e5e7eb; }
+        
+        /* Uniform card style for all dashboards */
+        .stat-card { background: var(--surface-container-low, #1c1b1b); border: 1px solid rgba(142, 145, 146, 0.1); border-radius: 16px; transition: all 0.2s ease; }
+        .stat-card:hover { background: #20201f; border-color: #e3c282; transform: translateY(-2px); box-shadow: 0 12px 24px -8px rgba(0,0,0,0.3); }
+        
+        /* Uniform card container */
+        .card-md3 { background: #1c1b1b; border: 1px solid rgba(142, 145, 146, 0.1); border-radius: 12px; }
+        
+        /* Input style MD3 */
+        .input-md3 { width: 100%; border-bottom: 2px solid transparent; border-radius: 8px 8px 0 0; padding: 12px 16px; outline: none; transition: all 0.2s; background-color: #353535 !important; color: #e5e2e1 !important; }
+        .input-md3:focus { border-color: #e3c282; }
+        .input-md3::placeholder { color: rgba(196, 199, 199, 0.5) !important; }
+        select.input-md3 option { background-color: #1c1b1b !important; color: #e5e2e1 !important; }
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus { -webkit-text-fill-color: #e5e2e1 !important; -webkit-box-shadow: 0 0 0px 1000px #353535 inset !important; }
+        
+        /* Buttons MD3 */
+        .btn-md3-primary { background: #e3c282; color: #402d00; padding: 8px 24px; border-radius: 9999px; font-weight: 700; transition: all 0.2s; }
+        .btn-md3-primary:hover { box-shadow: 0 8px 24px -4px rgba(227, 194, 130, 0.2); }
+        .btn-md3-primary:active { transform: scale(0.95); }
+        .btn-md3-primary:disabled { opacity: 0.3; }
+        .btn-md3-secondary { background: transparent; border: 1px solid rgba(142, 145, 146, 0.2); color: #c4c7c7; padding: 8px 24px; border-radius: 9999px; font-weight: 500; transition: all 0.2s; }
+        .btn-md3-secondary:hover { background: rgba(227, 194, 130, 0.1); border-color: #e3c282; color: #e3c282; }
+        
+        /* Label MD3 */
+        .label-md3 { font-size: 11px; font-weight: 700; color: #e3c282; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; display: block; padding-left: 4px; }
+        
+        /* Responsive table wrapper */
+        .table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .table-responsive table { min-width: 500px; }
+        .stat-icon {
+            width: 48px; height: 48px; border-radius: 16px;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(227, 194, 130, 0.1);
+        }
+        .stat-icon i { color: #e3c282; font-size: 22px; }
+        
+        /* Animation pour les badges */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        .badge-pulse {
+            animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+        
+        /* Cacher les textes quand sidebar fermée */
+        .sidebar-closed .menu-text {
+            display: none;
+        }
+        .sidebar-closed .menu-item {
+            justify-content: center;
+            padding: 0.75rem;
+        }
+        .sidebar-closed .submenu {
+            display: none;
+        }
+    </style>
+</head>
+
+<body class="bg-surface-container-high" x-data="comptaApp()" x-init="init()">
+
+<div class="flex h-screen overflow-hidden" :class="{'sidebar-closed': !sidebarOpen}">
+
+    <!-- Overlay mobile -->
+    <div x-show="mobileOpen" x-cloak @click="closeMobile()" class="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"></div>
+
+    <!-- ==================== SIDEBAR COMPTABLE ==================== -->
+    <aside class="bg-gray-900 text-white shadow-xl flex flex-col sidebar-transition"
+           :class="sidebarOpen ? 'w-72' : 'w-20'"
+           :style="mobileOpen ? 'transform: translateX(0); position: fixed; top: 0; left: 0; bottom: 0; z-index: 50; width: 16rem;' : ''"
+           style="min-height: 100vh;">
+        
+        <!-- Header sidebar avec close mobile -->
+        <div class="p-4 border-b border-gray-800 flex items-center justify-between">
+            <div class="flex items-center" :class="sidebarOpen ? 'justify-start gap-3 px-2' : 'justify-center'">
+                <div class="w-10 h-10 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 flex items-center justify-center shadow-md flex-shrink-0">
+                    <i class="text-xl fas fa-calculator text-white"></i>
+                </div>
+                <div x-show="sidebarOpen" x-cloak class="whitespace-nowrap">
+                    <h1 class="text-lg font-bold text-white">Comptabilité</h1>
+                    <p class="text-xs text-gray-300">SYSCOHADA</p>
+                </div>
+            </div>
+            <!-- Close button mobile -->
+            <button @click="closeMobile()" class="md:hidden text-gray-300 hover:text-white p-1">
+                <i class="fas fa-times text-lg"></i>
+            </button>
+        </div>
+        
+        <!-- Navigation latérale -->
+        <div class="flex-1 overflow-y-auto py-4 px-3 scrollbar-thin">
+            <nav class="space-y-1">
+                
+                <!-- Dashboard -->
+                <a href="{% url 'comptabilite:dashboard' %}" 
+                   class="menu-item flex items-center gap-3 px-4 py-2.5 rounded-lg transition-smooth group"
+                   :class="activeMenu === 'dashboard' ? 'bg-emerald-600/20 text-emerald-400' : 'text-gray-300 hover:bg-gray-800 hover:text-white'"
+                   @click="activeMenu = 'dashboard'">
+                    <i class="w-5 h-5 fas fa-chart-pie flex-shrink-0" :class="activeMenu === 'dashboard' ? 'text-emerald-400' : 'text-gray-300'"></i>
+                    <span x-show="sidebarOpen" class="menu-text text-sm font-medium whitespace-nowrap">Dashboard</span>
+                </a>
+
+                <!-- Opérations -->
+                <a href="{% url 'comptabilite:operations' %}" 
+                   class="menu-item flex items-center gap-3 px-4 py-2.5 rounded-lg transition-smooth"
+                   :class="activeMenu === 'operations' ? 'bg-emerald-600/20 text-emerald-400' : 'text-gray-300 hover:bg-gray-800 hover:text-white'"
+                   @click="activeMenu = 'operations'">
+                    <i class="w-5 h-5 fas fa-exchange-alt flex-shrink-0" :class="activeMenu === 'operations' ? 'text-emerald-400' : 'text-gray-300'"></i>
+                    <span x-show="sidebarOpen" class="menu-text text-sm font-medium whitespace-nowrap">Opérations</span>
+                </a>
+
+                <!-- 💰 TRÉSORERIE (Dashboard unique → pas de sous-menus) -->
+                <a href="{% url 'tresorerie:dashboard_tresorier' %}" 
+                   class="menu-item flex items-center gap-3 px-4 py-2.5 rounded-lg transition-smooth"
+                   :class="activeMenu === 'tresorerie_dashboard' ? 'bg-emerald-600/20 text-emerald-400' : 'text-gray-300 hover:bg-gray-800 hover:text-white'"
+                   @click="activeMenu = 'tresorerie_dashboard'">
+                    <i class="w-5 h-5 fas fa-coins flex-shrink-0" :class="activeMenu === 'tresorerie_dashboard' ? 'text-emerald-400' : 'text-gray-300'"></i>
+                    <span x-show="sidebarOpen" class="menu-text text-sm font-medium whitespace-nowrap">Mes Comptes</span>
+                </a>
+
+                <!-- Écritures -->
+                <a href="{% url 'comptabilite:ecritures_liste' %}" 
+                   class="menu-item flex items-center gap-3 px-4 py-2.5 rounded-lg transition-smooth"
+                   :class="activeMenu === 'ecritures' ? 'bg-emerald-600/20 text-emerald-400' : 'text-gray-300 hover:bg-gray-800 hover:text-white'"
+                   @click="activeMenu = 'ecritures'">
+                    <i class="w-5 h-5 fas fa-book flex-shrink-0" :class="activeMenu === 'ecritures' ? 'text-emerald-400' : 'text-gray-300'"></i>
+                    <span x-show="sidebarOpen" class="menu-text text-sm font-medium whitespace-nowrap">Écritures</span>
+                </a>
+
+                <!-- États financiers -->
+                <a href="{% url 'comptabilite:grand_livre' %}" 
+                   class="menu-item flex items-center gap-3 px-4 py-2.5 rounded-lg transition-smooth"
+                   :class="activeMenu === 'etats' ? 'bg-emerald-600/20 text-emerald-400' : 'text-gray-300 hover:bg-gray-800 hover:text-white'"
+                   @click="activeMenu = 'etats'">
+                    <i class="w-5 h-5 fas fa-chart-line flex-shrink-0" :class="activeMenu === 'etats' ? 'text-emerald-400' : 'text-gray-300'"></i>
+                    <span x-show="sidebarOpen" class="menu-text text-sm font-medium whitespace-nowrap">États financiers</span>
+                </a>
+
+                <!-- Immobilisations -->
+                <a href="{% url 'comptabilite:immobilisations_liste' %}" 
+                   class="menu-item flex items-center gap-3 px-4 py-2.5 rounded-lg transition-smooth"
+                   :class="activeMenu === 'immobilisations' ? 'bg-emerald-600/20 text-emerald-400' : 'text-gray-300 hover:bg-gray-800 hover:text-white'"
+                   @click="activeMenu = 'immobilisations'">
+                    <i class="w-5 h-5 fas fa-building flex-shrink-0" :class="activeMenu === 'immobilisations' ? 'text-emerald-400' : 'text-gray-300'"></i>
+                    <span x-show="sidebarOpen" class="menu-text text-sm font-medium whitespace-nowrap">Amortissements</span>
+                </a>
+
+                <!-- FIN RAPPROCHEMENT BANCAIRE (supprimé) -->
+
+                <!-- Paie -->
+                <a href="{% url 'paie:dashboard' %}" 
+                   class="menu-item flex items-center gap-3 px-4 py-2.5 rounded-lg transition-smooth"
+                   :class="activeMenu === 'paie' ? 'bg-emerald-600/20 text-emerald-400' : 'text-gray-300 hover:bg-gray-800 hover:text-white'"
+                   @click="activeMenu = 'paie'">
+                    <i class="w-5 h-5 fas fa-money-bill-wave flex-shrink-0" :class="activeMenu === 'paie' ? 'text-emerald-400' : 'text-gray-300'"></i>
+                    <span x-show="sidebarOpen" class="menu-text text-sm font-medium whitespace-nowrap">Paie</span>
+                </a>
+
+                <!-- Situation initiale (masquée, accessible via URL directe) -->
+                <!--
+                <a href="{% url 'comptabilite:situation_initiale' %}" 
+                   class="menu-item flex items-center gap-3 px-4 py-2.5 rounded-lg transition-smooth"
+                   :class="activeMenu === 'situation_initiale' ? 'bg-emerald-600/20 text-emerald-400' : 'text-gray-300 hover:bg-gray-800 hover:text-white'"
+                   @click="activeMenu = 'situation_initiale'">
+                    <i class="w-5 h-5 fas fa-rocket flex-shrink-0" :class="activeMenu === 'situation_initiale' ? 'text-emerald-400' : 'text-gray-300'"></i>
+                    <span x-show="sidebarOpen" class="menu-text text-sm font-medium whitespace-nowrap">Situation initiale</span>
+                </a>
+                -->
+
+                <!-- Paramètres -->
+                <a href="{% url 'comptabilite:comptes_liste' %}" 
+                   class="menu-item flex items-center gap-3 px-4 py-2.5 rounded-lg transition-smooth"
+                   :class="activeMenu === 'parametres' ? 'bg-emerald-600/20 text-emerald-400' : 'text-gray-300 hover:bg-gray-800 hover:text-white'"
+                   @click="activeMenu = 'parametres'">
+                    <i class="w-5 h-5 fas fa-cog flex-shrink-0" :class="activeMenu === 'parametres' ? 'text-emerald-400' : 'text-gray-300'"></i>
+                    <span x-show="sidebarOpen" class="menu-text text-sm font-medium whitespace-nowrap">Paramètres</span>
+                </a>
+
+                <!-- Exports -->
+                <a href="{% url 'comptabilite:export_balance_pdf' %}" 
+                   class="menu-item flex items-center gap-3 px-4 py-2.5 rounded-lg transition-smooth"
+                   :class="activeMenu === 'exports' ? 'bg-emerald-600/20 text-emerald-400' : 'text-gray-300 hover:bg-gray-800 hover:text-white'"
+                   @click="activeMenu = 'exports'">
+                    <i class="w-5 h-5 fas fa-download flex-shrink-0" :class="activeMenu === 'exports' ? 'text-emerald-400' : 'text-gray-300'"></i>
+                    <span x-show="sidebarOpen" class="menu-text text-sm font-medium whitespace-nowrap">Exports</span>
+                </a>
+
+                <div class="border-t border-gray-800 my-3"></div>
+
+                <!-- Retour accueil -->
+                <a href="/" 
+                   class="menu-item flex items-center gap-3 px-4 py-2.5 rounded-lg transition-smooth text-gray-300 hover:bg-gray-800 hover:text-white"
+                   @click="activeMenu = 'retour'">
+                    <i class="w-5 h-5 fas fa-arrow-left flex-shrink-0"></i>
+                    <span x-show="sidebarOpen" class="menu-text text-sm whitespace-nowrap">Retour accueil</span>
+                </a>
+            </nav>
+        </div>
+        
+        <!-- Footer Sidebar avec bouton toggle (PC only) -->
+        <div class="p-4 border-t border-gray-800 hidden md:block">
+            <button @click="toggleSidebar()" 
+                    class="menu-item flex items-center justify-center w-full gap-2 px-4 py-2 text-sm text-gray-300 rounded-lg hover:bg-gray-800 transition-smooth">
+                <i class="fas" :class="sidebarOpen ? 'fa-chevron-left' : 'fa-chevron-right'"></i>
+                <span x-show="sidebarOpen" class="menu-text">Réduire le menu</span>
+            </button>
+        </div>
+    </aside>
+
+    <!-- ==================== MAIN CONTENT ==================== -->
+    <main class="flex-1 flex flex-col overflow-hidden">
+        
+        <!-- Top Bar -->
+        <div class="bg-surface-container-low shadow-md px-6 py-4 flex items-center justify-between sticky top-0 z-10">
+            <div class="flex items-center gap-3">
+                <button @click="toggleSidebar()" class="md:hidden w-9 h-9 flex items-center justify-center rounded-lg bg-surface-container-high hover:bg-secondary/20 text-on-surface-variant hover:text-secondary transition-smooth" title="Menu">
+                    <i class="fas fa-bars text-sm"></i>
+                </button>
+                <div>
+                    <h1 class="text-xl font-bold text-on-surface">{% block header %}Tableau de bord comptable{% endblock %}</h1>
+                    <p class="text-sm text-on-surface-variant">{% block subtitle %}Exercice {{ exercice_courant|default:"2025" }}{% endblock %}</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="hidden md:flex items-center gap-2 px-3 py-1.5 bg-surface-container-high rounded-lg">
+                    <i class="fas fa-calendar-alt text-on-surface-variant text-sm"></i>
+                    <span class="text-sm text-on-surface-variant">Exercice {{ exercice_courant|default:"2025" }}</span>
+                </div>
+                <span class="text-sm text-on-surface-variant">{{ user.username|default:"Comptable" }}</span>
+                <div class="avatar placeholder cursor-pointer">
+                    <div class="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
+                        <i class="fas fa-user-tie text-emerald-600 text-sm"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Page Content -->
+        <div class="flex-1 overflow-y-auto p-4 md:p-6">
+            <div class="max-w-7xl mx-auto w-full">
+            {% if messages %}
+                <div class="mb-4 space-y-2">
+                    {% for message in messages %}
+                        <div class="alert shadow-lg rounded-lg {% if message.tags == 'success' %}alert-success{% elif message.tags == 'error' %}alert-error{% else %}alert-info{% endif %}">
+                            <i class="fas fa-info-circle"></i>
+                            <span>{{ message }}</span>
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+            {% block content %}{% endblock %}
+            </div>
+        </div>
+        
+        <!-- Footer -->
+        <div class="bg-surface-container-low border-t border-outline/10 px-6 py-3 text-center text-xs text-on-surface-variant">
+            Comptabilité SYSCOHADA © {{ now|date:"Y" }} - Toutes les écritures sont traçables et auditées
+        </div>
+    </main>
+</div>
+
+<script>
+    function comptaApp() {
+        return {
+            sidebarOpen: window.innerWidth >= 768,
+            mobileOpen: false,
+            activeMenu: localStorage.getItem('activeMenuCompta') || 'dashboard',
+
+            init() {
+                const savedState = localStorage.getItem('sidebarOpenCompta');
+                if (savedState !== null && window.innerWidth >= 768) {
+                    this.sidebarOpen = savedState === 'true';
+                }
+                if (!this.sidebarOpen) {
+                    document.body.classList.add('sidebar-closed');
+                } else {
+                    document.body.classList.remove('sidebar-closed');
+                }
+
+                this.$watch('activeMenu', (value) => {
+                    localStorage.setItem('activeMenuCompta', value);
+                });
+
+                // Fermer le menu mobile au resize desktop
+                window.addEventListener('resize', () => {
+                    if (window.innerWidth >= 768) this.mobileOpen = false;
+                });
+            },
+
+            toggleSidebar() {
+                if (window.innerWidth < 768) {
+                    this.mobileOpen = !this.mobileOpen;
+                } else {
+                    this.sidebarOpen = !this.sidebarOpen;
+                    localStorage.setItem('sidebarOpenCompta', this.sidebarOpen);
+                    if (!this.sidebarOpen) {
+                        document.body.classList.add('sidebar-closed');
+                    } else {
+                        document.body.classList.remove('sidebar-closed');
+                    }
+                }
+            },
+
+            closeMobile() {
+                this.mobileOpen = false;
+            }
+        }
+    }
+</script>
+
+{% if est_raf %}
+<a href="{% url 'pos:pos_raf' %}"
+   class="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 px-5 py-3 bg-secondary text-black font-bold rounded-full shadow-2xl hover:bg-secondary/90 hover:scale-105 active:scale-95 transition-all duration-200 animate-bounce-subtle"
+   title="Ouvrir le Guichet RAF"
+   style="box-shadow: 0 8px 32px rgba(227,194,130,0.35);">
+    <span class="text-lg">⚡</span>
+    <span class="text-sm">Guichet RAF</span>
+</a>
+<style>
+    @keyframes bounce-subtle {
+        0%, 100% { transform: translateY(0); }
+        50% { transform: translateY(-3px); }
+    }
+    .animate-bounce-subtle {
+        animation: bounce-subtle 2s ease-in-out infinite;
+    }
+    .animate-bounce-subtle:hover {
+        animation: none;
+    }
+</style>
+{% endif %}
+
+</body>
+</html>

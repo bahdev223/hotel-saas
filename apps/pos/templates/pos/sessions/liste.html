@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Sessions de caisse{% endblock %}
+
+{% block header %}Sessions de caisse{% endblock %}
+{% block subtitle %}Gestion des ouvertures et fermetures de caisse{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    
+    <!-- Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-surface-container-low rounded-xl border-outline/10 p-4">
+            <p class="text-2xl font-bold text-secondary">{{ sessions.count }}</p>
+            <p class="text-xs text-on-surface-variant">Total sessions</p>
+        </div>
+        <div class="bg-surface-container-low rounded-xl border-outline/10 p-4">
+            <p class="text-2xl font-bold text-green-400">{{ sessions_ouvertes }}</p>
+            <p class="text-xs text-on-surface-variant">Sessions ouvertes</p>
+        </div>
+        <div class="bg-surface-container-low rounded-xl border-outline/10 p-4">
+            <p class="text-2xl font-bold text-blue-400">{{ sessions_aujourdhui }}</p>
+            <p class="text-xs text-on-surface-variant">Aujourd'hui</p>
+        </div>
+        <div class="bg-surface-container-low rounded-xl border-outline/10 p-4">
+            <p class="text-2xl font-bold text-amber-400">{{ ca_total|floatformat:0 }} F</p>
+            <p class="text-xs text-on-surface-variant">CA total</p>
+        </div>
+    </div>
+    
+    <!-- Filtres -->
+    <div class="bg-surface-container-low rounded-xl border-outline/10 p-4">
+        <form method="get" class="flex flex-wrap gap-4 items-end">
+            <div>
+                <label class="block text-sm font-medium text-on-surface mb-1">Point de vente</label>
+                <select name="point_vente" class="px-3 py-2 input-md3 rounded-lg">
+                    <option value="">Tous</option>
+                    {% for pv in points_vente %}
+                    <option value="{{ pv.id }}" {% if request.GET.point_vente == pv.id|stringformat:"s" %}selected{% endif %}>
+                        {{ pv.nom }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-on-surface mb-1">Statut</label>
+                <select name="statut" class="px-3 py-2 input-md3 rounded-lg">
+                    <option value="">Tous</option>
+                    <option value="OUVERTE" {% if request.GET.statut == 'OUVERTE' %}selected{% endif %}>Ouverte</option>
+                    <option value="FERMEE" {% if request.GET.statut == 'FERMEE' %}selected{% endif %}>Fermée</option>
+                    <option value="SUSPENDUE" {% if request.GET.statut == 'SUSPENDUE' %}selected{% endif %}>Suspendue</option>
+                </select>
+            </div>
+            <div>
+                <button type="submit" class="bg-secondary text-white px-4 py-2 rounded-lg">Filtrer</button>
+                <a href="{% url 'pos:sessions_liste' %}" class="border border-outline/10 px-4 py-2 rounded-lg ml-2">Réinitialiser</a>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Liste des sessions -->
+    <div class="bg-surface-container-low rounded-xl border-outline/10 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-surface-container-high border-b border-outline/10">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-sm font-medium">ID</th>
+                        <th class="px-4 py-3 text-left text-sm font-medium">Date ouverture</th>
+                        <th class="px-4 py-3 text-left text-sm font-medium">Point de vente</th>
+                        <th class="px-4 py-3 text-left text-sm font-medium">Caissier</th>
+                        <th class="px-4 py-3 text-right text-sm font-medium">Solde initial</th>
+                        <th class="px-4 py-3 text-right text-sm font-medium">Total ventes</th>
+                        <th class="px-4 py-3 text-right text-sm font-medium">Écart</th>
+                        <th class="px-4 py-3 text-center text-sm font-medium">Statut</th>
+                        <th class="px-4 py-3 text-center text-sm font-medium">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10">
+                    {% for session in sessions %}
+                    <tr class="hover:bg-surface-container-low">
+                        <td class="px-4 py-3 text-sm font-mono">#{{ session.id }}</td>
+                        <td class="px-4 py-3 text-sm">{{ session.date_ouverture|date:"d/m/Y H:i" }}</td>
+                        <td class="px-4 py-3 text-sm">{{ session.point_vente.nom|default:"-" }}</td>
+                        <td class="px-4 py-3 text-sm">
+                            {% if session.caissier_ouverture %}
+                            {{ session.caissier_ouverture.nom }} {{ session.caissier_ouverture.prenom }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-right font-mono">{{ session.solde_initial|floatformat:0 }} F</td>
+                        <td class="px-4 py-3 text-right font-mono">{{ session.total_ventes|floatformat:0 }} F</td>
+                        <td class="px-4 py-3 text-right font-mono {% if session.difference > 0 %}text-green-400{% elif session.difference < 0 %}text-red-400{% endif %}">
+                            {{ session.difference|floatformat:0 }} F
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            {% if session.statut == 'OUVERTE' %}
+                            <span class="px-2 py-1 bg-green-900/30 text-green-300 rounded-full text-xs">Ouverte</span>
+                            {% elif session.statut == 'FERMEE' %}
+                            <span class="px-2 py-1 bg-surface-container-high text-on-surface-variant rounded-full text-xs">Fermée</span>
+                            {% elif session.statut == 'SUSPENDUE' %}
+                            <span class="px-2 py-1 bg-yellow-900/30 text-yellow-300 rounded-full text-xs">Suspendue</span>
+                            {% else %}
+                            <span class="px-2 py-1 bg-blue-900/30 text-blue-300 rounded-full text-xs">{{ session.get_statut_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <a href="{% url 'pos:session_detail' session.id %}" class="text-blue-400 hover:text-blue-300">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="px-4 py-8 text-center text-on-surface-variant">
+                            Aucune session enregistrée
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

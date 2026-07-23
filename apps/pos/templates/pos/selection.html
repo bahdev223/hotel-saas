@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Points de vente{% endblock %}
+{% block header %}<i class="fas fa-cash-register text-secondary mr-2"></i>Points de vente{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+    {% for pv in points %}
+    <a href="{% url 'pos:pos_by_slug' slug=pv.code %}" class="card-md3 p-5 hover:border-secondary/40 transition block">
+        <div class="flex items-center gap-3 mb-2">
+            <i class="fas fa-store text-secondary text-xl"></i>
+            <div>
+                <h3 class="font-semibold">{{ pv.nom }}</h3>
+                <p class="text-xs text-on-surface-variant">{{ pv.get_type_display|default:"Point de vente" }}</p>
+            </div>
+        </div>
+        {% if pv.caisse %}
+        <div class="flex items-center gap-2 text-sm text-on-surface-variant mt-2">
+            <i class="fas fa-credit-card"></i>
+            <span>{{ pv.caisse.compte_comptable|default:"-" }}</span>
+        </div>
+        {% endif %}
+    </a>
+    {% empty %}
+    <div class="col-span-full text-center py-12 text-on-surface-variant">
+        <i class="fas fa-store-slash text-4xl mb-2 block"></i>
+        <p>Aucun point de vente accessible</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

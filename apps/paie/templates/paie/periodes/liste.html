@@ -1,0 +1,64 @@
+{% extends 'paie/base_paie.html' %}
+{% load static %}
+
+{% block paie_content %}
+<div class="bg-surface-container-low rounded-xl shadow-md">
+    <div class="px-6 py-4 border-b flex justify-between items-center">
+        <h2 class="text-xl font-bold">Périodes de paie</h2>
+        <a href="{% url 'paie:creer_periode' %}" class="btn btn-primary btn-sm">
+            <i class="fas fa-plus"></i> Nouvelle période
+        </a>
+    </div>
+    
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-surface-container-high">
+                <tr>
+                    <th class="px-4 py-3 text-left">Période</th>
+                    <th class="px-4 py-3 text-left">Date début</th>
+                    <th class="px-4 py-3 text-left">Date fin</th>
+                    <th class="px-4 py-3 text-center">Statut</th>
+                    <th class="px-4 py-3 text-center">Bulletins</th>
+                    <th class="px-4 py-3 text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for periode in periodes %}
+                <tr class="border-t hover:bg-surface-container-low">
+                    <td class="px-4 py-3 font-medium">{{ periode.libelle }}</td>
+                    <td class="px-4 py-3">{{ periode.date_debut|date:"d/m/Y" }}</td>
+                    <td class="px-4 py-3">{{ periode.date_fin|date:"d/m/Y" }}</td>
+                    <td class="px-4 py-3 text-center">
+                        {% if periode.cloture %}
+                        <span class="badge badge-error">Clôturée</span>
+                        {% else %}
+                        <span class="badge badge-success">Active</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="badge badge-info">{{ periode.bulletins.count }}</span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        {% if not periode.cloture %}
+                        <a href="{% url 'paie:generer_bulletins' periode.id %}" class="btn btn-primary btn-xs">
+                            <i class="fas fa-calculator"></i> Générer
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="px-4 py-8 text-center text-on-surface-variant">
+                        <i class="fas fa-calendar text-4xl mb-2 block"></i>
+                        Aucune période
+                        <a href="{% url 'paie:creer_periode' %}" class="block mt-2 text-secondary hover:underline">
+                            Créer une période
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

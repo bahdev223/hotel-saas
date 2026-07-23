@@ -1,0 +1,242 @@
+{% extends "dashboard/patron/base_patron.html" %}
+{% load dashboard_filters %}
+
+{% block patron_content %}
+<div x-data="patronTabs()" x-init="init()" class="space-y-6">
+
+    <!-- Tab navigation -->
+    <div class="bg-white rounded-xl shadow-md overflow-hidden">
+        <div class="flex border-b border-gray-200">
+            <button @click="activeTab = 'overview'" class="flex-1 px-4 py-3 text-sm font-medium text-center transition"
+                    :class="activeTab === 'overview' ? 'text-secondary border-b-2 border-secondary bg-secondary/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'">
+                <i class="fas fa-chart-simple mr-2"></i>Vue d'ensemble
+            </button>
+            <button @click="activeTab = 'commandes'" class="flex-1 px-4 py-3 text-sm font-medium text-center transition"
+                    :class="activeTab === 'commandes' ? 'text-secondary border-b-2 border-secondary bg-secondary/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'">
+                <i class="fas fa-tasks mr-2"></i>Commandes
+            </button>
+            <button @click="activeTab = 'locations'" class="flex-1 px-4 py-3 text-sm font-medium text-center transition"
+                    :class="activeTab === 'locations' ? 'text-secondary border-b-2 border-secondary bg-secondary/5' : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'">
+                <i class="fas fa-door-open mr-2"></i>Locations
+            </button>
+        </div>
+
+        <!-- ========== TAB 1 : VUE D'ENSEMBLE ========== -->
+        <div x-show="activeTab === 'overview'" class="p-5 space-y-5">
+            
+            <!-- Stats globales (sans montants) -->
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div class="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-4 text-center">
+                    <p class="text-3xl font-bold text-blue-600" x-text="stats.commandes_en_cours"></p>
+                    <p class="text-xs text-blue-700/70 font-medium mt-1">Commandes en cours</p>
+                </div>
+                <div class="bg-gradient-to-br from-green-50 to-green-100 rounded-xl p-4 text-center">
+                    <p class="text-3xl font-bold text-green-600" x-text="stats.unites_occupees"></p>
+                    <p class="text-xs text-green-700/70 font-medium mt-1">Unités louées</p>
+                </div>
+                <div class="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-4 text-center">
+                    <p class="text-3xl font-bold text-purple-600" x-text="stats.locations_en_cours"></p>
+                    <p class="text-xs text-purple-700/70 font-medium mt-1">Locations actives</p>
+                </div>
+                <div class="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-4 text-center">
+                    <p class="text-3xl font-bold text-yellow-600" x:text="stats.total_unites"></p>
+                    <p class="text-xs text-yellow-700/70 font-medium mt-1">Total unités</p>
+                </div>
+            </div>
+
+            <!-- Barre occupation -->
+            <div class="bg-white border border-gray-200 rounded-xl p-4">
+                <div class="flex justify-between text-sm mb-2">
+                    <span class="font-medium text-gray-700"><i class="fas fa-bed mr-2 text-blue-500"></i>Occupation</span>
+                    <span class="font-bold text-blue-600" x-text="stats.taux_occupation + '%'"></span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                    <div class="h-full rounded-full transition-all duration-500"
+                         :style="'width: ' + stats.taux_occupation + '%'"
+                         :class="stats.taux_occupation > 80 ? 'bg-red-500' : stats.taux_occupation > 50 ? 'bg-yellow-500' : 'bg-green-500'">
+                    </div>
+                </div>
+                <div class="flex justify-between mt-2 text-xs text-gray-500">
+                    <span><span class="font-bold text-green-600" x-text="stats.unites_disponibles"></span> disponibles</span>
+                    <span><span class="font-bold text-red-600" x-text="stats.unites_occupees"></span> occupées</span>
+                </div>
+            </div>
+
+            <!-- Dernières commandes -->
+            <div>
+                <h3 class="font-semibold text-gray-700 mb-3"><i class="fas fa-clock mr-2 text-secondary"></i>Dernières commandes</h3>
+                <div class="space-y-2">
+                    <template x-for="c in dernieresCommandes.slice(0, 6)" :key="c.id">
+                        <div class="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2.5">
+                            <div class="flex items-center gap-3">
+                                <span class="font-mono font-bold text-sm" x-text="'#' + c.numero"></span>
+                                <span class="text-xs px-2 py-0.5 rounded-full text-white"
+                                      :class="statutClass(c.statut_code)" x-text="c.statut"></span>
+                                <span class="text-xs text-gray-500" x-text="c.client"></span>
+                            </div>
+                            <span class="text-xs text-gray-400" x-text="c.date"></span>
+                        </div>
+                    </template>
+                    <div x-show="dernieresCommandes.length === 0" class="text-center text-gray-400 py-4 text-sm">
+                        Aucune commande récente
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dernières locations -->
+            <div>
+                <h3 class="font-semibold text-gray-700 mb-3"><i class="fas fa-clock mr-2 text-secondary"></i>Dernières locations</h3>
+                <div class="space-y-2">
+                    <template x-for="l in dernieresLocations.slice(0, 5)" :key="l.id">
+                        <div class="flex items-center justify-between bg-gray-50 rounded-lg px-4 py-2.5">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-door-open text-secondary"></i>
+                                <span class="text-sm font-medium" x-text="l.unite_nom"></span>
+                                <span class="text-xs text-gray-500" x-text="l.client_nom"></span>
+                            </div>
+                            <span class="text-xs px-2 py-0.5 rounded-full"
+                                  :class="l.statut === 'EN_COURS' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'"
+                                  x-text="l.statut === 'EN_COURS' ? 'En cours' : 'Terminée'"></span>
+                        </div>
+                    </template>
+                    <div x-show="dernieresLocations.length === 0" class="text-center text-gray-400 py-4 text-sm">
+                        Aucune location récente
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ========== TAB 2 : COMMANDES ========== -->
+        <div x-show="activeTab === 'commandes'" x-cloak>
+            <iframe src="/pos/commandes/" class="w-full border-0" style="height: calc(100vh - 200px); min-height: 600px;"></iframe>
+        </div>
+
+        <!-- ========== TAB 3 : LOCATIONS ========== -->
+        <div x-show="activeTab === 'locations'" x-cloak class="p-5">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-semibold text-gray-700"><i class="fas fa-door-open mr-2 text-secondary"></i>Unités louées en cours</h3>
+                <span class="text-sm text-gray-500" x-text="'Total: ' + locations.length + ' location(s)'"></span>
+            </div>
+            <div class="overflow-x-auto bg-white border border-gray-200 rounded-xl">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 border-b border-gray-200">
+                        <tr>
+                            <th class="px-4 py-3 text-left font-medium text-gray-600">Client</th>
+                            <th class="px-4 py-3 text-left font-medium text-gray-600">Unité</th>
+                            <th class="px-4 py-3 text-left font-medium text-gray-600">Type</th>
+                            <th class="px-4 py-3 text-left font-medium text-gray-600">Début</th>
+                            <th class="px-4 py-3 text-left font-medium text-gray-600">Fin</th>
+                            <th class="px-4 py-3 text-center font-medium text-gray-600">Durée</th>
+                            <th class="px-4 py-3 text-center font-medium text-gray-600">Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        <template x-for="l in locations" :key="l.id">
+                            <tr class="hover:bg-gray-50">
+                                <td class="px-4 py-3 font-medium" x-text="l.client_nom"></td>
+                                <td class="px-4 py-3" x-text="l.unite_nom"></td>
+                                <td class="px-4 py-3 text-gray-500" x-text="l.type_display"></td>
+                                <td class="px-4 py-3 text-gray-500" x-text="formatDate(l.date_debut)"></td>
+                                <td class="px-4 py-3 text-gray-500" x-text="formatDate(l.date_fin)"></td>
+                                <td class="px-4 py-3 text-center" x-text="l.duree_display"></td>
+                                <td class="px-4 py-3 text-center">
+                                    <span class="text-xs px-2 py-1 rounded-full"
+                                          :class="l.statut === 'EN_COURS' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500'"
+                                          x-text="l.statut === 'EN_COURS' ? 'En cours' : l.statut"></span>
+                                </td>
+                            </tr>
+                        </template>
+                        <tr x-show="locations.length === 0">
+                            <td colspan="7" class="px-4 py-8 text-center text-gray-400">Aucune location en cours</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('patronTabs', () => ({
+        activeTab: 'overview',
+        stats: { commandes_en_cours: 0, unites_occupees: 0, locations_en_cours: 0, total_unites: 0, unites_disponibles: 0, taux_occupation: 0 },
+        dernieresCommandes: [],
+        dernieresLocations: [],
+        locations: [],
+
+        async init() {
+            await Promise.all([
+                this.chargerStats(),
+                this.chargerDernieresCommandes(),
+                this.chargerDernieresLocations(),
+                this.chargerLocations(),
+            ]);
+            setInterval(() => {
+                this.chargerStats();
+                this.chargerDernieresCommandes();
+            }, 30000);
+        },
+
+        async chargerStats() {
+            try {
+                const res = await fetch('/hotel/api/stats/');
+                const data = await res.json();
+                if (data.success) {
+                    this.stats = { ...this.stats, ...data.stats };
+                    const res2 = await fetch('/pos/api/commandes/liste/');
+                    const data2 = await res2.json();
+                    if (data2.success) {
+                        this.stats.commandes_en_cours = data2.commandes.filter(c => ['EN_ATTENTE', 'EN_PREPARATION', 'PRETE', 'EN_COURS_DE_LIVRAISON'].includes(c.statut_code)).length;
+                    }
+                }
+            } catch(e) { console.error(e); }
+        },
+
+        async chargerDernieresCommandes() {
+            try {
+                const res = await fetch('/pos/api/commandes/liste/');
+                const data = await res.json();
+                if (data.success) this.dernieresCommandes = data.commandes.slice(0, 10);
+            } catch(e) { console.error(e); }
+        },
+
+        async chargerDernieresLocations() {
+            try {
+                const res = await fetch('/hotel/api/locations/');
+                const data = await res.json();
+                if (data.success) this.dernieresLocations = data.locations.filter(l => l.statut === 'EN_COURS');
+            } catch(e) { console.error(e); }
+        },
+
+        async chargerLocations() {
+            try {
+                const res = await fetch('/hotel/api/locations/');
+                const data = await res.json();
+                if (data.success) this.locations = data.locations.filter(l => l.statut === 'EN_COURS');
+            } catch(e) { console.error(e); }
+        },
+
+        formatDate(d) {
+            if (!d) return '-';
+            const dt = new Date(d);
+            return dt.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+        },
+
+        statutClass(code) {
+            const map = {
+                'EN_ATTENTE': 'bg-yellow-500',
+                'EN_PREPARATION': 'bg-blue-500',
+                'PRETE': 'bg-green-500',
+                'EN_COURS_DE_LIVRAISON': 'bg-purple-500',
+                'SERVIE': 'bg-gray-500',
+                'LIVREE': 'bg-gray-500',
+                'ANNULEE': 'bg-red-500',
+            };
+            return map[code] || 'bg-gray-500';
+        },
+    }));
+});
+</script>
+{% endblock %}

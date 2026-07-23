@@ -1,0 +1,1498 @@
+{% extends 'pos/base_pos.html' %}
+{% load static %}
+
+{% block title %}{% if is_raf %}⚡ Guichet RAF{% else %}POS - {{ point_vente.nom }}{% endif %}{% endblock %}
+
+{% block content %}
+<div id="pos-app" class="flex h-[calc(100vh-4rem)] overflow-hidden" x-data="posApp()" x-init="init()">
+    
+    <!-- ========== OVERLAY SÉLECTION / CRÉATION CLIENT (natif JS pour robustesse) ========== -->
+    <div id="client-selector-overlay" style="display:none" class="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm" onclick="if(event.target===this)closeClientSelector()">
+        <div class="w-full max-w-lg mx-4 bg-surface-container-low rounded-2xl shadow-2xl overflow-hidden">
+            <div class="px-6 py-5 border-b border-outline/10 text-center">
+                <div class="w-14 h-14 rounded-full bg-secondary/10 flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-user-plus text-2xl text-secondary"></i>
+                </div>
+                <h2 class="text-xl font-bold">Nouvelle commande</h2>
+                <p class="text-sm text-gray-400 mt-1">Choisissez un client existant, créez-en un nouveau, ou utilisez le client passager</p>
+            </div>
+            <div class="p-6 space-y-4">
+                <!-- Client existant -->
+                <div>
+                    <label class="text-xs font-semibold text-secondary uppercase tracking-wider block mb-2">Client existant</label>
+                    <select id="client-select-input" onchange="selectionnerDepuisListeNative(this.value)"
+                            class="w-full px-4 py-3 input-md3 rounded-xl bg-surface-container-high text-sm appearance-none cursor-pointer">
+                        <option value="">-- Sélectionner un client --</option>
+                        <template x-for="c in clientsList" :key="c.id">
+                            <option :value="c.id" x-text="c.nom"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <div class="relative">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-outline/10"></div>
+                    </div>
+                    <div class="relative flex justify-center">
+                        <span class="bg-surface-container-low px-4 text-xs text-gray-400">OU</span>
+                    </div>
+                </div>
+
+                <!-- Nouveau client -->
+                <div class="bg-surface-container-high rounded-xl p-4 space-y-3 border border-secondary/20">
+                    <p class="text-xs font-semibold text-secondary uppercase tracking-wider"><i class="fas fa-user-plus mr-1"></i> Nouveau client</p>
+                    <input type="text" id="new-client-nom" placeholder="Nom *" class="w-full input-md3 rounded-lg text-sm">
+                    <input type="tel" id="new-client-tel" placeholder="Téléphone *" class="w-full input-md3 rounded-lg text-sm">
+                    <button onclick="creerClientDepuisSelector()" class="w-full bg-secondary text-on-secondary py-2.5 rounded-lg text-sm font-bold hover:bg-secondary/90 transition-all">
+                        Créer et sélectionner
+                    </button>
+                    <p id="new-client-error" class="text-xs text-red-400 hidden"></p>
+                </div>
+
+                <div class="relative">
+                    <div class="absolute inset-0 flex items-center">
+                        <div class="w-full border-t border-outline/10"></div>
+                    </div>
+                    <div class="relative flex justify-center">
+                        <span class="bg-surface-container-low px-4 text-xs text-gray-400">OU</span>
+                    </div>
+                </div>
+
+                <button onclick="selectionnerPassagerNative()"
+                        class="w-full flex items-center gap-3 p-4 rounded-xl border-2 border-dashed border-secondary/30 hover:border-secondary/60 hover:bg-secondary/5 transition-all text-left">
+                    <div class="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center shrink-0">
+                        <i class="fas fa-user-clock text-xl text-secondary"></i>
+                    </div>
+                    <div>
+                        <div class="font-bold text-secondary">Client Passager</div>
+                        <div class="text-xs text-gray-400">Continuer sans sélectionner de client</div>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ========== BLOCAGE PLANNING EXPIRÉ (Option C) ========== -->
+    <div x-show="planningBloque" x-cloak class="fixed inset-0 z-[250] flex items-center justify-center bg-black/95 backdrop-blur-sm">
+        <div class="bg-surface-container-high rounded-2xl p-8 text-center max-w-sm mx-4 border-2 border-red-500/50 shadow-2xl">
+            <div class="w-20 h-20 rounded-full bg-red-900/30 flex items-center justify-center mx-auto mb-4 animate-pulse">
+                <i class="fas fa-exclamation-triangle text-4xl text-red-400"></i>
+            </div>
+            <h2 class="text-2xl font-bold text-red-400 mb-2" x-text="blocageMessage"></h2>
+            <p class="text-sm text-on-surface-variant mb-6">La caisse est bloquée. Vous devez clôturer votre session pour continuer.</p>
+            <button @click="cloturerSessionBloquee()" 
+                    class="w-full bg-red-600 hover:bg-red-500 text-white px-6 py-3 rounded-xl font-bold text-lg transition-all"
+                    :disabled="blocageLoading">
+                <i class="fas fa-spinner fa-spin mr-2" x-show="blocageLoading"></i>
+                <span x-text="blocageLoading ? 'Clôture en cours...' : 'Clôturer la session'"></span>
+            </button>
+            <div x-show="blocageErreur" class="mt-3 text-xs text-red-400" x-text="blocageErreur"></div>
+        </div>
+    </div>
+
+    <!-- ========== COLONNE GAUCHE : PRODUITS ========== -->
+    <div class="flex-1 flex flex-col bg-surface-container-low shadow-xl rounded-l-2xl overflow-hidden">
+        
+        <!-- Header catégories / Mode RAF / Sélecteur entrepôt -->
+        <div class="sticky top-0 z-10 bg-surface-container-low border-b border-outline/10 px-4 py-3">
+            <!-- Compteur de temps restant -->
+            {% if planning_fin_heure and not planning_expire %}
+            <div class="flex items-center justify-center mb-1">
+                <div class="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-mono"
+                     :class="tempsRestant > 900 ? 'bg-green-900/20 text-green-400' : (tempsRestant > 0 ? 'bg-yellow-900/20 text-yellow-400' : 'bg-red-900/30 text-red-400')">
+                    <i class="fas fa-hourglass-half text-xs"></i>
+                    <span>Fin du shift <strong>{{ planning_fin_heure }}</strong> — reste <span x-text="afficheTempsRestant()"></span></span>
+                </div>
+            </div>
+            {% endif %}
+            <div class="flex items-center gap-2">
+                <!-- Sélecteur d'entrepôt (R2) -->
+                <div x-show="entrepotDisponibles.length > 1" class="shrink-0">
+                    <select x-model="entrepotActif" @change="changerEntrepot()"
+                            class="px-2 py-1.5 text-xs font-medium rounded-lg bg-surface-container-high text-on-surface border-0 cursor-pointer">
+                        <template x-for="ep in entrepotDisponibles" :key="ep.id">
+                            <option :value="ep.id" x-text="ep.nom"></option>
+                        </template>
+                    </select>
+                </div>
+                {% if is_raf %}
+                <!-- Mode selector Guichet RAF -->
+                <div class="flex gap-1 flex-1">
+                    <button @click="activeCategorie = 'BRASSERIE'; activeSousCategorie = null" 
+                            class="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all"
+                            :class="activeCategorie === 'BRASSERIE' ? 'bg-secondary text-white shadow-md' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-high'">
+                        🍺 Brasserie
+                    </button>
+                    <button @click="activeCategorie = 'RESTAURANT'; activeSousCategorie = null" 
+                            class="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all"
+                            :class="activeCategorie === 'RESTAURANT' ? 'bg-secondary text-white shadow-md' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-high'">
+                        🍽 Restaurant
+                    </button>
+                    <button @click="activeCategorie = 'LOCATION'; activeSousCategorie = null" 
+                            class="flex items-center gap-1.5 px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all"
+                            :class="activeCategorie === 'LOCATION' ? 'bg-secondary text-white shadow-md' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-high'">
+                        🏨 Réservation
+                    </button>
+                </div>
+                {% else %}
+                <div class="flex gap-2 overflow-x-auto pb-1 flex-1">
+                    <template x-for="(items, cat) in categories" :key="cat">
+                        <button @click="activeCategorie = cat; activeSousCategorie = null" 
+                                class="px-4 py-2 text-sm font-medium rounded-full whitespace-nowrap transition-all"
+                                :class="activeCategorie === cat ? 'bg-secondary text-white shadow-md' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-high'"
+                                x-text="cat"></button>
+                    </template>
+                </div>
+                {% endif %}
+                <button @click="showCommandes = !showCommandes"
+                        class="shrink-0 flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-all"
+                        :class="showCommandes ? 'bg-secondary text-black' : 'bg-surface-container-high text-on-surface-variant hover:bg-secondary/20 hover:text-secondary'">
+                    <i class="fas fa-clipboard-list"></i>
+                    <span class="hidden sm:inline">Commandes</span>
+                </button>
+
+            </div>
+            <!-- Sous-filtres par catégorie -->
+            <div x-show="sous_categories[activeCategorie] && sous_categories[activeCategorie].length" class="flex items-center gap-1.5 mt-2 pb-1 overflow-x-auto">
+                <button @click="activeSousCategorie = null" 
+                        class="px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap transition-all"
+                        :class="!activeSousCategorie ? 'bg-secondary/20 text-secondary' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest'">
+                    Tous
+                </button>
+                <template x-for="sc in sous_categories[activeCategorie]" :key="sc">
+                    <button @click="activeSousCategorie = sc" 
+                            class="px-3 py-1 text-xs font-medium rounded-full whitespace-nowrap transition-all"
+                            :class="activeSousCategorie === sc ? 'bg-secondary/20 text-secondary' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest'"
+                            x-text="sc"></button>
+                </template>
+            </div>
+        </div>
+
+        <!-- Barre de recherche -->
+        <div class="px-4 py-2 bg-surface-container-high border-b border-outline/10">
+            <div class="relative">
+                <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm"></i>
+                <input type="text" x-model="searchTerm" x-ref="searchInput"
+                       placeholder="Rechercher un produit..."
+                       class="w-full pl-9 pr-8 py-2 text-sm bg-surface-container-low border border-outline/10 rounded-lg text-on-surface placeholder-on-surface-variant focus:border-secondary focus:outline-none transition-all">
+                <button x-show="searchTerm" @click="searchTerm = ''; $refs.searchInput.focus()"
+                        class="absolute right-2 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface">
+                    <i class="fas fa-times text-xs"></i>
+                </button>
+            </div>
+        </div>
+        
+        <!-- Grille articles -->
+        <div class="flex-1 overflow-y-auto p-4">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                <template x-for="item in itemsFiltres" :key="item.id">
+                    <button @click="clickItem(item)" 
+                            class="relative overflow-hidden transition-all duration-200 bg-surface-container-low border border-outline/10 group rounded-xl hover:shadow-lg hover:-translate-y-1"
+                            :class="(item.type === 'LOCATION' && item.statut_unite === 'OCCUPEE') || (item.type !== 'LOCATION' && item.stock !== undefined && item.stock <= 0) ? 'opacity-40 cursor-not-allowed' : ''"
+                            :disabled="(item.type === 'LOCATION' && item.statut_unite === 'OCCUPEE') || (item.type !== 'LOCATION' && item.stock !== undefined && item.stock <= 0)">
+                        <!-- Badge catégorie dynamique -->
+                        <div class="absolute top-2 right-2 z-10 flex gap-1">
+                            <span x-show="item.type !== 'LOCATION' && item.stock !== undefined && item.stock <= 0"
+                                  class="px-2 py-0.5 text-xs font-bold text-white rounded-full bg-red-600">
+                                RUPTURE
+                            </span>
+                            <span class="px-2 py-0.5 text-xs font-bold text-white rounded-full"
+                                  :class="item.type === 'RESTAURANT' ? 'bg-orange-600' : item.type === 'LOCATION' ? 'bg-emerald-600' : item.type === 'BRASSERIE' ? 'bg-blue-600' : 'bg-gray-600'"
+                                  x-text="item.type === 'LOCATION' ? 'HÔTEL' : item.type"></span>
+                        </div>
+                        <!-- Image / Icône -->
+                        <div class="h-28 bg-surface-container-high flex items-center justify-center relative overflow-hidden">
+                            <div x-show="!item.image" class="flex items-center justify-center w-full h-full">
+                                <i x-show="item.type === 'BRASSERIE'" class="text-4xl fas fa-beer text-on-surface-variant"></i>
+                                <i x-show="item.type === 'RESTAURANT'" class="text-4xl fas fa-utensils text-on-surface-variant"></i>
+                                <div x-show="item.type === 'LOCATION'" class="flex flex-col items-center gap-1">
+                                    <i class="text-3xl fas fa-bed text-green-400"></i>
+                                    <span x-show="item.capacite" class="text-xs text-on-surface-variant"><i class="fas fa-user mr-1"></i><span x-text="item.capacite"></span> pers.</span>
+                                </div>
+                            </div>
+                            <img x-show="item.image" :src="item.image" loading="lazy" @error="$el.style.display='none'" class="block absolute inset-0 w-full h-full object-cover" style="background:#444">
+                            <!-- Prix dans l'image (chambres) -->
+                            <div x-show="item.type === 'LOCATION'" 
+                                 class="absolute bottom-2 left-2 bg-black/60 backdrop-blur-sm text-white text-xs font-bold px-2 py-1 rounded-md">
+                                <span x-text="formatMoney(item.prix) + ' F'"></span><span class="text-on-surface-variant">/h</span>
+                            </div>
+                        </div>
+                        <!-- Infos -->
+                        <div class="p-3 text-left">
+                            <div class="font-semibold text-on-surface text-sm line-clamp-1" x-text="item.nom"></div>
+                            <div x-show="item.type !== 'LOCATION'" class="mt-1 flex items-center justify-between">
+                                <span class="font-bold text-secondary" x-text="formatMoney(item.prix) + ' F'"></span>
+                                <span x-show="item.stock !== undefined" class="text-xs text-on-surface-variant" x-text="'Stock: ' + item.stock"></span>
+                            </div>
+                            <!-- Statut chambre -->
+                            <div x-show="item.type === 'LOCATION'" class="mt-2">
+                                <span x-show="item.statut_unite === 'DISPONIBLE'" 
+                                      class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-green-900/40 text-green-300 border border-green-700/30">
+                                    <i class="fas fa-circle text-[8px]"></i> Disponible
+                                </span>
+                                <span x-show="item.statut_unite === 'OCCUPEE'" 
+                                      class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-red-900/40 text-red-300 border border-red-700/30">
+                                    <i class="fas fa-circle text-[8px]"></i> Occupée
+                                </span>
+                                <span x-show="item.statut_unite === 'NETTOYAGE'" 
+                                      class="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded-full bg-yellow-900/40 text-yellow-300 border border-yellow-700/30">
+                                    <i class="fas fa-broom text-[10px]"></i> Nettoyage
+                                </span>
+                            </div>
+                        </div>
+                        <div class="absolute inset-0 flex items-center justify-center transition-all duration-200 opacity-0 bg-secondary/90 group-hover:opacity-100">
+                            <i class="text-3xl text-white fas fa-plus-circle"></i>
+                        </div>
+                    </button>
+                </template>
+            </div>
+        </div>
+    </div>
+    
+    <!-- ========== COLONNE DROITE : COMMANDE (toujours visible) ========== -->
+    <div class="w-96 bg-surface-container-low shadow-xl flex flex-col">
+
+        <!-- État initial : pas de client → bouton LANCER UNE COMMANDE -->
+        <div id="lancer-commande-section" class="flex flex-col flex-1 p-8"
+             x-show="!selectedClient"
+             style="display:flex">
+            <div class="flex-1 flex flex-col items-center justify-center">
+                <button onclick="openClientSelector()"
+                        class="w-full py-4 text-lg font-bold text-black bg-secondary rounded-2xl hover:bg-secondary/90 hover:shadow-xl hover:-translate-y-0.5 transition-all duration-200 shadow-lg flex items-center justify-center gap-3">
+                    <i class="fas fa-play-circle text-2xl"></i>
+                    LANCER UNE COMMANDE
+                </button>
+            </div>
+        </div>
+
+        <!-- Interface de commande : client sélectionné -->
+        <div id="commande-interface-section" class="flex flex-col h-full"
+             x-show="selectedClient"
+             style="display:none">
+                <!-- Header commande -->
+                <div class="p-4 border-b border-outline/10">
+                    <div class="flex items-center justify-between">
+                        <h2 class="text-lg font-bold text-on-surface">
+                            <i class="fas fa-shopping-cart text-secondary mr-2"></i>
+                            Nouvelle commande
+                        </h2>
+                        <div class="flex items-center gap-2">
+                            <button @click="changerClient()" class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-container transition text-xs">
+                                <i class="fas fa-user text-secondary"></i>
+                                <span x-text="selectedClient?.nom || ''"></span>
+                                <i class="fas fa-pen text-gray-400"></i>
+                    </button>
+                </div>
+                    </div>
+            
+            <!-- Type de commande -->
+            <div class="flex gap-2 mt-3">
+                <button @click="typeCommande = 'SUR_PLACE'" 
+                        class="flex-1 py-2 text-sm font-medium rounded-lg transition"
+                        :class="typeCommande === 'SUR_PLACE' ? 'bg-secondary text-white' : 'bg-surface-container-high text-on-surface-variant'">
+                    <i class="fas fa-chair mr-1"></i> Sur place
+                </button>
+                <button @click="typeCommande = 'EMPORTER'" 
+                        class="flex-1 py-2 text-sm font-medium rounded-lg transition"
+                        :class="typeCommande === 'EMPORTER' ? 'bg-secondary text-white' : 'bg-surface-container-high text-on-surface-variant'">
+                    <i class="fas fa-bag-shopping mr-1"></i> Emporter
+                </button>
+                <button @click="typeCommande = 'LIVRAISON'" 
+                        class="flex-1 py-2 text-sm font-medium rounded-lg transition"
+                        :class="typeCommande === 'LIVRAISON' ? 'bg-secondary text-white' : 'bg-surface-container-high text-on-surface-variant'">
+                    <i class="fas fa-truck mr-1"></i> Livraison
+                </button>
+            </div>
+            
+            <!-- Client (si emporter ou livraison) -->
+            <div x-show="typeCommande !== 'SUR_PLACE'" class="mt-3" x-cloak>
+                <input type="text" x-model="clientNom" placeholder="Nom du client" class="w-full px-3 py-2 text-sm input-md3 rounded-lg">
+            </div>
+            
+            <!-- Livraison : téléphone, adresse, frais -->
+            <div x-show="typeCommande === 'LIVRAISON'" class="mt-3 space-y-2" x-cloak>
+                <input type="tel" x-model="clientTelephone" placeholder="Téléphone" class="w-full px-3 py-2 text-sm input-md3 rounded-lg">
+                <textarea x-model="adresseLivraison" rows="2" placeholder="Adresse de livraison" class="w-full px-3 py-2 text-sm input-md3 rounded-lg"></textarea>
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-truck text-on-surface-variant text-sm"></i>
+                    <input type="number" min="0" step="100" x-model="fraisLivraison" placeholder="Frais de livraison" class="flex-1 px-3 py-2 text-sm input-md3 rounded-lg">
+                    <span class="text-xs text-on-surface-variant">FCFA</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Liste du panier -->
+        <div class="flex-1 overflow-y-auto p-2">
+            <div x-show="panier.length === 0" class="flex flex-col items-center justify-center h-64 text-on-surface-variant">
+                <i class="text-5xl fas fa-shopping-cart mb-3"></i>
+                <p class="text-sm">Panier vide</p>
+            </div>
+            
+            <template x-for="(item, idx) in panier" :key="idx">
+                <div class="flex items-center gap-2 p-2 mb-2 bg-surface-container-high rounded-lg">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center"
+                        :class="item.article_type === 'MENU' ? 'bg-orange-900/30' : item.type === 'LOCATION' ? 'bg-green-900/30' : 'bg-blue-900/30'">
+                        <i :class="item.article_type === 'MENU' ? 'fas fa-utensils text-orange-400' : item.type === 'LOCATION' ? 'fas fa-bed text-green-400' : 'fas fa-beer text-blue-400'"></i>
+                    </div>
+                    <div class="flex-1">
+                        <div class="font-medium text-sm" x-text="item.nom"></div>
+                        <div class="text-xs text-secondary" x-text="formatMoney(item.prix) + (item.type === 'LOCATION' ? ' F/h' : ' F')"></div>
+                    </div>
+                    <div x-show="item.type !== 'LOCATION'" class="flex items-center gap-1">
+                        <button @click="modifierQuantite(idx, -1)" class="w-7 h-7 rounded-full bg-surface-container-high hover:bg-surface-container-high">
+                            <i class="fas fa-minus text-xs"></i>
+                        </button>
+                        <span class="w-6 text-center text-sm font-medium" x-text="item.quantite"></span>
+                        <button @click="modifierQuantite(idx, 1)" class="w-7 h-7 rounded-full bg-secondary text-white hover:bg-secondary/80">
+                            <i class="fas fa-plus text-xs"></i>
+                        </button>
+                    </div>
+                    <div x-show="item.type === 'LOCATION'" class="flex items-center gap-1">
+                        <button @click="item.heures > 1 ? item.heures-- : supprimerDuPanier(idx); item.total = item.heures * item.prix" class="w-7 h-7 rounded-full bg-surface-container-high hover:bg-surface-container-high">
+                            <i class="fas fa-minus text-xs"></i>
+                        </button>
+                        <span class="w-6 text-center text-sm font-medium" x-text="item.heures + (item.type_tarif === 'JOUR' ? 'j' : 'h')"></span>
+                        <button @click="item.heures++; item.total = item.heures * item.prix" class="w-7 h-7 rounded-full bg-secondary text-white hover:bg-secondary/80">
+                            <i class="fas fa-plus text-xs"></i>
+                        </button>
+                    </div>
+                    <div class="text-right">
+                        <div class="font-bold text-sm" x-text="formatMoney(item.total) + ' F'"></div>
+                        <button @click="supprimerDuPanier(idx)" class="text-xs text-red-400">Suppr.</button>
+                    </div>
+                </div>
+            </template>
+        </div>
+        
+        <!-- Footer -->
+        <div class="p-4 border-t border-outline/10 bg-surface-container-high">
+            <div class="flex justify-between mb-3">
+                <span class="font-semibold">Total</span>
+                <span class="text-xl font-bold text-secondary" x-text="formatMoney(total) + ' F'"></span>
+            </div>
+            
+            <button @click="validerCommande()" 
+                    class="w-full py-3 font-semibold text-white rounded-lg transition"
+                    :class="panier.length === 0 ? 'bg-surface-container-high cursor-not-allowed' : 'btn-md3-primary bg-green-700 text-white hover:bg-green-800'"
+                    :disabled="panier.length === 0">
+                <i class="fas fa-check mr-2"></i> Commander
+            </button>
+            
+            <button @click="annulerCommande()" 
+                    class="w-full mt-2 py-2 text-sm font-medium text-on-surface-variant border border-outline/10 rounded-lg hover:bg-surface-container-high">
+                <i class="fas fa-trash mr-1"></i> Annuler
+            </button>
+            
+        </div>
+        </div>
+        </template>
+    </div>
+    
+    <!-- ========== COMMANDES EN COURS (overlay coulissant) ========== -->
+    <div x-show="showCommandes" x-cloak
+         x-transition:enter="transition transform duration-200"
+         x-transition:enter-start="translate-x-full"
+         x-transition:enter-end="translate-x-0"
+         x-transition:leave="transition transform duration-200"
+         x-transition:leave-start="translate-x-0"
+         x-transition:leave-end="translate-x-full"
+         class="fixed inset-y-0 right-0 z-30 w-80 bg-surface-container-high shadow-xl border-l border-outline/10 flex flex-col overflow-hidden">
+        <div class="flex items-center justify-between p-3 border-b border-outline/10 bg-surface-container-low">
+            <button @click="showCommandes = false" class="text-on-surface-variant hover:text-on-surface text-sm">
+                <i class="fas fa-times mr-2"></i>Commandes
+            </button>
+            <span class="text-xs text-on-surface-variant" x-text="commandes.filter(c => c.statut_code !== 'ANNULEE' && c.statut_code !== 'PAYEE').length + ' en cours'"></span>
+        </div>
+        <div class="flex-1 overflow-y-auto p-2 space-y-2">
+            <template x-for="c in commandes" :key="c.id">
+                <div class="bg-surface-container-low rounded-lg border border-outline/10 p-3">
+                    <div class="flex justify-between items-center">
+                        <span class="font-mono font-bold text-sm" x-text="'#' + c.numero"></span>
+                        <span class="text-xs px-2 py-0.5 rounded-full" :class="statutClass(c.statut_code)" x-text="c.statut"></span>
+                    </div>
+                    <div class="text-xs text-on-surface-variant mt-1">
+                        <span x-text="c.client + ' · ' + c.date"></span>
+                        <span x-show="c.table" x-text="'· Table ' + c.table"></span>
+                    </div>
+                    <div class="mt-2 space-y-1">
+                        <template x-for="l in (c.lignes || [])" :key="l.nom">
+                            <div class="flex items-center gap-2 text-xs">
+                                <i x-show="l.type === 'LOCATION'" class="fas fa-bed text-green-400"></i>
+                                <i x-show="l.type === 'MENU'" class="fas fa-utensils text-orange-400"></i>
+                                <i x-show="l.type !== 'LOCATION' && l.type !== 'MENU'" class="fas fa-beer text-blue-400"></i>
+                                <span class="text-on-surface-variant" x-text="l.nom"></span>
+                                <span x-show="l.heures" class="text-on-surface-variant" x-text="l.heures + 'h'"></span>
+                                <span x-show="!l.heures" class="text-on-surface-variant" x-text="'x' + l.quantite"></span>
+                                <span class="ml-auto font-medium text-secondary" x-text="formatMoney(l.prix * (l.heures || l.quantite || 1)) + ' F'"></span>
+                            </div>
+                        </template>
+                    </div>
+                    <div class="flex items-center justify-between mt-2 pt-2 border-t border-outline/10">
+                        <span class="font-bold text-secondary text-sm" x-text="formatMoney(c.montant) + ' F'"></span>
+                        <div class="flex gap-1" x-html="boutonsStatut(c)"></div>
+                    </div>
+                </div>
+            </template>
+            <div x-show="commandesFiltrees.length === 0" class="text-center text-on-surface-variant py-4">Aucune commande</div>
+        </div>
+        </div>
+    </div>
+
+    <!-- ========== DIALOG DÉPÔT CLIENT (natif JS pour robustesse) ========== -->
+
+</div>
+
+{% include 'pos/components/paiement_commande.html' %}
+
+<!-- ========== DIALOG SESSION — FIN DE PLANNING / OUVERTURE ========== -->
+<div x-data="posSessionDialog()" x-init="initDialog()">
+    <!-- STEP 1: Clôture de l'ancienne session -->
+    <template x-if="step === 'cloture' && session"><div class="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div class="w-full max-w-md mx-4 bg-surface-container-low rounded-2xl shadow-2xl overflow-hidden border border-outline/10">
+            <div class="px-6 py-8 text-center">
+                <div class="w-16 h-16 rounded-full bg-yellow-900/30 flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-clock text-3xl text-yellow-400"></i>
+                </div>
+                <h2 class="text-xl font-bold">Planning terminé</h2>
+                <p class="text-sm text-on-surface-variant mt-2">Votre planning est arrivé à son terme. Veuillez clôturer la session pour continuer.</p>
+            </div>
+            <div class="px-6 pb-2 space-y-3">
+                <div class="bg-surface-container-high rounded-xl p-4 space-y-2">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-on-surface-variant">Point de vente</span>
+                        <span class="font-medium" x-text="session.point_vente"></span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-on-surface-variant">Planning</span>
+                        <span class="font-medium" x-text="session.planning_date + ' ' + session.planning_debut + ' - ' + session.planning_fin"></span>
+                    </div>
+                    <div class="flex justify-between text-sm pt-2 border-t border-outline/10">
+                        <span class="text-on-surface-variant">Total ventes</span>
+                        <span class="font-bold text-secondary" x-text="formatMoney(session.total_ventes) + ' F'"></span>
+                    </div>
+                </div>
+                <div x-show="loading" class="text-center text-sm text-on-surface-variant py-2">
+                    <i class="fas fa-spinner fa-spin mr-2"></i>Clôture en cours...
+                </div>
+                <div x-show="erreur" class="text-center text-sm text-red-400 py-2" x-text="erreur"></div>
+            </div>
+            <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-outline/10">
+                <button @click="cloturer()" :disabled="loading"
+                        class="w-full py-3 text-base font-bold rounded-xl transition-all"
+                        :class="loading ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-secondary text-black hover:bg-secondary/80'">
+                    <i class="fas fa-check-circle mr-2"></i>Clôturer la session
+                </button>
+            </div>
+        </div>
+    </div></template>
+
+    <!-- STEP 2: Ouverture de la nouvelle session -->
+    <template x-if="step === 'ouverture' && nouveauPlanning"><div class="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div class="w-full max-w-md mx-4 bg-surface-container-low rounded-2xl shadow-2xl overflow-hidden border border-outline/10">
+            <div class="px-6 py-8 text-center">
+                <div class="w-16 h-16 rounded-full bg-green-900/30 flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-check-circle text-3xl text-green-400"></i>
+                </div>
+                <h2 class="text-xl font-bold">Session clôturée</h2>
+                <p class="text-sm text-on-surface-variant mt-2">Un nouveau planning est actif. Ouvrez une nouvelle session pour commencer.</p>
+            </div>
+            <div class="px-6 pb-2 space-y-3">
+                <div class="bg-surface-container-high rounded-xl p-4 space-y-2">
+                    <div class="flex justify-between text-sm">
+                        <span class="text-on-surface-variant">Nouveau planning</span>
+                        <span class="font-medium" x-text="nouveauPlanning.point_vente"></span>
+                    </div>
+                    <div class="flex justify-between text-sm">
+                        <span class="text-on-surface-variant">Horaire</span>
+                        <span class="font-medium" x-text="nouveauPlanning.date + ' ' + nouveauPlanning.debut + ' - ' + nouveauPlanning.fin"></span>
+                    </div>
+                    <div class="flex justify-between text-sm pt-2 border-t border-outline/10">
+                        <span class="text-on-surface-variant">Solde initial</span>
+                        <span class="font-bold text-secondary" x-text="formatMoney(nouveauPlanning.solde_initial) + ' F'"></span>
+                    </div>
+                </div>
+                <div x-show="loading" class="text-center text-sm text-on-surface-variant py-2">
+                    <i class="fas fa-spinner fa-spin mr-2"></i>Ouverture en cours...
+                </div>
+                <div x-show="erreur" class="text-center text-sm text-red-400 py-2" x-text="erreur"></div>
+                <div x-show="rafDepotRequis" class="bg-yellow-900/30 rounded-xl p-4 text-sm text-center border border-yellow-700/40">
+                    <i class="fas fa-hand-holding-usd text-2xl text-yellow-400 block mb-2"></i>
+                    <p class="font-medium text-yellow-300">Dépôt RAF requis</p>
+                    <p class="text-xs text-on-surface-variant mt-1">Contactez le RAF pour le dépôt d'ouverture depuis la caisse centrale.</p>
+                </div>
+            </div>
+            <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-outline/10">
+                <button @click="ouvrirSession()" :disabled="loading || rafDepotRequis"
+                        class="w-full py-3 text-base font-bold rounded-xl transition-all"
+                        :class="(loading || rafDepotRequis) ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-secondary text-black hover:bg-secondary/80'">
+                    <i class="fas fa-play-circle mr-2"></i>Ouvrir la session
+                </button>
+            </div>
+        </div>
+    </div></template>
+
+    <!-- STEP 3: Aucune session ni planning — POS bloqué -->
+    <template x-if="step === 'aucun_planning'"><div class="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+        <div class="w-full max-w-md mx-4 bg-surface-container-low rounded-2xl shadow-2xl overflow-hidden border border-outline/10">
+            <div class="px-6 py-8 text-center">
+                <div class="w-16 h-16 rounded-full bg-red-900/30 flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-lock text-3xl text-red-400"></i>
+                </div>
+                <h2 class="text-xl font-bold">Session de caisse requise</h2>
+                <p class="text-sm text-on-surface-variant mt-2">
+                    Aucune session n'est ouverte sur ce point de vente et vous n'avez pas de planning actif en ce moment.
+                </p>
+                <p class="text-sm text-on-surface-variant mt-1">
+                    Contactez votre manager pour créer un planning, puis revenez ouvrir votre session.
+                </p>
+            </div>
+            <div class="flex items-center gap-3 px-6 py-4 border-t border-outline/10">
+                <a href="{% url 'dashboard:index' %}"
+                   class="flex-1 py-3 text-center text-base font-medium rounded-xl bg-surface-container-high text-on-surface hover:bg-surface-container-highest transition-all">
+                    <i class="fas fa-arrow-left mr-2"></i>Retour
+                </a>
+                <button @click="window.location.reload()"
+                        class="flex-1 py-3 text-base font-bold rounded-xl bg-secondary text-black hover:bg-secondary/80 transition-all">
+                    <i class="fas fa-rotate-right mr-2"></i>Vérifier à nouveau
+                </button>
+            </div>
+        </div>
+    </div></template>
+</div>
+
+<!-- ========== DIALOG RÉSERVATION HÔTEL (composant isolé) ========== -->
+<div x-data="posReservation()" @open-reservation.window="ouvrir($event.detail)">
+<div x-show="ouvert" class="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 backdrop-blur-sm" x-cloak @click.away="fermer()">
+    <div class="w-full max-w-sm mx-4 bg-surface-container-low rounded-2xl shadow-2xl overflow-hidden" @click.stop>
+        <div class="px-6 py-5 border-b border-outline/10 text-center">
+            <div class="w-14 h-14 rounded-full bg-green-900/30 flex items-center justify-center mx-auto mb-3">
+                <i class="fas fa-bed text-2xl text-green-400"></i>
+            </div>
+            <h2 class="text-xl font-bold" x-text="item.nom"></h2>
+            <p class="text-sm text-on-surface-variant mt-1">
+                <span class="font-semibold text-secondary" x-text="formatMoney(item.prix) + ' F/h'"></span>
+                <span x-show="item.prix_jour" class="ml-2 text-on-surface-variant" x-text="'| ' + formatMoney(item.prix_jour) + ' F/j'"></span>
+            </p>
+        </div>
+        <div class="p-6 space-y-4">
+            <div class="flex bg-surface-container-high rounded-xl p-1 gap-1" x-show="item.prix_jour || item.prix">
+                <button @click="setForfait('DEMI_JOUR')"
+                        class="flex-1 py-2 text-xs font-medium rounded-lg transition-all"
+                        :class="typeTarif === 'DEMI_JOUR' ? 'bg-secondary text-black shadow-sm' : 'text-on-surface-variant hover:text-on-surface'">
+                    <i class="fas fa-cloud-sun mr-1"></i> 12h
+                </button>
+                <button @click="setForfait('JOUR')"
+                        class="flex-1 py-2 text-xs font-medium rounded-lg transition-all"
+                        :class="typeTarif === 'JOUR' ? 'bg-secondary text-black shadow-sm' : 'text-on-surface-variant hover:text-on-surface'">
+                    <i class="fas fa-sun mr-1"></i> 24h
+                </button>
+                <button @click="setForfait('PERSO')"
+                        class="flex-1 py-2 text-xs font-medium rounded-lg transition-all"
+                        :class="typeTarif === 'PERSO' ? 'bg-secondary text-black shadow-sm' : 'text-on-surface-variant hover:text-on-surface'">
+                    <i class="fas fa-clock mr-1"></i> Perso
+                </button>
+            </div>
+            <!-- Heure début / fin (mode perso) -->
+            <div x-show="typeTarif === 'PERSO'" class="grid grid-cols-2 gap-3">
+                <div>
+                    <label class="text-xs text-on-surface-variant block mb-1">Heure début</label>
+                    <input type="time" x-model="heureDebut" class="w-full input-md3 rounded-lg text-sm">
+                </div>
+                <div>
+                    <label class="text-xs text-on-surface-variant block mb-1">Heure fin</label>
+                    <input type="time" x-model="heureFin" class="w-full input-md3 rounded-lg text-sm">
+                </div>
+            </div>
+            <!-- Durée en heures (modes rapides) -->
+            <div x-show="typeTarif !== 'PERSO'">
+                <label class="block text-sm font-medium text-on-surface-variant mb-1" x-text="typeTarif === 'DEMI_JOUR' ? 'Demi-journée' : 'Journée entière'"></label>
+                <div class="bg-surface-container-high rounded-xl p-3 text-center">
+                    <span class="text-2xl font-bold text-secondary" x-text="typeTarif === 'DEMI_JOUR' ? '12h' : '24h'"></span>
+                </div>
+            </div>
+            <div class="bg-surface-container-high rounded-xl p-4">
+                <div class="flex justify-between text-sm text-on-surface-variant">
+                    <span x-text="descriptionResa()"></span>
+                    <span class="text-lg font-bold text-secondary" x-text="formatMoney(totalEstime) + ' F'"></span>
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-outline/20">
+            <button @click="fermer()" class="px-4 py-2 text-sm font-medium rounded-lg bg-surface-container-high text-on-surface-variant hover:bg-surface-container-high">Annuler</button>
+            <button @click="confirmer()" class="px-5 py-2 text-sm font-semibold rounded-lg bg-secondary text-white hover:bg-secondary/90 disabled:opacity-40" :disabled="!dureeHeures || dureeHeures < 1">
+                <i class="fas fa-cart-plus mr-1"></i> Ajouter au panier
+            </button>
+        </div>
+    </div>
+</div>
+</div>
+<script>
+function posReservation() {
+    return {
+        ouvert: false,
+        item: { nom: '', prix: 0, prix_jour: 0, id: null, type_unite: '', capacite: 0 },
+        typeTarif: 'DEMI_JOUR',
+        heureDebut: '08:00',
+        heureFin: '20:00',
+
+        ouvrir(data) {
+            this.item = data;
+            this.typeTarif = 'DEMI_JOUR';
+            this.heureDebut = '08:00';
+            this.heureFin = '20:00';
+            this.ouvert = true;
+        },
+        fermer() { this.ouvert = false; },
+
+        setForfait(mode) { this.typeTarif = mode; },
+
+        get dureeHeures() {
+            if (this.typeTarif === 'DEMI_JOUR') return 12;
+            if (this.typeTarif === 'JOUR') return 24;
+            const [h1, m1] = (this.heureDebut || '08:00').split(':').map(Number);
+            const [h2, m2] = (this.heureFin || '08:00').split(':').map(Number);
+            let diff = (h2 + m2/60) - (h1 + m1/60);
+            if (diff <= 0) diff += 24;
+            return Math.max(0.5, diff);
+        },
+
+        get totalEstime() {
+            if (!this.item || !this.item.prix) return 0;
+            const tauxH = this.item.prix;
+            const tauxJ = this.item.prix_jour || this.item.prix * 24;
+            if (this.typeTarif === 'DEMI_JOUR') return Math.round(tauxJ / 2);
+            if (this.typeTarif === 'JOUR') return tauxJ;
+            return Math.round(tauxH * this.dureeHeures);
+        },
+
+        descriptionResa() {
+            if (this.typeTarif === 'DEMI_JOUR') return 'Demi-journée (12h)';
+            if (this.typeTarif === 'JOUR') return 'Journée entière (24h)';
+            return this.heureDebut + ' → ' + this.heureFin + ' (' + this.dureeHeures.toFixed(1) + 'h)';
+        },
+
+        confirmer() {
+            const tauxJ = this.item.prix_jour || (this.item.prix * 24);
+            const taux = this.typeTarif === 'DEMI_JOUR' ? Math.round(tauxJ / 2 / 12) :
+                         this.typeTarif === 'JOUR' ? tauxJ :
+                         this.item.prix;
+            const heures = this.dureeHeures;
+            const total = this.totalEstime;
+            window.dispatchEvent(new CustomEvent('reservation-confirmed', {
+                detail: {
+                    id: this.item.id, nom: this.item.nom, prix: taux,
+                    prix_heure: this.item.prix, prix_jour: this.item.prix_jour || 0,
+                    type: 'LOCATION', article_type: 'UNITE',
+                    type_tarif: this.typeTarif,
+                    heures: heures, total: total,
+                    heure_debut: this.typeTarif === 'PERSO' ? this.heureDebut : null,
+                    heure_fin: this.typeTarif === 'PERSO' ? this.heureFin : null,
+                    type_unite: this.item.type_unite, capacite: this.item.capacite,
+                }
+            }));
+            this.fermer();
+        },
+        formatMoney(v) { return new Intl.NumberFormat('fr-FR').format(v || 0); },
+    }
+}
+
+// ========== GESTIONNAIRE DE SESSION (clôture / ouverture) ==========
+function posSessionDialog() {
+    return {
+        step: 'cloture',
+        session: null,
+        nouveauPlanning: null,
+        loading: false,
+        erreur: '',
+        rafDepotRequis: {{ raf_depot_requis|lower|default:'false' }},
+        sessionOuverte: {{ caisse_ouverte|yesno:"true,false" }},
+        pointVenteId: null,
+        caisseId: null,
+        employeId: null,
+
+        initDialog() {
+            {% if planning_expire %}
+            this.session = {{ session_a_fermer_json|safe }};
+            this.nouveauPlanning = {{ nouveau_planning_json|safe }};
+            if (!this.session) return;
+            this.step = 'cloture';
+            {% else %}
+            // Nouveau planning sans session expirée → step ouverture si RAF pas requis
+            this.nouveauPlanning = {{ nouveau_planning_json|safe }};
+            this.pointVenteId = {{ point_vente.id }};
+            this.caisseId = {{ point_vente.caisse_id }};
+            this.employeId = {{ request.user.employe.id|default:'null' }};
+            if (this.nouveauPlanning) {
+                this.step = 'ouverture';
+            } else if (!this.sessionOuverte) {
+                // Pas de session ET pas de planning actif → POS bloqué
+                this.step = 'aucun_planning';
+            }
+            {% endif %}
+        },
+
+        async cloturer() {
+            if (this.loading) return;
+            this.loading = true;
+            this.erreur = '';
+            try {
+                const r = await fetch('/pos/api/sessions/cloturer-rouvrir/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookieGlobal()
+                    },
+                    body: JSON.stringify({ session_id: this.session.id })
+                });
+                const data = await r.json();
+                if (!data.success) {
+                    this.erreur = data.error || 'Erreur lors de la fermeture';
+                    this.loading = false;
+                    return;
+                }
+                // Si nouveau planning détecté → passer à l'étape 2
+                if (this.nouveauPlanning) {
+                    this.step = 'ouverture';
+                    this.loading = false;
+                } else {
+                    // Pas de nouveau planning → recharger
+                    window.location.reload();
+                }
+            } catch(e) {
+                this.erreur = 'Erreur réseau';
+                this.loading = false;
+            }
+        },
+
+        async ouvrirSession() {
+            if (this.loading) return;
+            this.loading = true;
+            this.erreur = '';
+            try {
+                const r = await fetch('/pos/api/sessions/ouvrir/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookieGlobal()
+                    },
+                    body: JSON.stringify({
+                        caisse_id: this.caisseId,
+                        point_vente_id: this.pointVenteId,
+                        caissier_id: this.employeId,
+                        debut_prevu: this.nouveauPlanning?.debut || null,
+                        fin_prevu: this.nouveauPlanning?.fin || null,
+                    })
+                });
+                const data = await r.json();
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    this.erreur = data.error || 'Erreur ouverture session';
+                    this.loading = false;
+                }
+            } catch(e) {
+                this.erreur = 'Erreur réseau';
+                this.loading = false;
+            }
+        },
+
+        formatMoney(v) { return new Intl.NumberFormat('fr-FR').format(v || 0); },
+    }
+}
+</script>
+
+<script>
+function posApp() {
+    return {
+        categories: {},
+        sous_categories: {},
+        activeCategorie: '{{ active_categorie|default:"" }}' || null,
+        activeSousCategorie: null,
+        panier: [],
+        typeCommande: 'SUR_PLACE',
+        selectedClient: null,
+        showClientSelector: false,
+        clientId: '',
+        clientNom: '',
+        selectedClientId: '',
+        clientsList: [],
+        clientTelephone: '',
+        adresseLivraison: '',
+        pointVenteSlug: '{{ point_vente.code }}',
+        commandes: [],
+        showCommandes: false,
+        fraisLivraison: 0,
+
+        // R2 : multi-entrepôt
+        entrepotDisponibles: JSON.parse('{{ entrepots_disponibles_json|safe }}' || '[]'),
+        entrepotActif: {{ entrepot_par_defaut|default:'null' }},
+        stocksParEntrepot: JSON.parse('{{ stocks_par_entrepot_json|safe }}' || '{}'),
+        // Blocage planning expiré
+        planningBloque: false,
+        blocageMessage: 'Planning terminé',
+        blocageLoading: false,
+        blocageErreur: '',
+        {% if planning_fin_heure %}
+        planningFinHeure: '{{ planning_fin_heure }}',
+        {% else %}
+        planningFinHeure: null,
+        {% endif %}
+        searchTerm: '',
+
+        async init() {
+            this.selectedClient = null;
+            await this.chargerClients();
+            await this.chargerProduits();
+            await this.chargerCommandes();
+            setInterval(() => {
+                this.chargerCommandes();
+            }, 15000);
+            // Rafraîchir la carte produits (stocks) — couvre les ventes des autres caisses
+            setInterval(() => this.rafraichirStock(), 30000);
+            this.pointVenteId = {{ point_vente.id }};
+            setInterval(() => this.verifierSession(), 35000);
+            this.$watch('activeCategorie', () => this.searchTerm = '');
+            window.addEventListener('paiement-effectue', () => {
+                this.chargerCommandes();
+                this.rafraichirStock();
+            });
+            window.addEventListener('reservation-confirmed', (e) => {
+                this.panier.push(e.detail);
+            });
+            window.addEventListener('modifier-commande', (e) => this._modifierCommande(e.detail.id));
+            window.addEventListener('supprimer-commande', (e) => this._supprimerCommande(e.detail.id));
+        },
+
+        clickItem(item) {
+            if (item.type === 'LOCATION') {
+                if (item.statut_unite === 'OCCUPEE') {
+                    alert('Cette chambre est déjà occupée');
+                    return;
+                }
+                window.dispatchEvent(new CustomEvent('open-reservation', { detail: item }));
+            } else {
+                this.ajouterAuPanier(item);
+            }
+        },
+
+        get commandesParStatut() {
+            const grouped = {};
+            const labels = ['EN_ATTENTE', 'EN_PREPARATION', 'PRETE', 'SERVIE', 'LIVREE', 'ANNULEE'];
+            for (const st of labels) {
+                const items = this.commandes.filter(c => c.statut_code === st);
+                if (items.length) grouped[this.statutLabel(st)] = items;
+            }
+            return grouped;
+        },
+
+        get commandesFiltrees() {
+            if (!this.filtreStatut) return this.commandes;
+            return this.commandes.filter(c => this.statutLabel(c.statut_code) === this.filtreStatut);
+        },
+
+        get itemsFiltres() {
+            const items = this.categories[this.activeCategorie] || [];
+            let filtered = this.activeSousCategorie
+                ? items.filter(it => it.sous_categorie === this.activeSousCategorie)
+                : items;
+            if (this.searchTerm) {
+                const q = this.searchTerm.toLowerCase();
+                filtered = filtered.filter(it => it.nom.toLowerCase().includes(q));
+            }
+            return filtered;
+        },
+        
+        async _fetchProduits() {
+            let url = '/pos/api/produits/';
+            const params = new URLSearchParams();
+            if (this.pointVenteSlug) params.set('point_vente_slug', this.pointVenteSlug);
+            if (this.entrepotActif) params.set('entrepot_id', this.entrepotActif);
+            const qs = params.toString();
+            if (qs) url += '?' + qs;
+            const response = await fetch(url);
+            return response.json();
+        },
+
+        // Chargement complet : reconstruit les cartes (init + changement d'entrepôt uniquement)
+        async chargerProduits() {
+            try {
+                const data = await this._fetchProduits();
+                if (data.success && data.categories) {
+                    this.categories = data.categories;
+                    this.sous_categories = data.sous_categories || {};
+                    if (!this.activeCategorie) {
+                        this.activeCategorie = Object.keys(data.categories)[0] || '';
+                    }
+                    // Debug: combien de produits ont des images
+                    let total = 0, avecImage = 0, premiers = [];
+                    for (const cat in data.categories) {
+                        for (const item of data.categories[cat]) {
+                            total++;
+                            if (item.image) {
+                                avecImage++;
+                                if (premiers.length < 3) premiers.push(item.image);
+                            }
+                        }
+                    }
+                    console.debug(`[POS] ${total} produits chargés, ${avecImage} avec image`);
+                    console.debug('[POS] Exemples URLs images:', premiers);
+
+                    // Test direct : charge la 1re image trouvee pour verifier que le navigateur l'affiche
+                    if (premiers.length > 0) {
+                        const testImg = new Image();
+                        testImg.onload = () => console.debug('[POS] TEST IMAGE OK:', premiers[0]);
+                        testImg.onerror = () => console.debug('[POS] TEST IMAGE ERROR:', premiers[0]);
+                        testImg.src = premiers[0];
+                    }
+                }
+            } catch(e) { console.error(e); }
+        },
+
+        // Rafraîchissement léger : met à jour uniquement les stocks EN PLACE,
+        // sans recréer les cartes — évite de recharger les images (bug images POS).
+        async rafraichirStock() {
+            try {
+                const data = await this._fetchProduits();
+                if (!data.success || !data.categories) return;
+                const stockById = {};
+                for (const cat in data.categories) {
+                    for (const it of data.categories[cat]) {
+                        if (it.article_type === 'PRODUIT') stockById[it.id] = it.stock;
+                    }
+                }
+                for (const cat in this.categories) {
+                    for (const it of this.categories[cat]) {
+                        if (it.article_type === 'PRODUIT' && it.id in stockById) {
+                            it.stock = stockById[it.id];
+                        }
+                    }
+                }
+            } catch(e) { /* silencieux : le stock se remettra au prochain tick */ }
+        },
+
+        changerEntrepot() {
+            this.chargerProduits();
+        },
+
+        // ─── Polling session + Planification (Option C) ───
+        async verifierSession() {
+            if (this.planningBloque) return;
+            try {
+                const r = await fetch(`/pos/api/sessions/verifier-etat/{{ point_vente.id }}/`);
+                const d = await r.json();
+                if (!d.success) return;
+                if (d.planning_expire && d.session_a_fermer) {
+                    // Afficher le dialog de clôture via l'élément Alpine posSessionDialog
+                    const dialog = document.querySelector('[x-data="posSessionDialog()"]');
+                    if (dialog && dialog.__x) {
+                        const d2 = dialog.__x.$data;
+                        d2.session = d.session_a_fermer;
+                        d2.nouveauPlanning = d.nouveau_planning;
+                        d2.step = 'cloture';
+                    }
+                } else if (!d.session_active && !d.nouveau_planning) {
+                    // Pas de session active ET pas de nouveau planning → bloquer
+                    this.planningBloque = true;
+                    this.blocageMessage = 'Session fermée';
+                }
+            } catch (e) {}
+        },
+
+        async cloturerSessionBloquee() {
+            window.location.reload();
+        },
+
+        async _modifierCommande(id) {
+            try {
+                const r = await fetch(`/pos/api/commandes/${id}/`);
+                const d = await r.json();
+                if (!d.success || !d.commande) return alert('Commande introuvable');
+                const cmd = d.commande;
+                const lignes = (cmd.lignes || []).map(l => {
+                    const base = { id: l.article_id, nom: l.article, prix: l.prix_unitaire, total: l.total };
+                    if (l.type === 'LOCATION') {
+                        return Object.assign(base, { heures: l.quantite || 1, type: 'LOCATION', article_type: 'UNITE' });
+                    }
+                    if (l.type === 'MENU') {
+                        return Object.assign(base, { quantite: l.quantite || 1, type: 'RESTAURANT', article_type: 'MENU' });
+                    }
+                    return Object.assign(base, { quantite: l.quantite || 1, type: 'BRASSERIE', article_type: 'PRODUIT' });
+                });
+                this.panier = lignes;
+                if (cmd.client_id) { this.clientId = String(cmd.client_id); this.clientNom = cmd.client_nom || ''; }
+                this.showCommandes = false;
+                await fetch(`/pos/api/commandes/${id}/changer-statut/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookieGlobal() },
+                    body: JSON.stringify({ statut: 'ANNULEE' })
+                });
+                this.chargerCommandes();
+            } catch(e) { alert('Erreur modification: ' + e.message); }
+        },
+
+        async _supprimerCommande(id) {
+            if (!confirm('Supprimer cette commande ?')) return;
+            try {
+                await fetch(`/pos/api/commandes/${id}/changer-statut/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookieGlobal() },
+                    body: JSON.stringify({ statut: 'ANNULEE' })
+                });
+                this.chargerCommandes();
+            } catch(e) { alert('Erreur suppression: ' + e.message); }
+        },
+
+        // ─── Compteur fin de shift ───
+        get tempsRestant() {
+            if (!this.planningFinHeure) return null;
+            const [h, m] = this.planningFinHeure.split(':').map(Number);
+            const fin = new Date();
+            fin.setHours(h, m, 0, 0);
+            const diff = (fin - new Date()) / 1000;
+            return Math.max(0, Math.floor(diff));
+        },
+
+        afficheTempsRestant() {
+            if (this.tempsRestant === null) return '--';
+            const h = Math.floor(this.tempsRestant / 3600);
+            const m = Math.floor((this.tempsRestant % 3600) / 60);
+            return `${h}h${String(m).padStart(2, '0')}min`;
+        },
+
+        async chargerClients() {
+            try {
+                const r = await fetch('/pos/api/clients/recherche/?search=');
+                const d = await r.json();
+                if (d.success) this.clientsList = d.clients;
+            } catch(e) { console.error(e); }
+        },
+
+        ouvrirSelectorClient() {
+            openClientSelector();
+        },
+
+        closeClientSelector() {
+            this.showClientSelector = false;
+        },
+
+        selectionnerDepuisListe() {
+            if (!this.selectedClientId) return;
+            const c = this.clientsList.find(x => x.id === this.selectedClientId);
+            if (c) {
+                this.selectedClient = c;
+                this.clientId = c.id;
+                this.clientNom = c.nom;
+                this.showClientSelector = false;
+            }
+        },
+
+        selectionnerPassager() {
+            this.selectedClient = { id: '', nom: 'Client Passager', telephone: '' };
+            this.clientId = '';
+            this.clientNom = '';
+            this.showClientSelector = false;
+        },
+
+        changerClient() {
+            this.selectedClient = null;
+            this.clientId = '';
+            this.clientNom = '';
+            this.selectedClientId = '';
+            afficherLanceur();
+        },
+
+        statutLabel(code) {
+            const map = {
+                'EN_ATTENTE': 'En attente',
+                'EN_PREPARATION': 'Préparation',
+                'PRETE': 'Prête',
+                'EN_COURS_DE_LIVRAISON': 'Livraison',
+                'SERVIE': 'Servie',
+                'LIVREE': 'Livrée',
+                'ANNULEE': 'Annulée',
+            };
+            return map[code] || code;
+        },
+
+        statutClass(code) {
+            const map = {
+                'EN_ATTENTE': 'bg-yellow-900/30 text-yellow-300',
+                'EN_PREPARATION': 'bg-blue-900/30 text-blue-300',
+                'PRETE': 'bg-green-900/30 text-green-300',
+                'EN_COURS_DE_LIVRAISON': 'bg-purple-900/30 text-purple-300',
+                'SERVIE': 'bg-gray-700 text-on-surface',
+                'LIVREE': 'bg-gray-700 text-on-surface',
+                'ANNULEE': 'bg-red-900/30 text-red-300',
+            };
+            return map[code] || 'bg-surface-container-highest';
+        },
+        
+        async chargerCommandes() {
+            try {
+                const response = await fetch(`/pos/api/commandes/liste/?point_vente={{ point_vente.id }}`);
+                const data = await response.json();
+                if (data.success) {
+                    this.commandes = data.commandes;
+                }
+            } catch(e) { console.error(e); }
+        },
+
+        boutonsStatut(c) {
+            let btns = '';
+            if (c.statut_code === 'EN_ATTENTE') {
+                btns += `<button onclick="modifierCommande(${c.id})" title="Modifier" class="text-xs bg-blue-600 text-white w-7 h-7 rounded-full hover:bg-blue-700"><i class="fas fa-edit"></i></button>`;
+                btns += `<button onclick="supprimerCommande(${c.id})" title="Supprimer" class="text-xs bg-red-600 text-white w-7 h-7 rounded-full hover:bg-red-700"><i class="fas fa-trash"></i></button>`;
+                btns += `<button onclick="payerCommande(${c.id})" class="text-xs bg-secondary text-black px-3 py-1.5 rounded hover:bg-secondary/80 font-bold">Payer</button>`;
+            }
+            return btns;
+        },
+
+        
+        get total() {
+            return this.panier.reduce((sum, item) => sum + item.total, 0);
+        },
+        
+
+
+        ajouterAuPanier(item) {
+            if (item.type === 'LOCATION') {
+                if (item.statut_unite === 'OCCUPEE') { alert('Cette unité est déjà occupée'); return; }
+                this.panier.push({
+                    id: item.id,
+                    nom: item.nom,
+                    prix: item.prix,
+                    type: item.type,
+                    article_type: item.article_type,
+                    heures: 1,
+                    total: item.prix,
+                    type_unite: item.type_unite,
+                    capacite: item.capacite,
+                });
+                return;
+            }
+            const stockDispo = item.stock !== undefined ? item.stock : 999;
+            if (stockDispo <= 0) {
+                alert('Stock insuffisant pour ' + item.nom);
+                return;
+            }
+            const existing = this.panier.find(i => i.id === item.id && i.article_type === item.article_type);
+            const qteActuelle = existing ? existing.quantite : 0;
+            if (qteActuelle >= stockDispo) {
+                alert('Stock insuffisant pour ' + item.nom + ' (' + stockDispo + ' disponible(s))');
+                return;
+            }
+            if (existing) {
+                existing.quantite++;
+                existing.total = existing.quantite * existing.prix;
+            } else {
+                this.panier.push({
+                    id: item.id,
+                    nom: item.nom,
+                    prix: item.prix,
+                    type: item.type,
+                    article_type: item.article_type,
+                    quantite: 1,
+                    total: item.prix
+                });
+            }
+        },
+        
+        modifierQuantite(index, delta) {
+            const item = this.panier[index];
+            if (item.type === 'LOCATION') {
+                item.heures = Math.max(1, (item.heures || 1) + delta);
+                item.total = item.heures * item.prix;
+                return;
+            }
+            const newQte = (item.quantite || 1) + delta;
+            if (newQte <= 0) {
+                this.panier.splice(index, 1);
+            } else {
+                item.quantite = newQte;
+                item.total = item.quantite * item.prix;
+            }
+        },
+        
+        supprimerDuPanier(index) {
+            this.panier.splice(index, 1);
+        },
+        
+        annulerCommande() {
+            if (confirm('Annuler la commande ?')) {
+                this.panier = [];
+                this.clientNom = '';
+                this.clientTelephone = '';
+                this.adresseLivraison = '';
+                this.fraisLivraison = 0;
+            }
+        },
+        
+        async validerCommande() {
+            if (this.panier.length === 0) return alert('Panier vide');
+            
+            const lignes = this.panier.map(item => {
+                if (item.type === 'LOCATION') {
+                    return {
+                        type_article: 'LOCATION',
+                        unite_id: item.id,
+                        heures: item.heures,
+                        prix: item.prix,
+                        total: item.total,
+                    };
+                }
+                return {
+                    type_article: item.article_type,
+                    [item.article_type === 'MENU' ? 'menu_id' : 'produit_id']: item.id,
+                    quantite: item.quantite,
+                };
+            });
+            
+            try {
+                const response = await fetch('/pos/api/commandes/creer/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        point_vente_slug: this.pointVenteSlug,
+                        type_commande: this.typeCommande,
+                        client_id: this.clientId || null,
+                        client_nom: this.clientNom || '',
+                        client_telephone: this.clientTelephone || '',
+                        adresse_livraison: this.adresseLivraison || '',
+                        frais_livraison: this.typeCommande === 'LIVRAISON' ? (Number(this.fraisLivraison) || 0) : 0,
+                        entrepot_id: this.entrepotActif,
+                        notes: '',
+                        lignes: lignes
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    this.panier = [];
+                    this.clientNom = '';
+                    this.clientTelephone = '';
+                    this.adresseLivraison = '';
+                    this.fraisLivraison = 0;
+                    this.chargerCommandes();
+                } else {
+                    if (checkSessionRequise(data)) return;
+                    alert(data.error);
+                }
+            } catch(e) {
+                alert('Erreur réseau');
+            }
+        },
+        
+        formatMoney(value) {
+            return new Intl.NumberFormat('fr-FR').format(value || 0);
+        },
+        
+        getCookie(name) {
+            let value = `; ${document.cookie}`;
+            let parts = value.split(`; ${name}=`);
+            return parts.length === 2 ? parts.pop().split(';').shift() : '';
+        },
+
+
+    }
+}
+
+// Fonctions globales pour les commandes
+async function changerStatutCommande(id, statut) {
+    const response = await fetch(`/pos/api/commandes/${id}/changer-statut/`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': getCookieGlobal()
+        },
+        body: JSON.stringify({ statut: statut })
+    });
+    const result = await response.json();
+    if (result.success) {
+        const alpineEl = document.querySelector('[x-data="posApp()"]');
+        if (alpineEl && alpineEl.__x) {
+            alpineEl.__x.$data.chargerCommandes();
+            // SERVIE/LIVREE déduit le stock → rafraîchir les stocks (sans recharger les images)
+            if (statut === 'SERVIE' || statut === 'LIVREE') {
+                alpineEl.__x.$data.rafraichirStock();
+            }
+        }
+    } else {
+        if (checkSessionRequise(result)) return;
+        alert('Erreur: ' + result.error);
+    }
+}
+
+function payerCommande(id) {
+    window.dispatchEvent(new CustomEvent('open-paiement-dialog', {
+        detail: { commande_id: id, caisse_id: {{ point_vente.caisse.id }} }
+    }));
+}
+
+function modifierCommande(id) {
+    window.dispatchEvent(new CustomEvent('modifier-commande', { detail: { id } }));
+}
+
+function supprimerCommande(id) {
+    window.dispatchEvent(new CustomEvent('supprimer-commande', { detail: { id } }));
+}
+
+function getCookieGlobal(name = 'csrftoken') {
+    let v = '; ' + document.cookie, p = v.split('; ' + name + '=');
+    return p.length === 2 ? p.pop().split(';').shift() : '';
+}
+
+// Intercepteur global : session fermée côté serveur → on recharge, le dialogue bloquant prend le relais
+function checkSessionRequise(data) {
+    if (data && data.error_code === 'SESSION_REQUISE') {
+        alert(data.error || 'Session de caisse requise');
+        window.location.reload();
+        return true;
+    }
+    return false;
+}
+
+function openClientSelector() {
+    const d = document.getElementById('client-selector-overlay');
+    if (d) d.style.display = 'flex';
+    document.getElementById('new-client-nom').value = '';
+    document.getElementById('new-client-tel').value = '';
+    document.getElementById('new-client-error').classList.add('hidden');
+    const app = document.getElementById('pos-app');
+    if (app && app.__x) {
+        app.__x.$data.showClientSelector = true;
+    }
+}
+
+function closeClientSelector() {
+    const d = document.getElementById('client-selector-overlay');
+    if (d) d.style.display = 'none';
+    const app = document.getElementById('pos-app');
+    if (app && app.__x) {
+        app.__x.$data.showClientSelector = false;
+    }
+}
+
+function selectionnerDepuisListeNative(clientId) {
+    if (!clientId) return;
+    const app = document.getElementById('pos-app');
+    if (app && app.__x) {
+        const data = app.__x.$data;
+        const c = data.clientsList.find(x => String(x.id) === String(clientId));
+        if (c) {
+            data.selectedClient = c;
+            data.clientId = c.id;
+            data.clientNom = c.nom;
+        }
+    }
+    afficherCommandeInterface();
+    closeClientSelector();
+}
+
+function selectionnerPassagerNative() {
+    const app = document.getElementById('pos-app');
+    if (app && app.__x) {
+        const data = app.__x.$data;
+        data.selectedClient = { id: '', nom: 'Client Passager', telephone: '' };
+        data.clientId = '';
+        data.clientNom = '';
+        data.selectedClientId = '';
+    }
+    afficherCommandeInterface();
+    closeClientSelector();
+}
+
+function afficherCommandeInterface() {
+    const lanceur = document.getElementById('lancer-commande-section');
+    const cmd = document.getElementById('commande-interface-section');
+    if (lanceur) lanceur.style.display = 'none';
+    if (cmd) cmd.style.display = 'flex';
+}
+
+function afficherLanceur() {
+    const lanceur = document.getElementById('lancer-commande-section');
+    const cmd = document.getElementById('commande-interface-section');
+    if (lanceur) lanceur.style.display = 'flex';
+    if (cmd) cmd.style.display = 'none';
+}
+
+async function creerClientDepuisSelector() {
+    const nom = document.getElementById('new-client-nom').value.trim();
+    const tel = document.getElementById('new-client-tel').value.trim();
+    const errorEl = document.getElementById('new-client-error');
+    if (!nom) { errorEl.textContent = 'Le nom est obligatoire'; errorEl.classList.remove('hidden'); return; }
+    if (!tel) { errorEl.textContent = 'Le téléphone est obligatoire'; errorEl.classList.remove('hidden'); return; }
+    errorEl.classList.add('hidden');
+    try {
+        const r = await fetch('/pos/api/clients/creer/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookieGlobal() },
+            body: JSON.stringify({ telephone: tel, nom: nom })
+        });
+        const d = await r.json();
+        if (d.success) {
+            const app = document.getElementById('pos-app');
+            if (app && app.__x) {
+                const data = app.__x.$data;
+                data.selectedClient = d.client;
+                data.clientId = d.client.id;
+                data.clientNom = d.client.nom;
+                data.showClientSelector = false;
+                data.chargerClients();
+            }
+            afficherCommandeInterface();
+            closeClientSelector();
+        } else {
+            errorEl.textContent = d.error || 'Erreur création';
+            errorEl.classList.remove('hidden');
+        }
+    } catch(e) {
+        errorEl.textContent = 'Erreur réseau';
+        errorEl.classList.remove('hidden');
+    }
+}
+
+async function imprimerRecuVente(venteId) {
+    try {
+        const r = await fetch(`/pos/api/ventes/${venteId}/recu/`);
+        const d = await r.json();
+        if (!d.success) return alert('Reçu introuvable');
+        const recu = d.recu;
+        const now = new Date(recu.date);
+        const dateStr = now.toLocaleDateString('fr-FR') + ' ' + now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+        let lignesHtml = '';
+        if (recu.lignes && recu.lignes.length) {
+            lignesHtml = '<div class="row row-items items-header"><span class="item-desc">Article</span><span class="item-qty">Qt\u00E9</span><span class="item-price">PU</span><span class="item-total">Total</span></div>';
+            recu.lignes.forEach(l => {
+                lignesHtml += '<div class="row row-items"><span class="item-desc">' + l.description + '</span><span class="item-qty">' + l.quantite + '</span><span class="item-price">' + new Intl.NumberFormat('fr-FR').format(l.prix_unitaire) + '</span><span class="item-total">' + new Intl.NumberFormat('fr-FR').format(l.total_ttc) + '</span></div>';
+            });
+        }
+        const styles = '@page{size:80mm auto;margin:0}*{margin:0;padding:0;box-sizing:border-box}body{font-family:"Courier New",monospace;font-size:12px;line-height:1.3;color:#000;width:80mm;padding:2mm 3mm;background:#fff}.header{text-align:center;border-bottom:1px dashed #333;padding-bottom:4px;margin-bottom:6px}.header h1{font-size:16px;font-weight:bold;letter-spacing:1px;text-transform:uppercase}.receipt-title{text-align:center;font-size:14px;font-weight:bold;margin:4px 0}.divider{border-top:1px dashed #333;margin:4px 0}.row{display:flex;justify-content:space-between;font-size:11px}.row-items{display:flex;justify-content:space-between;font-size:11px;padding:1px 0}.items-header{border-bottom:1px dashed #333;padding-bottom:2px;margin-bottom:2px;font-weight:bold}.item-desc{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.item-qty{width:30px;text-align:center}.item-price{width:50px;text-align:right}.item-total{width:60px;text-align:right}.total{font-weight:bold;font-size:13px;border-top:1px solid #333;border-bottom:1px solid #333;padding:4px 0;margin:4px 0}.payment-info{font-size:11px;margin:4px 0}.payment-info div{margin:1px 0}.footer{text-align:center;font-size:10px;margin-top:6px;padding-top:4px;border-top:1px dashed #333}.footer .merci{font-size:14px;font-weight:bold;margin:2px 0}.no-print{text-align:center;margin:10px 0}.no-print button{background:#000;color:#fff;border:none;padding:8px 24px;font-size:14px;border-radius:4px;cursor:pointer;margin:0 4px}.no-print button:hover{opacity:0.8}@media print{.no-print{display:none}@page{margin:0}body{margin:0;padding:2mm 3mm}}';
+        const html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Re\u00E7u ' + recu.reference + '</title><style>' + styles + '</style></head><body>'
+            + '<div class="no-print"><button onclick="window.print()">\uD83D\uDDA8\uFE0F Imprimer</button><button onclick="window.close()" style="background:#666;">Fermer</button></div>'
+            + '<div class="header"><h1>R\u00E9sidence DAMOU</h1></div>'
+            + '<div class="receipt-title">RE\u00C7U DE CAISSE</div>'
+            + '<div class="divider"></div>'
+            + '<div class="row"><span>R\u00E9f: <strong>' + recu.reference + '</strong></span><span>' + dateStr + '</span></div>'
+            + (recu.point_vente ? '<div class="row"><span>PV:</span><span>' + recu.point_vente + '</span></div>' : '')
+            + (recu.client_nom ? '<div class="row"><span>Client:</span><span>' + recu.client_nom + '</span></div>' : '')
+            + '<div class="divider"></div>'
+            + (lignesHtml ? lignesHtml + '<div class="divider"></div>' : '')
+            + '<div class="row total"><span>MONTANT TOTAL</span><span>' + new Intl.NumberFormat('fr-FR').format(recu.montant) + ' F</span></div>'
+            + '<div class="divider"></div>'
+            + '<div class="payment-info">'
+            + '<div class="row"><span>Mode</span><span><strong>' + recu.mode_label + '</strong></span></div>'
+            + (recu.servi_par ? '<div class="row"><span>Servi par:</span><span>' + recu.servi_par + '</span></div>' : '')
+            + (recu.caisse ? '<div class="row"><span>Caisse:</span><span>' + recu.caisse + '</span></div>' : '')
+            + '</div>'
+            + '<div class="footer"><div class="merci">MERCI DE VOTRE VISITE</div><div style="font-size:9px;">' + recu.reference + '</div></div>'
+            + '</body></html>';
+        const w = window.open('', '_blank', 'width=400,height=600');
+        if (w) { w.document.write(html); w.document.close(); }
+    } catch(e) { alert('Erreur: ' + e.message); }
+}
+</script>
+
+{% endblock %}

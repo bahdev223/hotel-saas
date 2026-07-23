@@ -1,0 +1,251 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DAMOU BÉLÉKAN | Executive Login</title>
+    
+    <!-- Tailwind CDN (même que l'original) -->
+    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+    
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&amp;family=Hanken+Grotesk:ital,wght@0,100..900;1,100..900&amp;display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
+    
+    <!-- Tailwind Config (identique à l'original) -->
+    <script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    "colors": {
+                        "on-tertiary-fixed": "#1b1c1c",
+                        "primary-fixed-dim": "#c9c6c5",
+                        "on-secondary": "#402d00",
+                        "outline-variant": "#444748",
+                        "secondary-fixed": "#ffdea0",
+                        "surface-container": "#20201f",
+                        "surface-dim": "#131313",
+                        "on-primary-container": "#797777",
+                        "surface-container-highest": "#353535",
+                        "tertiary": "#c7c6c6",
+                        "inverse-primary": "#5f5e5e",
+                        "surface-variant": "#353535",
+                        "on-background": "#e5e2e1",
+                        "error": "#ffb4ab",
+                        "outline": "#8e9192",
+                        "on-tertiary-fixed-variant": "#464747",
+                        "on-error-container": "#ffdad6",
+                        "primary-fixed": "#e5e2e1",
+                        "inverse-on-surface": "#313030",
+                        "on-primary-fixed": "#1c1b1b",
+                        "surface": "#131313",
+                        "surface-container-high": "#2a2a2a",
+                        "tertiary-fixed-dim": "#c7c6c6",
+                        "on-surface": "#e5e2e1",
+                        "primary": "#c9c6c5",
+                        "on-tertiary": "#303031",
+                        "on-primary-fixed-variant": "#474646",
+                        "on-secondary-container": "#d4b475",
+                        "secondary": "#e3c282",
+                        "secondary-container": "#5c4611",
+                        "surface-container-lowest": "#0e0e0e",
+                        "surface-tint": "#c9c6c5",
+                        "surface-container-low": "#1c1b1b",
+                        "inverse-surface": "#e5e2e1",
+                        "secondary-fixed-dim": "#e3c282",
+                        "background": "#131313",
+                        "primary-container": "#050505",
+                        "error-container": "#93000a",
+                        "tertiary-container": "#040505",
+                        "on-secondary-fixed-variant": "#5a430f",
+                        "on-tertiary-container": "#777777",
+                        "on-secondary-fixed": "#261a00",
+                        "on-error": "#690005",
+                        "on-primary": "#313030",
+                        "on-surface-variant": "#c4c7c7",
+                        "surface-bright": "#393939",
+                        "tertiary-fixed": "#e4e2e2"
+                    },
+                    "borderRadius": {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                    "spacing": {
+                        "container-max": "1440px",
+                        "section-gap": "120px",
+                        "margin-desktop": "80px",
+                        "unit": "8px",
+                        "gutter": "24px",
+                        "margin-mobile": "24px"
+                    },
+                    "fontFamily": {
+                        "headline-sm": ["Playfair Display"],
+                        "headline-md": ["Playfair Display"],
+                        "ui-element": ["Hanken Grotesk"],
+                        "body-lg": ["Hanken Grotesk"],
+                        "body-md": ["Hanken Grotesk"],
+                        "display-lg": ["Playfair Display"],
+                        "display-lg-mobile": ["Playfair Display"],
+                        "label-caps": ["Hanken Grotesk"]
+                    },
+                    "fontSize": {
+                        "headline-sm": ["24px", {"lineHeight": "32px", "letterSpacing": "0.02em", "fontWeight": "400"}],
+                        "headline-md": ["32px", {"lineHeight": "40px", "letterSpacing": "0em", "fontWeight": "400"}],
+                        "ui-element": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "500"}],
+                        "body-lg": ["18px", {"lineHeight": "28px", "letterSpacing": "0.01em", "fontWeight": "400"}],
+                        "body-md": ["16px", {"lineHeight": "24px", "letterSpacing": "0.01em", "fontWeight": "400"}],
+                        "display-lg": ["64px", {"lineHeight": "72px", "letterSpacing": "-0.02em", "fontWeight": "400"}],
+                        "display-lg-mobile": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.01em", "fontWeight": "400"}],
+                        "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.2em", "fontWeight": "600"}]
+                    }
+                },
+            },
+        }
+    </script>
+    
+    <style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-card {
+            background: rgba(26, 26, 26, 0.6);
+            backdrop-filter: blur(40px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .luxury-gradient {
+            background: radial-gradient(circle at 50% 50%, rgba(200, 169, 107, 0.05) 0%, transparent 70%);
+        }
+        /* Pour éviter le flash blanc */
+        body { background-color: #131313; }
+    </style>
+</head>
+<body class="bg-background text-on-surface min-h-screen flex flex-col selection:bg-secondary selection:text-on-secondary">
+
+<!-- Subtle Background Ambient Light -->
+<div class="fixed inset-0 luxury-gradient pointer-events-none"></div>
+
+<!-- Main Content Canvas -->
+<main class="flex-grow flex items-center justify-center px-margin-mobile md:px-margin-desktop py-section-gap relative z-10">
+    <div class="w-full max-w-[480px] flex flex-col items-center">
+        
+        <!-- Logo Section -->
+        <header class="mb-gutter text-center">
+            <span class="font-label-caps text-label-caps text-secondary mb-4 block tracking-[0.4em]">EXECUTIVE HOTEL MANAGEMENT</span>
+            {% if request.resolver_match.url_name == 'login' %}
+            <h1 class="font-display-lg-mobile md:font-display-lg text-secondary uppercase tracking-[0.2em]">DAMOU BÉLÉKAN</h1>
+            {% else %}
+            <div class="relative inline-block">
+                <img src="{% static 'logo.jpg' %}" alt="DAMOU BÉLÉKAN" class="w-48 md:w-64 h-auto drop-shadow-[0_0_30px_rgba(200,169,107,0.15)]">
+            </div>
+            {% endif %}
+        </header>
+        
+        <!-- Login Card -->
+        <div class="glass-card w-full p-8 md:p-12 shadow-2xl relative overflow-hidden">
+            <!-- Soft Luminous Accent behind card content -->
+            <div class="absolute -top-24 -left-24 w-48 h-48 bg-secondary/5 rounded-full blur-[60px]"></div>
+            
+            <form method="post" class="relative z-10 flex flex-col gap-8">
+                {% csrf_token %}
+                
+                <div class="space-y-6">
+                    <!-- Identifiant Field -->
+                    <div class="group">
+                        <label class="font-label-caps text-label-caps text-on-surface-variant mb-2 block uppercase tracking-widest transition-colors group-focus-within:text-secondary" for="username">
+                            Identifiant ou Matricule
+                        </label>
+                        <input 
+                            name="username"
+                            type="text" 
+                            required
+                            class="w-full bg-surface-container-low border-b border-outline-variant/30 border-t-0 border-x-0 px-0 py-3 text-on-surface font-body-md placeholder:text-outline/40 focus:ring-0 focus:border-secondary transition-all duration-300" 
+                            id="username" 
+                            placeholder="Matricule ou email"
+                        >
+                    </div>
+                    
+                    <!-- Mot de passe Field -->
+                    <div class="group">
+                        <div class="flex justify-between items-end mb-2">
+                            <label class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest transition-colors group-focus-within:text-secondary" for="password">
+                                Mot de passe
+                            </label>
+                            <a class="font-label-caps text-[10px] text-outline hover:text-secondary transition-colors uppercase tracking-widest" href="{% url 'authentication:mot_de_passe_oublie' %}">
+                                Oublié?
+                            </a>
+                        </div>
+                        <div class="relative">
+                            <input 
+                                name="password"
+                                type="password" 
+                                required
+                                class="w-full bg-surface-container-low border-b border-outline-variant/30 border-t-0 border-x-0 px-0 py-3 text-on-surface font-body-md placeholder:text-outline/40 focus:ring-0 focus:border-secondary transition-all duration-300" 
+                                id="password" 
+                                placeholder="••••••••"
+                            >
+                            <span class="material-symbols-outlined absolute right-0 bottom-3 text-outline cursor-pointer hover:text-secondary transition-colors" style="font-size: 18px;" onclick="togglePassword()">
+                                visibility
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Action Button -->
+                <button type="submit" class="w-full bg-secondary py-4 px-unit text-on-secondary font-label-caps text-label-caps tracking-[0.25em] uppercase hover:bg-secondary-fixed transition-all duration-300 active:scale-[0.98] mt-4 shadow-lg shadow-secondary/10">
+                    Accéder à l'espace
+                </button>
+                
+                <!-- Security Indicator -->
+                <div class="flex items-center justify-center gap-2 pt-2">
+                    <span class="material-symbols-outlined text-secondary" style="font-size: 14px;">lock</span>
+                    <span class="font-label-caps text-[10px] text-outline uppercase tracking-[0.15em]">Secure Encryption System</span>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Contextual Footer -->
+        <div class="mt-gutter flex flex-col items-center gap-unit opacity-40">
+            <p class="font-label-caps text-[10px] text-on-surface uppercase tracking-widest">© 2024 DAMOU BÉLÉKAN. EXCELLENCE IN HERITAGE.</p>
+        </div>
+    </div>
+</main>
+
+<!-- Side Visual (Subtle architectural hint) -->
+<aside class="fixed right-0 top-0 h-screen w-1/4 hidden lg:block opacity-20 pointer-events-none">
+    <img alt="Luxury Interior" class="h-full w-full object-cover grayscale" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHl8pkNgZC5GsrqAnYE65vdLMkGbmRR-1qhyF8g_VpZ5agqyri6lPxSsD4TuCAZM1Is33DQg6EhyRqoapAIb2QUhKUe2wuTLnI8C4FrNp8I4WS4-6Qpr_ZUuIk3OqKM5gJJlcIopwa3WK8H7vJXcc5obr28WcuH2QGJGR5NhhXyotWp8rff0zBXezTots7UbDIsO1L9OktkzD6dzgR7zQXCl5km6vFO24CEqwnwQxYF_y7z1ZjtZiPGtt9cMqJzuDsPeP7of_aIDY">
+    <div class="absolute inset-0 bg-gradient-to-r from-background via-transparent to-transparent"></div>
+</aside>
+
+<!-- Message d'erreur Django -->
+{% if messages %}
+<div class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-3">
+    {% for message in messages %}
+    <div class="glass-card px-6 py-3 rounded-full border-red-500/50 text-red-400 text-[11px] tracking-widest uppercase flex items-center gap-3">
+        <span class="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
+        {{ message }}
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<!-- Simple JS pour toggle password -->
+<script>
+    function togglePassword() {
+        const passwordInput = document.getElementById('password');
+        const icon = event.target;
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            icon.textContent = 'visibility_off';
+        } else {
+            passwordInput.type = 'password';
+            icon.textContent = 'visibility';
+        }
+    }
+</script>
+
+</body>
+</html>

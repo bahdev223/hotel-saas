@@ -1,0 +1,162 @@
+{% extends 'comptabilite/base_compta.html' %}
+{% load static %}
+
+{% block title %}Flux de trésorerie{% endblock %}
+
+{% block header %}Tableau des flux de trésorerie{% endblock %}
+
+{% block subtitle %}Exercice {{ exercice_courant.code }} — Méthode directe{% endblock %}
+
+{% block content %}
+<div class="space-y-4 max-w-4xl mx-auto">
+
+    <!-- Synthèse -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="bg-surface-container-low rounded-2xl shadow-md p-5 border-l-4 border-emerald-500">
+            <p class="text-sm text-on-surface-variant">Trésorerie d'ouverture</p>
+            <p class="text-2xl font-mono font-bold text-on-surface">{{ solde_ouverture|floatformat:0 }} F</p>
+        </div>
+        <div class="bg-surface-container-low rounded-2xl shadow-md p-5 border-l-4 border-blue-500">
+            <p class="text-sm text-on-surface-variant">Variation nette</p>
+            <p class="text-2xl font-mono font-bold {% if variation_nette >= 0 %}text-green-400{% else %}text-red-400{% endif %}">
+                {% if variation_nette >= 0 %}+{% endif %}{{ variation_nette|floatformat:0 }} F
+            </p>
+        </div>
+        <div class="bg-surface-container-low rounded-2xl shadow-md p-5 border-l-4 border-purple-500">
+            <p class="text-sm text-on-surface-variant">Trésorerie de clôture</p>
+            <p class="text-2xl font-mono font-bold text-on-surface">{{ solde_cloture|floatformat:0 }} F</p>
+        </div>
+    </div>
+
+    <!-- Flux d'exploitation -->
+    <div class="bg-surface-container-low rounded-2xl shadow-md overflow-hidden">
+        <div class="px-6 py-4 bg-emerald-900/20 border-b border-emerald-900/30">
+            <h3 class="font-bold text-emerald-400 text-lg">
+                <i class="fas fa-industry mr-2"></i> Flux liés à l'exploitation
+            </h3>
+        </div>
+        <div class="divide-y divide-outline/10">
+            {% for item in flux_exploitation %}
+            <div class="px-6 py-3 flex items-center justify-between hover:bg-surface-container-low">
+                <div class="flex items-center gap-3">
+                    <span class="text-xs text-on-surface-variant w-16">{{ item.date|date:"d/m" }}</span>
+                    <span class="text-sm truncate max-w-md" title="{{ item.libelle }}">{{ item.libelle|truncatechars:45 }}</span>
+                </div>
+                <span class="font-mono text-sm font-semibold {% if item.est_entree %}text-green-400{% else %}text-red-400{% endif %}">
+                    {% if item.est_entree %}+{% else %}-{% endif %}{{ item.montant|floatformat:0 }} F
+                </span>
+            </div>
+            {% empty %}
+            <div class="px-6 py-8 text-center text-on-surface-variant">
+                <i class="fas fa-box-open text-4xl mb-2 block"></i>
+                <p>Aucun flux d'exploitation</p>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="px-6 py-3 bg-surface-container-high border-t border-outline/10 flex justify-between font-bold">
+            <span>Total flux d'exploitation</span>
+            <span class="{% if flux_net_exploitation >= 0 %}text-green-400{% else %}text-red-400{% endif %}">
+                {% if flux_net_exploitation >= 0 %}+{% endif %}{{ flux_net_exploitation|floatformat:0 }} F
+            </span>
+        </div>
+    </div>
+
+    <!-- Flux d'investissement -->
+    <div class="bg-surface-container-low rounded-2xl shadow-md overflow-hidden">
+        <div class="px-6 py-4 bg-blue-900/20 border-b border-blue-900/30">
+            <h3 class="font-bold text-blue-400 text-lg">
+                <i class="fas fa-building mr-2"></i> Flux liés à l'investissement
+            </h3>
+        </div>
+        <div class="divide-y divide-outline/10">
+            {% for item in flux_investissement %}
+            <div class="px-6 py-3 flex items-center justify-between hover:bg-surface-container-low">
+                <div class="flex items-center gap-3">
+                    <span class="text-xs text-on-surface-variant w-16">{{ item.date|date:"d/m" }}</span>
+                    <span class="text-sm truncate max-w-md" title="{{ item.libelle }}">{{ item.libelle|truncatechars:45 }}</span>
+                </div>
+                <span class="font-mono text-sm font-semibold {% if item.est_entree %}text-green-400{% else %}text-red-400{% endif %}">
+                    {% if item.est_entree %}+{% else %}-{% endif %}{{ item.montant|floatformat:0 }} F
+                </span>
+            </div>
+            {% empty %}
+            <div class="px-6 py-8 text-center text-on-surface-variant">
+                <i class="fas fa-box-open text-4xl mb-2 block"></i>
+                <p>Aucun flux d'investissement</p>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="px-6 py-3 bg-surface-container-high border-t border-outline/10 flex justify-between font-bold">
+            <span>Total flux d'investissement</span>
+            <span class="{% if flux_net_investissement >= 0 %}text-green-400{% else %}text-red-400{% endif %}">
+                {% if flux_net_investissement >= 0 %}+{% endif %}{{ flux_net_investissement|floatformat:0 }} F
+            </span>
+        </div>
+    </div>
+
+    <!-- Flux de financement -->
+    <div class="bg-surface-container-low rounded-2xl shadow-md overflow-hidden">
+        <div class="px-6 py-4 bg-purple-900/20 border-b border-purple-900/30">
+            <h3 class="font-bold text-purple-400 text-lg">
+                <i class="fas fa-hand-holding-usd mr-2"></i> Flux liés au financement
+            </h3>
+        </div>
+        <div class="divide-y divide-outline/10">
+            {% for item in flux_financement %}
+            <div class="px-6 py-3 flex items-center justify-between hover:bg-surface-container-low">
+                <div class="flex items-center gap-3">
+                    <span class="text-xs text-on-surface-variant w-16">{{ item.date|date:"d/m" }}</span>
+                    <span class="text-sm truncate max-w-md" title="{{ item.libelle }}">{{ item.libelle|truncatechars:45 }}</span>
+                </div>
+                <span class="font-mono text-sm font-semibold {% if item.est_entree %}text-green-400{% else %}text-red-400{% endif %}">
+                    {% if item.est_entree %}+{% else %}-{% endif %}{{ item.montant|floatformat:0 }} F
+                </span>
+            </div>
+            {% empty %}
+            <div class="px-6 py-8 text-center text-on-surface-variant">
+                <i class="fas fa-box-open text-4xl mb-2 block"></i>
+                <p>Aucun flux de financement</p>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="px-6 py-3 bg-surface-container-high border-t border-outline/10 flex justify-between font-bold">
+            <span>Total flux de financement</span>
+            <span class="{% if flux_net_financement >= 0 %}text-green-400{% else %}text-red-400{% endif %}">
+                {% if flux_net_financement >= 0 %}+{% endif %}{{ flux_net_financement|floatformat:0 }} F
+            </span>
+        </div>
+    </div>
+
+    <!-- Récapitulatif -->
+    <div class="bg-surface-container-low rounded-2xl shadow-md p-6">
+        <h3 class="font-bold text-on-surface text-lg mb-4"><i class="fas fa-calculator mr-2"></i> Récapitulatif</h3>
+        <div class="space-y-2 text-sm">
+            <div class="flex justify-between py-2 border-b border-outline/10">
+                <span>Flux net d'exploitation</span>
+                <span class="font-mono font-semibold {% if flux_net_exploitation >= 0 %}text-green-400{% else %}text-red-400{% endif %}">
+                    {% if flux_net_exploitation >= 0 %}+{% endif %}{{ flux_net_exploitation|floatformat:0 }} F
+                </span>
+            </div>
+            <div class="flex justify-between py-2 border-b border-outline/10">
+                <span>Flux net d'investissement</span>
+                <span class="font-mono font-semibold {% if flux_net_investissement >= 0 %}text-green-400{% else %}text-red-400{% endif %}">
+                    {% if flux_net_investissement >= 0 %}+{% endif %}{{ flux_net_investissement|floatformat:0 }} F
+                </span>
+            </div>
+            <div class="flex justify-between py-2 border-b border-outline/10">
+                <span>Flux net de financement</span>
+                <span class="font-mono font-semibold {% if flux_net_financement >= 0 %}text-green-400{% else %}text-red-400{% endif %}">
+                    {% if flux_net_financement >= 0 %}+{% endif %}{{ flux_net_financement|floatformat:0 }} F
+                </span>
+            </div>
+            <div class="flex justify-between py-3 text-base font-bold">
+                <span>Variation nette de trésorerie</span>
+                <span class="font-mono {% if variation_nette >= 0 %}text-green-400{% else %}text-red-400{% endif %}">
+                    {% if variation_nette >= 0 %}+{% endif %}{{ variation_nette|floatformat:0 }} F
+                </span>
+            </div>
+        </div>
+    </div>
+
+</div>
+{% endblock %}

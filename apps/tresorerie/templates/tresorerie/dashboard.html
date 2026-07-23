@@ -1,0 +1,631 @@
+{% extends 'comptabilite/base_compta.html' %}
+{% load static %}
+{% block title %}Mes Comptes{% endblock %}
+
+{% block header %}Mes Comptes{% endblock %}
+{% block subtitle %}{{ today_str }} — Vue financière temps réel{% endblock %}
+
+{% block content %}
+<style>
+body { background: #f5f5f5 !important; color: #1f2937 !important; }
+.stat-card { background: #ffffff !important; border-color: #e5e7eb !important; }
+.stat-card:hover { background: #fafafa !important; border-color: #e3c282 !important; }
+.card-md3 { background: #ffffff !important; border-color: #e5e7eb !important; }
+.bg-surface-container-low { background: #ffffff !important; }
+.bg-surface-container-high { background: #f3f4f6 !important; }
+.text-on-surface { color: #1f2937 !important; }
+.text-on-surface-variant { color: #6b7280 !important; }
+.text-secondary { color: #c89d2c !important; }
+.border-outline\/10 { border-color: #e5e7eb !important; }
+.input-md3 { background-color: #ffffff !important; color: #1f2937 !important; border: 1px solid #d1d5db !important; border-radius: 8px !important; }
+.input-md3:focus { border-color: #c89d2c !important; }
+.input-md3::placeholder { color: #9ca3af !important; }
+select.input-md3 option { background-color: #ffffff !important; color: #1f2937 !important; }
+.btn-md3-secondary { border-color: #d1d5db !important; color: #374151 !important; }
+.btn-md3-secondary:hover { background: rgba(200, 157, 44, 0.08) !important; border-color: #c89d2c !important; color: #c89d2c !important; }
+.divide-y.divide-outline\/10 > :not([hidden]) ~ :not([hidden]) { border-color: #e5e7eb !important; }
+.bg-black\/60 { background: rgba(0,0,0,0.4) !important; }
+.bg-surface-container-high.rounded-2xl { background: #ffffff !important; }
+.thead.bg-surface-container-high th { background: #f3f4f6 !important; color: #374151 !important; }
+</style>
+<div x-data="tresorerieApp()" x-init="init()" class="space-y-6">
+    <!-- Header actions -->
+    <div class="flex items-center justify-between">
+        <div></div>
+        <div class="flex gap-2" x-data="{ openOps: false }">
+            <button @click="activeTab='caisses'; openModal('ajouter')"
+                    :disabled="{{ est_bloque_tresorerie|lower }}"
+                    class="btn-md3-primary text-sm px-4 py-2 rounded-lg">
+                <i class="fas fa-plus mr-1"></i>Nouveau compte
+            </button>
+            <div class="relative">
+                <button @click="openOps = !openOps"
+                        class="btn-md3-secondary text-sm px-4 py-2 rounded-lg flex items-center gap-1">
+                    <i class="fas fa-sliders-h mr-1"></i>Opérations
+                    <i class="fas fa-chevron-down text-xs ml-1"></i>
+                </button>
+                <div x-show="openOps" @click.outside="openOps = false"
+                     class="absolute right-0 mt-2 w-60 bg-surface-container-high border border-outline/10 rounded-xl shadow-xl z-50 overflow-hidden">
+                    <div class="px-4 py-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Mes Comptes</div>
+                    <button @click="openOps = false; openModal('encaissement')" class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-surface-container transition text-left">
+                        <i class="fas fa-plus-circle text-green-400 w-5"></i> Encaissement
+                    </button>
+                    <button @click="openOps = false; openModal('decaissement')" class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-surface-container transition text-left">
+                        <i class="fas fa-minus-circle text-red-400 w-5"></i> Décaissement
+                    </button>
+                    <div class="border-t border-outline/10 my-1"></div>
+                    <div class="px-4 py-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Mouvements internes</div>
+                    <button @click="openOps = false; openModal('transfert')" class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-surface-container transition text-left">
+                        <i class="fas fa-exchange-alt text-blue-400 w-5"></i> Transfert entre comptes
+                    </button>
+                    <button @click="openOps = false; openModal('banque')" class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-surface-container transition text-left">
+                        <i class="fas fa-landmark text-amber-400 w-5"></i> Dépôt en banque
+                    </button>
+                    <button @click="openOps = false; openModal('retrait_banque')" class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-surface-container transition text-left">
+                        <i class="fas fa-university text-secondary w-5"></i> Retrait banque
+                    </button>
+                    <div class="border-t border-outline/10 my-1"></div>
+                    <div class="px-4 py-2 text-[10px] font-bold text-on-surface-variant uppercase tracking-wider">Autres</div>
+                    <button @click="openOps = false; openModal('apport')" class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-surface-container transition text-left">
+                        <i class="fas fa-user-tie text-purple-400 w-5"></i> Apport propriétaire
+                    </button>
+                    <button @click="openOps = false; openModal('financement')" class="w-full flex items-center gap-3 px-4 py-3 text-sm hover:bg-surface-container transition text-left">
+                        <i class="fas fa-gem text-cyan-400 w-5"></i> Financement/Subvention
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats cards -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="stat-card p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-on-surface-variant">Solde total</p>
+                    <p class="text-xl font-bold text-secondary mt-1">{{ solde_total|floatformat:0 }} F</p>
+                </div>
+                <div class="stat-icon w-10 h-10"><i class="fas fa-coins"></i></div>
+            </div>
+        </div>
+        <div class="stat-card p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-on-surface-variant">💵 Espèces</p>
+                    <p class="text-xl font-bold text-green-400 mt-1">{{ solde_especes|floatformat:0 }} F</p>
+                </div>
+                <div class="stat-icon w-10 h-10"><i class="fas fa-cash-register"></i></div>
+            </div>
+        </div>
+        <div class="stat-card p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-on-surface-variant">📱 Mobile Money</p>
+                    <p class="text-xl font-bold text-green-400 mt-1">{{ solde_mobile|floatformat:0 }} F</p>
+                </div>
+                <div class="stat-icon w-10 h-10"><i class="fas fa-mobile-alt"></i></div>
+            </div>
+        </div>
+        <div class="stat-card p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-on-surface-variant">Flux net aujourd'hui</p>
+                    <p class="text-xl font-bold mt-1" :class="fluxNetJour >= 0 ? 'text-green-400' : 'text-red-400'">
+                        {{ flux_net_jour|floatformat:0 }} F
+                    </p>
+                </div>
+                <div class="stat-icon w-10 h-10"><i class="fas fa-chart-line"></i></div>
+            </div>
+        </div>
+        <div class="stat-card p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-on-surface-variant">🏦 Banque</p>
+                    <p class="text-xl font-bold text-blue-400 mt-1">{{ solde_banque|floatformat:0 }} F</p>
+                </div>
+                <div class="stat-icon w-10 h-10"><i class="fas fa-university"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabs: Comptes | Mouvements -->
+    <div class="border-b border-outline/10">
+        <nav class="flex gap-6 text-sm">
+            <button @click="activeTab='caisses'" class="pb-3 font-medium transition-colors"
+                :class="activeTab==='caisses' ? 'text-secondary border-b-2 border-secondary' : 'text-on-surface-variant hover:text-on-surface'">
+                <i class="fas fa-cash-register mr-1"></i>Comptes
+            </button>
+            <button @click="activeTab='mouvements'" class="pb-3 font-medium transition-colors"
+                :class="activeTab==='mouvements' ? 'text-secondary border-b-2 border-secondary' : 'text-on-surface-variant hover:text-on-surface'">
+                <i class="fas fa-stream mr-1"></i>Mouvements
+            </button>
+        </nav>
+    </div>
+
+    <!-- ===== TAB CAISSES ===== -->
+    <div x-show="activeTab==='caisses'" class="space-y-4">
+        <div class="flex gap-2 flex-wrap">
+            <button @click="filtreTypeFinancier = ''" 
+                    class="px-3 py-1.5 text-xs font-medium rounded-full transition-all"
+                    :class="!filtreTypeFinancier ? 'bg-secondary/20 text-secondary' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'">Tous</button>
+            <button @click="filtreTypeFinancier = 'ESPECES'" 
+                    class="px-3 py-1.5 text-xs font-medium rounded-full transition-all"
+                    :class="filtreTypeFinancier === 'ESPECES' ? 'bg-secondary/20 text-secondary' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'">💵 Espèces</button>
+            <button @click="filtreTypeFinancier = 'BANQUE'" 
+                    class="px-3 py-1.5 text-xs font-medium rounded-full transition-all"
+                    :class="filtreTypeFinancier === 'BANQUE' ? 'bg-secondary/20 text-secondary' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'">🏦 Banque</button>
+            <button @click="filtreTypeFinancier = 'MOBILE_MONEY'" 
+                    class="px-3 py-1.5 text-xs font-medium rounded-full transition-all"
+                    :class="filtreTypeFinancier === 'MOBILE_MONEY' ? 'bg-secondary/20 text-secondary' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'">📱 Mobile</button>
+        </div>
+        <div class="card-md3 overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-surface-container-high">
+                    <tr class="text-on-surface-variant">
+                        <th class="px-4 py-3 text-left font-medium">Nom</th>
+                        <th class="px-4 py-3 text-left font-medium">Type</th>
+                        <th class="px-4 py-3 text-left font-medium">Compte</th>
+                        <th class="px-4 py-3 text-right font-medium">Solde</th>
+                        <th class="px-4 py-3 text-center font-medium">Statut</th>
+                        <th class="px-4 py-3 text-center font-medium">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10">
+                    {% for c in caisses_physiques %}
+                    <tr x-show="!filtreTypeFinancier || '{{ c.type_financier }}' === filtreTypeFinancier" class="hover:bg-surface-container-low transition-colors">
+                        <td class="px-4 py-3 font-medium">{{ c.nom }}</td>
+                        <td class="px-4 py-3">{{ c.get_type_financier_display }}{% if c.role %} ({{ c.get_role_display }}){% endif %}</td>
+                        <td class="px-4 py-3 font-mono text-xs">{{ c.compte_comptable.code|default:'—' }}</td>
+                        <td class="px-4 py-3 text-right font-bold"
+                            :class="'{{ c.solde|floatformat:0 }}' >= 0 ? 'text-green-400' : 'text-red-400'">
+                            {{ c.solde|floatformat:0 }} F
+                        </td>
+                        <td class="px-4 py-3 text-center space-y-1">
+                            {% if c.actif %}
+                            <span class="px-2 py-0.5 rounded-full text-xs bg-green-900/30 text-green-300">Actif</span>
+                            {% else %}
+                            <span class="px-2 py-0.5 rounded-full text-xs bg-red-900/30 text-red-300">Inactif</span>
+                            {% endif %}
+
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <div class="flex items-center justify-center gap-2">
+                                <button @click="openModal('modifier', {{ c.id }})" :disabled="{{ est_bloque_tresorerie|lower }}" class="text-on-surface-variant hover:text-secondary text-sm" title="Modifier">
+                                    <i class="fas fa-edit"></i>
+                                </button>
+                                <form method="post" action="{% url 'tresorerie:supprimer_caisse' c.id %}" onsubmit="return confirm('Supprimer le compte {{ c.nom }} ?')" class="inline">
+                                    {% csrf_token %}
+                                    <button type="submit" class="text-on-surface-variant hover:text-red-400 text-sm" title="Supprimer">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="bg-surface-container-high">
+                    <tr class="font-bold">
+                        <td colspan="3" class="px-4 py-3">TOTAL</td>
+                        <td class="px-4 py-3 text-right text-secondary">{{ solde_total|floatformat:0 }} F</td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- ===== TAB MOUVEMENTS ===== -->
+    <div x-show="activeTab==='mouvements'" class="space-y-4">
+        <!-- Filtres : date + caisse + type -->
+        <form method="get" class="flex flex-wrap gap-2 items-end">
+            <div>
+                <label class="block text-[10px] font-medium text-on-surface-variant mb-1">Du</label>
+                <input type="date" name="date_from" value="{{ date_from }}"
+                       class="input-md3 text-sm px-3 py-2 rounded-lg">
+            </div>
+            <div>
+                <label class="block text-[10px] font-medium text-on-surface-variant mb-1">Au</label>
+                <input type="date" name="date_to" value="{{ date_to }}"
+                       class="input-md3 text-sm px-3 py-2 rounded-lg">
+            </div>
+            <div>
+                <label class="block text-[10px] font-medium text-on-surface-variant mb-1">Compte</label>
+                <select name="caisse" class="input-md3 text-sm px-3 py-2 rounded-lg">
+                    <option value="">Tous</option>
+                    {% for c in toutes_caisses %}
+                    <option value="{{ c.id }}" {% if request.GET.caisse == c.id|stringformat:"s" %}selected{% endif %}>{{ c.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-[10px] font-medium text-on-surface-variant mb-1">Type</label>
+                <select name="type_mvt" class="input-md3 text-sm px-3 py-2 rounded-lg">
+                    <option value="">Tous</option>
+                    <option value="ENTREE" {% if request.GET.type_mvt == 'ENTREE' %}selected{% endif %}>Entrées</option>
+                    <option value="SORTIE" {% if request.GET.type_mvt == 'SORTIE' %}selected{% endif %}>Sorties</option>
+                </select>
+            </div>
+            <button type="submit" class="px-4 py-2 text-sm font-medium rounded-lg bg-secondary text-on-secondary hover:bg-secondary/90">
+                <i class="fas fa-filter mr-1"></i>Filtrer
+            </button>
+            {% if date_from or date_to or request.GET.caisse or request.GET.type_mvt %}
+            <a href="{% url 'tresorerie:dashboard_tresorier' %}" class="px-4 py-2 text-sm font-medium rounded-lg btn-md3-secondary">
+                <i class="fas fa-times mr-1"></i>Réinitialiser
+            </a>
+            {% endif %}
+        </form>
+
+        <!-- Filtres client-side (caisse + type) complémentaires -->
+        <div class="flex gap-2 flex-wrap">
+            <select x-model="filtreCaisse" class="input-md3 text-sm px-3 py-2 rounded-lg">
+                <option value="">Tous les comptes</option>
+                {% for c in toutes_caisses %}
+                <option value="{{ c.id }}">{{ c.nom }}</option>
+                {% endfor %}
+            </select>
+            <select x-model="filtreType" class="input-md3 text-sm px-3 py-2 rounded-lg">
+                <option value="">Tous les types</option>
+                <option value="ENTREE">Entrées</option>
+                <option value="SORTIE">Sorties</option>
+            </select>
+        </div>
+
+        <div class="card-md3 overflow-hidden">
+            <table class="w-full text-sm">
+                <thead class="bg-surface-container-high">
+                    <tr class="text-on-surface-variant">
+                        <th class="px-4 py-3 text-left font-medium">Date</th>
+                        <th class="px-4 py-3 text-left font-medium">Compte</th>
+                        <th class="px-4 py-3 text-left font-medium">Libellé</th>
+                        <th class="px-4 py-3 text-right font-medium">Montant</th>
+                        <th class="px-4 py-3 text-center font-medium">Type</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10">
+                    {% for m in mouvements %}
+                    <tr class="hover:bg-surface-container-low transition-colors"
+                        x-show="(!filtreCaisse || '{{ m.caisse.id }}' === filtreCaisse) && (!filtreType || '{{ m.type_mouvement }}' === filtreType)">
+                        <td class="px-4 py-3 text-xs">{{ m.date|date:'d/m/Y H:i' }}</td>
+                        <td class="px-4 py-3">{{ m.caisse.nom }}</td>
+                        <td class="px-4 py-3">{{ m.libelle|truncatechars:40 }}</td>
+                        <td class="px-4 py-3 text-right font-bold"
+                            :class="'{{ m.type_mouvement }}'==='ENTREE' ? 'text-green-400' : 'text-red-400'">
+                            {{ m.montant|floatformat:0 }} F
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            {% if m.type_mouvement == 'ENTREE' %}
+                            <span class="px-2 py-0.5 rounded-full text-xs bg-green-900/30 text-green-300">Entrée</span>
+                            {% else %}
+                            <span class="px-2 py-0.5 rounded-full text-xs bg-red-900/30 text-red-300">Sortie</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="5" class="px-4 py-8 text-center text-on-surface-variant">Aucun mouvement</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if page_obj.has_other_pages or page_obj.paginator.count > 50 %}
+        <div class="flex items-center justify-between text-sm">
+            <span class="text-on-surface-variant">
+                Page {{ page_obj.number }}/{{ page_obj.paginator.num_pages }}
+                ({{ page_obj.paginator.count }} mouvement{{ page_obj.paginator.count|pluralize }})
+            </span>
+            <div class="flex gap-2">
+                {% if page_obj.has_previous %}
+                <a href="?page={{ page_obj.previous_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if request.GET.caisse %}&caisse={{ request.GET.caisse }}{% endif %}{% if request.GET.type_mvt %}&type_mvt={{ request.GET.type_mvt }}{% endif %}"
+                   class="px-3 py-1.5 rounded-lg btn-md3-secondary text-sm">
+                    <i class="fas fa-chevron-left mr-1"></i>Précédent
+                </a>
+                {% endif %}
+                {% if page_obj.has_next %}
+                <a href="?page={{ page_obj.next_page_number }}{% if date_from %}&date_from={{ date_from }}{% endif %}{% if date_to %}&date_to={{ date_to }}{% endif %}{% if request.GET.caisse %}&caisse={{ request.GET.caisse }}{% endif %}{% if request.GET.type_mvt %}&type_mvt={{ request.GET.type_mvt }}{% endif %}"
+                   class="px-3 py-1.5 rounded-lg btn-md3-secondary text-sm">
+                    Suivant <i class="fas fa-chevron-right ml-1"></i>
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- ========== MODAL AJOUT/MODIFIER COMPTE ========== -->
+    <div x-show="modal==='ajouter' || modal==='modifier'" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="modal=null">
+        <div class="bg-surface-container-high rounded-2xl shadow-xl w-full max-w-lg mx-4 p-6" @click.stop>
+            <div class="flex justify-between items-center mb-5">
+                <h2 class="text-lg font-bold text-on-surface" x-text="modal==='ajouter' ? 'Nouveau compte' : 'Modifier compte'"></h2>
+                <button @click="modal=null" class="text-on-surface-variant hover:text-on-surface"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <form method="post" :action="modal==='ajouter' ? '{% url "tresorerie:ajouter_caisse" %}' : '/tresorerie/' + editId + '/modifier/'">
+                {% csrf_token %}
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface mb-1">Nom *</label>
+                        <input type="text" name="nom" x-model="form.nom" required class="input-md3 w-full px-3 py-2 rounded-lg" placeholder="Ex: Compte Bar">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface mb-1">Type financier *</label>
+                        <select name="type_financier" x-model="form.type_financier" class="input-md3 w-full px-3 py-2 rounded-lg" @change="if($event.target.value!=='ESPECES') form.role=''">
+                            <option value="ESPECES">Espèces</option>
+                            <option value="BANQUE">Compte bancaire</option>
+                            <option value="MOBILE_MONEY">Monnaie électronique</option>
+                        </select>
+                    </div>
+                    <div x-show="form.type_financier === 'ESPECES'">
+                        <label class="block text-sm font-medium text-on-surface mb-1">Rôle</label>
+                        <select name="role" x-model="form.role" class="input-md3 w-full px-3 py-2 rounded-lg">
+                            <option value="">— Aucun rôle —</option>
+                            <option value="CENTRALE">Caisse centrale</option>
+                            <option value="POINT_VENTE">Point de vente</option>
+                            <option value="GUICHET">Guichet</option>
+                        </select>
+                    </div>
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="checkbox" name="actif" x-model="form.actif" class="w-4 h-4 rounded border-outline/30">
+                        <span>Actif</span>
+                    </label>
+                </div>
+                <div class="flex gap-3 mt-6">
+                    <button type="submit" :disabled="{{ est_bloque_tresorerie|lower }}" class="btn-md3-primary flex-1 py-2 rounded-lg font-medium">
+                        <span x-text="modal==='ajouter' ? 'Créer' : 'Enregistrer'"></span>
+                    </button>
+                    <button type="button" @click="modal=null" class="btn-md3-secondary flex-1 py-2 rounded-lg font-medium">Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========== MODAL ENCAISSEMENT / DÉCAISSEMENT ========== -->
+    <div x-show="modal==='encaissement' || modal==='decaissement'" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="modal=null">
+        <div class="bg-surface-container-high rounded-2xl shadow-xl w-full max-w-md mx-4 p-6" @click.stop>
+            <div class="flex justify-between items-center mb-5">
+                <h2 class="text-lg font-bold" :class="modal==='encaissement' ? 'text-green-400' : 'text-red-400'">
+                    <i :class="modal==='encaissement' ? 'fas fa-plus-circle' : 'fas fa-minus-circle'" class="mr-2"></i>
+                    <span x-text="modal==='encaissement' ? 'Encaissement' : 'Décaissement'"></span>
+                </h2>
+                <button @click="modal=null" class="text-on-surface-variant hover:text-on-surface"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="space-y-4 p-6">
+                <div>
+                    <label class="block text-sm font-medium text-on-surface mb-1">Compte *</label>
+                    <select x-model="ops.caisse_id" class="input-md3 w-full rounded-lg">
+                        <option value="">Sélectionner...</option>
+                        {% for c in caisses_physiques %}
+                        <option value="{{ c.id }}">{{ c.nom }} ({{ c.solde|floatformat:0 }} F)</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-on-surface mb-1">Montant *</label>
+                    <input type="number" step="0.01" x-model="ops.montant" class="input-md3 w-full rounded-lg" placeholder="0">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-on-surface mb-1">Motif</label>
+                    <input type="text" x-model="ops.libelle" class="input-md3 w-full rounded-lg" placeholder="Ex: Remboursement">
+                </div>
+                <div class="flex gap-3 mt-6">
+                    <button @click="executerOperation(modal)" :disabled="saving || {{ est_bloque_tresorerie|lower }}"
+                            class="flex-1 py-2 rounded-lg font-medium text-white transition"
+                            :class="modal==='encaissement' ? 'bg-green-600 hover:bg-green-500' : 'bg-red-600 hover:bg-red-500'">
+                        <span x-text="modal==='encaissement' ? 'Valider l\'encaissement' : 'Valider le décaissement'"></span>
+                    </button>
+                    <button @click="modal=null" class="btn-md3-secondary flex-1 py-2 rounded-lg font-medium">Annuler</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== MODAL OPÉRATIONS CENTRALE (Dépôt/Retrait/Apport/Financement) ========== -->
+    <div x-show="['banque','retrait_banque','apport','financement'].includes(modal)" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="modal=null">
+        <div class="bg-surface-container-high rounded-2xl shadow-xl w-full max-w-md mx-4 p-6" @click.stop>
+            <div class="flex justify-between items-center mb-5">
+                <h2 class="text-lg font-bold" x-text="titreOperation" :class="couleurOperation"></h2>
+                <button @click="modal=null" class="text-on-surface-variant hover:text-on-surface"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <div class="space-y-4 p-6">
+                <div class="rounded-lg p-3 text-xs border" x-text="descriptionOperation"
+                     :class="bgDescriptionOperation"></div>
+                <div>
+                    <label class="block text-sm font-medium text-on-surface mb-1">Montant *</label>
+                    <input type="number" step="0.01" x-model="ops.montant" class="input-md3 w-full rounded-lg" placeholder="0">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-on-surface mb-1">Motif</label>
+                    <input type="text" x-model="ops.libelle" class="input-md3 w-full rounded-lg" placeholder="Ex: Retrait banque">
+                </div>
+                <div class="flex gap-3 mt-6">
+                    <button @click="executerOperation(modal)" :disabled="saving || {{ est_bloque_tresorerie|lower }}" class="flex-1 bg-secondary text-on-secondary py-2 rounded-lg font-medium hover:bg-secondary/80 transition">Valider</button>
+                    <button @click="modal=null" class="btn-md3-secondary flex-1 py-2 rounded-lg font-medium">Annuler</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== MODAL TRANSFERT ========== -->
+    <div x-show="modal==='transfert'" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="modal=null">
+        <div class="bg-surface-container-high rounded-2xl shadow-xl w-full max-w-md mx-4 p-6" @click.stop>
+            <div class="flex justify-between items-center mb-5">
+                <h2 class="text-lg font-bold text-on-surface">Transfert entre comptes</h2>
+                <button @click="modal=null" class="text-on-surface-variant hover:text-on-surface"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <form method="post" action="{% url 'tresorerie:transfert_caisse' %}">
+                {% csrf_token %}
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface mb-1">Source *</label>
+                        <select name="source_id" x-model="transfert.source_id" required class="input-md3 w-full px-3 py-2 rounded-lg">
+                            <option value="">Sélectionner</option>
+                            {% for c in caisses_physiques %}
+                            <option value="{{ c.id }}">{{ c.nom }} ({{ c.solde|floatformat:0 }} F)</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface mb-1">Destination *</label>
+                        <select name="dest_id" x-model="transfert.dest_id" required class="input-md3 w-full px-3 py-2 rounded-lg">
+                            <option value="">Sélectionner</option>
+                            {% for c in caisses_physiques %}
+                            <option value="{{ c.id }}">{{ c.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface mb-1">Montant *</label>
+                        <input type="number" step="0.01" name="montant" x-model="transfert.montant" required class="input-md3 w-full px-3 py-2 rounded-lg" placeholder="0">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface mb-1">Notes</label>
+                        <textarea name="notes" x-model="transfert.notes" class="input-md3 w-full px-3 py-2 rounded-lg" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="flex gap-3 mt-6">
+                    <button type="submit" :disabled="{{ est_bloque_tresorerie|lower }}" class="btn-md3-primary flex-1 py-2 rounded-lg font-medium">Effectuer le transfert</button>
+                    <button type="button" @click="modal=null" class="btn-md3-secondary flex-1 py-2 rounded-lg font-medium">Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ========== MODAL CLÔTURE ========== -->
+    <div x-show="modal==='cloturer'" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="modal=null">
+        <div class="bg-surface-container-high rounded-2xl shadow-xl w-full max-w-md mx-4 p-6" @click.stop>
+            <div class="flex justify-between items-center mb-5">
+                <h2 class="text-lg font-bold text-on-surface">Clôturer le compte</h2>
+                <button @click="modal=null" class="text-on-surface-variant hover:text-on-surface"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <form method="post" :action="'/tresorerie/' + editId + '/cloturer/'">
+                {% csrf_token %}
+                <p class="text-sm text-on-surface-variant mb-4">Solde actuel : <strong class="text-on-surface" x-text="editSolde + ' F'"></strong></p>
+                <div>
+                    <label class="block text-sm font-medium text-on-surface mb-1">Solde réel constaté *</label>
+                    <input type="number" step="0.01" name="solde_reel" required class="input-md3 w-full px-3 py-2 rounded-lg">
+                </div>
+                <div class="flex gap-3 mt-6">
+                    <button type="submit" :disabled="{{ est_bloque_tresorerie|lower }}" class="btn-md3-primary flex-1 py-2 rounded-lg font-medium">Clôturer</button>
+                    <button type="button" @click="modal=null" class="btn-md3-secondary flex-1 py-2 rounded-lg font-medium">Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function tresorerieApp() {
+    return {
+        activeTab: 'caisses',
+        modal: null,
+        editId: null,
+        editSolde: '0',
+        form: { nom: '', type_financier: 'ESPECES', role: '', actif: true },
+        transfert: { source_id: '', dest_id: '', montant: 0, notes: '' },
+        caisses: [],
+        ops: { caisse_id: '', montant: 0, libelle: '' },
+
+        get titreOperation() {
+            const t = { banque: 'Dépôt en banque', retrait_banque: 'Retrait banque', apport: 'Apport propriétaire', financement: 'Financement/Subvention' };
+            return t[this.modal] || '';
+        },
+        get couleurOperation() {
+            return 'text-secondary';
+        },
+        get descriptionOperation() {
+            const d = {
+                banque: 'Sortie de la caisse centrale vers le compte bancaire.',
+                retrait_banque: 'Entrée dans la caisse centrale depuis le compte bancaire.',
+                apport: 'Apport d\'argent par le propriétaire dans la caisse centrale.',
+                financement: 'Entrée de financement ou subvention dans la caisse centrale.',
+            };
+            return d[this.modal] || '';
+        },
+        get bgDescriptionOperation() {
+            return 'bg-secondary/10 border-secondary/30 text-secondary';
+        },
+        filtreTypeFinancier: '',
+        filtreCaisse: '',
+        filtreType: '',
+
+        init() {
+            this.caisses = [
+                {% for c in caisses_physiques %}
+                { id: {{ c.id }}, nom: '{{ c.nom|escapejs }}', type_financier: '{{ c.type_financier }}', role: '{{ c.role|default:"" }}', actif: {{ c.actif|lower }} },
+                {% endfor %}
+            ];
+            const params = new URLSearchParams(window.location.search);
+            if (params.get('tab')) this.activeTab = params.get('tab');
+            if (params.get('modal')) this.modal = params.get('modal');
+        },
+
+        openModal(type, id = null) {
+            this.modal = type;
+            this.editId = id;
+            if (type === 'ajouter') {
+                this.form = { nom: '', type_financier: 'ESPECES', role: '', actif: true };
+            }
+            if (type === 'modifier' && id) {
+                this.form = { nom: '', type_financier: 'ESPECES', role: '', actif: true };
+                const c = this.caisses.find(x => x.id === id);
+                if (c) { this.form.nom = c.nom; this.form.type_financier = c.type_financier; this.form.role = c.role || ''; this.form.actif = c.actif; }
+            }
+            if (['encaissement', 'decaissement', 'banque', 'retrait_banque', 'apport', 'financement'].includes(type)) {
+                this.ops = { caisse_id: '', montant: 0, libelle: '' };
+            }
+        },
+
+        async executerOperation(typeOp) {
+            if (!this.ops.montant || this.ops.montant <= 0) { alert('Montant invalide'); return; }
+            this.saving = true;
+            try {
+                let caisse_id, libelle, typeMvt;
+
+                const prefixeMotif = {
+                    banque: '[DEPOT_BANQUE] ',
+                    retrait_banque: '[RETRAIT_BANQUE] ',
+                    apport: '[APPORT] ',
+                    financement: '[FINANCEMENT] ',
+                };
+
+                if (typeOp === 'encaissement') {
+                    caisse_id = this.ops.caisse_id;
+                    libelle = this.ops.libelle || 'Encaissement';
+                    typeMvt = 'ENTREE';
+                } else if (typeOp === 'decaissement') {
+                    caisse_id = this.ops.caisse_id;
+                    libelle = this.ops.libelle || 'Décaissement';
+                    typeMvt = 'SORTIE';
+                } else if (prefixeMotif[typeOp]) {
+                    caisse_id = {{ caisse_centrale_id }};
+                    libelle = prefixeMotif[typeOp] + (this.ops.libelle || '');
+                    typeMvt = typeOp === 'banque' ? 'SORTIE' : 'ENTREE';
+                } else {
+                    alert('Opération inconnue'); this.saving = false; return;
+                }
+
+                if (!caisse_id) { alert('Caisse centrale introuvable'); this.saving = false; return; }
+
+                const r = await fetch('/tresorerie/api/mouvement/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                    body: JSON.stringify({ caisse_id, type_mouvement: typeMvt, montant: this.ops.montant, libelle })
+                });
+                const d = await r.json();
+                if (d.success) {
+                    this.modal = null;
+                    window.location.reload();
+                } else {
+                    alert('Erreur: ' + (d.error || ''));
+                }
+            } catch(e) { alert('Erreur réseau'); }
+            finally { this.saving = false; }
+        }
+    }
+}
+function getCookie(name) {
+    let v = '; ' + document.cookie, p = v.split('; ' + name + '=');
+    return p.length === 2 ? p.pop().split(';').shift() : null;
+}
+</script>
+{% endblock %}

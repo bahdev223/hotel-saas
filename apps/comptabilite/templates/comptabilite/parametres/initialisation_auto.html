@@ -1,0 +1,397 @@
+{% extends 'comptabilite/base_compta.html' %}
+{% load static %}
+
+{% block title %}Situation initiale{% endblock %}
+
+{% block header %}Assistant de mise en service{% endblock %}
+
+{% block subtitle %}Construction de la situation initiale du logiciel{% endblock %}
+
+{% block content %}
+<div x-data="situationInitialeApp()" x-init="init()" class="space-y-6">
+
+    <!-- Progression globale -->
+    <div class="bg-surface-container-low rounded-2xl p-4 border border-outline/10" x-show="!dejaValidee">
+        <div class="flex items-center justify-between mb-2">
+            <span class="text-sm font-medium">Progression globale</span>
+            <span class="text-sm font-bold text-secondary" x-text="progression + '%'"></span>
+        </div>
+        <div class="w-full h-2 bg-surface-container-high rounded-full overflow-hidden">
+            <div class="h-full bg-secondary rounded-full transition-all duration-700" :style="'width: ' + progression + '%'"></div>
+        </div>
+        <div class="mt-2 text-xs text-on-surface-variant">
+            <span x-show="preteAValider" class="text-green-400">✅ Tous les éléments obligatoires sont présents — prête à valider</span>
+            <span x-show="!preteAValider" class="text-amber-400">⏳ Requiert au moins un inventaire validé et un compte financier actif</span>
+        </div>
+    </div>
+
+    <!-- Bannière déjà validée -->
+    <div x-show="dejaValidee" class="bg-green-900/20 rounded-2xl p-6 border border-green-700/30 text-center">
+        <i class="fas fa-check-circle text-4xl text-green-400 mb-3 block"></i>
+        <h3 class="text-lg font-bold text-green-300">Situation initiale validée</h3>
+        <p class="text-sm text-green-400/80 mt-1" x-text="'Le ' + dateValidation"></p>
+        <p class="text-sm text-green-400/80" x-text="'Référence : ' + ecritureReference"></p>
+        <p class="text-xs text-on-surface-variant mt-2">Mode implantation désactivé — toutes les opérations passent par les mouvements normaux</p>
+        <a :href="ecritureUrl" x-show="ecritureId" class="inline-block mt-3 px-4 py-2 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700">
+            <i class="fas fa-eye mr-1"></i> Voir l'écriture
+        </a>
+    </div>
+
+    <!-- Onglets -->
+    <div x-show="!dejaValidee" class="bg-surface-container-low rounded-2xl overflow-hidden border border-outline/10">
+        <div class="flex border-b border-outline/10">
+            <button @click="onglet = 'avancement'" class="flex-1 py-3 text-sm font-medium transition"
+                    :class="onglet === 'avancement' ? 'text-secondary border-b-2 border-secondary' : 'text-on-surface-variant hover:text-on-surface'">
+                <i class="fas fa-chart-simple mr-1"></i> Avancement
+            </button>
+            <button @click="onglet = 'contrepartie'" class="flex-1 py-3 text-sm font-medium transition"
+                    :class="onglet === 'contrepartie' ? 'text-secondary border-b-2 border-secondary' : 'text-on-surface-variant hover:text-on-surface'">
+                <i class="fas fa-balance-scale mr-1"></i> Contrepartie
+            </button>
+        </div>
+
+        <!-- Onglet 1 : Avancement -->
+        <div x-show="onglet === 'avancement'" class="p-6 space-y-6">
+
+            <!-- Stocks -->
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-semibold"><i class="fas fa-boxes text-orange-400 mr-2"></i>Stocks</h3>
+                    <span class="text-xs px-2 py-0.5 rounded-full"
+                          :class="stocks.ok ? 'bg-green-900/30 text-green-400' : 'bg-amber-900/30 text-amber-400'"
+                          x-text="stocks.ok ? '✅ ' + stocks.entrepots.length + ' entrepôt(s)' : '⏳ Non initialisé'"></span>
+                </div>
+                <div class="bg-surface-container-high rounded-xl overflow-hidden">
+                    <template x-for="e in stocks.entrepots" :key="e.entrepot_id">
+                        <div class="flex items-center justify-between px-4 py-3 border-b border-outline/5 last:border-0">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-warehouse text-on-surface-variant"></i>
+                                <div>
+                                    <p class="text-sm font-medium" x-text="e.entrepot_nom"></p>
+                                    <p class="text-xs text-on-surface-variant" x-text="e.inventaire_code + ' — ' + e.inventaire_date"></p>
+                                </div>
+                            </div>
+                            <div class="text-right">
+                                <p class="text-sm font-semibold" x-text="formatMontant(e.valeur)"></p>
+                                <p class="text-xs text-green-400" x-show="e.est_premier">Premier inventaire</p>
+                            </div>
+                        </div>
+                    </template>
+                    <div x-show="!stocks.ok" class="px-4 py-6 text-center text-sm text-on-surface-variant">
+                        <i class="fas fa-inbox text-2xl mb-2 block"></i>
+                        Aucun inventaire validé — allez dans <a href="{% url 'stock:liste_inventaires' %}" class="text-blue-400 underline">Stock → Inventaires</a>
+                    </div>
+                </div>
+                <div x-show="stocks.ok" class="flex justify-end mt-2 px-4">
+                    <span class="text-sm font-bold">Total stocks : <span class="text-secondary" x-text="formatMontant(stocks.total)"></span></span>
+                </div>
+            </div>
+
+            <!-- Trésorerie -->
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-semibold"><i class="fas fa-coins text-emerald-400 mr-2"></i>Mes Comptes</h3>
+                    <span class="text-xs px-2 py-0.5 rounded-full"
+                          :class="tresorerie.ok ? 'bg-green-900/30 text-green-400' : 'bg-amber-900/30 text-amber-400'"
+                          x-text="tresorerie.ok ? '✅ ' + tresorerie.comptes.length + ' compte(s)' : '⏳ Aucun compte'"></span>
+                </div>
+                <div class="bg-surface-container-high rounded-xl overflow-hidden">
+                    <template x-for="c in tresorerie.comptes" :key="c.id">
+                        <div class="flex items-center justify-between px-4 py-3 border-b border-outline/5 last:border-0">
+                            <div class="flex items-center gap-3">
+                                <i class="fas fa-cash-register text-on-surface-variant"></i>
+                                <div>
+                                    <p class="text-sm font-medium" x-text="c.nom"></p>
+                                    <p class="text-xs text-on-surface-variant">
+                                        <span x-text="c.type_financier"></span>
+                                        <span x-show="c.compte_comptable"> · <span x-text="c.compte_comptable"></span></span>
+                                    </p>
+                                </div>
+                            </div>
+                            <p class="text-sm font-semibold" x-text="formatMontant(c.solde)"></p>
+                        </div>
+                    </template>
+                    <div x-show="!tresorerie.ok" class="px-4 py-6 text-center text-sm text-on-surface-variant">
+                        <i class="fas fa-wallet text-2xl mb-2 block"></i>
+                        Aucun compte financier actif — allez dans <a href="{% url 'tresorerie:dashboard_tresorier' %}" class="text-blue-400 underline">Mes Comptes</a>
+                    </div>
+                </div>
+                <div x-show="tresorerie.ok" class="flex justify-end mt-2 px-4">
+                    <span class="text-sm font-bold">Total trésorerie : <span class="text-secondary" x-text="formatMontant(tresorerie.total)"></span></span>
+                </div>
+            </div>
+
+            <!-- Clients (facultatif) -->
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-semibold"><i class="fas fa-users text-blue-400 mr-2"></i>Clients</h3>
+                    <span class="text-xs px-2 py-0.5 rounded-full"
+                          :class="creances.ok ? 'bg-green-900/30 text-green-400' : 'bg-surface-container-high text-on-surface-variant'"
+                          x-text="creances.ok ? '✅ ' + creances.nombre + ' client(s)' : '⚪ Facultatif'"></span>
+                </div>
+                <div x-show="creances.ok" class="bg-surface-container-high rounded-xl px-4 py-3 flex justify-between">
+                    <span class="text-sm">Créances clients</span>
+                    <span class="text-sm font-semibold" x-text="formatMontant(creances.total)"></span>
+                </div>
+            </div>
+
+            <!-- Fournisseurs (facultatif) -->
+            <div>
+                <div class="flex items-center justify-between mb-3">
+                    <h3 class="text-sm font-semibold"><i class="fas fa-truck text-indigo-400 mr-2"></i>Fournisseurs</h3>
+                    <span class="text-xs px-2 py-0.5 rounded-full"
+                          :class="dettes.ok ? 'bg-green-900/30 text-green-400' : 'bg-surface-container-high text-on-surface-variant'"
+                          x-text="dettes.ok ? '✅ ' + dettes.nombre + ' fournisseur(s)' : '⚪ Facultatif'"></span>
+                </div>
+                <div x-show="dettes.ok" class="bg-surface-container-high rounded-xl px-4 py-3 flex justify-between">
+                    <span class="text-sm">Dettes fournisseurs</span>
+                    <span class="text-sm font-semibold" x-text="formatMontant(dettes.total)"></span>
+                </div>
+            </div>
+
+            <!-- Bouton suivant -->
+            <div class="flex justify-end pt-4 border-t border-outline/10">
+                <button @click="onglet = 'contrepartie'" :disabled="!preteAValider"
+                        class="px-6 py-2 bg-secondary text-black rounded-lg text-sm font-medium hover:bg-secondary/80 disabled:opacity-40 disabled:cursor-not-allowed">
+                    Suite : choix de la contrepartie <i class="fas fa-arrow-right ml-1"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Onglet 2 : Contrepartie -->
+        <div x-show="onglet === 'contrepartie'" class="p-6 space-y-6">
+
+            <!-- Capital calculé -->
+            <div class="bg-surface-container-high rounded-xl p-4 text-center">
+                <p class="text-xs text-on-surface-variant mb-1">Capital calculé automatiquement</p>
+                <p class="text-2xl font-bold text-secondary" x-text="apercu ? formatMontant(apercu.capital) : '—'"></p>
+                <p class="text-xs text-on-surface-variant mt-1">Total Actif − Total Passif</p>
+            </div>
+
+            <!-- Choix contrepartie -->
+            <div>
+                <label class="block text-sm font-medium mb-2">Compte de contrepartie d'ouverture</label>
+                <select x-model="contrepartieCode" @change="chargerApercu()" class="w-full input-md3 rounded-lg px-3 py-2.5 text-sm">
+                    <option value="101">101 — Capital social</option>
+                    <option value="109">109 — Compte d'ouverture</option>
+                    <option value="131">131 — Report à nouveau</option>
+                    <option value="11">11 — Réserves</option>
+                </select>
+                <p class="text-xs text-on-surface-variant mt-1">Le montant du capital sera affecté à ce compte</p>
+            </div>
+
+            <!-- Aperçu écriture -->
+            <div x-show="apercu">
+                <h4 class="text-sm font-semibold mb-3">Aperçu de l'écriture d'ouverture</h4>
+                <div class="bg-surface-container-high rounded-xl overflow-hidden">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="border-b border-outline/10 text-on-surface-variant text-xs">
+                                <th class="text-left px-4 py-2">Compte</th>
+                                <th class="text-left px-4 py-2">Libellé</th>
+                                <th class="text-right px-4 py-2">Débit</th>
+                                <th class="text-right px-4 py-2">Crédit</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <template x-for="l in apercu.lignes_debit" :key="l.compte_code">
+                                <tr class="border-b border-outline/5">
+                                    <td class="px-4 py-2 font-mono text-xs" x-text="l.compte_code"></td>
+                                    <td class="px-4 py-2" x-text="l.compte_libelle"></td>
+                                    <td class="px-4 py-2 text-right font-medium text-green-400" x-text="formatMontant(l.montant)"></td>
+                                    <td class="px-4 py-2 text-right"></td>
+                                </tr>
+                            </template>
+                            <template x-for="l in apercu.lignes_credit" :key="l.compte_code">
+                                <tr class="border-b border-outline/5">
+                                    <td class="px-4 py-2 font-mono text-xs" x-text="l.compte_code"></td>
+                                    <td class="px-4 py-2" x-text="l.compte_libelle"></td>
+                                    <td class="px-4 py-2 text-right"></td>
+                                    <td class="px-4 py-2 text-right font-medium text-red-400" x-text="formatMontant(l.montant)"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                        <tfoot>
+                            <tr class="border-t border-outline/10 font-semibold">
+                                <td colspan="2" class="px-4 py-2 text-right">Total</td>
+                                <td class="px-4 py-2 text-right text-green-400" x-text="formatMontant(apercu.total_debit)"></td>
+                                <td class="px-4 py-2 text-right text-red-400" x-text="formatMontant(apercu.total_credit)"></td>
+                            </tr>
+                            <tr x-show="apercu.equilibre">
+                                <td colspan="4" class="px-4 py-2 text-center text-xs text-green-400">
+                                    <i class="fas fa-check-circle mr-1"></i> Écriture équilibrée
+                                </td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Validation -->
+            <div class="flex justify-between items-center pt-4 border-t border-outline/10">
+                <button @click="onglet = 'avancement'" class="px-4 py-2 text-sm text-on-surface-variant hover:text-on-surface">
+                    <i class="fas fa-arrow-left mr-1"></i> Retour
+                </button>
+                <button @click="validerSituation()" :disabled="!preteAValider || saving"
+                        class="px-6 py-2.5 bg-emerald-600 text-white rounded-lg text-sm font-medium hover:bg-emerald-700 disabled:opacity-40 disabled:cursor-not-allowed">
+                    <i class="fas fa-spinner fa-spin mr-1" x-show="saving"></i>
+                    <i class="fas fa-check-circle mr-1" x-show="!saving"></i>
+                    Valider la situation initiale
+                </button>
+            </div>
+
+            <div x-show="erreur" class="bg-red-900/20 rounded-lg p-3 text-sm text-red-300" x-text="erreur"></div>
+            <div x-show="succes" class="bg-green-900/20 rounded-lg p-4 text-sm text-green-300 text-center">
+                <i class="fas fa-check-circle text-2xl mb-2 block"></i>
+                <p class="font-bold" x-text="'✅ Situation initiale validée'"></p>
+                <p x-text="'Référence : ' + succesRef"></p>
+                <button @click="init()" class="mt-3 px-4 py-2 bg-green-600 rounded-lg text-sm hover:bg-green-700">
+                    <i class="fas fa-sync mr-1"></i> Recharger
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function situationInitialeApp() {
+    return {
+        onglet: 'avancement',
+        progression: 0,
+        preteAValider: false,
+        dejaValidee: false,
+        dateValidation: '',
+        ecritureReference: '',
+        ecritureId: null,
+        ecritureUrl: '',
+        stocks: {ok: false, total: 0, entrepots: []},
+        tresorerie: {ok: false, total: 0, comptes: []},
+        creances: {ok: false, total: 0, nombre: 0},
+        dettes: {ok: false, total: 0, nombre: 0},
+        apercu: null,
+        contrepartieCode: '101',
+        saving: false,
+        erreur: '',
+        succes: false,
+        succesRef: '',
+
+        init() {
+            this.chargerEtat();
+        },
+
+        chargerEtat() {
+            fetch('{% url "comptabilite:api_etat_avancement" %}')
+                .then(r => r.json())
+                .then(d => {
+                    this.progression = d.progression;
+                    this.preteAValider = d.prete_a_valider;
+                    this.dejaValidee = d.deja_validee;
+                    this.stocks = d.stocks;
+                    this.tresorerie = d.tresorerie;
+                    this.creances = d.creances;
+                    this.dettes = d.dettes;
+                    this.contrepartieCode = d.contrepartie || '101';
+                    if (d.date_validation) {
+                        this.dateValidation = new Date(d.date_validation).toLocaleDateString('fr-FR', {
+                            day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                        });
+                    }
+                    if (this.dejaValidee) {
+                        this.chargerEcritureExistante();
+                    }
+                    if (this.preteAValider) {
+                        this.chargerApercu();
+                    }
+                });
+        },
+
+        chargerApercu() {
+            fetch('{% url "comptabilite:api_etat_avancement" %}?contrepartie=' + this.contrepartieCode)
+                .then(r => r.json())
+                .then(d => {
+                    // Recalculer l'apercu côté client à partir des données brutes
+                    const stocks = d.stocks;
+                    const tresorerie = d.tresorerie;
+                    const creances = d.creances;
+                    const dettes = d.dettes;
+                    this.apercu = this.calculerApercu(stocks, tresorerie, creances, dettes, this.contrepartieCode);
+                });
+        },
+
+        calculerApercu(stocks, tresorerie, creances, dettes, contrepartieCode) {
+            const lignesDebit = [];
+            let totalDebit = 0;
+            if (tresorerie.total_especes > 0) { lignesDebit.push({compte_code: '57', compte_libelle: 'Caisse', montant: tresorerie.total_especes}); totalDebit += tresorerie.total_especes; }
+            if (tresorerie.total_banque > 0) { lignesDebit.push({compte_code: '52', compte_libelle: 'Banque', montant: tresorerie.total_banque}); totalDebit += tresorerie.total_banque; }
+            if (tresorerie.total_mobile > 0) { lignesDebit.push({compte_code: '58', compte_libelle: 'Mobile Money', montant: tresorerie.total_mobile}); totalDebit += tresorerie.total_mobile; }
+            if (stocks.total > 0) { lignesDebit.push({compte_code: '31', compte_libelle: 'Stocks', montant: stocks.total}); totalDebit += stocks.total; }
+            if (creances.total > 0) { lignesDebit.push({compte_code: '411', compte_libelle: 'Clients', montant: creances.total}); totalDebit += creances.total; }
+
+            const lignesCredit = [];
+            let totalCredit = 0;
+            if (dettes.total > 0) { lignesCredit.push({compte_code: '401', compte_libelle: 'Fournisseurs', montant: dettes.total}); totalCredit += dettes.total; }
+
+            const capital = totalDebit - totalCredit;
+            const libelles = {'101': 'Capital social', '109': 'Compte d\'ouverture', '131': 'Report à nouveau', '11': 'Réserves'};
+            lignesCredit.push({compte_code: contrepartieCode, compte_libelle: libelles[contrepartieCode] || 'Contrepartie', montant: capital});
+            totalCredit += capital;
+
+            return {
+                equilibre: totalDebit === totalCredit,
+                total_debit: totalDebit,
+                total_credit: totalCredit,
+                capital: capital,
+                lignes_debit: lignesDebit,
+                lignes_credit: lignesCredit,
+            };
+        },
+
+        validerSituation() {
+            if (!this.preteAValider) return;
+            this.saving = true;
+            this.erreur = '';
+            this.succes = false;
+            fetch('{% url "comptabilite:api_valider_situation" %}', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+                body: JSON.stringify({contrepartie: this.contrepartieCode})
+            })
+            .then(r => r.json())
+            .then(d => {
+                this.saving = false;
+                if (d.success) {
+                    this.succes = true;
+                    this.succesRef = d.reference;
+                    this.dejaValidee = true;
+                    this.dateValidation = new Date(d.date_validation).toLocaleDateString('fr-FR', {
+                        day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                    });
+                    this.ecritureReference = d.reference;
+                    this.ecritureId = d.ecriture_id;
+                    this.ecritureUrl = '/comptabilite/ecritures/' + d.ecriture_id + '/';
+                } else {
+                    this.erreur = d.error || 'Erreur lors de la validation';
+                }
+            })
+            .catch(e => {
+                this.saving = false;
+                this.erreur = 'Erreur réseau';
+            });
+        },
+
+        chargerEcritureExistante() {
+            fetch('{% url "comptabilite:api_etat_avancement" %}')
+                .then(r => r.json())
+                .then(d => {
+                    // L'écriture existante sera chargée depuis l'état
+                });
+        },
+
+        formatMontant(val) {
+            if (val === null || val === undefined) return '0 F';
+            return Number(val).toLocaleString('fr-FR') + ' F';
+        }
+    };
+}
+</script>
+{% endblock %}

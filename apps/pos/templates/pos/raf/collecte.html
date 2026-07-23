@@ -1,0 +1,575 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}RAF — Collecte des caisses{% endblock %}
+{% block header %}Collecte des caisses{% endblock %}
+{% block subtitle %}Supervision, collecte et transfert des fonds vers la caisse centrale{% endblock %}
+
+{% block content %}
+<div x-data="rafCollecte()" x-init="initCollecte()" class="space-y-6">
+
+    <!-- Stats row -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="bg-surface-container-low rounded-xl border border-outline/10 p-4 text-center">
+            <p class="text-2xl font-bold text-cyan-400">{{ stats.nb_demandes }}</p>
+            <p class="text-xs text-on-surface-variant">Ouvertures</p>
+        </div>
+        <div class="bg-surface-container-low rounded-xl border border-outline/10 p-4 text-center">
+            <p class="text-2xl font-bold text-yellow-400">{{ stats.nb_ouvertes }}</p>
+            <p class="text-xs text-on-surface-variant">Sessions ouvertes</p>
+        </div>
+        <div class="bg-surface-container-low rounded-xl border border-outline/10 p-4 text-center">
+            <p class="text-2xl font-bold text-orange-400">{{ stats.nb_attente }}</p>
+            <p class="text-xs text-on-surface-variant">En attente collecte</p>
+        </div>
+        <div class="bg-surface-container-low rounded-xl border border-outline/10 p-4 text-center">
+            <p class="text-2xl font-bold text-green-400">{{ stats.nb_collectees_ajd }}</p>
+            <p class="text-xs text-on-surface-variant">Collectées ajd</p>
+            <p class="text-xs text-blue-400" x-text="formatMoney({{ stats.montant_transfere_ajd }}) + ' F'"></p>
+        </div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="bg-surface-container-low rounded-xl overflow-hidden border border-outline/10">
+        <div class="flex border-b border-outline/10 overflow-x-auto">
+            <button class="px-5 py-3 text-sm font-medium transition whitespace-nowrap border-b-2 shrink-0"
+                    :class="tab === 'ouverture' ? 'border-secondary text-secondary' : 'border-transparent text-on-surface-variant hover:text-on-surface'"
+                    @click="tab = 'ouverture'">
+                <i class="fas fa-play-circle text-cyan-400 mr-1"></i>Ouvertures
+                <span class="text-xs ml-1" x-show="{{ stats.nb_demandes }}">({{ stats.nb_demandes }})</span>
+            </button>
+            <button class="px-5 py-3 text-sm font-medium transition whitespace-nowrap border-b-2 shrink-0"
+                    :class="tab === 'ouvertes' ? 'border-secondary text-secondary' : 'border-transparent text-on-surface-variant hover:text-on-surface'"
+                    @click="tab = 'ouvertes'">
+                <i class="fas fa-cash-register text-yellow-400 mr-1"></i>Sessions ouvertes
+                <span class="text-xs ml-1" x-show="{{ stats.nb_ouvertes }}">({{ stats.nb_ouvertes }})</span>
+            </button>
+            <button class="px-5 py-3 text-sm font-medium transition whitespace-nowrap border-b-2 shrink-0"
+                    :class="tab === 'attente' ? 'border-secondary text-secondary' : 'border-transparent text-on-surface-variant hover:text-on-surface'"
+                    @click="tab = 'attente'">
+                <i class="fas fa-clock text-orange-400 mr-1"></i>À collecter
+                <span class="text-xs ml-1" x-show="{{ stats.nb_attente }}">({{ stats.nb_attente }})</span>
+            </button>
+            <button class="px-5 py-3 text-sm font-medium transition whitespace-nowrap border-b-2 shrink-0"
+                    :class="tab === 'collectees' ? 'border-secondary text-secondary' : 'border-transparent text-on-surface-variant hover:text-on-surface'"
+                    @click="tab = 'collectees'">
+                <i class="fas fa-check-circle text-green-400 mr-1"></i>Collectées
+            </button>
+        </div>
+
+        <!-- Tab: Ouvertures -->
+        <div x-show="tab === 'ouverture'" class="divide-y divide-outline/10">
+            {% if demandes_ouverture %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-surface-container-high">
+                        <tr><th class="px-4 py-3 text-left font-medium">Point de vente</th><th class="px-4 py-3 text-left font-medium">Employé</th><th class="px-4 py-3 text-left font-medium">Planning</th><th class="px-4 py-3 text-right font-medium">Solde caisse</th><th class="px-4 py-3 text-center font-medium">Actions</th></tr>
+                    </thead>
+                    <tbody class="divide-y divide-outline/10">
+                        {% for d in demandes_ouverture %}
+                        <tr class="hover:bg-surface-container-low transition-colors">
+                            <td class="px-4 py-3 font-medium">{{ d.point_vente.nom }}</td>
+                            <td class="px-4 py-3">{{ d.employe.nom_complet }}</td>
+                            <td class="px-4 py-3 text-on-surface-variant">{{ d.planning.heure_debut|time:"H:i" }} - {{ d.planning.heure_fin|time:"H:i" }}</td>
+                            <td class="px-4 py-3 text-right font-mono">{{ d.solde_actuel|floatformat:0 }} F</td>
+                            <td class="px-4 py-3 text-center">
+                                <button @click="openOuverture({{ d.point_vente.id }}, {{ d.caisse.id }}, {{ d.planning.id }}, '{{ d.point_vente.nom|escapejs }}', '{{ d.employe.nom_complet|escapejs }}', {{ d.solde_actuel }})"
+                                        class="bg-cyan-700 text-white px-4 py-1.5 rounded-lg text-xs font-semibold hover:bg-cyan-800 transition">
+                                    <i class="fas fa-coins mr-1"></i>Déposer & ouvrir
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-10 text-on-surface-variant">
+                <i class="fas fa-check-circle text-4xl text-green-500 mb-2 block"></i>
+                <p class="font-medium">Aucune demande d'ouverture</p>
+                <p class="text-sm">Tous les plannings actifs ont une session ouverte.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Tab: Sessions ouvertes -->
+        <div x-show="tab === 'ouvertes'" class="divide-y divide-outline/10">
+            {% if sessions_ouvertes %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-surface-container-high">
+                        <tr><th class="px-4 py-3 text-left font-medium">PV</th><th class="px-4 py-3 text-left font-medium">Caissier</th><th class="px-4 py-3 text-left font-medium">Ouverture</th><th class="px-4 py-3 text-right font-medium">Ventes</th><th class="px-4 py-3 text-right font-medium">Espèces</th><th class="px-4 py-3 text-right font-medium">Attendu</th><th class="px-4 py-3 text-center font-medium">Actions</th></tr>
+                    </thead>
+                    <tbody class="divide-y divide-outline/10">
+                        {% for item in sessions_ouvertes %}
+                        {% with s=item.session %}
+                        <tr class="hover:bg-surface-container-low transition-colors">
+                            <td class="px-4 py-3 font-medium">{{ s.point_vente.nom|default:"N/A" }}</td>
+                            <td class="px-4 py-3">{{ s.caissier_ouverture.nom_complet|default:"N/A" }}</td>
+                            <td class="px-4 py-3 text-on-surface-variant whitespace-nowrap">{{ s.date_ouverture|date:"d/m/Y H:i" }}</td>
+                            <td class="px-4 py-3 text-right font-mono">{{ item.total_ventes|floatformat:0 }}</td>
+                            <td class="px-4 py-3 text-right font-mono text-yellow-400">{{ item.total_especes|floatformat:0 }}</td>
+                            <td class="px-4 py-3 text-right font-mono font-bold text-secondary">{{ item.solde_attendu|floatformat:0 }} F</td>
+                            <td class="px-4 py-3 text-center whitespace-nowrap">
+                                <button @click="openCollecte({{ s.id }}, '{{ s.point_vente.nom|escapejs }}', {{ item.solde_attendu }}, {{ item.total_ventes }}, {{ s.solde_initial }}, '{{ s.date_ouverture|date:"d/m/Y H:i" }}', '{{ s.caissier_ouverture.nom_complet|escapejs }}', 'ouverte')"
+                                        class="bg-secondary text-black px-4 py-1.5 rounded-lg text-xs font-semibold hover:bg-secondary/80 transition">
+                                    <i class="fas fa-hand-holding-usd mr-1"></i>Fermer & collecter
+                                </button>
+                                <button @click="openSoldeInitial({{ s.id }}, {{ s.solde_initial }})"
+                                        class="text-cyan-400 hover:text-cyan-300 ml-1 transition" title="Déclarer solde initial">
+                                    <i class="fas fa-coins"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endwith %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-10 text-on-surface-variant">
+                <i class="fas fa-check-circle text-4xl text-green-500 mb-2 block"></i>
+                <p class="font-medium">Aucune session ouverte</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Tab: À collecter -->
+        <div x-show="tab === 'attente'" class="divide-y divide-outline/10">
+            {% if sessions_attente %}
+            <div class="overflow-x-auto max-h-[500px] overflow-y-auto">
+                <table class="w-full text-sm">
+                    <thead class="sticky top-0 bg-surface-container-high">
+                        <tr><th class="px-4 py-3 text-left font-medium">PV</th><th class="px-4 py-3 text-left font-medium">Caissier</th><th class="px-4 py-3 text-left font-medium">Fermé par</th><th class="px-4 py-3 text-left font-medium">Fermé le</th><th class="px-4 py-3 text-right font-medium">Ventes</th><th class="px-4 py-3 text-right font-medium">Attendu</th><th class="px-4 py-3 text-center font-medium">Actions</th></tr>
+                    </thead>
+                    <tbody class="divide-y divide-outline/10">
+                        {% for item in sessions_attente %}
+                        {% with s=item.session %}
+                        <tr class="hover:bg-surface-container-low transition-colors">
+                            <td class="px-4 py-3 font-medium">{{ s.point_vente.nom|default:"N/A" }}</td>
+                            <td class="px-4 py-3">{{ s.caissier_ouverture.nom_complet|default:"N/A" }}</td>
+                            <td class="px-4 py-3">{{ item.ferme_par }}</td>
+                            <td class="px-4 py-3 text-on-surface-variant whitespace-nowrap">{{ item.ferme_le }}</td>
+                            <td class="px-4 py-3 text-right font-mono">{{ item.total_ventes|floatformat:0 }}</td>
+                            <td class="px-4 py-3 text-right font-mono font-bold text-secondary">{{ item.solde_attendu|floatformat:0 }} F</td>
+                            <td class="px-4 py-3 text-center">
+                                <button @click="openCollecte({{ s.id }}, '{{ s.point_vente.nom|escapejs }}', {{ item.solde_attendu }}, {{ item.total_ventes }}, {{ s.solde_initial }}, '{{ s.date_ouverture|date:"d/m/Y H:i" }}', '{{ s.caissier_ouverture.nom_complet|escapejs }}', 'fermee')"
+                                        class="bg-orange-700 text-white px-4 py-1.5 rounded-lg text-xs font-semibold hover:bg-orange-800 transition">
+                                    <i class="fas fa-hand-holding-usd mr-1"></i>Collecter
+                                </button>
+                            </td>
+                        </tr>
+                        {% endwith %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-10 text-on-surface-variant">
+                <i class="fas fa-check-circle text-4xl text-green-500 mb-2 block"></i>
+                <p class="font-medium">Toutes les sessions fermées ont été collectées</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Tab: Collectées -->
+        <div x-show="tab === 'collectees'" class="divide-y divide-outline/10">
+            {% if collectees %}
+            <div class="overflow-x-auto max-h-[500px] overflow-y-auto">
+                <table class="w-full text-sm">
+                    <thead class="sticky top-0 bg-surface-container-high">
+                        <tr><th class="px-4 py-3 text-left font-medium">PV</th><th class="px-4 py-3 text-left font-medium">Collecté par</th><th class="px-4 py-3 text-left font-medium">Le</th><th class="px-4 py-3 text-right font-medium">Montant</th><th class="px-4 py-3 text-left font-medium">Réf. transfert</th></tr>
+                    </thead>
+                    <tbody class="divide-y divide-outline/10">
+                        {% for item in collectees %}
+                        {% with s=item.session %}
+                        <tr class="hover:bg-surface-container-low transition-colors">
+                            <td class="px-4 py-3 font-medium">{{ s.point_vente.nom|default:"N/A" }}</td>
+                            <td class="px-4 py-3">{{ item.collecte_par }}</td>
+                            <td class="px-4 py-3 text-on-surface-variant whitespace-nowrap">{{ item.collecte_le }}</td>
+                            <td class="px-4 py-3 text-right font-mono font-bold text-secondary">{{ item.montant_transfere|floatformat:0 }} F</td>
+                            <td class="px-4 py-3 text-xs font-mono text-on-surface-variant">{{ item.reference_transfert }}</td>
+                        </tr>
+                        {% endwith %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-10 text-on-surface-variant">
+                <i class="fas fa-inbox text-4xl mb-2 block"></i>
+                <p class="font-medium">Aucune collecte effectuée</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="flex flex-wrap gap-3 justify-center">
+        <a href="{% url 'pos:raf_dashboard' %}" class="bg-surface-container-low border border-outline/10 px-5 py-2.5 rounded-lg hover:bg-surface-container-high transition flex items-center gap-2 text-sm">
+            <i class="fas fa-chart-pie text-secondary"></i> Dashboard
+        </a>
+        <a href="{% url 'pos:raf_transferts' %}" class="bg-surface-container-low border border-outline/10 px-5 py-2.5 rounded-lg hover:bg-surface-container-high transition flex items-center gap-2 text-sm">
+            <i class="fas fa-history text-secondary"></i> Historique transferts
+        </a>
+    </div>
+
+    <!-- ========== MODAL SOLDE INITIAL ========== -->
+    <div x-show="soldeInitialOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" x-cloak>
+        <div class="w-full max-w-sm mx-4 bg-surface-container-low rounded-2xl shadow-2xl overflow-hidden border border-outline/10">
+            <div class="px-6 py-6 text-center">
+                <div class="w-14 h-14 rounded-full bg-cyan-900/30 flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-coins text-2xl text-cyan-400"></i>
+                </div>
+                <h3 class="text-lg font-bold">Déclarer le solde initial</h3>
+                <p class="text-sm text-on-surface-variant mt-1">Ajuster le solde initial de la session (dépôt depuis la centrale)</p>
+            </div>
+            <div class="px-6 pb-4 space-y-3">
+                <div class="bg-surface-container-high rounded-xl p-3 text-sm">
+                    <div class="flex justify-between"><span class="text-on-surface-variant">Session</span><span class="font-medium" x-text="'#' + soldeInit.sessionId"></span></div>
+                    <div class="flex justify-between mt-1"><span class="text-on-surface-variant">Solde initial actuel</span><span class="font-mono" x-text="formatMoney(soldeInit.actuel) + ' F'"></span></div>
+                </div>
+                <div>
+                    <label class="text-sm text-on-surface-variant">Nouveau solde initial (FCFA) *</label>
+                    <input type="number" x-model="soldeInit.nouveau" required step="100" min="0" class="w-full input-md3 rounded-xl text-lg font-mono text-center mt-1">
+                </div>
+                <div x-show="loadingSoldeInit" class="text-center text-sm text-on-surface-variant py-1">
+                    <i class="fas fa-spinner fa-spin mr-2"></i>Traitement...
+                </div>
+                <div x-show="erreurSoldeInit" class="text-center text-sm text-red-400 py-1" x-text="erreurSoldeInit"></div>
+                <div x-show="confirmeeSoldeInit" class="bg-green-900/20 rounded-xl p-3 text-sm text-center">
+                    <p class="font-bold text-green-400"><i class="fas fa-check-circle mr-2"></i>Solde initial mis à jour</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 px-6 py-4 border-t border-outline/10">
+                <template x-if="!confirmeeSoldeInit">
+                    <>
+                        <button @click="soldeInitialOpen = false" :disabled="loadingSoldeInit" class="flex-1 border border-outline/10 py-2.5 rounded-xl text-sm">Annuler</button>
+                        <button @click="validerSoldeInitial()" :disabled="loadingSoldeInit || !soldeInit.nouveau || soldeInit.nouveau < 0"
+                                class="flex-1 py-2.5 rounded-xl text-sm font-bold transition"
+                                :class="loadingSoldeInit || !soldeInit.nouveau || soldeInit.nouveau < 0 ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-cyan-700 text-white hover:bg-cyan-800'">
+                            <i class="fas fa-check mr-1"></i>Valider
+                        </button>
+                    </>
+                </template>
+                <template x-if="confirmeeSoldeInit">
+                    <button @click="soldeInitialOpen = false; window.location.reload()" class="w-full bg-secondary text-black py-2.5 rounded-xl text-sm font-bold">Fermer</button>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== MODAL OUVERTURE ========== -->
+    <div x-show="ouvertureOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" x-cloak>
+        <div class="w-full max-w-sm mx-4 bg-surface-container-low rounded-2xl shadow-2xl overflow-hidden border border-outline/10">
+            <div class="px-6 py-6 text-center">
+                <div class="w-14 h-14 rounded-full bg-cyan-900/30 flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-coins text-2xl text-cyan-400"></i>
+                </div>
+                <h3 class="text-lg font-bold">Dépôt d'ouverture</h3>
+                <p class="text-sm text-on-surface-variant mt-1">Déposer depuis la caisse centrale pour lancer le service</p>
+            </div>
+            <div class="px-6 pb-4 space-y-3">
+                <div class="bg-surface-container-high rounded-xl p-3 text-sm space-y-1">
+                    <div class="flex justify-between"><span class="text-on-surface-variant">Point de vente</span><span class="font-medium" x-text="ouverture.pv"></span></div>
+                    <div class="flex justify-between"><span class="text-on-surface-variant">Employé</span><span x-text="ouverture.employe"></span></div>
+                    <div class="flex justify-between"><span class="text-on-surface-variant">Solde caisse</span><span class="font-mono" x-text="formatMoney(ouverture.soldeActuel) + ' F'"></span></div>
+                </div>
+                <div>
+                    <label class="text-sm text-on-surface-variant">Montant du dépôt (FCFA) *</label>
+                    <input type="number" x-model="ouverture.montantDepot" required step="100" min="1000" class="w-full input-md3 rounded-xl text-lg font-mono text-center mt-1" placeholder="Ex: 100000">
+                </div>
+                <div x-show="ouverture.montantDepot > 0" class="bg-surface-container-high rounded-xl p-3 text-sm">
+                    <div class="flex justify-between">
+                        <span class="text-on-surface-variant">Nouveau solde</span>
+                        <span class="font-bold text-secondary font-mono" x-text="formatMoney(ouverture.soldeActuel + (ouverture.montantDepot || 0)) + ' F'"></span>
+                    </div>
+                </div>
+                <div x-show="loadingOuverture" class="text-center text-sm text-on-surface-variant py-1">
+                    <i class="fas fa-spinner fa-spin mr-2"></i>Traitement...
+                </div>
+                <div x-show="erreurOuverture" class="text-center text-sm text-red-400 py-1" x-text="erreurOuverture"></div>
+                <div x-show="confirmeeOuverture" class="bg-green-900/20 rounded-xl p-3 text-sm text-center">
+                    <p class="font-bold text-green-400"><i class="fas fa-check-circle mr-2"></i>Dépôt effectué</p>
+                    <p class="text-on-surface-variant mt-1" x-text="formatMoney(ouverture.montantDepot) + ' F déposés. Session ouverte.'"></p>
+                </div>
+            </div>
+            <div class="flex items-center gap-3 px-6 py-4 border-t border-outline/10">
+                <template x-if="!confirmeeOuverture">
+                    <>
+                        <button @click="ouvertureOpen = false" :disabled="loadingOuverture" class="flex-1 border border-outline/10 py-2.5 rounded-xl text-sm">Annuler</button>
+                        <button @click="validerDepot()" :disabled="loadingOuverture || !ouverture.montantDepot || ouverture.montantDepot < 1000"
+                                class="flex-1 py-2.5 rounded-xl text-sm font-bold transition"
+                                :class="loadingOuverture || !ouverture.montantDepot || ouverture.montantDepot < 1000 ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-cyan-700 text-white hover:bg-cyan-800'">
+                            <i class="fas fa-check mr-1"></i>Déposer & ouvrir
+                        </button>
+                    </>
+                </template>
+                <template x-if="confirmeeOuverture">
+                    <button @click="fermerOuverture()" class="w-full bg-secondary text-black py-2.5 rounded-xl text-sm font-bold">Fermer</button>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== MODAL COLLECTE ========== -->
+    <div x-show="collecteOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" x-cloak>
+        <div class="w-full max-w-lg mx-4 bg-surface-container-low rounded-2xl shadow-2xl overflow-hidden border border-outline/10">
+            <div class="px-6 pt-6 pb-2">
+                <div class="flex items-center justify-center gap-2 text-xs">
+                    <template x-for="(label, i) in ['Infos', 'Comptage', 'Transfert', 'Confirmation']" :key="i">
+                        <div class="flex items-center gap-2">
+                            <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold"
+                                :class="step === i ? 'bg-secondary text-black' : step > i ? 'bg-green-600 text-white' : 'bg-surface-container-high text-on-surface-variant'">
+                                <span x-text="i + 1"></span>
+                            </div>
+                            <span class="hidden sm:inline" :class="step === i ? 'text-on-surface font-medium' : 'text-on-surface-variant'" x-text="label"></span>
+                            <template x-if="i < 3">
+                                <div class="w-6 h-px bg-outline/20"></div>
+                            </template>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- Step 0: Récap -->
+            <div x-show="step === 0" class="px-6 py-4 space-y-4">
+                <div class="text-center">
+                    <div class="w-14 h-14 rounded-full bg-blue-900/30 flex items-center justify-center mx-auto mb-3">
+                        <i class="fas fa-info-circle text-2xl text-blue-400"></i>
+                    </div>
+                    <h3 class="text-lg font-bold" x-text="collecte.pv"></h3>
+                    <p class="text-sm text-on-surface-variant">Session <span x-text="collecte.type === 'fermee' ? 'fermée le ' + collecte.dateFermeture : 'ouverte le ' + collecte.dateOuverture"></span></p>
+                    <p class="text-xs text-on-surface-variant" x-show="collecte.type === 'fermee'">Déjà fermée par le caissier — collecte différée</p>
+                    <p class="text-xs text-on-surface-variant" x-show="collecte.type === 'ouverte'">Session encore ouverte — fermeture + collecte immédiate</p>
+                </div>
+                <div class="bg-surface-container-high rounded-xl p-4 space-y-2 text-sm">
+                    <div class="flex justify-between"><span class="text-on-surface-variant">Caissier</span><span class="font-medium" x-text="collecte.caissier"></span></div>
+                    <div class="flex justify-between"><span class="text-on-surface-variant">Solde initial</span><span class="font-mono" x-text="formatMoney(collecte.soldeInitial) + ' F'"></span></div>
+                    <div class="flex justify-between"><span class="text-on-surface-variant">Total ventes</span><span class="font-mono" x-text="formatMoney(collecte.totalVentes) + ' F'"></span></div>
+                    <div class="flex justify-between pt-2 border-t border-outline/10">
+                        <span class="font-medium">Solde attendu</span>
+                        <span class="font-bold text-secondary font-mono" x-text="formatMoney(collecte.soldeAttendu) + ' F'"></span>
+                    </div>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button @click="collecteOpen = false" class="flex-1 border border-outline/10 py-2.5 rounded-xl text-sm">Annuler</button>
+                    <button @click="step = 1" class="flex-1 bg-secondary text-black py-2.5 rounded-xl text-sm font-bold hover:bg-secondary/80 transition">
+                        <i class="fas fa-arrow-right mr-1"></i>Commencer
+                    </button>
+                </div>
+            </div>
+
+            <!-- Step 1: Comptage -->
+            <div x-show="step === 1" class="px-6 py-4 space-y-4">
+                <div class="text-center">
+                    <div class="w-14 h-14 rounded-full bg-yellow-900/30 flex items-center justify-center mx-auto mb-3">
+                        <i class="fas fa-calculator text-2xl text-yellow-400"></i>
+                    </div>
+                    <h3 class="text-lg font-bold">Comptage espèces</h3>
+                    <p class="text-sm text-on-surface-variant">Saisissez le montant réel compté dans la caisse</p>
+                </div>
+                <div>
+                    <label class="text-sm text-on-surface-variant">Solde réel (FCFA) *</label>
+                    <input type="number" x-model="collecte.soldeReel" required step="100" class="w-full input-md3 rounded-xl text-lg font-mono text-center mt-1" placeholder="0">
+                </div>
+                <div class="bg-surface-container-high rounded-xl p-3 text-sm space-y-1">
+                    <div class="flex justify-between"><span class="text-on-surface-variant">Solde attendu</span><span class="font-mono font-bold" x-text="formatMoney(collecte.soldeAttendu) + ' F'"></span></div>
+                    <div class="flex justify-between" x-show="collecte.soldeReel">
+                        <span class="text-on-surface-variant">Écart</span>
+                        <span class="font-mono" :class="ecart >= 0 ? 'text-green-400' : 'text-red-400'" x-text="(ecart >= 0 ? '+' : '') + formatMoney(ecart) + ' F'"></span>
+                    </div>
+                </div>
+                <div class="flex gap-2 pt-2">
+                    <button @click="step = 0" class="flex-1 border border-outline/10 py-2.5 rounded-xl text-sm">← Retour</button>
+                    <button @click="step = 2" :disabled="!collecte.soldeReel || collecte.soldeReel < 0"
+                            class="flex-1 py-2.5 rounded-xl text-sm font-bold transition"
+                            :class="!collecte.soldeReel || collecte.soldeReel < 0 ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-secondary text-black hover:bg-secondary/80'">Suivant →</button>
+                </div>
+            </div>
+
+            <!-- Step 2: Transfert -->
+            <div x-show="step === 2" class="px-6 py-4 space-y-4">
+                <div class="text-center">
+                    <div class="w-14 h-14 rounded-full bg-purple-900/30 flex items-center justify-center mx-auto mb-3">
+                        <i class="fas fa-exchange-alt text-2xl text-purple-400"></i>
+                    </div>
+                    <h3 class="text-lg font-bold">Transfert vers Centrale</h3>
+                    <p class="text-sm text-on-surface-variant">Montant à transférer à la caisse centrale</p>
+                </div>
+                <div>
+                    <label class="text-sm text-on-surface-variant">Montant à transférer (FCFA) *</label>
+                    <input type="number" x-model="collecte.montantTransfert" required step="100" class="w-full input-md3 rounded-xl text-lg font-mono text-center mt-1" :max="collecte.soldeReel || 0" placeholder="0">
+                </div>
+                <div class="bg-surface-container-high rounded-xl p-3 text-sm space-y-1">
+                    <div class="flex justify-between"><span class="text-on-surface-variant">Solde réel</span><span class="font-mono" x-text="formatMoney(collecte.soldeReel) + ' F'"></span></div>
+                    <div class="flex justify-between"><span class="text-on-surface-variant">Transfert → centrale</span><span class="font-mono text-purple-400" x-text="'-' + formatMoney(collecte.montantTransfert || 0) + ' F'"></span></div>
+                    <div class="flex justify-between pt-2 border-t border-outline/10">
+                        <span class="font-medium">Restant dans la caisse</span>
+                        <span class="font-bold font-mono" :class="reste >= 0 ? 'text-green-400' : 'text-red-400'" x-text="formatMoney(reste) + ' F'"></span>
+                    </div>
+                </div>
+                <div><textarea x-model="collecte.notes" rows="2" class="w-full input-md3 rounded-xl text-sm" placeholder="Notes (écart, observations...)"></textarea></div>
+                <div class="flex gap-2 pt-2">
+                    <button @click="step = 1" class="flex-1 border border-outline/10 py-2.5 rounded-xl text-sm">← Retour</button>
+                    <button @click="step = 3" :disabled="collecte.montantTransfert === null || collecte.montantTransfert < 0 || (collecte.montantTransfert || 0) > (collecte.soldeReel || 0)"
+                            class="flex-1 py-2.5 rounded-xl text-sm font-bold transition"
+                            :class="collecte.montantTransfert === null || collecte.montantTransfert < 0 || (collecte.montantTransfert || 0) > (collecte.soldeReel || 0) ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-secondary text-black hover:bg-secondary/80'">Suivant →</button>
+                </div>
+            </div>
+
+            <!-- Step 3: Confirmation -->
+            <div x-show="step === 3" class="px-6 py-4 space-y-4">
+                <div class="text-center">
+                    <div class="w-14 h-14 rounded-full" :class="confirmee ? 'bg-green-900/30' : 'bg-orange-900/30'" class="flex items-center justify-center mx-auto mb-3">
+                        <i class="fas text-2xl" :class="confirmee ? 'fa-check-circle text-green-400' : 'fa-check-double text-orange-400'"></i>
+                    </div>
+                    <h3 class="text-lg font-bold" x-text="confirmee ? 'Collecte effectuée !' : 'Confirmer la collecte'"></h3>
+                    <p class="text-sm text-on-surface-variant" x-text="confirmee ? 'Les fonds ont été transférés à la caisse centrale.' : 'Vérifiez les montants avant de valider'"></p>
+                </div>
+                <div x-show="!confirmee" class="bg-surface-container-high rounded-xl p-4 text-sm space-y-2">
+                    <div class="flex justify-between"><span class="text-on-surface-variant">Solde réel</span><span class="font-mono font-bold" x-text="formatMoney(collecte.soldeReel) + ' F'"></span></div>
+                    <div class="flex justify-between"><span class="text-on-surface-variant">Transfert vers centrale</span><span class="font-mono text-purple-400 font-bold" x-text="formatMoney(collecte.montantTransfert) + ' F'"></span></div>
+                    <div class="flex justify-between"><span class="text-on-surface-variant">Restant dans la caisse</span><span class="font-mono text-green-400 font-bold" x-text="formatMoney(reste) + ' F'"></span></div>
+                    <div class="flex justify-between pt-2 border-t border-outline/10">
+                        <span class="text-on-surface-variant">Écart</span>
+                        <span class="font-mono" :class="ecart >= 0 ? 'text-green-400' : 'text-red-400'" x-text="(ecart >= 0 ? '+' : '') + formatMoney(ecart) + ' F'"></span>
+                    </div>
+                </div>
+                <div x-show="confirmee" class="bg-green-900/20 rounded-xl p-4 text-sm text-center">
+                    <p class="font-bold text-green-400"><i class="fas fa-check-circle mr-2"></i><span x-text="collecte.type === 'fermee' ? 'Fonds collectes' : 'Session cloturee et fonds collectes'"></span> avec succes</p>
+                    <p class="text-on-surface-variant mt-1" x-text="formatMoney(collecte.montantTransfert) + ' F transférés à la caisse centrale'"></p>
+                </div>
+                <div x-show="loading && !confirmee" class="text-center text-sm text-on-surface-variant py-2">
+                    <i class="fas fa-spinner fa-spin mr-2"></i>Traitement en cours...
+                </div>
+                <div x-show="erreur" class="text-center text-sm text-red-400 py-2" x-text="erreur"></div>
+                <div class="flex gap-2 pt-2">
+                    <template x-if="!confirmee">
+                        <>
+                            <button @click="step = 2" :disabled="loading" class="flex-1 border border-outline/10 py-2.5 rounded-xl text-sm">← Retour</button>
+                            <button @click="validerCollecte()" :disabled="loading"
+                                    class="flex-1 py-2.5 rounded-xl text-sm font-bold transition"
+                                    :class="loading ? 'bg-gray-600 text-gray-400 cursor-not-allowed' : 'bg-green-700 text-white hover:bg-green-800'">
+                                <i class="fas fa-check-double mr-1"></i>Confirmer la collecte
+                            </button>
+                        </>
+                    </template>
+                    <template x-if="confirmee">
+                        <div class="w-full flex gap-2">
+                            <button @click="fermerModal()" class="flex-1 border border-outline/10 py-2.5 rounded-xl text-sm">Fermer</button>
+                            <button @click="window.location.reload()" class="flex-1 bg-secondary text-black py-2.5 rounded-xl text-sm font-bold">Nouvelle collecte</button>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function rafCollecte() {
+    return {
+        tab: 'ouvertes',
+        // Collecte
+        collecteOpen: false, step: 0, loading: false, confirmee: false, erreur: '',
+        collecte: {
+            sessionId: null, pv: '', soldeInitial: 0, totalVentes: 0, soldeAttendu: 0,
+            dateOuverture: '', dateFermeture: '', caissier: '', type: 'ouverte',
+            soldeReel: null, montantTransfert: null, notes: '',
+        },
+        // Ouverture
+        ouvertureOpen: false, loadingOuverture: false, confirmeeOuverture: false, erreurOuverture: '',
+        ouverture: { pointVenteId: null, caisseId: null, planningId: null, pv: '', employe: '', soldeActuel: 0, montantDepot: null },
+        // Solde initial
+        soldeInitialOpen: false, loadingSoldeInit: false, confirmeeSoldeInit: false, erreurSoldeInit: '',
+        soldeInit: { sessionId: null, actuel: 0, nouveau: null },
+
+        initCollecte() { this.tab = 'ouvertes'; },
+
+        get ecart() { return this.collecte.soldeReel ? this.collecte.soldeReel - this.collecte.soldeAttendu : 0; },
+        get reste() { return (this.collecte.soldeReel || 0) - (this.collecte.montantTransfert || 0); },
+
+        // Ouverture
+        openOuverture(pvId, caisseId, planningId, pv, emp, solde) {
+            this.ouverture = { pointVenteId: pvId, caisseId, planningId, pv, employe: emp, soldeActuel: solde, montantDepot: null };
+            this.loadingOuverture = false; this.confirmeeOuverture = false; this.erreurOuverture = '';
+            this.ouvertureOpen = true;
+        },
+        async validerDepot() {
+            if (this.loadingOuverture) return;
+            this.loadingOuverture = true; this.erreurOuverture = '';
+            try {
+                const r = await fetch('/pos/api/raf/ouvrir-depot/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+                    body: JSON.stringify({
+                        point_vente_id: this.ouverture.pointVenteId, caisse_id: this.ouverture.caisseId,
+                        planning_id: this.ouverture.planningId, montant_depot: this.ouverture.montantDepot,
+                    })
+                });
+                const d = await r.json();
+                if (!d.success) { this.erreurOuverture = d.error || 'Erreur'; this.loadingOuverture = false; return; }
+                this.confirmeeOuverture = true; this.loadingOuverture = false;
+            } catch(e) { this.erreurOuverture = 'Erreur réseau'; this.loadingOuverture = false; }
+        },
+        fermerOuverture() { this.ouvertureOpen = false; window.location.reload(); },
+
+        // Solde initial
+        openSoldeInitial(sessionId, actuel) {
+            this.soldeInit = { sessionId, actuel, nouveau: null };
+            this.loadingSoldeInit = false; this.confirmeeSoldeInit = false; this.erreurSoldeInit = '';
+            this.soldeInitialOpen = true;
+        },
+        async validerSoldeInitial() {
+            if (this.loadingSoldeInit) return;
+            this.loadingSoldeInit = true; this.erreurSoldeInit = '';
+            try {
+                const r = await fetch('/pos/api/raf/declarer-solde-initial/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+                    body: JSON.stringify({ session_id: this.soldeInit.sessionId, solde_initial: this.soldeInit.nouveau })
+                });
+                const d = await r.json();
+                if (!d.success) { this.erreurSoldeInit = d.error || 'Erreur'; this.loadingSoldeInit = false; return; }
+                this.confirmeeSoldeInit = true; this.loadingSoldeInit = false;
+            } catch(e) { this.erreurSoldeInit = 'Erreur réseau'; this.loadingSoldeInit = false; }
+        },
+
+        // Collecte
+        openCollecte(sessionId, pv, soldeAttendu, totalVentes, soldeInitial, date, caissier, type) {
+            this.collecte = {
+                sessionId, pv, soldeAttendu, totalVentes, soldeInitial,
+                type, caissier,
+                dateOuverture: type === 'ouverte' ? date : '',
+                dateFermeture: type === 'fermee' ? date : '',
+                soldeReel: null, montantTransfert: null, notes: '',
+            };
+            this.step = 0; this.loading = false; this.confirmee = false; this.erreur = '';
+            this.collecteOpen = true;
+        },
+        async validerCollecte() {
+            if (this.loading) return;
+            this.loading = true; this.erreur = '';
+            try {
+                const r = await fetch('/pos/api/raf/collecter/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+                    body: JSON.stringify({
+                        session_id: this.collecte.sessionId, solde_reel: this.collecte.soldeReel,
+                        montant_transfert: this.collecte.montantTransfert || 0, notes: this.collecte.notes
+                    })
+                });
+                const d = await r.json();
+                if (!d.success) { this.erreur = d.error || 'Erreur'; this.loading = false; return; }
+                this.confirmee = true; this.loading = false;
+            } catch(e) { this.erreur = 'Erreur réseau'; this.loading = false; }
+        },
+        fermerModal() { this.collecteOpen = false; window.location.reload(); },
+        formatMoney(v) { return new Intl.NumberFormat('fr-FR').format(v || 0); },
+    }
+}
+</script>
+{% endblock %}

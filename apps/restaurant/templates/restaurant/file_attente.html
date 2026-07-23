@@ -1,0 +1,113 @@
+{% extends "restaurant/base_restaurant.html" %}
+{% load static %}
+
+{% block title %}File d'attente{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
+    
+    <!-- File d'attente -->
+    <div class="bg-surface-container-low shadow-md rounded-xl">
+        <div class="px-6 py-4 border-b border-outline/10">
+            <h3 class="font-semibold">File d'attente</h3>
+            <p class="text-sm text-on-surface-variant">{{ file_attente|length }} client(s) en attente</p>
+        </div>
+        
+        <div class="divide-y divide-outline/10">
+            {% for client in file_attente %}
+            <div class="p-4 hover:bg-surface-container-low">
+                <div class="flex items-start justify-between">
+                    <div>
+                        <div class="font-medium">
+                            {{ client.nom_client|default:"Client anonyme" }}
+                            <span class="px-2 py-0.5 text-xs rounded-full bg-surface-container-high text-on-surface-variant">{{ client.nombre_personnes }} pers.</span>
+                        </div>
+                        <div class="text-sm text-on-surface-variant">
+                            <i class="fas fa-clock"></i> {{ client.date_entree|date:"H:i" }}
+                            {% if client.telephone %}
+                            <span class="ml-2"><i class="fas fa-phone"></i> {{ client.telephone }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div x-data="{ open: false }" class="relative">
+                        <button @click="open = !open" class="px-3 py-1.5 text-xs font-medium text-white rounded-lg bg-secondary hover:bg-secondary/90">
+                            <i class="fas fa-chair"></i> Placer
+                        </button>
+                        <ul x-show="open" @click.away="open = false" x-cloak class="absolute right-0 z-10 w-48 py-1 mt-1 bg-surface-container-low border border-outline/10 rounded-lg shadow-md">
+                            {% for table in tables_libres %}
+                            <li>
+                                <a href="{% url 'restaurant:placer_client' client.id table.numero %}" class="block px-4 py-2 text-sm hover:bg-surface-container-high">
+                                    Table {{ table.numero }} ({{ table.capacite }} pers.)
+                                </a>
+                            </li>
+                            {% empty %}
+                            <li><span class="block px-4 py-2 text-sm text-on-surface-variant">Aucune table libre</span></li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            {% empty %}
+            <div class="p-8 text-center text-on-surface-variant">
+                <i class="mb-2 text-4xl fas fa-check-circle"></i>
+                <p>Aucun client en file d'attente</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    
+    <!-- Ajouter à la file d'attente -->
+    <div class="bg-surface-container-low shadow-md rounded-xl">
+        <div class="px-6 py-4 border-b border-outline/10">
+            <h3 class="font-semibold">Ajouter un client</h3>
+            <p class="text-sm text-on-surface-variant">Enregistrer un client dans la file d'attente</p>
+        </div>
+        
+        <form method="post" class="p-6 space-y-4">
+            {% csrf_token %}
+            
+            <div>
+                <label class="block mb-1 text-sm font-medium text-on-surface">Nom du client (optionnel)</label>
+                <input type="text" name="nom_client" class="input-md3 rounded-lg" placeholder="Nom">
+            </div>
+            
+            <div>
+                <label class="block mb-1 text-sm font-medium text-on-surface">Téléphone (optionnel)</label>
+                <input type="tel" name="telephone" class="input-md3 rounded-lg" placeholder="Numéro de téléphone">
+            </div>
+            
+            <div>
+                <label class="block mb-1 text-sm font-medium text-on-surface">Nombre de personnes <span class="text-red-400">*</span></label>
+                <input type="number" name="nombre_personnes" class="input-md3 rounded-lg" value="2" min="1" required>
+            </div>
+            
+            <button type="submit" class="w-full px-4 py-2 text-sm font-medium text-white rounded-lg bg-secondary hover:bg-secondary/90">
+                <i class="fas fa-plus"></i> Ajouter à la file d'attente
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Tables libres -->
+<div class="mt-6 bg-surface-container-low shadow-md rounded-xl">
+    <div class="px-6 py-4 border-b border-outline/10">
+        <h3 class="font-semibold">Tables disponibles</h3>
+        <p class="text-sm text-on-surface-variant">{{ tables_libres|length }} table(s) libre(s)</p>
+    </div>
+    <div class="grid grid-cols-2 gap-3 p-4 md:grid-cols-4 lg:grid-cols-6">
+        {% for table in tables_libres %}
+        <div class="p-3 text-center transition border border-outline/10 rounded-lg hover:shadow-md">
+            <div class="text-xl font-bold text-green-400">Table {{ table.numero }}</div>
+            <div class="text-sm text-on-surface-variant">{{ table.capacite }} places</div>
+            <div class="mt-2">
+                <a href="{% url 'restaurant:nouvelle_commande' table.numero %}" class="block w-full px-3 py-1.5 text-xs font-medium text-center text-white rounded-lg bg-green-700 hover:bg-green-600">
+                    <i class="fas fa-utensils"></i> Commander
+                </a>
+            </div>
+        </div>
+        {% empty %}
+        <div class="py-4 text-center text-on-surface-variant col-span-full">Aucune table libre</div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

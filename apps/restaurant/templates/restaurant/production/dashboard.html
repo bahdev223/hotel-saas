@@ -1,0 +1,539 @@
+<!-- apps/restaurant/templates/restaurant/production/dashboard.html -->
+{% extends 'restaurant/base_restaurant.html' %}
+{% load static %}
+
+{% block title %}Production{% endblock %}
+
+{% block content %}
+<div class="max-w-6xl mx-auto py-8 px-4">
+    
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold">
+                <i class="fas fa-industry text-secondary mr-2"></i>
+                Production
+            </h1>
+            <p class="text-sm text-on-surface-variant mt-1">
+                ⚠️ Seuls les produits <strong>traçables</strong> (viande, riz, etc.) apparaissent ici.<br>
+                Les consommables (sel, ketchup, etc.) sont gérés par inventaire séparé.
+            </p>
+        </div>
+        <button onclick="ouvrirModalProduction()" class="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/80">
+            <i class="fas fa-plus mr-1"></i> Nouvelle production
+        </button>
+    </div>
+    
+    <!-- Stocks des menus avec images -->
+    <div class="bg-surface-container-low rounded-xl shadow-md p-6 mb-8">
+        <h2 class="font-semibold mb-4 text-lg">📊 Menus disponibles</h2>
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4" id="stocks-list">
+            <div class="col-span-full text-center py-8 text-on-surface-variant">
+                <i class="fas fa-spinner fa-spin text-2xl"></i>
+                <p class="mt-2">Chargement des stocks...</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Historique des productions -->
+    <div class="bg-surface-container-low rounded-xl shadow-md p-6">
+        <h2 class="font-semibold mb-4 text-lg">
+            <i class="fas fa-history mr-2"></i>
+            Historique des productions
+        </h2>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-surface-container-high">
+                    <tr class="border-b">
+                        <th class="px-4 py-3 text-left">ID</th>
+                        <th class="px-4 py-3 text-left">Date</th>
+                        <th class="px-4 py-3 text-left">Menus produits</th>
+                        <th class="px-4 py-3 text-left">Ingrédients consommés</th>
+                        <th class="px-4 py-3 text-left">Produit par</th>
+                        <th class="px-4 py-3 text-left">Notes</th>
+                        <th class="px-4 py-3 text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="historique-list">
+                    <tr>
+                        <td colspan="7" class="text-center py-8 text-on-surface-variant">
+                            <i class="fas fa-spinner fa-spin text-2xl"></i>
+                            <p class="mt-2">Chargement de l'historique...</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal production -->
+<div id="modalProduction" class="fixed inset-0 bg-black/60 backdrop-blur-sm hidden z-50 overflow-y-auto">
+    <div class="min-h-screen flex items-center justify-center p-4">
+        <div class="bg-surface-container-low rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="border-b px-6 py-4 flex justify-between items-center sticky top-0 bg-surface-container-low">
+                <h2 class="text-xl font-bold">Nouvelle production</h2>
+                <button onclick="fermerModal()" class="text-on-surface-variant hover:text-on-surface">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="p-6">
+                <!-- Message info consomables -->
+                <div class="mb-4 p-2 bg-blue-900/20 rounded-lg text-sm text-blue-300">
+                    <i class="fas fa-info-circle mr-1"></i>
+                    Seuls les produits traçables (viande, riz, etc.) sont listés ici.
+                    Les consommables sont gérés par inventaire.
+                </div>
+                
+                <!-- Ingrédients consommés -->
+                <div class="mb-6">
+                    <h3 class="font-semibold mb-3">📦 Ingrédients utilisés (traçables)</h3>
+                    <div id="ingredients-list" class="space-y-2">
+                        <div class="flex gap-2">
+                            <select class="produit-select flex-1 input-md3 rounded-lg px-3 py-2">
+                                <option value="">Choisir un produit traçable</option>
+                                {% for produit in produits %}
+                                <option value="{{ produit.id }}" data-stock="{{ produit.stock_disponible }}">
+                                    {{ produit.nom }} (Stock: {{ produit.stock_disponible|floatformat:0 }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <input type="number" class="quantite-input w-32 input-md3 rounded-lg px-3 py-2" placeholder="Quantité">
+                            <button onclick="ajouterIngredient(this)" class="text-green-400 hover:text-green-300">
+                                <i class="fas fa-plus-circle text-xl"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Menus produits -->
+                <div class="mb-6">
+                    <h3 class="font-semibold mb-3">🍽️ Menus produits</h3>
+                    <div id="menus-list" class="space-y-2">
+                        <div class="flex gap-2">
+                            <select class="menu-select flex-1 input-md3 rounded-lg px-3 py-2">
+                                <option value="">Choisir un menu</option>
+                                {% for menu in menus %}
+                                <option value="{{ menu.id }}" data-image="{{ menu.image.url|default:'' }}">{{ menu.nom }}</option>
+                                {% endfor %}
+                            </select>
+                            <input type="number" class="quantite-menu w-32 input-md3 rounded-lg px-3 py-2" placeholder="Quantité">
+                            <button onclick="ajouterMenu(this)" class="text-green-400 hover:text-green-300">
+                                <i class="fas fa-plus-circle text-xl"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1">Notes</label>
+                    <textarea id="notes" rows="2" class="w-full input-md3 rounded-lg px-3 py-2" placeholder="Lot du matin, production spéciale..."></textarea>
+                </div>
+                
+                <div class="flex justify-end gap-2 pt-4 border-t">
+                    <button onclick="fermerModal()" class="px-4 py-2 border-outline/10 rounded-lg hover:bg-surface-container-low">
+                        Annuler
+                    </button>
+                    <button onclick="lancerProduction()" class="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/80">
+                        <i class="fas fa-save mr-1"></i> Enregistrer production
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Récupérer le token CSRF
+function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        const cookies = document.cookie.split(';');
+        for (let i = 0; i < cookies.length; i++) {
+            const cookie = cookies[i].trim();
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+
+const csrftoken = getCookie('csrftoken');
+
+let ingredientsList = [];
+let menusList = [];
+
+// Stocker les stocks des produits
+let produitsStock = {};
+
+// Initialiser les stocks depuis les options
+document.querySelectorAll('.produit-select option').forEach(opt => {
+    if (opt.value) {
+        produitsStock[opt.value] = parseFloat(opt.getAttribute('data-stock') || 0);
+    }
+});
+
+function ajouterIngredient(btn) {
+    const row = btn.closest('.flex');
+    const select = row.querySelector('.produit-select');
+    const input = row.querySelector('.quantite-input');
+    
+    const produitId = select.value;
+    const option = select.options[select.selectedIndex];
+    const produitNom = option.text.split(' (Stock:')[0];
+    const quantite = parseFloat(input.value);
+    
+    // Récupérer le stock actuel
+    let stockActuel = produitsStock[produitId];
+    if (isNaN(stockActuel)) stockActuel = parseFloat(option.getAttribute('data-stock') || 0);
+    
+    if (!produitId || !quantite || quantite <= 0) {
+        alert('Veuillez sélectionner un produit et une quantité valide');
+        return;
+    }
+    
+    // Vérifier le stock disponible
+    if (quantite > stockActuel) {
+        alert(`❌ Stock insuffisant pour ${produitNom}!\n📦 Disponible: ${stockActuel}\n📝 Demandé: ${quantite}`);
+        return;
+    }
+    
+    // Ajouter à la liste
+    ingredientsList.push({ 
+        produit_id: produitId, 
+        produit_nom: produitNom, 
+        quantite: quantite 
+    });
+    
+    // Mettre à jour le stock local
+    produitsStock[produitId] = stockActuel - quantite;
+    
+    // Mettre à jour l'affichage de l'option
+    option.text = `${produitNom} (Stock: ${produitsStock[produitId]})`;
+    option.setAttribute('data-stock', produitsStock[produitId]);
+    
+    // Supprimer la ligne vide
+    row.remove();
+    
+    // Afficher la liste
+    afficherIngredients();
+    
+    // Ajouter une nouvelle ligne vide
+    ajouterLigneIngredientVide();
+}
+
+function ajouterLigneIngredientVide() {
+    const container = document.getElementById('ingredients-list');
+    const newRow = document.createElement('div');
+    newRow.className = 'flex gap-2';
+    
+    let optionsHtml = '<option value="">Choisir un produit traçable</option>';
+    for (const [id, stock] of Object.entries(produitsStock)) {
+        let produitNom = '';
+        document.querySelectorAll('.produit-select option').forEach(opt => {
+            if (opt.value == id) {
+                produitNom = opt.text.split(' (Stock:')[0];
+            }
+        });
+        optionsHtml += `<option value="${id}" data-stock="${stock}">${produitNom} (Stock: ${Math.floor(stock)})</option>`;
+    }
+    
+    newRow.innerHTML = `
+        <select class="produit-select flex-1 input-md3 rounded-lg px-3 py-2">
+            ${optionsHtml}
+        </select>
+        <input type="number" class="quantite-input w-32 input-md3 rounded-lg px-3 py-2" placeholder="Quantité">
+        <button onclick="ajouterIngredient(this)" class="text-green-400 hover:text-green-300">
+            <i class="fas fa-plus-circle text-xl"></i>
+        </button>
+    `;
+    container.appendChild(newRow);
+}
+
+function afficherIngredients() {
+    const container = document.getElementById('ingredients-list');
+    const existingItems = container.querySelectorAll('.ingredient-item');
+    existingItems.forEach(item => item.remove());
+    
+    ingredientsList.forEach((ing, idx) => {
+        const div = document.createElement('div');
+        div.className = 'ingredient-item flex justify-between items-center p-2 bg-surface-container-high rounded mb-1';
+        div.innerHTML = `
+            <span>📦 ${ing.quantite} x ${ing.produit_nom}</span>
+            <button onclick="supprimerIngredient(${idx})" class="text-red-400 hover:text-red-300">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
+        container.insertBefore(div, container.lastChild);
+    });
+}
+
+function supprimerIngredient(idx) {
+    const ing = ingredientsList[idx];
+    
+    // Restaurer le stock
+    const stockActuel = produitsStock[ing.produit_id] || 0;
+    produitsStock[ing.produit_id] = stockActuel + ing.quantite;
+    
+    // Mettre à jour l'affichage des options
+    document.querySelectorAll('.produit-select option').forEach(opt => {
+        if (opt.value == ing.produit_id) {
+            const produitNom = opt.text.split(' (Stock:')[0];
+            opt.text = `${produitNom} (Stock: ${produitsStock[ing.produit_id]})`;
+            opt.setAttribute('data-stock', produitsStock[ing.produit_id]);
+        }
+    });
+    
+    ingredientsList.splice(idx, 1);
+    afficherIngredients();
+}
+
+// Même logique pour les menus avec image
+function ajouterMenu(btn) {
+    const row = btn.closest('.flex');
+    const select = row.querySelector('.menu-select');
+    const input = row.querySelector('.quantite-menu');
+    
+    const menuId = select.value;
+    const option = select.options[select.selectedIndex];
+    const menuNom = option.text;
+    const menuImage = option.getAttribute('data-image') || '';
+    const quantite = parseFloat(input.value);
+    
+    if (!menuId || !quantite || quantite <= 0) {
+        alert('Veuillez sélectionner un menu et une quantité valide');
+        return;
+    }
+    
+    menusList.push({ 
+        menu_id: menuId, 
+        menu_nom: menuNom, 
+        menu_image: menuImage,
+        quantite: quantite 
+    });
+    row.remove();
+    afficherMenus();
+    ajouterLigneMenuVide();
+}
+
+function ajouterLigneMenuVide() {
+    const container = document.getElementById('menus-list');
+    const newRow = document.createElement('div');
+    newRow.className = 'flex gap-2';
+    newRow.innerHTML = `
+        <select class="menu-select flex-1 input-md3 rounded-lg px-3 py-2">
+            <option value="">Choisir un menu</option>
+            {% for menu in menus %}
+            <option value="{{ menu.id }}" data-image="{{ menu.image.url|default:'' }}">{{ menu.nom }}</option>
+            {% endfor %}
+        </select>
+        <input type="number" class="quantite-menu w-32 input-md3 rounded-lg px-3 py-2" placeholder="Quantité">
+        <button onclick="ajouterMenu(this)" class="text-green-400 hover:text-green-300">
+            <i class="fas fa-plus-circle text-xl"></i>
+        </button>
+    `;
+    container.appendChild(newRow);
+}
+
+function afficherMenus() {
+    const container = document.getElementById('menus-list');
+    const existingItems = container.querySelectorAll('.menu-item');
+    existingItems.forEach(item => item.remove());
+    
+    menusList.forEach((menu, idx) => {
+        const div = document.createElement('div');
+        div.className = 'menu-item flex justify-between items-center p-2 bg-surface-container-high rounded mb-1';
+        div.innerHTML = `
+            <div class="flex items-center gap-2">
+                ${menu.menu_image ? `<img src="${menu.menu_image}" class="w-8 h-8 object-cover rounded" onerror="this.style.display='none'">` : ''}
+                <span>🍽️ ${menu.quantite} x ${menu.menu_nom}</span>
+            </div>
+            <button onclick="supprimerMenu(${idx})" class="text-red-400 hover:text-red-300">
+                <i class="fas fa-trash"></i>
+            </button>
+        `;
+        container.insertBefore(div, container.lastChild);
+    });
+}
+
+function supprimerMenu(idx) {
+    menusList.splice(idx, 1);
+    afficherMenus();
+}
+
+function ouvrirModalProduction() {
+    document.getElementById('modalProduction').classList.remove('hidden');
+}
+
+function fermerModal() {
+    document.getElementById('modalProduction').classList.add('hidden');
+    ingredientsList = [];
+    menusList = [];
+    document.getElementById('notes').value = '';
+    location.reload();
+}
+
+async function lancerProduction() {
+    if (ingredientsList.length === 0) {
+        alert('❌ Ajoutez au moins un ingrédient consommé');
+        return;
+    }
+    
+    if (menusList.length === 0) {
+        alert('❌ Ajoutez au moins un menu produit');
+        return;
+    }
+    
+    const loadingBtn = document.querySelector('#modalProduction button[onclick="lancerProduction()"]');
+    const originalText = loadingBtn.innerHTML;
+    loadingBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i> Traitement...';
+    loadingBtn.disabled = true;
+    
+    try {
+        const response = await fetch('/restaurant/api/production/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrftoken
+            },
+            body: JSON.stringify({
+                ingredients: ingredientsList,
+                lignes: menusList.map(m => ({ menu_id: m.menu_id, quantite: m.quantite })),
+                notes: document.getElementById('notes').value
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            alert('✅ ' + data.message);
+            fermerModal();
+            chargerStocks();
+            chargerHistorique();
+        } else {
+            alert('❌ ' + (data.error || 'Erreur inconnue'));
+        }
+    } catch(e) {
+        console.error('Erreur:', e);
+        alert('❌ Erreur réseau');
+    } finally {
+        loadingBtn.innerHTML = originalText;
+        loadingBtn.disabled = false;
+    }
+}
+
+async function chargerStocks() {
+    try {
+        const response = await fetch('/restaurant/api/production/');
+        const data = await response.json();
+        
+        const container = document.getElementById('stocks-list');
+        
+        if (data.stocks && data.stocks.length > 0) {
+            // Récupérer les images des menus depuis le serveur
+            const menusImages = {};
+            {% for menu in menus %}
+            menusImages[{{ menu.id }}] = "{{ menu.image.url|default:'' }}";
+            {% endfor %}
+            
+            container.innerHTML = data.stocks.map(s => `
+                <div class="p-4 border-outline/10 rounded-lg text-center hover:shadow-md transition">
+                    ${menusImages[parseInt(s.menu_id)] ? 
+                        `<img src="${menusImages[parseInt(s.menu_id)]}" class="w-20 h-20 object-cover rounded-lg mx-auto mb-2" onerror="this.style.display='none'">` : 
+                        `<div class="w-20 h-20 bg-surface-container-high rounded-lg flex items-center justify-center mx-auto mb-2">
+                            <i class="fas fa-utensils text-2xl text-on-surface-variant"></i>
+                        </div>`
+                    }
+                    <div class="font-medium text-on-surface">${s.menu_nom}</div>
+                    <div class="text-3xl font-bold ${s.quantite < 5 ? 'text-red-400' : 'text-green-400'} my-2">
+                        ${Math.floor(s.quantite)}
+                    </div>
+                    <div class="text-xs text-on-surface-variant">menus disponibles</div>
+                    ${s.quantite < 5 ? '<div class="mt-2 text-xs text-red-400">⚠️ Stock bas, produisez !</div>' : ''}
+                </div>
+            `).join('');
+        } else {
+            container.innerHTML = `
+                <div class="col-span-full text-center py-8 text-on-surface-variant">
+                    <i class="fas fa-box-open text-4xl mb-2 block"></i>
+                    <p>Aucun stock disponible</p>
+                    <p class="text-sm">Commencez par produire des menus</p>
+                </div>
+            `;
+        }
+    } catch(e) {
+        console.error('Erreur chargement stocks:', e);
+        document.getElementById('stocks-list').innerHTML = `
+            <div class="col-span-full text-center py-8 text-red-400">
+                <i class="fas fa-exclamation-triangle text-4xl mb-2 block"></i>
+                <p>Erreur de chargement des stocks</p>
+            </div>
+        `;
+    }
+}
+
+async function chargerHistorique() {
+    try {
+        const response = await fetch('/restaurant/api/production/historique/');
+        const data = await response.json();
+        
+        const tbody = document.getElementById('historique-list');
+        
+        if (data.productions && data.productions.length > 0) {
+            tbody.innerHTML = data.productions.map(p => {
+                const menusHtml = (p.menus || []).map(m => `${m.quantite} x ${m.menu_nom}`).join('<br>');
+                const ingredientsHtml = (p.ingredients || []).map(i => `${i.quantite} x ${i.produit_nom}`).join('<br>');
+                return `
+                    <tr class="border-t hover:bg-surface-container-low">
+                        <td class="px-4 py-3 text-sm font-mono">
+                            <a href="/restaurant/production/${p.id}/" class="text-secondary hover:underline">
+                                #${p.id}
+                            </a>
+                        </td>
+                        <td class="px-4 py-3 text-sm whitespace-nowrap">${p.date}</td>
+                        <td class="px-4 py-3 text-sm">${menusHtml || '-'}</td>
+                        <td class="px-4 py-3 text-sm">${ingredientsHtml || '-'}</td>
+                        <td class="px-4 py-3 text-sm text-on-surface-variant">${p.produit_par || '-'}</td>
+                        <td class="px-4 py-3 text-sm text-on-surface-variant">${p.notes || '-'}</td>
+                        <td class="px-4 py-3 text-center">
+                            <a href="/restaurant/production/${p.id}/" class="text-secondary hover:text-secondary/80" title="Voir détail">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        } else {
+            tbody.innerHTML = `
+                <tr>
+                    <td colspan="7" class="text-center py-8 text-on-surface-variant">
+                        <i class="fas fa-history text-3xl mb-2 block"></i>
+                        Aucune production enregistrée
+                    </td>
+                </tr>
+            `;
+        }
+    } catch(e) {
+        console.error('Erreur chargement historique:', e);
+        document.getElementById('historique-list').innerHTML = `
+            <tr>
+                <td colspan="7" class="text-center py-8 text-red-400">
+                    Erreur de chargement de l'historique
+                </td>
+            </tr>
+        `;
+    }
+}
+
+// Charger au démarrage
+chargerStocks();
+chargerHistorique();
+
+// Rafraîchir toutes les 30 secondes
+setInterval(() => {
+    chargerStocks();
+}, 30000);
+</script>
+{% endblock %}

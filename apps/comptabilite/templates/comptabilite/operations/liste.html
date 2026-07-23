@@ -1,0 +1,292 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load static %}
+{% load compta_filters %}
+
+{% block title %}Opérations comptables{% endblock %}
+{% block header %}Opérations{% endblock %}
+{% block subtitle %}Saisie rapide des opérations{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+
+    <!-- Barre d'actions rapides -->
+    <div class="bg-surface-container-low rounded-xl shadow-md p-4">
+        <div class="flex flex-wrap items-center gap-3">
+            <span class="text-sm font-medium text-on-surface-variant mr-2">Nouvelle opération :</span>
+
+            <button onclick="openDialog('depot-client')" class="px-3 py-2 bg-surface-container-high hover:bg-secondary/20 rounded-lg text-sm transition flex items-center gap-2 text-on-surface" {% if est_bloque_compta %}disabled{% endif %}>
+                <i class="fas fa-piggy-bank text-secondary"></i>Dépôt client
+            </button>
+            <button onclick="openDialog('depense')" class="px-3 py-2 bg-surface-container-high hover:bg-secondary/20 rounded-lg text-sm transition flex items-center gap-2 text-on-surface" {% if est_bloque_compta %}disabled{% endif %}>
+                <i class="fas fa-arrow-up text-red-400"></i>Dépense
+            </button>
+            <button onclick="openDialog('paiement-fournisseur')" class="px-3 py-2 bg-surface-container-high hover:bg-secondary/20 rounded-lg text-sm transition flex items-center gap-2 text-on-surface" {% if est_bloque_compta %}disabled{% endif %}>
+                <i class="fas fa-file-invoice text-secondary"></i>Paiement fournisseur
+            </button>
+            <button onclick="openDialog('remboursement')" class="px-3 py-2 bg-surface-container-high hover:bg-secondary/20 rounded-lg text-sm transition flex items-center gap-2 text-on-surface" {% if est_bloque_compta %}disabled{% endif %}>
+                <i class="fas fa-undo-alt text-secondary"></i>Remboursement client
+            </button>
+            <button onclick="openDialog('depot-banque')" class="px-3 py-2 bg-surface-container-high hover:bg-secondary/20 rounded-lg text-sm transition flex items-center gap-2 text-on-surface" {% if est_bloque_compta %}disabled{% endif %}>
+                <i class="fas fa-university text-secondary"></i>Dépôt banque
+            </button>
+        </div>
+    </div>
+
+    <!-- Tableau des opérations -->
+    <div class="bg-surface-container-low rounded-2xl shadow-md overflow-hidden">
+        <div class="px-6 py-4 border-b border-outline/10">
+            <h3 class="font-semibold text-on-surface">Dernières opérations</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-surface-container-high">
+                    <tr class="border-b border-outline/10">
+                        <th class="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Type</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Libellé</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase">Montant</th>
+                        <th class="hidden md:table-cell px-4 py-3 text-center text-xs font-semibold text-on-surface-variant uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10">
+                    {% for op in operations %}
+                    <tr class="hover:bg-surface-container-low transition">
+                        <td class="hidden md:table-cell px-4 py-3">
+                            <span class="text-sm font-medium text-on-surface-variant">{{ op.type_display }}</span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-on-surface-variant">{{ op.date|date:"d/m/Y H:i" }}</td>
+                        <td class="px-4 py-3 text-sm text-on-surface">{{ op.notes|truncatechars:40|default:op.type_display }}</td>
+                        <td class="px-4 py-3 text-right font-mono text-sm {% if op.sens == 'ENTREE' %}text-green-400{% else %}text-red-400{% endif %}">
+                            {% if op.sens == 'SORTIE' %}-{% endif %}{{ op.montant|floatformat:0 }} F
+                        </td>
+                        <td class="hidden md:table-cell px-4 py-3 text-center">
+                            <a href="#" class="text-secondary hover:text-secondary/80 text-sm">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-4 py-8 text-center text-on-surface-variant">
+                            <i class="fas fa-inbox text-4xl mb-2 block"></i>
+                            <p>Aucune opération récente</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- ========== DIALOGUES MODAUX ========== -->
+<script>
+function openDialog(id) { document.getElementById('dialog-' + id).showModal(); }
+function closeDialog(id) { document.getElementById('dialog-' + id).close(); }
+</script>
+
+<!-- Dépôt client -->
+<dialog id="dialog-depot-client" class="rounded-2xl shadow-xl p-0 w-full max-w-lg bg-surface-container border border-outline/10">
+    <form method="post" action="{% url 'comptabilite:creer_depot_client' %}" class="p-6 space-y-4">
+        {% csrf_token %}
+        <div class="flex justify-between items-center mb-2">
+            <h3 class="text-lg font-bold text-on-surface">Dépôt client</h3>
+            <button type="button" onclick="closeDialog('depot-client')" class="text-on-surface-variant hover:text-on-surface"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+                <label class="block text-xs font-medium mb-1 text-on-surface">Date</label>
+                <input type="date" name="date_operation" value="{{ today|date:'Y-m-d' }}" class="w-full px-3 py-2 input-md3 rounded-lg text-sm">
+            </div>
+            <div>
+                <label class="block text-xs font-medium mb-1 text-on-surface">Mode</label>
+                <select name="mode_paiement" class="w-full px-3 py-2 input-md3 rounded-lg text-sm">
+                    {% for val, label in modes_paiement %}<option value="{{ val }}">{{ label }}</option>{% endfor %}
+                </select>
+            </div>
+        </div>
+        <div>
+            <label class="block text-xs font-medium mb-1 text-on-surface">Client</label>
+            <select name="client_id" required class="w-full px-3 py-2 input-md3 rounded-lg text-sm">
+                <option value="">-- Sélectionner --</option>
+                {% for c in clients %}
+                <option value="{{ c.id }}" data-solde="{{ client_soldes|get_item:c.id|floatformat:0 }}">{{ c.nom_complet }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div>
+                <label class="block text-xs font-medium mb-1 text-on-surface">Montant (FCFA)</label>
+                <input type="number" step="1" name="montant" required min="1" class="w-full px-3 py-2 input-md3 rounded-lg text-sm" placeholder="0">
+            </div>
+            <div>
+                <label class="block text-xs font-medium mb-1 text-on-surface">Caisse</label>
+                <select name="caisse_id" required class="w-full px-3 py-2 input-md3 rounded-lg text-sm">
+                    <option value="">-- Sélectionner --</option>
+                    {% for caisse in caisses %}
+                    <option value="{{ caisse.id }}">{{ caisse.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div>
+            <label class="block text-xs font-medium mb-1 text-on-surface">Notes</label>
+            <input type="text" name="notes" class="w-full px-3 py-2 input-md3 rounded-lg text-sm" placeholder="Motif du dépôt">
+        </div>
+        <div class="flex gap-3 pt-2">
+            <button type="submit" class="flex-1 bg-secondary text-on-secondary py-2 rounded-lg text-sm" {% if est_bloque_compta %}disabled{% endif %}>Enregistrer</button>
+            <button type="button" onclick="closeDialog('depot-client')" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm text-on-surface">Annuler</button>
+        </div>
+    </form>
+</dialog>
+
+<!-- Paiement client -->
+
+<!-- Recette -->
+
+<!-- Dépense -->
+<dialog id="dialog-depense" class="rounded-2xl shadow-xl p-0 w-full max-w-lg bg-surface-container border border-outline/10">
+    <form method="post" action="{% url 'comptabilite:creer_depense' %}" class="p-6 space-y-4">
+        {% csrf_token %}
+        <div class="flex justify-between items-center mb-2">
+            <h3 class="text-lg font-bold text-on-surface">Dépense</h3>
+            <button type="button" onclick="closeDialog('depense')" class="text-on-surface-variant hover:text-on-surface"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div><label class="block text-xs font-medium mb-1 text-on-surface">Date</label><input type="date" name="date_operation" value="{{ today|date:'Y-m-d' }}" class="w-full px-3 py-2 input-md3 rounded-lg text-sm"></div>
+            <div><label class="block text-xs font-medium mb-1 text-on-surface">Mode</label><select name="mode_paiement" class="w-full px-3 py-2 input-md3 rounded-lg text-sm">{% for val, label in modes_paiement %}<option value="{{ val }}">{{ label }}</option>{% endfor %}</select></div>
+        </div>
+        <div>
+            <label class="block text-xs font-medium mb-1 text-on-surface">Catégorie</label>
+            <select name="categorie" id="cat-select-dlg" required class="w-full px-3 py-2 input-md3 rounded-lg text-sm" onchange="updateSubcatsDlg()">
+                <option value="">-- Sélectionner --</option>
+                {% for cat in categories_depense %}
+                <option value="{{ cat.nom }}" data-subcats="{{ cat.sous_categories|join:',' }}">{{ cat.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="block text-xs font-medium mb-1 text-on-surface">Sous-catégorie</label>
+            <select name="sous_categorie" id="subcat-select-dlg" required class="w-full px-3 py-2 input-md3 rounded-lg text-sm">
+                <option value="">-- D'abord choisir une catégorie --</option>
+            </select>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div><label class="block text-xs font-medium mb-1 text-on-surface">Montant (FCFA)</label><input type="number" step="1" name="montant" required min="1" class="w-full px-3 py-2 input-md3 rounded-lg text-sm" placeholder="0"></div>
+            <div><label class="block text-xs font-medium mb-1 text-on-surface">Caisse</label><select name="caisse_id" required class="w-full px-3 py-2 input-md3 rounded-lg text-sm"><option value="">-- Sélectionner --</option>{% for caisse in caisses %}<option value="{{ caisse.id }}">{{ caisse.nom }}</option>{% endfor %}</select></div>
+        </div>
+        <div><label class="block text-xs font-medium mb-1 text-on-surface">Bénéficiaire</label><input type="text" name="beneficiaire" class="w-full px-3 py-2 input-md3 rounded-lg text-sm" placeholder="Nom du bénéficiaire"></div>
+        <div><label class="block text-xs font-medium mb-1 text-on-surface">Notes</label><input type="text" name="notes" class="w-full px-3 py-2 input-md3 rounded-lg text-sm" placeholder="Motif de la dépense"></div>
+        <div class="flex gap-3 pt-2">
+            <button type="submit" class="flex-1 bg-secondary text-on-secondary py-2 rounded-lg text-sm" {% if est_bloque_compta %}disabled{% endif %}>Enregistrer</button>
+            <button type="button" onclick="closeDialog('depense')" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm text-on-surface">Annuler</button>
+        </div>
+    </form>
+</dialog>
+
+<script>
+function updateSubcatsDlg() {
+    const catSelect = document.getElementById('cat-select-dlg');
+    const subcatSelect = document.getElementById('subcat-select-dlg');
+    const selected = catSelect.options[catSelect.selectedIndex];
+    subcatSelect.innerHTML = '';
+    if (!selected || !selected.value) {
+        subcatSelect.innerHTML = '<option value="">-- D\'abord choisir une catégorie --</option>';
+        return;
+    }
+    const subcats = selected.dataset.subcats ? selected.dataset.subcats.split(',') : [];
+    subcatSelect.innerHTML = '<option value="">-- Choisir --</option>';
+    subcats.forEach(function(name) {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        subcatSelect.appendChild(opt);
+    });
+}
+</script>
+
+<!-- Paiement fournisseur -->
+<dialog id="dialog-paiement-fournisseur" class="rounded-2xl shadow-xl p-0 w-full max-w-lg bg-surface-container border border-outline/10">
+    <form method="post" action="{% url 'comptabilite:creer_paiement_fournisseur' %}" class="p-6 space-y-4">
+        {% csrf_token %}
+        <div class="flex justify-between items-center mb-2">
+            <h3 class="text-lg font-bold text-on-surface">Paiement fournisseur</h3>
+            <button type="button" onclick="closeDialog('paiement-fournisseur')" class="text-on-surface-variant hover:text-on-surface"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div><label class="block text-xs font-medium mb-1 text-on-surface">Date</label><input type="date" name="date_operation" value="{{ today|date:'Y-m-d' }}" class="w-full px-3 py-2 input-md3 rounded-lg text-sm"></div>
+            <div><label class="block text-xs font-medium mb-1 text-on-surface">Mode</label><select name="mode_paiement" class="w-full px-3 py-2 input-md3 rounded-lg text-sm">{% for val, label in modes_paiement %}<option value="{{ val }}">{{ label }}</option>{% endfor %}</select></div>
+        </div>
+        <div><label class="block text-xs font-medium mb-1 text-on-surface">Fournisseur</label><select name="fournisseur_id" required class="w-full px-3 py-2 input-md3 rounded-lg text-sm"><option value="">-- Sélectionner --</option>{% for f in fournisseurs %}<option value="{{ f.id }}">{{ f.nom }}</option>{% endfor %}</select></div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div><label class="block text-xs font-medium mb-1">Montant (FCFA)</label><input type="number" step="1" name="montant" required min="1" class="w-full px-3 py-2 input-md3 rounded-lg text-sm" placeholder="0"></div>
+            <div><label class="block text-xs font-medium mb-1">Caisse</label><select name="caisse_id" required class="w-full px-3 py-2 input-md3 rounded-lg text-sm"><option value="">-- Sélectionner --</option>{% for caisse in caisses %}<option value="{{ caisse.id }}">{{ caisse.nom }}</option>{% endfor %}</select></div>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div><label class="block text-xs font-medium mb-1 text-on-surface">N° Facture</label><input type="text" name="reference_facture" class="w-full px-3 py-2 input-md3 rounded-lg text-sm" placeholder="Optionnel"></div>
+            <div><label class="block text-xs font-medium mb-1 text-on-surface">Notes</label><input type="text" name="notes" class="w-full px-3 py-2 input-md3 rounded-lg text-sm" placeholder="Libellé"></div>
+        </div>
+        <div class="flex gap-3 pt-2">
+            <button type="submit" class="flex-1 bg-secondary text-on-secondary py-2 rounded-lg text-sm" {% if est_bloque_compta %}disabled{% endif %}>Enregistrer</button>
+            <button type="button" onclick="closeDialog('paiement-fournisseur')" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm text-on-surface">Annuler</button>
+        </div>
+    </form>
+</dialog>
+
+<!-- Remboursement client -->
+<dialog id="dialog-remboursement" class="rounded-2xl shadow-xl p-0 w-full max-w-lg bg-surface-container border border-outline/10">
+    <form method="post" action="{% url 'comptabilite:creer_remboursement_client' %}" class="p-6 space-y-4">
+        {% csrf_token %}
+        <div class="flex justify-between items-center mb-2">
+            <h3 class="text-lg font-bold text-on-surface">Remboursement client</h3>
+            <button type="button" onclick="closeDialog('remboursement')" class="text-on-surface-variant hover:text-on-surface"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div><label class="block text-xs font-medium mb-1 text-on-surface">Date</label><input type="date" name="date_operation" value="{{ today|date:'Y-m-d' }}" class="w-full px-3 py-2 input-md3 rounded-lg text-sm"></div>
+            <div><label class="block text-xs font-medium mb-1 text-on-surface">Mode</label><select name="mode_paiement" class="w-full px-3 py-2 input-md3 rounded-lg text-sm">{% for val, label in modes_paiement %}<option value="{{ val }}">{{ label }}</option>{% endfor %}</select></div>
+        </div>
+        <div><label class="block text-xs font-medium mb-1 text-on-surface">Client</label><select name="client_id" required class="w-full px-3 py-2 input-md3 rounded-lg text-sm"><option value="">-- Sélectionner --</option>{% for c in clients %}<option value="{{ c.id }}">{{ c.nom_complet }}</option>{% endfor %}</select></div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div><label class="block text-xs font-medium mb-1 text-on-surface">Montant (FCFA)</label><input type="number" step="1" name="montant" required min="1" class="w-full px-3 py-2 input-md3 rounded-lg text-sm" placeholder="0"></div>
+            <div><label class="block text-xs font-medium mb-1 text-on-surface">Caisse</label><select name="caisse_id" required class="w-full px-3 py-2 input-md3 rounded-lg text-sm"><option value="">-- Sélectionner --</option>{% for caisse in caisses %}<option value="{{ caisse.id }}">{{ caisse.nom }}</option>{% endfor %}</select></div>
+        </div>
+        <div><label class="block text-xs font-medium mb-1 text-on-surface">Notes</label><input type="text" name="notes" class="w-full px-3 py-2 input-md3 rounded-lg text-sm" placeholder="Motif du remboursement"></div>
+        <div class="flex gap-3 pt-2">
+            <button type="submit" class="flex-1 bg-secondary text-on-secondary py-2 rounded-lg text-sm" {% if est_bloque_compta %}disabled{% endif %}>Enregistrer</button>
+            <button type="button" onclick="closeDialog('remboursement')" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm text-on-surface">Annuler</button>
+        </div>
+    </form>
+</dialog>
+
+<!-- Dépôt banque -->
+<dialog id="dialog-depot-banque" class="rounded-2xl shadow-xl p-0 w-full max-w-lg bg-surface-container border border-outline/10">
+    <form method="post" action="{% url 'comptabilite:creer_depot_banque' %}" class="p-6 space-y-4">
+        {% csrf_token %}
+        <div class="flex justify-between items-center mb-2">
+            <h3 class="text-lg font-bold text-on-surface">Dépôt banque</h3>
+            <button type="button" onclick="closeDialog('depot-banque')" class="text-on-surface-variant hover:text-on-surface"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div><label class="block text-xs font-medium mb-1 text-on-surface">Date</label><input type="date" name="date_operation" value="{{ today|date:'Y-m-d' }}" class="w-full px-3 py-2 input-md3 rounded-lg text-sm"></div>
+            <div><label class="block text-xs font-medium mb-1 text-on-surface">Caisse source</label><select name="caisse_id" required class="w-full px-3 py-2 input-md3 rounded-lg text-sm"><option value="">-- Sélectionner --</option>{% for caisse in caisses %}<option value="{{ caisse.id }}">{{ caisse.nom }}</option>{% endfor %}</select></div>
+        </div>
+        <div><label class="block text-xs font-medium mb-1 text-on-surface">Montant (FCFA)</label><input type="number" step="1" name="montant" required min="1" class="w-full px-3 py-2 input-md3 rounded-lg text-sm" placeholder="0"></div>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div><label class="block text-xs font-medium mb-1 text-on-surface">Référence</label><input type="text" name="reference" class="w-full px-3 py-2 input-md3 rounded-lg text-sm" placeholder="N° bordereau"></div>
+            <div><label class="block text-xs font-medium mb-1 text-on-surface">Notes</label><input type="text" name="notes" class="w-full px-3 py-2 input-md3 rounded-lg text-sm" placeholder="Optionnel"></div>
+        </div>
+        <div class="flex gap-3 pt-2">
+            <button type="submit" class="flex-1 bg-secondary text-on-secondary py-2 rounded-lg text-sm" {% if est_bloque_compta %}disabled{% endif %}>Enregistrer</button>
+            <button type="button" onclick="closeDialog('depot-banque')" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm text-on-surface">Annuler</button>
+        </div>
+    </form>
+</dialog>
+
+<!-- Retrait banque -->
+
+<style>
+dialog::backdrop { background: rgba(0,0,0,0.5); }
+dialog { max-height: 90vh; overflow-y: auto; }
+</style>
+
+{% endblock %}

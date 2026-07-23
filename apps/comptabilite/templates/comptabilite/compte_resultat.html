@@ -1,0 +1,93 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load static %}
+
+{% block title %}Compte de résultat{% endblock %}
+
+{% block header %}Compte de résultat{% endblock %}
+{% block subtitle %}Performance de l'exercice {{ exercice_courant.code }}{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    
+    <!-- CHARGES -->
+    <div class="bg-surface-container-low rounded-xl shadow-md">
+        <div class="px-6 py-4 border-b border-outline/10 bg-error/10">
+            <h3 class="font-bold text-error text-lg">CHARGES</h3>
+            <p class="text-xs text-on-surface-variant">Ce que l'entreprise a consommé</p>
+        </div>
+        <div class="divide-y divide-outline/10">
+            {% for item in charges %}
+            <div class="px-6 py-3 flex justify-between hover:bg-surface-container-low">
+                <div>
+                    <span class="font-mono text-sm text-on-surface-variant">{{ item.compte__code }}</span>
+                    <span class="ml-2 text-sm">{{ item.compte__libelle|truncatechars:40 }}</span>
+                </div>
+                <span class="font-mono font-bold text-error">{{ item.solde|floatformat:0 }} F</span>
+            </div>
+            {% empty %}
+            <div class="px-6 py-8 text-center text-on-surface-variant">Aucune charge enregistrée</div>
+            {% endfor %}
+        </div>
+        <div class="px-6 py-3 border-t border-outline/10 bg-surface-container-high flex justify-between font-bold">
+            <span>TOTAL CHARGES</span>
+            <span class="text-error">{{ total_charges|floatformat:0 }} F</span>
+        </div>
+    </div>
+    
+    <!-- PRODUITS -->
+    <div class="bg-surface-container-low rounded-xl shadow-md">
+        <div class="px-6 py-4 border-b border-outline/10 bg-success/10">
+            <h3 class="font-bold text-success text-lg">PRODUITS</h3>
+            <p class="text-xs text-on-surface-variant">Ce que l'entreprise a gagné</p>
+        </div>
+        <div class="divide-y divide-outline/10">
+            {% for item in produits %}
+            <div class="px-6 py-3 flex justify-between hover:bg-surface-container-low">
+                <div>
+                    <span class="font-mono text-sm text-on-surface-variant">{{ item.compte__code }}</span>
+                    <span class="ml-2 text-sm">{{ item.compte__libelle|truncatechars:40 }}</span>
+                </div>
+                <span class="font-mono font-bold text-success">{{ item.solde|floatformat:0 }} F</span>
+            </div>
+            {% empty %}
+            <div class="px-6 py-8 text-center text-on-surface-variant">Aucun produit enregistré</div>
+            {% endfor %}
+        </div>
+        <div class="px-6 py-3 border-t border-outline/10 bg-surface-container-high flex justify-between font-bold">
+            <span>TOTAL PRODUITS</span>
+            <span class="text-success">{{ total_produits|floatformat:0 }} F</span>
+        </div>
+    </div>
+</div>
+
+<!-- RÉSULTAT -->
+<div class="mt-6 bg-surface-container-low rounded-xl shadow-md">
+    <div class="p-6 text-center">
+        <div class="inline-block p-4 rounded-lg 
+            {% if resultat > 0 %}bg-success/10 border border-success/30
+            {% elif resultat < 0 %}bg-error/10 border border-error/30
+            {% else %}bg-surface-container-high{% endif %}">
+            
+            <p class="text-sm text-on-surface-variant mb-2">RÉSULTAT DE L'EXERCICE</p>
+            <p class="text-3xl font-bold 
+                {% if resultat > 0 %}text-success
+                {% elif resultat < 0 %}text-error
+                {% else %}text-on-surface-variant{% endif %}">
+                {% if resultat > 0 %}+{% endif %}{{ resultat|floatformat:0 }} F
+            </p>
+            <p class="text-sm mt-2">
+                {% if resultat > 0 %}
+                    <i class="fas fa-arrow-up text-success"></i> {{ resultat_texte }}
+                {% elif resultat < 0 %}
+                    <i class="fas fa-arrow-down text-error"></i> {{ resultat_texte }}
+                {% else %}
+                    <i class="fas fa-equals text-on-surface-variant"></i> {{ resultat_texte }}
+                {% endif %}
+            </p>
+        </div>
+        <p class="text-xs text-on-surface-variant mt-4">
+            Formule: Produits - Charges = {{ total_produits|floatformat:0 }} - {{ total_charges|floatformat:0 }} = {{ resultat|floatformat:0 }} F
+        </p>
+    </div>
+</div>
+{% endblock %}

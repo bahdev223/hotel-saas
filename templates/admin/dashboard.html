@@ -1,0 +1,51 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static %}
+
+{% block title %}Dashboard Admin | Résidence DAMOU{% endblock %}
+
+{% block extrastyle %}
+{{ block.super }}
+<style>
+.grid-stats { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1.25rem; margin-top: 1.5rem; }
+.stat-card { background: var(--color-surface-container-low); border: 1px solid var(--color-outline); border-radius: 1rem; padding: 1.25rem; transition: all 0.2s; }
+.stat-card:hover { border-color: var(--color-secondary); transform: translateY(-2px); }
+.stat-number { font-size: 1.75rem; font-weight: 700; margin-top: 0.25rem; }
+.stat-label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-on-surface-variant); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div>
+    <h1 style="font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 0.5rem;">
+        <i class="fas fa-chart-pie" style="color: var(--color-secondary);"></i>
+        Administration - Dashboard
+    </h1>
+    <p style="color: var(--color-on-surface-variant); margin-top: 0.25rem;">Vue d'ensemble du système</p>
+
+    <div class="grid-stats">
+        <div class="stat-card">
+            <div class="stat-label">Utilisateurs</div>
+            <div class="stat-number">{{ stats.total_users }}</div>
+            <div style="font-size: 0.75rem; color: var(--color-on-surface-variant); margin-top: 0.25rem;">
+                {{ stats.active_users }} actifs
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Groupes</div>
+            <div class="stat-number">{{ stats.total_groups }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Départements</div>
+            <div class="stat-number">{{ stats.total_departements }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Postes</div>
+            <div class="stat-number">{{ stats.total_postes }}</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-label">Employés</div>
+            <div class="stat-number">{{ stats.total_employes }}</div>
+        </div>
+    </div>
+</div>
+{% endblock %}

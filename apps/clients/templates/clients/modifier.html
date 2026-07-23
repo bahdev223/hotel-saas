@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Modifier {{ client.nom_complet }}{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto space-y-6">
+    <div class="flex items-center gap-4">
+        <a href="{% url 'clients:detail' client.id %}" class="text-on-surface-variant hover:text-on-surface"><i class="fas fa-arrow-left text-xl"></i></a>
+        <div>
+            <h1 class="text-2xl font-bold text-on-surface">
+                <i class="fas fa-user-edit text-secondary mr-2"></i>Modifier
+            </h1>
+            <p class="text-sm text-on-surface-variant mt-1">{{ client.nom_complet }} · {{ client.id }}</p>
+        </div>
+    </div>
+
+    <form method="post" class="card-md3 p-6 space-y-4">
+        {% csrf_token %}
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="label-md3">Nom <span class="text-error">*</span></label>
+                <input type="text" name="nom" value="{{ client.nom }}" required class="input-md3 rounded-lg w-full">
+            </div>
+            <div>
+                <label class="label-md3">Prénom</label>
+                <input type="text" name="prenom" value="{{ client.prenom }}" class="input-md3 rounded-lg w-full">
+            </div>
+        </div>
+        <div>
+            <label class="label-md3">Téléphone <span class="text-red-400">*</span></label>
+            <input type="text" name="telephone" value="{{ client.telephone|default:'' }}" required class="input-md3 rounded-lg w-full">
+        </div>
+        <div>
+            <label class="label-md3">Email</label>
+            <input type="email" name="email" value="{{ client.email|default:'' }}" class="input-md3 rounded-lg w-full">
+        </div>
+        <div>
+            <label class="label-md3">Adresse</label>
+            <textarea name="adresse" class="input-md3 rounded-lg w-full text-sm" rows="2">{{ client.adresse|default:'' }}</textarea>
+        </div>
+        <div>
+            <label class="label-md3">Type de client</label>
+            <select name="type_client" class="input-md3 rounded-lg w-full">
+                {% for t in types_client %}
+                <option value="{{ t }}" {% if client.type_client == t %}selected{% endif %}>{{ t }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex gap-3 pt-2">
+            <button type="submit" class="flex-1 btn-md3-primary py-2 rounded-lg text-sm"><i class="fas fa-save mr-1"></i>Enregistrer</button>
+            <a href="{% url 'clients:detail' client.id %}" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm text-center hover:bg-surface-container-high transition">Annuler</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

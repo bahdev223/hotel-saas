@@ -1,0 +1,371 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load static %}
+
+{% block title %}Écritures comptables{% endblock %}
+
+{% block header %}Écritures comptables{% endblock %}
+{% block subtitle %}Gestion des écritures de l'exercice {{ exercice_courant.code }}{% endblock %}
+
+{% block content %}
+<div x-data="ecrituresApp()" class="space-y-6">
+    
+    <!-- Bouton Nouvelle écriture -->
+        <div class="flex flex-wrap justify-between items-center gap-2">
+            <div class="flex flex-wrap gap-2">
+                <a href="?statut=toutes" class="btn btn-sm {% if not filtre_statut or filtre_statut == 'toutes' %}btn-primary{% else %}btn-ghost{% endif %}">
+                    Toutes
+                </a>
+                <a href="?statut=validee" class="btn btn-sm {% if filtre_statut == 'validee' %}btn-primary{% else %}btn-ghost{% endif %}">
+                    Validées
+                </a>
+                <a href="?statut=non_validee" class="btn btn-sm {% if filtre_statut == 'non_validee' %}btn-primary{% else %}btn-ghost{% endif %}">
+                    Non validées
+                </a>
+            </div>
+            <div class="flex flex-wrap gap-2 items-center">
+                <select class="select select-bordered select-sm w-full md:w-auto" onchange="window.location.href='?journal='+this.value">
+                <option value="">Tous les journaux</option>
+                {% for j in journaux %}
+                <option value="{{ j.code }}" {% if filtre_journal == j.code %}selected{% endif %}>{{ j.code }} - {{ j.libelle }}</option>
+                {% endfor %}
+            </select>
+            
+            <button @click="openModal()"
+                    :disabled="{{ est_bloque_compta|lower }}"
+                    class="w-full md:w-auto bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 flex items-center gap-2 transition">
+                <i class="fas fa-plus"></i>
+                Nouvelle écriture
+            </button>
+        </div>
+    </div>
+    
+    <!-- Tableau -->
+    <div class="bg-surface-container-low rounded-2xl shadow-md overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-surface-container-high">
+                    <tr class="border-b border-outline/10">
+                        <th class="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">Référence</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">Date</th>
+                        <th class="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">Journal</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">Libellé</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">Total Débit</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">Total Crédit</th>
+                        <th class="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">Statut</th>
+                        <th class="hidden md:table-cell px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10">
+                    {% for ecriture in ecritures %}
+                    <tr class="hover:bg-surface-container-low">
+                        <td class="hidden md:table-cell px-6 py-3 font-mono text-sm">{{ ecriture.reference }}</td>
+                        <td class="px-6 py-3 text-sm">{{ ecriture.date_ecriture|date:"d/m/Y" }}</td>
+                        <td class="hidden md:table-cell px-6 py-3 text-sm">{{ ecriture.journal.code }}</td>
+                        <td class="px-6 py-3 text-sm max-w-md truncate" title="{{ ecriture.libelle }}">{{ ecriture.libelle|truncatechars:50 }}</td>
+                        <td class="px-6 py-3 text-sm font-mono text-red-400">{{ ecriture.total_debit|floatformat:0|default:"0" }} F</td>
+                        <td class="px-6 py-3 text-sm font-mono text-green-400">{{ ecriture.total_credit|floatformat:0|default:"0" }} F</td>
+                        <td class="hidden md:table-cell px-6 py-3">
+                            {% if ecriture.validee %}
+                                <span class="badge badge-success badge-sm">Validée</span>
+                            {% else %}
+                                <span class="badge badge-warning badge-sm">En attente</span>
+                            {% endif %}
+                        </td>
+                        <td class="hidden md:table-cell px-6 py-3">
+                            <a href="{% url 'comptabilite:ecriture_detail' ecriture.id %}" class="text-emerald-400 hover:text-emerald-800 text-sm">
+                                <i class="fas fa-eye"></i> Détail
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="px-6 py-8 text-center text-on-surface-variant">
+                            <i class="fas fa-book-open text-4xl mb-2 block"></i>
+                            Aucune écriture trouvée
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="bg-surface-container-high font-semibold border-t border-outline/10">
+                    <tr>
+                        <td colspan="4" class="px-6 py-3 text-right">TOTAUX :</td>
+                        <td class="px-6 py-3 font-mono text-red-400">{{ total_debit|floatformat:0|default:"0" }} F</td>
+                        <td class="px-6 py-3 font-mono text-green-400">{{ total_credit|floatformat:0|default:"0" }} F</td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
+    <!-- MODAL NOUVELLE ÉCRITURE -->
+    <div x-show="modalOpen" 
+         x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" 
+         @click.away="modalOpen = false">
+        
+        <div class="bg-surface-container-low rounded-2xl shadow-2xl w-full max-w-5xl max-h-[90vh] overflow-hidden" @click.stop>
+            
+            <!-- En-tête -->
+            <div class="flex justify-between items-center p-5 border-b border-outline/10 bg-surface-container-high">
+                <h2 class="text-lg font-semibold text-on-surface">
+                    <i class="fas fa-pen-alt text-emerald-400 mr-2"></i>
+                    Nouvelle écriture comptable
+                </h2>
+                <button @click="modalOpen = false" class="text-on-surface-variant hover:text-on-surface transition">✕</button>
+            </div>
+            
+            <!-- Formulaire -->
+            <div class="p-5 overflow-y-auto" style="max-height: calc(90vh - 120px)">
+                <form @submit.prevent="saveEcriture">
+                    <div class="grid grid-cols-1 gap-4 md:grid-cols-3 mb-6">
+                        <div>
+                            <label class="block text-sm font-medium text-on-surface mb-1">Date *</label>
+                            <input type="date" x-model="form.date_ecriture" required 
+                                   class="w-full px-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-on-surface mb-1">Journal *</label>
+                            <select x-model="form.journal_id" required 
+                                    class="w-full px-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50">
+                                <option value="">Sélectionner...</option>
+                                {% for journal in journaux %}
+                                <option value="{{ journal.id }}">{{ journal.code }} - {{ journal.libelle }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-on-surface mb-1">Pièce justificative</label>
+                            <input type="text" x-model="form.piece" 
+                                   class="w-full px-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50" 
+                                   placeholder="N° facture, reçu...">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-on-surface mb-1">Libellé *</label>
+                        <input type="text" x-model="form.libelle" required 
+                               class="w-full px-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50" 
+                               placeholder="Ex: Paiement facture fournisseur XXX">
+                    </div>
+                    
+                    <!-- Lignes d'écriture -->
+                    <div class="mb-4">
+                        <div class="flex justify-between items-center mb-3">
+                            <label class="block text-sm font-medium text-on-surface">Lignes d'écriture *</label>
+                            <button type="button" @click="addLigne()" class="text-emerald-400 text-sm hover:underline">
+                                <i class="fas fa-plus mr-1"></i> Ajouter une ligne
+                            </button>
+                        </div>
+                        
+                        <div class="space-y-3">
+                            <template x-for="(ligne, index) in form.lignes" :key="index">
+                                <div class="bg-surface-container-high rounded-lg p-4 relative border-outline/10">
+                                    <button type="button" @click="removeLigne(index)" 
+                                            class="absolute top-2 right-2 text-red-400 hover:text-red-600 transition">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                    
+                                    <div class="grid grid-cols-1 gap-3 md:grid-cols-4">
+                                        <div class="md:col-span-2">
+                                            <label class="block text-xs text-on-surface-variant mb-1">Compte *</label>
+                                            <select x-model="ligne.compte_id" required class="w-full px-3 py-2 input-md3 rounded-lg text-sm">
+                                                <option value="">Sélectionner...</option>
+                                                {% for compte in comptes_actifs %}
+                                                <option value="{{ compte.id }}">{{ compte.code }} - {{ compte.libelle }}</option>
+                                                {% endfor %}
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs text-on-surface-variant mb-1">Débit (F)</label>
+                                            <input type="number" step="100" x-model="ligne.debit" 
+                                                   @input="updateTotals()"
+                                                   class="w-full px-3 py-2 input-md3 rounded-lg text-right font-mono">
+                                        </div>
+                                        <div>
+                                            <label class="block text-xs text-on-surface-variant mb-1">Crédit (F)</label>
+                                            <input type="number" step="100" x-model="ligne.credit" 
+                                                   @input="updateTotals()"
+                                                   class="w-full px-3 py-2 input-md3 rounded-lg text-right font-mono">
+                                        </div>
+                                    </div>
+                                    <div class="mt-2">
+                                        <input type="text" x-model="ligne.libelle" 
+                                               class="w-full px-3 py-1 input-md3 rounded-lg text-sm" 
+                                               placeholder="Libellé de la ligne (optionnel)">
+                                    </div>
+                                </div>
+                            </template>
+                            
+                            <div x-show="form.lignes.length === 0" class="text-center text-on-surface-variant py-8 border-2 border-dashed rounded-lg">
+                                <i class="fas fa-plus-circle text-3xl mb-2 block"></i>
+                                <p>Cliquez sur "Ajouter une ligne" pour commencer</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Récapitulatif -->
+                    <div class="bg-surface-container-high rounded-lg p-4 mb-6">
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-center">
+                            <div>
+                                <p class="text-sm text-on-surface-variant">Total Débit</p>
+                                <p class="text-xl font-bold text-red-400" x-text="formatNumber(totalDebit) + ' F'">0 F</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-on-surface-variant">Total Crédit</p>
+                                <p class="text-xl font-bold text-green-400" x-text="formatNumber(totalCredit) + ' F'">0 F</p>
+                            </div>
+                        </div>
+                        <div x-show="totalDebit !== totalCredit && totalDebit > 0" class="text-center mt-3">
+                            <p class="text-sm text-red-400">
+                                ⚠️ Écriture déséquilibrée (Différence: <span x-text="formatNumber(Math.abs(totalDebit - totalCredit))"></span> F)
+                            </p>
+                        </div>
+                        <div x-show="totalDebit === totalCredit && totalDebit > 0" class="text-center mt-2">
+                            <p class="text-sm text-green-400">✓ Écriture équilibrée</p>
+                        </div>
+                    </div>
+                    
+                    <div class="mb-6">
+                        <label class="block text-sm font-medium text-on-surface mb-1">Notes internes</label>
+                        <textarea x-model="form.notes" rows="2" class="w-full px-3 py-2 input-md3 rounded-lg" 
+                                  placeholder="Informations complémentaires..."></textarea>
+                    </div>
+                    
+                    <!-- Boutons -->
+                    <div class="flex gap-3 justify-end pt-4 border-t border-outline/10">
+                        <button type="button" @click="modalOpen = false" 
+                                class="px-4 py-2 border-outline/10 rounded-lg hover:bg-surface-container-low transition text-on-surface">
+                            Annuler
+                        </button>
+                        <button type="submit" 
+                                :disabled="totalDebit !== totalCredit || totalDebit === 0 || {{ est_bloque_compta|lower }}"
+                                class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 disabled:bg-gray-400 disabled:cursor-not-allowed transition">
+                            <i class="fas fa-save mr-2"></i>
+                            Enregistrer l'écriture
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function ecrituresApp() {
+        return {
+            modalOpen: false,
+            form: {
+                date_ecriture: new Date().toISOString().split('T')[0],
+                journal_id: '',
+                piece: '',
+                libelle: '',
+                notes: '',
+                lignes: []
+            },
+            totalDebit: 0,
+            totalCredit: 0,
+            
+            openModal() {
+                this.modalOpen = true;
+                this.form = {
+                    date_ecriture: new Date().toISOString().split('T')[0],
+                    journal_id: '',
+                    piece: '',
+                    libelle: '',
+                    notes: '',
+                    lignes: []
+                };
+                this.totalDebit = 0;
+                this.totalCredit = 0;
+                this.addLigne();
+            },
+            
+            addLigne() {
+                this.form.lignes.push({
+                    compte_id: '',
+                    debit: 0,
+                    credit: 0,
+                    libelle: ''
+                });
+            },
+            
+            removeLigne(index) {
+                this.form.lignes.splice(index, 1);
+                this.updateTotals();
+            },
+            
+            updateTotals() {
+                this.totalDebit = this.form.lignes.reduce((sum, l) => sum + (parseFloat(l.debit) || 0), 0);
+                this.totalCredit = this.form.lignes.reduce((sum, l) => sum + (parseFloat(l.credit) || 0), 0);
+            },
+            
+            formatNumber(value) {
+                return new Intl.NumberFormat('fr-FR').format(value);
+            },
+            
+            getCookie(name) {
+                let value = `; ${document.cookie}`;
+                let parts = value.split(`; ${name}=`);
+                return parts.length === 2 ? parts.pop().split(';').shift() : null;
+            },
+            
+            async saveEcriture() {
+                if (this.totalDebit !== this.totalCredit) {
+                    alert("❌ L'écriture doit être équilibrée (Total Débit = Total Crédit)");
+                    return;
+                }
+                
+                if (this.totalDebit === 0) {
+                    alert("❌ Ajoutez au moins une ligne avec un montant");
+                    return;
+                }
+                
+                const lignesValides = this.form.lignes.filter(l => l.compte_id && (l.debit > 0 || l.credit > 0));
+                
+                if (lignesValides.length === 0) {
+                    alert("❌ Ajoutez au moins une ligne valide");
+                    return;
+                }
+                
+                try {
+                    const res = await fetch("{% url 'comptabilite:api_creer_ecriture_manuelle' %}", {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.getCookie('csrftoken')
+                        },
+                        body: JSON.stringify({
+                            date_ecriture: this.form.date_ecriture,
+                            journal_id: this.form.journal_id,
+                            piece: this.form.piece,
+                            libelle: this.form.libelle,
+                            notes: this.form.notes,
+                            lignes: lignesValides
+                        })
+                    });
+                    
+                    const data = await res.json();
+                    if (data.success) {
+                        alert("✅ " + data.message);
+                        this.modalOpen = false;
+                        window.location.reload();
+                    } else {
+                        alert("❌ " + data.error);
+                    }
+                } catch(e) {
+                    alert("❌ Erreur réseau");
+                }
+            }
+        }
+    }
+    
+    if (typeof Alpine !== 'undefined') {
+        Alpine.data('ecrituresApp', ecrituresApp);
+    } else {
+        document.addEventListener('alpine:init', () => {
+            Alpine.data('ecrituresApp', ecrituresApp);
+        });
+    }
+</script>
+{% endblock %}
