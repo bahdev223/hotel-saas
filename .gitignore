@@ -10,5 +10,6 @@ apps/staticfiles/
 apps/stock.zip
 *.sqlite3
 *.db
+fixtures/full_dump.json
 
 
