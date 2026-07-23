@@ -4,16 +4,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DAMOU BÉLÉKAN | Executive Login</title>
+    <title>HotelERP | Executive Login</title>
     
-    <!-- Tailwind CDN (même que l'original) -->
+    <!-- Tailwind CDN (mÃªme que l'original) -->
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&amp;family=Hanken+Grotesk:ital,wght@0,100..900;1,100..900&amp;display=swap" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
     
-    <!-- Tailwind Config (identique à l'original) -->
+    <!-- Tailwind Config (identique Ã  l'original) -->
     <script id="tailwind-config">
         tailwind.config = {
             darkMode: "class",
@@ -119,7 +119,7 @@
         .luxury-gradient {
             background: radial-gradient(circle at 50% 50%, rgba(200, 169, 107, 0.05) 0%, transparent 70%);
         }
-        /* Pour éviter le flash blanc */
+        /* Pour Ã©viter le flash blanc */
         body { background-color: #131313; }
     </style>
 </head>
@@ -136,10 +136,10 @@
         <header class="mb-gutter text-center">
             <span class="font-label-caps text-label-caps text-secondary mb-4 block tracking-[0.4em]">EXECUTIVE HOTEL MANAGEMENT</span>
             {% if request.resolver_match.url_name == 'login' %}
-            <h1 class="font-display-lg-mobile md:font-display-lg text-secondary uppercase tracking-[0.2em]">DAMOU BÉLÉKAN</h1>
+            <h1 class="font-display-lg-mobile md:font-display-lg text-secondary uppercase tracking-[0.2em]">HotelERP</h1>
             {% else %}
             <div class="relative inline-block">
-                <img src="{% static 'logo.jpg' %}" alt="DAMOU BÉLÉKAN" class="w-48 md:w-64 h-auto drop-shadow-[0_0_30px_rgba(200,169,107,0.15)]">
+                <img src="{% static 'logo.jpg' %}" alt="HotelERP" class="w-48 md:w-64 h-auto drop-shadow-[0_0_30px_rgba(200,169,107,0.15)]">
             </div>
             {% endif %}
         </header>
@@ -175,7 +175,7 @@
                                 Mot de passe
                             </label>
                             <a class="font-label-caps text-[10px] text-outline hover:text-secondary transition-colors uppercase tracking-widest" href="{% url 'authentication:mot_de_passe_oublie' %}">
-                                Oublié?
+                                OubliÃ©?
                             </a>
                         </div>
                         <div class="relative">
@@ -185,7 +185,7 @@
                                 required
                                 class="w-full bg-surface-container-low border-b border-outline-variant/30 border-t-0 border-x-0 px-0 py-3 text-on-surface font-body-md placeholder:text-outline/40 focus:ring-0 focus:border-secondary transition-all duration-300" 
                                 id="password" 
-                                placeholder="••••••••"
+                                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
                             >
                             <span class="material-symbols-outlined absolute right-0 bottom-3 text-outline cursor-pointer hover:text-secondary transition-colors" style="font-size: 18px;" onclick="togglePassword()">
                                 visibility
@@ -196,7 +196,7 @@
                 
                 <!-- Action Button -->
                 <button type="submit" class="w-full bg-secondary py-4 px-unit text-on-secondary font-label-caps text-label-caps tracking-[0.25em] uppercase hover:bg-secondary-fixed transition-all duration-300 active:scale-[0.98] mt-4 shadow-lg shadow-secondary/10">
-                    Accéder à l'espace
+                    AccÃ©der Ã  l'espace
                 </button>
                 
                 <!-- Security Indicator -->
@@ -209,7 +209,7 @@
         
         <!-- Contextual Footer -->
         <div class="mt-gutter flex flex-col items-center gap-unit opacity-40">
-            <p class="font-label-caps text-[10px] text-on-surface uppercase tracking-widest">© 2024 DAMOU BÉLÉKAN. EXCELLENCE IN HERITAGE.</p>
+            <p class="font-label-caps text-[10px] text-on-surface uppercase tracking-widest">Â© 2024 HotelERP. VOTRE EXCELLENCE HÔTELIÈRE.</p>
         </div>
     </div>
 </main>
