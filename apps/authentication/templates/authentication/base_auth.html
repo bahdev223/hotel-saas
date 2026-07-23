@@ -1,0 +1,29 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr" class="bg-[#050505]">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}DAMOU BÉLÉKAN - Login{% endblock %}</title>
+    
+    <!-- Tailwind + daisyUI -->
+    <link href="{% static 'css/dist/styles.css' %}" rel="stylesheet">
+    
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <style>
+        /* Pour éviter le flash blanc au chargement */
+        body { background-color: #050505; color: white; }
+        [x-cloak] { display: none; }
+    </style>
+</head>
+<body class="min-h-screen bg-[#050505]">
+    
+    <!-- On enlève le container qui rajoute du padding inutile pour un login -->
+    <div class="min-h-screen">
+        {% block content %}{% endblock %}
+    </div>
+    
+</body>
+</html>

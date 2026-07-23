@@ -1,0 +1,227 @@
+{% extends 'paie/base_paie.html' %}
+{% load static %}
+
+{% block paie_content %}
+<div class="bg-surface-container-low rounded-xl shadow-md">
+    <div class="px-6 py-4 border-b flex justify-between items-center">
+        <div>
+            <h2 class="text-xl font-bold">Bulletin de paie</h2>
+            <p class="text-sm text-on-surface-variant">{{ bulletin.periode.libelle }} - {{ bulletin.employe.nom }} {{ bulletin.employe.prenom }}</p>
+        </div>
+        <div class="flex gap-2">
+            {% if bulletin.statut != 'VALIDE' %}
+            <a href="{% url 'paie:valider_bulletin' bulletin.id %}" class="btn btn-success btn-sm">
+                <i class="fas fa-check-circle"></i> Valider
+            </a>
+            {% endif %}
+            <button id="btnPdf" class="btn btn-primary btn-sm" onclick="genererPDF()">
+                <i class="fas fa-file-pdf"></i> Télécharger PDF
+            </button>
+            <button onclick="window.print()" class="btn btn-outline btn-sm">
+                <i class="fas fa-print"></i> Imprimer
+            </button>
+        </div>
+    </div>
+    
+    <!-- Version HTML normale pour l'affichage -->
+    <div class="p-6">
+        <div class="text-center mb-6">
+            <h3 class="text-lg font-bold">BULLETIN DE PAIE</h3>
+            <p>Période du {{ bulletin.periode.date_debut|date:"d/m/Y" }} au {{ bulletin.periode.date_fin|date:"d/m/Y" }}</p>
+        </div>
+        
+        <div class="border-outline/10 rounded-lg p-4 mb-6">
+            <h4 class="font-semibold mb-3">Identité de l'employé</h4>
+            <div class="grid grid-cols-2 gap-2 text-sm">
+                <div><span class="text-on-surface-variant">Matricule :</span> {{ bulletin.employe.matricule }}</div>
+                <div><span class="text-on-surface-variant">Nom :</span> {{ bulletin.employe.nom }} {{ bulletin.employe.prenom }}</div>
+                <div><span class="text-on-surface-variant">Poste :</span> {{ bulletin.employe.poste.intitule|default:"-" }}</div>
+                <div><span class="text-on-surface-variant">Département :</span> {{ bulletin.employe.departement.libelle|default:"-" }}</div>
+                <div><span class="text-on-surface-variant">Date embauche :</span> {{ bulletin.employe.date_embauche|date:"d/m/Y" }}</div>
+                <div><span class="text-on-surface-variant">Nbre enfants :</span> {{ bulletin.employe.nombre_enfants }}</div>
+            </div>
+        </div>
+        
+        <div class="border-outline/10 rounded-lg overflow-hidden mb-6">
+            <table class="w-full">
+                <thead class="bg-surface-container-high">
+                    <tr>
+                        <th class="px-4 py-2 text-left">Rubrique</th>
+                        <th class="px-4 py-2 text-right">Base</th>
+                        <th class="px-4 py-2 text-right">Taux</th>
+                        <th class="px-4 py-2 text-right">Montant</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y">
+                    {% for ligne in lignes %}
+                    <tr>
+                        <td class="px-4 py-2">{{ ligne.rubrique.libelle }}</td>
+                        <td class="px-4 py-2 text-right">{{ ligne.base|floatformat:0 }} FCFA</td>
+                        <td class="px-4 py-2 text-right">{{ ligne.taux|floatformat:0 }}%</td>
+                        <td class="px-4 py-2 text-right">{{ ligne.montant|floatformat:0 }} FCFA</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="bg-surface-container-high font-bold">
+                    <tr>
+                        <td colspan="3" class="px-4 py-2 text-right">TOTAL BRUT</td>
+                        <td class="px-4 py-2 text-right">{{ bulletin.total_brut|floatformat:0 }} FCFA</td>
+                    </tr>
+                    <tr class="border-t">
+                        <td colspan="3" class="px-4 py-2 text-right">Cotisations</td>
+                        <td class="px-4 py-2 text-right text-red-400">- {{ bulletin.total_cotisations|floatformat:0 }} FCFA</td>
+                    </tr>
+                    <tr>
+                        <td colspan="3" class="px-4 py-2 text-right">Impôts</td>
+                        <td class="px-4 py-2 text-right text-red-400">- {{ bulletin.total_impots|floatformat:0 }} FCFA</td>
+                    </tr>
+                    <tr class="bg-secondary/10">
+                        <td colspan="3" class="px-4 py-2 text-right text-lg">NET À PAYER</td>
+                        <td class="px-4 py-2 text-right text-xl font-bold text-secondary">{{ bulletin.net_a_payer|floatformat:0 }} FCFA</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+        
+        <div class="text-xs text-on-surface-variant text-center border-t pt-4">
+            <p>Hôtel Manager ERP - Tous droits réservés</p>
+            <p>{{ bulletin.date_calcul|date:"d/m/Y H:i" }}</p>
+        </div>
+    </div>
+</div>
+
+<!-- Zone PDF simplifiée - styles inline uniquement -->
+<div id="bulletin-pdf" style="display: none;">
+    <div style="background: white; padding: 20px; font-family: Arial, sans-serif;">
+        <div style="text-align: center; margin-bottom: 20px; border-bottom: 2px solid #0a7c6e; padding-bottom: 10px;">
+            <h1 style="font-size: 18px; color: #0a7c6e;">BULLETIN DE PAIE</h1>
+            <p style="font-size: 12px;">Période du {{ bulletin.periode.date_debut|date:"d/m/Y" }} au {{ bulletin.periode.date_fin|date:"d/m/Y" }}</p>
+        </div>
+        
+        <div style="border: 1px solid #ddd; padding: 10px; margin-bottom: 15px;">
+            <h3 style="font-size: 13px; font-weight: bold;">Identité de l'employé</h3>
+            <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 5px; font-size: 11px; margin-top: 5px;">
+                <div>Matricule: {{ bulletin.employe.matricule }}</div>
+                <div>Nom: {{ bulletin.employe.nom }} {{ bulletin.employe.prenom }}</div>
+                <div>Poste: {{ bulletin.employe.poste.intitule|default:"-" }}</div>
+                <div>Département: {{ bulletin.employe.departement.libelle|default:"-" }}</div>
+            </div>
+        </div>
+        
+        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+            <thead>
+                <tr style="background: #f5f5f5;">
+                    <th style="padding: 6px; text-align: left;">Rubrique</th>
+                    <th style="padding: 6px; text-align: right;">Base</th>
+                    <th style="padding: 6px; text-align: right;">Taux</th>
+                    <th style="padding: 6px; text-align: right;">Montant</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ligne in lignes %}
+                <tr style="border-bottom: 1px solid #eee;">
+                    <td style="padding: 5px;">{{ ligne.rubrique.libelle }}</td>
+                    <td style="padding: 5px; text-align: right;">{{ ligne.base|floatformat:0 }} F</td>
+                    <td style="padding: 5px; text-align: right;">{{ ligne.taux|floatformat:0 }}%</td>
+                    <td style="padding: 5px; text-align: right;">{{ ligne.montant|floatformat:0 }} F</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <tr style="background: #f9f9f9; font-weight: bold;">
+                    <td colspan="3" style="padding: 6px; text-align: right;">TOTAL BRUT</td>
+                    <td style="padding: 6px; text-align: right;">{{ bulletin.total_brut|floatformat:0 }} F</td>
+                </tr>
+                <tr>
+                    <td colspan="3" style="padding: 5px; text-align: right;">Cotisations</td>
+                    <td style="padding: 5px; text-align: right; color: red;">- {{ bulletin.total_cotisations|floatformat:0 }} F</td>
+                </tr>
+                <tr>
+                    <td colspan="3" style="padding: 5px; text-align: right;">Impôts</td>
+                    <td style="padding: 5px; text-align: right; color: red;">- {{ bulletin.total_impots|floatformat:0 }} F</td>
+                </tr>
+                <tr style="background: #e8f5e9;">
+                    <td colspan="3" style="padding: 8px; text-align: right; font-weight: bold;">NET À PAYER</td>
+                    <td style="padding: 8px; text-align: right; font-weight: bold; color: #2e7d32;">{{ bulletin.net_a_payer|floatformat:0 }} F</td>
+                </tr>
+            </tfoot>
+        </table>
+        
+        <div style="text-align: center; font-size: 10px; margin-top: 15px; padding-top: 10px; border-top: 1px solid #ddd;">
+            <p>Hôtel Manager ERP</p>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+async function genererPDF() {
+    const source = document.getElementById('bulletin-pdf');
+    const btn = document.getElementById('btnPdf');
+    const originalText = btn.innerHTML;
+    
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Génération...';
+    btn.disabled = true;
+    
+    try {
+        // Nettoyer le HTML des classes Tailwind
+        const cleanHTML = source.innerHTML
+            .replace(/class="[^"]*"/g, '')  // Supprimer toutes les classes
+            .replace(/className="[^"]*"/g, '');  // Supprimer les className
+        
+        const tempContainer = document.createElement('div');
+        tempContainer.style.position = 'fixed';
+        tempContainer.style.left = '-99999px';
+        tempContainer.style.top = '0';
+        tempContainer.style.background = '#fff';
+        tempContainer.style.width = '800px';
+        tempContainer.innerHTML = cleanHTML;
+        
+        document.body.appendChild(tempContainer);
+        
+        const canvas = await html2canvas(tempContainer, {
+            scale: 2,
+            backgroundColor: '#ffffff',
+            logging: false,
+            useCORS: false,
+            onclone: (clonedDoc) => {
+                // Supprimer tous les styles globaux dans le clone
+                const links = clonedDoc.querySelectorAll('link, style');
+                links.forEach(el => el.remove());
+            }
+        });
+        
+        document.body.removeChild(tempContainer);
+        
+        const imgData = canvas.toDataURL('image/png');
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        
+        const width = 190;
+        const height = (canvas.height * width) / canvas.width;
+        
+        pdf.addImage(imgData, 'PNG', 10, 10, width, height);
+        
+        const employeNom = '{{ bulletin.employe.nom }}_{{ bulletin.employe.prenom }}';
+        pdf.save(`Bulletin_Paie_${employeNom}.pdf`);
+        
+    } catch (error) {
+        console.error(error);
+        alert('Erreur PDF: ' + error.message);
+    } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
+}
+</script>
+
+<style>
+    @media print {
+        .btn, .btn-sm, .flex.gap-2 {
+            display: none !important;
+        }
+    }
+</style>
+{% endblock %}

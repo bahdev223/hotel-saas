@@ -1,0 +1,298 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Facturation - Dashboard{% endblock %}
+
+{% block header %}Gestion des factures{% endblock %}
+{% block subtitle %}Suivi des factures et paiements{% endblock %}
+
+{% block content %}
+<div x-data="facturationApp()" x-init="init()" class="space-y-6">
+    
+    <!-- Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div class="bg-surface-container-low rounded-xl border-outline/10 p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-on-surface-variant">Total factures</p>
+                    <p class="text-2xl font-bold text-secondary" x-text="stats.total_factures || 0"></p>
+                </div>
+                <div class="w-10 h-10 bg-blue-900/30 rounded-full flex items-center justify-center">
+                    <i class="fas fa-file-invoice text-blue-400"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-surface-container-low rounded-xl border-outline/10 p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-on-surface-variant">En cours</p>
+                    <p class="text-2xl font-bold text-yellow-400" x-text="stats.en_cours || 0"></p>
+                </div>
+                <div class="w-10 h-10 bg-yellow-900/30 rounded-full flex items-center justify-center">
+                    <i class="fas fa-clock text-yellow-400"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-surface-container-low rounded-xl border-outline/10 p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-on-surface-variant">Payées</p>
+                    <p class="text-2xl font-bold text-green-400" x-text="stats.payees || 0"></p>
+                </div>
+                <div class="w-10 h-10 bg-green-900/30 rounded-full flex items-center justify-center">
+                    <i class="fas fa-check-circle text-green-400"></i>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-surface-container-low rounded-xl border-outline/10 p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-sm text-on-surface-variant">CA du mois</p>
+                    <p class="text-2xl font-bold text-secondary" x-text="formatMoney(stats.ca_mois || 0) + ' F'"></p>
+                </div>
+                <div class="w-10 h-10 bg-purple-900/30 rounded-full flex items-center justify-center">
+                    <i class="fas fa-chart-line text-purple-300"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Actions -->
+    <div class="flex justify-end">
+        <a href="{% url 'facturation:creer' %}" class="bg-secondary text-on-secondary px-4 py-2 rounded-lg hover:bg-secondary/80">
+            <i class="fas fa-plus mr-2"></i> Nouvelle facture
+        </a>
+    </div>
+    
+    <!-- Liste des factures -->
+    <div class="bg-surface-container-low rounded-xl border-outline/10 overflow-hidden">
+        <div class="px-6 py-4 border-b border-outline/10 bg-surface-container-high">
+            <h3 class="font-semibold">Liste des factures</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-surface-container-high border-b border-outline/10">
+                    <tr class="border-b border-outline/10">
+                        <th class="px-4 py-3 text-left">N° Facture</th>
+                        <th class="px-4 py-3 text-left">Client</th>
+                        <th class="px-4 py-3 text-left">Date</th>
+                        <th class="px-4 py-3 text-right">Montant</th>
+                        <th class="px-4 py-3 text-right">Payé</th>
+                        <th class="px-4 py-3 text-right">Reste</th>
+                        <th class="px-4 py-3 text-center">Statut</th>
+                        <th class="px-4 py-3 text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10" id="facturesTable">
+                    <tr x-show="loading">
+                        <td colspan="8" class="px-4 py-8 text-center">
+                            <i class="fas fa-spinner fa-spin text-2xl text-secondary"></i>
+                            <p class="mt-2 text-on-surface-variant">Chargement...</p>
+                        </td>
+                    </tr>
+                    <tr x-show="!loading && factures.length === 0">
+                        <td colspan="8" class="px-4 py-8 text-center text-on-surface-variant">
+                            <i class="fas fa-file-invoice text-4xl mb-2 block"></i>
+                            Aucune facture
+                        </td>
+                    </tr>
+                    <template x-for="facture in factures" :key="facture.id">
+                        <tr class="hover:bg-surface-container-low">
+                            <td class="px-4 py-3 font-mono font-medium" x-text="facture.numero"></td>
+                            <td class="px-4 py-3" x-text="facture.client_nom"></td>
+                            <td class="px-4 py-3 text-sm" x-text="formatDate(facture.date_emission)"></td>
+                            <td class="px-4 py-3 text-right font-mono" x-text="formatMoney(facture.montant_total) + ' F'"></td>
+                            <td class="px-4 py-3 text-right font-mono text-green-400" x-text="formatMoney(facture.total_paye) + ' F'"></td>
+                            <td class="px-4 py-3 text-right font-mono" :class="facture.reste_a_payer > 0 ? 'text-red-400 font-bold' : 'text-on-surface-variant'" x-text="formatMoney(facture.reste_a_payer) + ' F'"></td>
+                            <td class="px-4 py-3 text-center">
+                                <span x-show="facture.statut === 'PAYEE'" class="px-2 py-1 bg-green-900/30 text-green-300 rounded-full text-xs">Payée</span>
+                                <span x-show="facture.statut === 'EMISE'" class="px-2 py-1 bg-blue-900/30 text-blue-300 rounded-full text-xs">Émise</span>
+                                <span x-show="facture.statut === 'BROUILLON'" class="px-2 py-1 bg-yellow-900/30 text-yellow-300 rounded-full text-xs">Brouillon</span>
+                                <span x-show="facture.statut === 'ANNULEE'" class="px-2 py-1 bg-red-900/30 text-red-300 rounded-full text-xs">Annulée</span>
+                            </td>
+                            <td class="px-4 py-3 text-center space-x-2">
+                                <a :href="`/facturation/${facture.id}/`" class="text-blue-400 hover:text-blue-400" title="Voir">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a :href="`/facturation/${facture.id}/pdf/`" class="text-red-400 hover:text-red-400" title="PDF" target="_blank">
+                                    <i class="fas fa-file-pdf"></i>
+                                </a>
+                            </td>
+                        </td>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Modal paiement -->
+    <div id="paiementModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-md mx-4">
+            <div class="px-5 py-3 border-b border-outline/10 flex justify-between items-center">
+                <h2 class="font-semibold text-lg">
+                    <i class="fas fa-money-bill text-secondary mr-2"></i>Enregistrer un paiement
+                </h2>
+                <button onclick="closePaiementModal()" class="text-on-surface-variant hover:text-on-surface">✕</button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div class="bg-surface-container-high p-3 rounded-lg">
+                    <p class="text-sm text-on-surface-variant">Facture: <span id="factureNumero" class="font-bold"></span></p>
+                    <p class="text-sm text-on-surface-variant">Reste à payer: <span id="resteAPayer" class="font-bold text-secondary"></span> F</p>
+                </div>
+                
+                <div>
+                    <label class="text-sm font-medium">Montant (FCFA)</label>
+                    <input type="number" id="paiementMontant" step="100" class="w-full px-3 py-2 input-md3 rounded-lg">
+                </div>
+                
+                <div>
+                    <label class="text-sm font-medium">Mode de paiement</label>
+                    <select id="paiementMode" class="w-full px-3 py-2 input-md3 rounded-lg">
+                        <option value="ESPECES">💰 Espèces</option>
+                        <option value="CARTE">💳 Carte bancaire</option>
+                        <option value="MOBILE_MONEY">📱 Mobile Money</option>
+                        <option value="VIREMENT">🏦 Virement</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="text-sm font-medium">Caisse (optionnel)</label>
+                    <select id="paiementCaisse" class="w-full px-3 py-2 input-md3 rounded-lg">
+                        <option value="">-- Aucune --</option>
+                        {% for caisse in caisses %}
+                        <option value="{{ caisse.id }}">{{ caisse.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="text-sm font-medium">Notes</label>
+                    <textarea id="paiementNotes" rows="2" class="w-full px-3 py-2 input-md3 rounded-lg"></textarea>
+                </div>
+                
+                <div class="flex gap-3 pt-2">
+                    <button onclick="validerPaiement()" class="flex-1 bg-secondary text-on-secondary py-2 rounded-lg">
+                        Enregistrer
+                    </button>
+                    <button onclick="closePaiementModal()" class="flex-1 border-outline/10 py-2 rounded-lg">Annuler</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let currentFactureId = null;
+
+function facturationApp() {
+    return {
+        factures: [],
+        loading: true,
+        stats: { total_factures: 0, en_cours: 0, payees: 0, ca_mois: 0 },
+        
+        async init() {
+            await this.loadFactures();
+            await this.loadStats();
+        },
+        
+        async loadFactures() {
+            try {
+                const response = await fetch('/facturation/api/factures/');
+                const data = await response.json();
+                if (data.success) {
+                    this.factures = data.factures;
+                }
+            } catch(e) {
+                console.error('Erreur:', e);
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        async loadStats() {
+            try {
+                const response = await fetch('/facturation/api/stats/');
+                const data = await response.json();
+                if (data.success) {
+                    this.stats = data.stats;
+                }
+            } catch(e) {
+                console.error('Erreur:', e);
+            }
+        },
+        
+        ajouterPaiement(factureId) {
+            currentFactureId = factureId;
+            const facture = this.factures.find(f => f.id === factureId);
+            if (facture) {
+                document.getElementById('factureNumero').innerText = facture.numero;
+                document.getElementById('resteAPayer').innerText = this.formatMoney(facture.reste_a_payer);
+            }
+            document.getElementById('paiementMontant').value = '';
+            document.getElementById('paiementMode').value = 'ESPECES';
+            document.getElementById('paiementNotes').value = '';
+            document.getElementById('paiementModal').classList.remove('hidden');
+            document.getElementById('paiementModal').classList.add('flex');
+        },
+        
+        formatMoney(value) {
+            return new Intl.NumberFormat('fr-FR').format(value || 0);
+        },
+        
+        formatDate(date) {
+            return new Date(date).toLocaleDateString('fr-FR');
+        }
+    }
+}
+
+function closePaiementModal() {
+    document.getElementById('paiementModal').classList.add('hidden');
+    document.getElementById('paiementModal').classList.remove('flex');
+}
+
+async function validerPaiement() {
+    const montant = document.getElementById('paiementMontant').value;
+    const mode = document.getElementById('paiementMode').value;
+    const caisseId = document.getElementById('paiementCaisse').value;
+    const notes = document.getElementById('paiementNotes').value;
+    
+    if (!montant || montant <= 0) {
+        alert('Veuillez saisir un montant valide');
+        return;
+    }
+    
+    try {
+        const response = await fetch(`/facturation/api/factures/${currentFactureId}/paiement/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+                montant: montant,
+                mode: mode,
+                caisse_id: caisseId,
+                notes: notes
+            })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            alert('✅ ' + result.message);
+            location.reload();
+        } else {
+            alert('❌ ' + result.error);
+        }
+    } catch(e) {
+        alert('❌ Erreur: ' + e.message);
+    }
+}
+
+function getCsrfToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]').value;
+}
+</script>
+{% endblock %}

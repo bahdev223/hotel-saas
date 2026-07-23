@@ -1,0 +1,333 @@
+{% extends 'dashboard/base_brasserie.html' %}
+{% load static %}
+
+{% block title %}Brasserie — Produits{% endblock %}
+
+{% block header %}Brasserie{% endblock %}
+{% block subtitle %}Produits disponibles à la Brasserie{% endblock %}
+
+{% block content %}
+<div x-data="brasserieApp()" x-init="init()" class="space-y-6">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <p class="text-sm text-on-surface-variant">{{ produits|length }} produit(s)</p>
+        </div>
+        <button @click="resetForm(); openModal = true" :disabled="{{ est_bloque_brasserie|lower }}" class="btn-md3-primary px-4 py-2 rounded-lg text-sm">
+            <i class="fas fa-plus mr-1"></i> Nouveau produit
+        </button>
+    </div>
+
+    <!-- Filtres : recherche + domaine + catégorie -->
+    <div class="flex flex-wrap gap-3">
+        <input type="text" x-model="search" placeholder="Rechercher..." class="input-md3 rounded-lg text-sm w-48">
+        <select x-model="filtreDomaine" class="input-md3 rounded-lg text-sm">
+            <option value="">Tous les domaines</option>
+            {% for d in domaines %}
+            <option value="{{ d.nom }}">{{ d.nom }}</option>
+            {% endfor %}
+        </select>
+        <div class="flex items-center gap-2 flex-wrap">
+            <button @click="filtreCategorie = ''" 
+                    class="px-3 py-1.5 text-xs font-medium rounded-full transition-all"
+                    :class="!filtreCategorie ? 'bg-secondary/20 text-secondary' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'">
+                Tous
+            </button>
+            {% for cat in categories_list %}
+            <button @click="filtreCategorie = '{{ cat }}'" 
+                    class="px-3 py-1.5 text-xs font-medium rounded-full transition-all"
+                    :class="filtreCategorie === '{{ cat }}' ? 'bg-secondary/20 text-secondary' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'">
+                {{ cat }}
+            </button>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Tableau -->
+    <div class="card-md3 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-surface-container-high">
+                    <tr class="text-on-surface-variant">
+                        <th class="px-4 py-3 text-left">Code</th>
+                        <th class="px-4 py-3 text-left">Produit</th>
+                        <th class="px-4 py-3 text-left">Catégorie</th>
+                        <th class="px-4 py-3 text-left hidden sm:table-cell">Domaine</th>
+                        <th class="px-4 py-3 text-right hidden md:table-cell">Stock</th>
+                        <th class="px-4 py-3 text-right">Prix vente</th>
+                        <th class="px-4 py-3 text-center">Image</th>
+                        <th class="px-4 py-3 text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10">
+                    {% for p in produits %}
+                    <tr x-show="afficherLigne('{{ p.nom|escapejs }}', '{{ p.categorie_nom|escapejs }}', '{{ p.domaine_nom|escapejs }}', '{{ p.code|escapejs }}')" class="hover:bg-surface-container-low/50 transition">
+                        <td class="px-4 py-3"><code class="text-xs text-on-surface-variant">{{ p.code }}</code></td>
+                        <td class="px-4 py-3">
+                            <a href="{% url 'stock:detail_produit' p.id %}" class="font-medium hover:text-secondary transition">{{ p.nom }}</a>
+                            <p class="text-xs text-on-surface-variant">{{ p.description|default:""|truncatewords:10 }}</p>
+                        </td>
+                        <td class="px-4 py-3 text-on-surface-variant">{{ p.categorie_nom|default:"-" }}</td>
+                        <td class="px-4 py-3 text-on-surface-variant text-sm hidden sm:table-cell">{{ p.domaine_nom|default:"-" }}</td>
+                        <td class="px-4 py-3 text-right hidden md:table-cell">
+                            <span class="font-mono text-sm {% if p.rupture %}text-red-400{% elif p.alerte %}text-amber-400{% endif %}">
+                                {{ p.stock_converti }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-3 text-right align-middle">
+                            <div class="inline-flex items-center gap-1">
+                                <input type="number" step="any"
+                               x-init="$el.value = {{ p.prix_vente|floatformat:0 }}"
+                                        @change="savePrice({{ p.id }}, $el.value)"
+                                        class="w-24 text-right bg-surface-container-high text-on-surface border-b border-transparent hover:border-secondary/50 focus:border-secondary outline-none font-mono text-sm rounded px-2 py-1 transition-smooth">
+                                <span class="text-[11px] text-on-surface-variant">F</span>
+                            </div>
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            {% if p.image %}
+                            <img src="{{ p.image.url }}" class="w-10 h-10 rounded-lg object-cover mx-auto">
+                            {% else %}
+                            <span class="text-on-surface-variant text-xs"><i class="fas fa-image"></i></span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <a href="{% url 'stock:detail_produit' p.id %}" class="text-info hover:text-info/80 mx-1" title="Détails"><i class="fas fa-eye"></i></a>
+                            <button @click="openEditModal({{ p.id }})" class="text-secondary hover:text-secondary/80 mx-1" title="Modifier"><i class="fas fa-edit"></i></button>
+                            <form method="post" action="{% url 'dashboard:brasserie_supprimer' p.id %}" onsubmit="return confirm('Supprimer {{ p.nom }} ?')" class="inline">
+                                {% csrf_token %}
+                                <button type="submit" class="text-red-400 hover:text-red-300 mx-1" title="Supprimer" {% if est_bloque_brasserie %}disabled{% endif %}><i class="fas fa-trash"></i></button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="px-4 py-12 text-center text-on-surface-variant">
+                            <i class="fas fa-beer text-3xl mb-2 block opacity-30"></i>
+                            Aucun produit brasserie
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- MODAL AJOUT / MODIFICATION -->
+    <div x-show="openModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="openModal = false" x-transition.opacity>
+        <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6" @click.stop>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold" x-text="editProduitId ? 'Modifier le produit' : 'Nouveau produit Brasserie'"></h3>
+                <button @click="openModal = false" class="text-on-surface-variant hover:text-secondary"><i class="fas fa-times"></i></button>
+            </div>
+            <form @submit.prevent="editProduitId ? updateProduit() : saveProduit()" class="space-y-5">
+                <div>
+                    <label class="label-md3 mb-1.5 block">Nom <span class="text-red-400">*</span></label>
+                    <input type="text" x-model="form.nom" required class="w-full input-md3 rounded-lg" placeholder="Ex: Jus d'orange">
+                </div>
+                <div>
+                    <label class="label-md3 mb-1.5 block">Catégorie</label>
+                    <select x-model="form.categorie" class="w-full input-md3 rounded-lg">
+                        <option value="">Sélectionner...</option>
+                        {% for c in categories %}
+                        <option value="{{ c.id }}">{{ c.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="label-md3 mb-1.5 block">Unité</label>
+                        <select x-model="form.unite_base" class="w-full input-md3 rounded-lg">
+                            <option value="piece">Pièce</option>
+                            <option value="bouteille">Bouteille</option>
+                            <option value="verre">Verre</option>
+                            <option value="canette">Canette</option>
+                            <option value="l">Litre</option>
+                            <option value="kg">Kg</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label-md3 mb-1.5 block">Prix vente (F)</label>
+                        <input type="number" step="1" x-model="form.prix_vente" class="w-full input-md3 rounded-lg" placeholder="0">
+                    </div>
+                </div>
+                <div x-show="!editProduitId">
+                    <label class="label-md3 mb-1.5 block">Quantité initiale</label>
+                    <input type="number" step="1" x-model="form.quantite_initiale" class="w-full input-md3 rounded-lg" placeholder="0">
+                    <p class="text-xs text-on-surface-variant/60 mt-1">Stock de départ dans l'entrepôt Brasserie</p>
+                </div>
+                <div>
+                    <label class="label-md3">Image</label>
+                    <!-- Drop zone -->
+                    <div @dragover.prevent="$el.classList.add('border-secondary')"
+                         @dragleave.prevent="$el.classList.remove('border-secondary')"
+                         @drop.prevent="handleImageDrop($event)"
+                         x-show="!imagePreviewUrl"
+                         class="mt-1 flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-outline/20 px-4 py-6 cursor-pointer hover:border-secondary/50 transition-all duration-200"
+                         onclick="document.getElementById('brasserieImageInput').click()">
+                        <i class="fas fa-cloud-upload-alt text-3xl text-on-surface-variant mb-2"></i>
+                        <p class="text-sm text-on-surface-variant">Cliquez ou glissez une image</p>
+                        <p class="text-xs text-on-surface-variant mt-1">PNG, JPG (max 5 Mo)</p>
+                    </div>
+                    <!-- Preview -->
+                    <div x-show="imagePreviewUrl" class="relative mt-1 rounded-lg overflow-hidden w-32 h-32 bg-surface-container-high">
+                        <img :src="imagePreviewUrl" class="w-full h-full object-cover">
+                        <button type="button" @click="clearImage()" class="absolute top-1 right-1 w-6 h-6 bg-black/60 rounded-full flex items-center justify-center text-white text-xs hover:bg-black/80 transition">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <input type="file" id="brasserieImageInput" accept="image/*" class="hidden" @change="handleImageChange($event)">
+                </div>
+                <div>
+                    <textarea x-model="form.description" rows="2" class="w-full input-md3 rounded-lg" placeholder="Description..."></textarea>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button type="submit" class="flex-1 btn-md3-primary py-2 rounded-lg" :disabled="loading || {{ est_bloque_brasserie|lower }}">
+                        <i class="fas fa-spinner fa-spin" x-show="loading"></i>
+                        <span x-text="loading ? '...' : (editProduitId ? 'Modifier' : 'Enregistrer')"></span>
+                    </button>
+                    <button type="button" @click="openModal = false" class="flex-1 border border-outline/10 py-2 rounded-lg">Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function brasserieApp() {
+    return {
+        openModal: false,
+        loading: false,
+        editProduitId: null,
+        imagePreviewUrl: null,
+        filtreCategorie: '',
+        search: '',
+        filtreDomaine: '',
+        form: { nom: '', categorie: '', unite_base: 'piece', prix_vente: '', description: '', image: null, quantite_initiale: 0 },
+        init() {},
+        afficherLigne(nom, cat, domaine, code) {
+            const cherche = this.search.toLowerCase();
+            if (cherche && !nom.toLowerCase().includes(cherche) && !code.toLowerCase().includes(cherche)) return false;
+            if (this.filtreCategorie && cat !== this.filtreCategorie) return false;
+            if (this.filtreDomaine && domaine !== this.filtreDomaine) return false;
+            return true;
+        },
+        handleImageChange(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+            this.form.image = file;
+            const reader = new FileReader();
+            reader.onload = ev => this.imagePreviewUrl = ev.target.result;
+            reader.readAsDataURL(file);
+        },
+        handleImageDrop(e) {
+            e.target.classList.remove('border-secondary');
+            const file = e.dataTransfer.files[0];
+            if (!file) return;
+            this.form.image = file;
+            const reader = new FileReader();
+            reader.onload = ev => this.imagePreviewUrl = ev.target.result;
+            reader.readAsDataURL(file);
+        },
+        clearImage() {
+            this.imagePreviewUrl = null;
+            this.form.image = null;
+            document.getElementById('brasserieImageInput').value = '';
+        },
+        resetForm() {
+            this.form = { nom: '', categorie: '', unite_base: 'piece', prix_vente: '', description: '', image: null, quantite_initiale: 0 };
+            this.imagePreviewUrl = null;
+            this.editProduitId = null;
+        },
+        async openEditModal(produitId) {
+            this.resetForm();
+            this.editProduitId = produitId;
+            this.openModal = true;
+            this.loading = true;
+            try {
+                const r = await fetch('/stock/api/produits/' + produitId + '/infos/');
+                const d = await r.json();
+                if (d.success) {
+                    this.form.nom = d.produit.nom || '';
+                    this.form.categorie = d.produit.categorie_id || '';
+                    this.form.unite_base = d.produit.unite_base || 'piece';
+                    this.form.prix_vente = d.produit.prix_vente || '';
+                    this.form.description = d.produit.description || '';
+                    if (d.produit.image_url) {
+                        this.imagePreviewUrl = d.produit.image_url;
+                    }
+                } else {
+                    alert('Erreur: ' + d.error);
+                    this.openModal = false;
+                }
+            } catch(e) { alert('Erreur réseau'); this.openModal = false; }
+            finally { this.loading = false; }
+        },
+        async saveProduit() {
+            this.loading = true;
+            try {
+                const fd = new FormData();
+                for (let k in this.form) {
+                    if (k === 'image' && this.form[k]) fd.append('image', this.form[k]);
+                    else if (k !== 'image') fd.append(k, this.form[k]);
+                }
+                const r = await fetch("{% url 'dashboard:brasserie_ajouter_api' %}", {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': getCookie('csrftoken') },
+                    body: fd
+                });
+                const d = await r.json();
+                if (d.success) {
+                    this.openModal = false;
+                    window.location.reload();
+                } else {
+                    alert('Erreur: ' + d.error);
+                }
+            } catch(e) { alert('Erreur réseau'); }
+            finally { this.loading = false; }
+        },
+        async updateProduit() {
+            this.loading = true;
+            try {
+                const fd = new FormData();
+                for (let k in this.form) {
+                    if (k === 'image' && this.form[k]) fd.append('image', this.form[k]);
+                    else if (k !== 'image') fd.append(k, this.form[k]);
+                }
+                const r = await fetch('/brasserie/produits/' + this.editProduitId + '/modifier/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': getCookie('csrftoken') },
+                    body: fd
+                });
+                const d = await r.json();
+                if (d.success) {
+                    this.openModal = false;
+                    window.location.reload();
+                } else {
+                    alert('Erreur: ' + d.error);
+                }
+            } catch(e) { alert('Erreur réseau'); }
+            finally { this.loading = false; }
+        },
+        async savePrice(produitId, newPrice) {
+            if (!newPrice || newPrice <= 0) return;
+            try {
+                const r = await fetch('/stock/api/produits/' + produitId + '/modifier-prix/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                    body: JSON.stringify({ prix_vente: newPrice })
+                });
+                const d = await r.json();
+                if (!d.success) alert('Erreur: ' + d.error);
+            } catch(e) { alert('Erreur réseau'); }
+        }
+    }
+}
+
+function getCookie(name) {
+    let v = '; ' + document.cookie, p = v.split('; ' + name + '=');
+    return p.length === 2 ? p.pop().split(';').shift() : null;
+}
+</script>
+{% endblock %}

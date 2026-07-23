@@ -1,0 +1,243 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load static %}
+
+{% block title %}Relevé {{ releve.caisse.nom }}{% endblock %}
+
+{% block header %}Relevé bancaire{% endblock %}
+{% block subtitle %}{{ releve.caisse.nom }} - Du {{ releve.date_debut|date:"d/m/Y" }} au {{ releve.date_fin|date:"d/m/Y" }}{% endblock %}
+
+{% block content %}
+<div x-data="rapprochementApp()" x-init="init()" class="space-y-6">
+    
+    <!-- Statistiques -->
+    <div class="grid grid-cols-1 gap-4 md:grid-cols-5">
+        <div class="bg-surface-container-low rounded-2xl shadow-md p-4 text-center">
+            <p class="text-xs text-on-surface-variant">Total crédit</p>
+            <p class="text-xl font-bold text-green-400">{{ stats.total_credit|floatformat:0 }} F</p>
+        </div>
+        <div class="bg-surface-container-low rounded-2xl shadow-md p-4 text-center">
+            <p class="text-xs text-on-surface-variant">Total débit</p>
+            <p class="text-xl font-bold text-red-400">{{ stats.total_debit|floatformat:0 }} F</p>
+        </div>
+        <div class="bg-surface-container-low rounded-2xl shadow-md p-4 text-center">
+            <p class="text-xs text-on-surface-variant">Rapprochées</p>
+            <p class="text-xl font-bold text-emerald-600">{{ stats.rapprochees }}</p>
+        </div>
+        <div class="bg-surface-container-low rounded-2xl shadow-md p-4 text-center">
+            <p class="text-xs text-on-surface-variant">Non rapprochées</p>
+            <p class="text-xl font-bold text-orange-400">{{ stats.non_rapprochees }}</p>
+        </div>
+        <div class="bg-surface-container-low rounded-2xl shadow-md p-4 text-center">
+            <p class="text-xs text-on-surface-variant">Écarts</p>
+            <p class="text-xl font-bold text-red-400">{{ stats.ecarts }}</p>
+        </div>
+    </div>
+    
+    <!-- Lignes du relevé -->
+    <div class="bg-surface-container-low rounded-2xl shadow-md overflow-hidden">
+        <div class="px-6 py-4 border-b border-outline/10 bg-surface-container-high">
+            <h3 class="font-semibold text-on-surface">
+                <i class="fas fa-list mr-2 text-emerald-600"></i>Lignes du relevé
+            </h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-surface-container-high">
+                    <tr class="border-b border-outline/10">
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Libellé</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase">Montant</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-on-surface-variant uppercase">Sens</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-on-surface-variant uppercase">Statut</th>
+                        <th class="px-4 py-3 text-center text-xs font-semibold text-on-surface-variant uppercase">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10">
+                    {% for ligne in lignes %}
+                    <tr class="hover:bg-surface-container-low transition">
+                        <td class="px-4 py-3 text-sm">{{ ligne.date_operation|date:"d/m/Y" }}</td>
+                        <td class="px-4 py-3 text-sm">{{ ligne.libelle }}</td>
+                        <td class="px-4 py-3 text-right font-mono">{{ ligne.montant|floatformat:0 }} F</td>
+                        <td class="px-4 py-3 text-center">
+                            {% if ligne.sens == 'CREDIT' %}
+                            <span class="text-green-400">+</span>
+                            {% else %}
+                            <span class="text-red-400">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            {% if ligne.statut == 'RAPPROCHE' %}
+                            <span class="bg-green-900/30 text-green-300 px-2 py-1 rounded-full text-xs">Rapprochée</span>
+                            {% elif ligne.statut == 'ECART' %}
+                            <span class="bg-red-900/30 text-red-300 px-2 py-1 rounded-full text-xs">Écart</span>
+                            {% else %}
+                            <span class="bg-yellow-900/30 text-yellow-300 px-2 py-1 rounded-full text-xs">Non rapprochée</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            {% if ligne.statut == 'NON_RAPPROCHE' %}
+                            <button @click="openRapprocherModal({{ ligne.id }}, '{{ ligne.libelle }}', {{ ligne.montant }})" 
+                                    class="text-emerald-600 hover:text-emerald-800 text-sm">
+                                <i class="fas fa-handshake"></i> Rapprocher
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Modal rapprochement -->
+    <div x-show="modalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.away="modalOpen = false">
+        <div class="bg-surface-container-low rounded-2xl shadow-2xl w-full max-w-md" @click.stop>
+            <div class="p-5 border-b border-outline/10">
+                <h3 class="font-semibold">Rapprocher la ligne</h3>
+            </div>
+            <div class="p-5 space-y-4">
+                <p><strong>Libellé:</strong> <span x-text="ligne.libelle"></span></p>
+                <p><strong>Montant:</strong> <span x-text="formatNumber(ligne.montant) + ' F'"></span></p>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Sélectionner l'écriture</label>
+                    <select x-model="selectedEcriture" class="w-full px-3 py-2 input-md3 rounded-lg">
+                        <option value="">Choisir...</option>
+                        <template x-for="mvt in mouvements" :key="mvt.id">
+                            <option :value="mvt.id" x-text="mvt.date + ' - ' + mvt.libelle + ' - ' + formatNumber(mvt.montant) + ' F'"></option>
+                        </template>
+                    </select>
+                </div>
+            </div>
+            <div class="p-5 border-t border-outline/10 flex gap-3 justify-end">
+                <button @click="modalOpen = false" class="px-4 py-2 border-outline/10 rounded-lg">Annuler</button>
+                <button @click="rapprocherLigne()" class="px-4 py-2 bg-emerald-600 text-white rounded-lg">Rapprocher</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal écart -->
+    <div x-show="ecartModalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.away="ecartModalOpen = false">
+        <div class="bg-surface-container-low rounded-2xl shadow-2xl w-full max-w-md" @click.stop>
+            <div class="p-5 border-b border-outline/10">
+                <h3 class="font-semibold">Gérer un écart</h3>
+            </div>
+            <div class="p-5 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Type d'écart</label>
+                    <select x-model="ecart.type" class="w-full px-3 py-2 input-md3 rounded-lg">
+                        <option value="COMMISSION">Commission bancaire</option>
+                        <option value="INTERET">Intérêts</option>
+                        <option value="ERREUR">Erreur de saisie</option>
+                        <option value="AUTRE">Autre</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Montant</label>
+                    <input type="number" x-model="ecart.montant" class="w-full px-3 py-2 input-md3 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Sens</label>
+                    <select x-model="ecart.sens" class="w-full px-3 py-2 input-md3 rounded-lg">
+                        <option value="DEBIT">Débit (sortie)</option>
+                        <option value="CREDIT">Crédit (entrée)</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Justification</label>
+                    <textarea x-model="ecart.justification" rows="3" class="w-full px-3 py-2 input-md3 rounded-lg"></textarea>
+                </div>
+            </div>
+            <div class="p-5 border-t border-outline/10 flex gap-3 justify-end">
+                <button @click="ecartModalOpen = false" class="px-4 py-2 border-outline/10 rounded-lg">Annuler</button>
+                <button @click="creerEcart()" class="px-4 py-2 bg-orange-600 text-white rounded-lg">Créer l'écart</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="flex gap-3">
+        <a href="{% url 'comptabilite:releves_liste' %}" class="px-4 py-2 border-outline/10 rounded-lg hover:bg-surface-container-low">
+            <i class="fas fa-arrow-left mr-2"></i>Retour
+        </a>
+        <button @click="ecartModalOpen = true" class="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700">
+            <i class="fas fa-exclamation-triangle mr-2"></i>Gérer un écart
+        </button>
+    </div>
+</div>
+
+<script>
+    function rapprochementApp() {
+        return {
+            modalOpen: false,
+            ecartModalOpen: false,
+            ligneActuelle: null,
+            selectedEcriture: '',
+            mouvements: [],
+            ligne: { id: null, libelle: '', montant: 0 },
+            ecart: { type: 'COMMISSION', montant: 0, sens: 'DEBIT', justification: '' },
+            
+            async init() {
+                const res = await fetch(`/comptabilite/api/rapprochement/mouvements/?caisse_id={{ releve.caisse.id }}&date_debut={{ releve.date_debut|date:'Y-m-d' }}&date_fin={{ releve.date_fin|date:'Y-m-d' }}`);
+                const data = await res.json();
+                if (data.success) {
+                    this.mouvements = data.mouvements;
+                }
+            },
+            
+            openRapprocherModal(ligneId, libelle, montant) {
+                this.ligne = { id: ligneId, libelle: libelle, montant: montant };
+                this.modalOpen = true;
+            },
+            
+            async rapprocherLigne() {
+                if (!this.selectedEcriture) {
+                    alert('Sélectionnez une écriture');
+                    return;
+                }
+                const res = await fetch('/comptabilite/api/rapprochement/ligne/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCookie('csrftoken') },
+                    body: JSON.stringify({ ligne_id: this.ligne.id, ecriture_id: this.selectedEcriture })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(data.message);
+                    window.location.reload();
+                } else {
+                    alert('Erreur: ' + data.error);
+                }
+            },
+            
+            async creerEcart() {
+                const res = await fetch('/comptabilite/api/rapprochement/ecart/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCookie('csrftoken') },
+                    body: JSON.stringify({
+                        releve_id: {{ releve.id }},
+                        type_ecart: this.ecart.type,
+                        montant: this.ecart.montant,
+                        sens: this.ecart.sens,
+                        justification: this.ecart.justification
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert(data.message);
+                    window.location.reload();
+                } else {
+                    alert('Erreur: ' + data.error);
+                }
+            },
+            
+            formatNumber(value) {
+                return new Intl.NumberFormat('fr-FR').format(value);
+            },
+            
+            getCookie(name) {
+                let value = `; ${document.cookie}`;
+                let parts = value.split(`; ${name}=`);
+                return parts.length === 2 ? parts.pop().split(';').shift() : null;
+            }
+        }
+    }
+</script>
+{% endblock %}

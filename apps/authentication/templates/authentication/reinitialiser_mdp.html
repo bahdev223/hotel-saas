@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Réinitialiser mot de passe{% endblock %}
+
+{% block header %}Réinitialisation mot de passe{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto">
+    <div class="bg-surface-container-low shadow-md rounded-xl">
+        <div class="px-6 py-4 border-b border-outline/10">
+            <h3 class="font-semibold">Réinitialiser le mot de passe</h3>
+            <p class="text-sm text-on-surface-variant">Utilisateur: <strong>{{ user.username }}</strong></p>
+        </div>
+        
+        <form method="post" class="p-6 space-y-4">
+            {% csrf_token %}
+            
+            <div class="form-control">
+                <label class="label">Nouveau mot de passe</label>
+                <input type="password" name="new_password" class="input input-bordered" required>
+            </div>
+            
+            <div class="form-control">
+                <label class="label">Confirmer le mot de passe</label>
+                <input type="password" name="confirm_password" class="input input-bordered" required>
+            </div>
+            
+            <div class="flex justify-end gap-3 pt-4">
+                <a href="{% url 'admin:auth_user_changelist' %}" class="btn btn-ghost">Annuler</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Réinitialiser
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

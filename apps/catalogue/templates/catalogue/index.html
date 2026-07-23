@@ -1,0 +1,223 @@
+{% extends 'catalogue/base_catalogue.html' %}
+{% load static %}
+
+{% block title %}Catalogue — Produits, Menus & Chambres{% endblock %}
+
+{% block content %}
+<div x-data="catalogueApp()" x-init="init()" class="space-y-6">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-semibold">Catalogue</h1>
+            <p class="text-sm text-on-surface-variant">Tous les articles vendables</p>
+        </div>
+        <div class="flex gap-2">
+            <select x-model="filtre_domaine" @change="charger()" class="input-md3 rounded-lg text-sm px-3 py-2">
+                <option value="">Tous domaines</option>
+                <template x-for="d in domaines" :key="d.id">
+                    <option :value="d.id" x-text="d.nom"></option>
+                </template>
+            </select>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-3 gap-4">
+        <div class="card-md3 p-5 border-l-4 border-secondary">
+            <p class="text-sm text-on-surface-variant">Produits</p>
+            <p class="text-2xl font-bold text-secondary mt-1" x-text="stats.produits"></p>
+        </div>
+        <div class="card-md3 p-5 border-l-4 border-green-500">
+            <p class="text-sm text-on-surface-variant">Menus</p>
+            <p class="text-2xl font-bold text-green-400 mt-1" x-text="stats.menus"></p>
+        </div>
+        <div class="card-md3 p-5 border-l-4 border-blue-500">
+            <p class="text-sm text-on-surface-variant">Chambres</p>
+            <p class="text-2xl font-bold text-blue-400 mt-1" x-text="stats.chambres"></p>
+        </div>
+    </div>
+
+    <!-- Onglets -->
+    <div class="flex gap-2 border-b border-outline/10">
+        <button @click="onglet = 'produits'" class="px-4 py-2 text-sm font-medium transition border-b-2"
+                :class="onglet === 'produits' ? 'border-secondary text-secondary' : 'border-transparent text-on-surface-variant hover:text-on-surface'">
+            <i class="fas fa-box mr-1"></i> Produits
+        </button>
+        <button @click="onglet = 'menus'" class="px-4 py-2 text-sm font-medium transition border-b-2"
+                :class="onglet === 'menus' ? 'border-secondary text-secondary' : 'border-transparent text-on-surface-variant hover:text-on-surface'">
+            <i class="fas fa-utensils mr-1"></i> Menus
+        </button>
+        <button @click="onglet = 'chambres'" class="px-4 py-2 text-sm font-medium transition border-b-2"
+                :class="onglet === 'chambres' ? 'border-secondary text-secondary' : 'border-transparent text-on-surface-variant hover:text-on-surface'">
+            <i class="fas fa-bed mr-1"></i> Chambres
+        </button>
+    </div>
+
+    <!-- Filtres catégorie produits -->
+    <div x-show="onglet === 'produits'" class="flex items-center gap-2 flex-wrap">
+        <button @click="filtreCategorie = ''; charger()" 
+                class="px-3 py-1 text-xs font-medium rounded-full transition-all"
+                :class="!filtreCategorie ? 'bg-secondary/20 text-secondary' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'">Tous</button>
+        <template x-for="cat in categories_produits" :key="cat">
+            <button @click="filtreCategorie = cat; charger()"
+                    class="px-3 py-1 text-xs font-medium rounded-full transition-all"
+                    :class="filtreCategorie === cat ? 'bg-secondary/20 text-secondary' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'"
+                    x-text="cat"></button>
+        </template>
+    </div>
+
+    <!-- Filtres type menu -->
+    <div x-show="onglet === 'menus'" class="flex items-center gap-2 flex-wrap">
+        <button @click="filtreTypeMenu = ''; charger()"
+                class="px-3 py-1 text-xs font-medium rounded-full transition-all"
+                :class="!filtreTypeMenu ? 'bg-secondary/20 text-secondary' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'">Tous</button>
+        <template x-for="tm in types_menus" :key="tm">
+            <button @click="filtreTypeMenu = tm; charger()"
+                    class="px-3 py-1 text-xs font-medium rounded-full transition-all"
+                    :class="filtreTypeMenu === tm ? 'bg-secondary/20 text-secondary' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'"
+                    x-text="tm"></button>
+        </template>
+    </div>
+
+    <!-- Recherche -->
+    <div class="relative" x-show="onglet === 'produits'">
+        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm"></i>
+        <input type="text" x-model="search" @input.debounce.300ms="charger()" class="input-md3 rounded-lg pl-9 text-sm w-full" placeholder="Rechercher un produit...">
+    </div>
+
+    <!-- Section Produits -->
+    <div x-show="onglet === 'produits'" class="card-md3 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-surface-container-high">
+                    <tr class="text-on-surface-variant">
+                        <th class="px-4 py-3 text-left">Produit</th>
+                        <th class="px-4 py-3 text-left">Catégorie</th>
+                        <th class="px-4 py-3 text-left">Domaine</th>
+                        <th class="px-4 py-3 text-center">Image</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10">
+                    <template x-for="p in produits" :key="p.id">
+                        <tr class="hover:bg-surface-container-low/50 transition">
+                            <td class="px-4 py-3">
+                                <span class="font-medium" x-text="p.nom"></span>
+                                <code class="text-xs text-on-surface-variant ml-2" x-text="p.code"></code>
+                            </td>
+                            <td class="px-4 py-3 text-on-surface-variant" x-text="p.categorie || '-'"></td>
+                            <td class="px-4 py-3">
+                                <span class="text-xs px-2 py-0.5 rounded-full bg-secondary-container/20 text-secondary" x-text="p.domaine || '-'"></span>
+                            </td>
+                            <td class="px-4 py-3 text-center">
+                                <img x-show="p.image_url" :src="p.image_url" class="w-10 h-10 rounded-lg object-cover mx-auto">
+                                <span x-show="!p.image_url" class="text-on-surface-variant text-xs"><i class="fas fa-image"></i></span>
+                            </td>
+                        </tr>
+                    </template>
+                    <tr x-show="!produits.length">
+                        <td colspan="4" class="px-4 py-12 text-center text-on-surface-variant">
+                            <i class="fas fa-box text-3xl mb-2 block opacity-30"></i>
+                            Aucun produit trouvé
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Section Menus -->
+    <div x-show="onglet === 'menus'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <template x-for="m in menus" :key="m.id">
+            <div class="card-md3 overflow-hidden hover:shadow-lg transition">
+                <div x-show="m.image_url" class="h-32 bg-surface-container-high">
+                    <img :src="m.image_url" class="w-full h-full object-cover">
+                </div>
+                <div class="p-4">
+                    <h3 class="font-semibold" x-text="m.nom"></h3>
+                    <p class="text-xs text-on-surface-variant mt-1">
+                        <span class="bg-secondary-container/20 text-secondary px-2 py-0.5 rounded-full" x-text="m.type_menu"></span>
+                        <span x-show="m.prix_vente" class="ml-2"><i class="fas fa-tag mr-1"></i><span x-text="m.prix_vente + ' GNF'"></span></span>
+                    </p>
+                    <p x-show="m.description" class="text-sm text-on-surface-variant mt-2 line-clamp-2" x-text="m.description"></p>
+                </div>
+            </div>
+        </template>
+        <div x-show="!menus.length" class="col-span-full py-12 text-center text-on-surface-variant">
+            <i class="fas fa-utensils text-3xl mb-2 block opacity-30"></i>
+            Aucun menu
+        </div>
+    </div>
+
+    <!-- Section Chambres -->
+    <div x-show="onglet === 'chambres'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <template x-for="c in chambres" :key="c.id">
+            <div class="card-md3 overflow-hidden hover:shadow-lg transition">
+                <div x-show="c.image_url" class="h-32 bg-surface-container-high">
+                    <img :src="c.image_url" class="w-full h-full object-cover">
+                </div>
+                <div class="p-4">
+                    <h3 class="font-semibold" x-text="c.nom"></h3>
+                    <p class="text-xs text-on-surface-variant mt-1">
+                        <span x-show="c.type_chambre" class="bg-blue-900/30 text-blue-300 px-2 py-0.5 rounded-full" x-text="c.type_chambre"></span>
+                        <span x-show="c.capacite" class="ml-2"><i class="fas fa-user mr-1"></i><span x-text="c.capacite + ' pers.'"></span></span>
+                    </p>
+                    <p x-show="c.description" class="text-sm text-on-surface-variant mt-2 line-clamp-2" x-text="c.description"></p>
+                </div>
+            </div>
+        </template>
+        <div x-show="!chambres.length" class="col-span-full py-12 text-center text-on-surface-variant">
+            <i class="fas fa-bed text-3xl mb-2 block opacity-30"></i>
+            Aucune chambre
+        </div>
+    </div>
+
+</div>
+
+<script>
+function catalogueApp() {
+    return {
+        onglet: 'produits',
+        produits: [], menus: [], chambres: [],
+        domaines: JSON.parse('{{ domaines_json|safe }}' || '[]'),
+        search: '', filtre_domaine: '', filtreCategorie: '', filtreTypeMenu: '',
+        categories_produits: [], types_menus: [],
+        stats: { produits: 0, menus: 0, chambres: 0 },
+
+        async init() { await this.charger(); },
+
+        async charger() {
+            try {
+                const r = await fetch('/catalogue/api/items/');
+                const d = await r.json();
+                this.categories_produits = d.categories_produits || [];
+                this.types_menus = d.types_menus || [];
+                let prods = d.produits || [];
+                if (this.search) {
+                    const q = this.search.toLowerCase();
+                    prods = prods.filter(p => p.nom.toLowerCase().includes(q) || (p.code || '').toLowerCase().includes(q));
+                }
+                if (this.filtre_domaine) {
+                    prods = prods.filter(p => p.domaine_id === this.filtre_domaine);
+                }
+                if (this.filtreCategorie) {
+                    prods = prods.filter(p => p.categorie === this.filtreCategorie);
+                }
+                this.produits = prods;
+                let menus = d.menus || [];
+                if (this.filtreTypeMenu) {
+                    menus = menus.filter(m => m.type_menu === this.filtreTypeMenu);
+                }
+                this.menus = menus;
+                this.chambres = d.chambres || [];
+                this.stats = {
+                    produits: (d.produits || []).length,
+                    menus: (d.menus || []).length,
+                    chambres: (d.chambres || []).length,
+                };
+            } catch(e) { console.error(e); }
+        }
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,366 @@
+{% extends 'paie/base_paie.html' %}
+{% load static %}
+
+{% block paie_content %}
+<div x-data="rubriqueManagement()" x-init="init()">
+    <div class="bg-surface-container-low rounded-xl shadow-md">
+        <div class="px-6 py-4 border-b flex justify-between items-center">
+            <div>
+                <h2 class="text-xl font-bold">Rubriques de paie</h2>
+                <p class="text-sm text-on-surface-variant">Gestion des rubriques pour le calcul des salaires</p>
+            </div>
+            <button @click="openModal = true; resetForm()" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i> Nouvelle rubrique
+            </button>
+        </div>
+        
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-surface-container-high">
+                    <tr>
+                        <th class="px-4 py-3 text-left">Code</th>
+                        <th class="px-4 py-3 text-left">Libellé</th>
+                        <th class="px-4 py-3 text-left">Type</th>
+                        <th class="px-4 py-3 text-center">Sens</th>
+                        <th class="px-4 py-3 text-center">Taux (%)</th>
+                        <th class="px-4 py-3 text-center">Montant fixe</th>
+                        <th class="px-4 py-3 text-center">Ordre</th>
+                        <th class="px-4 py-3 text-center">Actif</th>
+                        <th class="px-4 py-3 text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for rubrique in rubriques %}
+                    <tr class="border-t hover:bg-surface-container-low">
+                        <td class="px-4 py-3 font-mono">{{ rubrique.code }}</td>
+                        <td class="px-4 py-3">{{ rubrique.libelle }}</td>
+                        <td class="px-4 py-3">{{ rubrique.get_type_rubrique_display }}</td>
+                        <td class="px-4 py-3 text-center">
+                            {% if rubrique.sens == 'BRUT' %}
+                            <span class="badge badge-success">Brut (+)</span>
+                            {% else %}
+                            <span class="badge badge-warning">Net (-)</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            {% if rubrique.taux %}
+                            {{ rubrique.taux }}%
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            {% if rubrique.montant_fixe %}
+                            {{ rubrique.montant_fixe|floatformat:0 }} F
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-center">{{ rubrique.ordre }}</td>
+                        <td class="px-4 py-3 text-center">
+                            {% if rubrique.actif %}
+                            <span class="badge badge-success">Actif</span>
+                            {% else %}
+                            <span class="badge badge-error">Inactif</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-center">
+                            <button @click="editRubrique('{{ rubrique.id }}')" class="text-blue-500 hover:text-blue-700 mx-1">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button @click="toggleActif('{{ rubrique.id }}', '{{ rubrique.libelle }}')" class="text-on-surface-variant hover:text-on-surface mx-1">
+                                <i class="fas fa-power-off"></i>
+                            </button>
+                            <button @click="deleteRubrique('{{ rubrique.id }}', '{{ rubrique.libelle }}')" class="text-red-500 hover:text-red-700 mx-1">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="px-4 py-8 text-center text-on-surface-variant">
+                            <i class="fas fa-list text-4xl mb-2 block"></i>
+                            Aucune rubrique
+                            <button @click="openModal = true" class="block mx-auto mt-2 text-secondary hover:underline">
+                                Créer la première rubrique
+                            </button>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- MODAL AJOUT / MODIFICATION RUBRIQUE -->
+    <div x-show="openModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" x-cloak @click.away="openModal = false">
+        <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-md">
+            <div class="px-6 py-4 border-b flex justify-between items-center">
+                <h2 class="text-xl font-bold" x-text="modalTitle">Rubrique</h2>
+                <button @click="openModal = false" class="text-on-surface-variant hover:text-on-surface-variant">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form @submit.prevent="saveRubrique" class="p-6">
+                {% csrf_token %}
+                <input type="hidden" x-model="form.id">
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1">Code *</label>
+                    <input type="text" x-model="form.code" required 
+                           class="w-full px-3 py-2 input-md3 rounded-lg focus:ring-2 focus:ring-secondary/50"
+                           placeholder="Ex: PRIME, RETENUE...">
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1">Libellé *</label>
+                    <input type="text" x-model="form.libelle" required 
+                           class="w-full px-3 py-2 input-md3 rounded-lg"
+                           placeholder="Ex: Prime d'ancienneté">
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Type</label>
+                        <select x-model="form.type_rubrique" class="w-full px-3 py-2 input-md3 rounded-lg">
+                            <option value="BASE">Salaire de base</option>
+                            <option value="PRIME">Prime</option>
+                            <option value="AVANTAGE">Avantage</option>
+                            <option value="RETENUE">Retenue</option>
+                            <option value="COTISATION">Cotisation</option>
+                            <option value="IMPOT">Impôt</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Sens</label>
+                        <select x-model="form.sens" class="w-full px-3 py-2 input-md3 rounded-lg">
+                            <option value="BRUT">Brut (ajout)</option>
+                            <option value="NET">Net (déduction)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Taux (%)</label>
+                        <input type="number" step="0.01" x-model="form.taux" 
+                               class="w-full px-3 py-2 input-md3 rounded-lg"
+                               placeholder="Ex: 5.5">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Montant fixe (FCFA)</label>
+                        <input type="number" step="1000" x-model="form.montant_fixe" 
+                               class="w-full px-3 py-2 input-md3 rounded-lg"
+                               placeholder="Ex: 10000">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Ordre d'affichage</label>
+                        <input type="number" x-model="form.ordre" 
+                               class="w-full px-3 py-2 input-md3 rounded-lg"
+                               placeholder="10">
+                    </div>
+                    <div class="flex items-center pt-6">
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input type="checkbox" x-model="form.actif" class="toggle toggle-sm">
+                            <span class="text-sm">Rubrique active</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <div class="flex gap-3 mt-6 pt-4 border-t">
+                    <button type="submit" class="flex-1 bg-secondary text-white px-4 py-2 rounded-lg hover:bg-secondary/90" :disabled="loading">
+                        <i class="fas fa-save mr-2"></i>
+                        <span x-text="loading ? 'Enregistrement...' : 'Enregistrer'"></span>
+                    </button>
+                    <button type="button" @click="openModal = false" class="flex-1 bg-surface-container-high text-on-surface px-4 py-2 rounded-lg hover:bg-surface-container-high">
+                        Annuler
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- MODAL CONFIRMATION SUPPRESSION -->
+    <div x-show="showDeleteModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/50" x-cloak @click.away="showDeleteModal = false">
+        <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-md p-6">
+            <div class="text-center">
+                <i class="fas fa-exclamation-triangle text-red-500 text-5xl mb-4"></i>
+                <h3 class="text-xl font-bold mb-2">Confirmer la suppression</h3>
+                <p class="text-on-surface-variant mb-6">Supprimer la rubrique <span class="font-bold" x-text="deleteNom"></span> ?</p>
+                <p class="text-sm text-red-500 mb-4">⚠️ Attention: Les bulletins utilisant cette rubrique seront impactés.</p>
+                <div class="flex gap-3">
+                    <button @click="confirmDelete" class="flex-1 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">
+                        Oui, supprimer
+                    </button>
+                    <button @click="showDeleteModal = false" class="flex-1 bg-surface-container-high text-on-surface px-4 py-2 rounded-lg hover:bg-surface-container-high">
+                        Annuler
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function rubriqueManagement() {
+    return {
+        openModal: false,
+        showDeleteModal: false,
+        loading: false,
+        modalTitle: 'Ajouter une rubrique',
+        deleteId: null,
+        deleteNom: '',
+        form: {
+            id: '',
+            code: '',
+            libelle: '',
+            type_rubrique: 'BASE',
+            sens: 'BRUT',
+            taux: '',
+            montant_fixe: '',
+            ordre: 0,
+            actif: true
+        },
+        
+        init() {
+            // Initialisation
+        },
+        
+        resetForm() {
+            this.modalTitle = 'Ajouter une rubrique';
+            this.form = {
+                id: '',
+                code: '',
+                libelle: '',
+                type_rubrique: 'BASE',
+                sens: 'BRUT',
+                taux: '',
+                montant_fixe: '',
+                ordre: 0,
+                actif: true
+            };
+        },
+        
+        editRubrique(id) {
+            this.modalTitle = 'Modifier la rubrique';
+            this.loading = true;
+            
+            fetch(`/paie/rubriques/${id}/api/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        this.form.id = data.rubrique.id;
+                        this.form.code = data.rubrique.code;
+                        this.form.libelle = data.rubrique.libelle;
+                        this.form.type_rubrique = data.rubrique.type_rubrique;
+                        this.form.sens = data.rubrique.sens;
+                        this.form.taux = data.rubrique.taux || '';
+                        this.form.montant_fixe = data.rubrique.montant_fixe || '';
+                        this.form.ordre = data.rubrique.ordre;
+                        this.form.actif = data.rubrique.actif;
+                        this.openModal = true;
+                    }
+                })
+                .catch(error => console.error('Erreur:', error))
+                .finally(() => {
+                    this.loading = false;
+                });
+        },
+        
+        toggleActif(id, nom) {
+            if (confirm(`Activer/Désactiver la rubrique "${nom}" ?`)) {
+                fetch(`/paie/rubriques/${id}/toggle/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': this.getCookie('csrftoken')
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        window.location.reload();
+                    }
+                })
+                .catch(error => console.error('Erreur:', error));
+            }
+        },
+        
+        deleteRubrique(id, nom) {
+            this.deleteId = id;
+            this.deleteNom = nom;
+            this.showDeleteModal = true;
+        },
+        
+        async confirmDelete() {
+            try {
+                const response = await fetch(`/paie/rubriques/${this.deleteId}/supprimer/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': this.getCookie('csrftoken')
+                    }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert('Erreur: ' + data.error);
+                }
+            } catch (error) {
+                alert('Erreur réseau');
+            } finally {
+                this.showDeleteModal = false;
+            }
+        },
+        
+        async saveRubrique() {
+            this.loading = true;
+            const isEdit = this.form.id !== '';
+            const url = isEdit ? `/paie/rubriques/${this.form.id}/modifier/` : '/paie/rubriques/api/ajouter/';
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        code: this.form.code,
+                        libelle: this.form.libelle,
+                        type_rubrique: this.form.type_rubrique,
+                        sens: this.form.sens,
+                        taux: this.form.taux,
+                        montant_fixe: this.form.montant_fixe,
+                        ordre: this.form.ordre,
+                        actif: this.form.actif
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert('Erreur: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur réseau');
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        getCookie(name) {
+            let value = `; ${document.cookie}`;
+            let parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+    }
+}
+</script>
+{% endblock %}

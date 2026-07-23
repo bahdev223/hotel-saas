@@ -1,0 +1,106 @@
+{% extends 'restaurant/base_restaurant.html' %}
+{% load static %}
+
+{% block title %}Ajouter une recette{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-2xl font-bold">Ajouter une recette</h1>
+        <a href="{% url 'restaurant:recettes' %}" class="text-on-surface-variant hover:underline">
+            <i class="fas fa-arrow-left"></i> Retour
+        </a>
+    </div>
+    
+    <div class="overflow-hidden bg-surface-container-low shadow-md rounded-xl">
+        <form method="post" enctype="multipart/form-data" class="p-6 space-y-4">
+            {% csrf_token %}
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block mb-1 text-sm font-medium">Code *</label>
+                    <input type="text" name="code" required class="w-full px-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50" placeholder="REC-001">
+                </div>
+                <div>
+                    <label class="block mb-1 text-sm font-medium">Nom *</label>
+                    <input type="text" name="nom" required class="w-full px-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50" placeholder="Nom de la recette">
+                </div>
+            </div>
+            
+            <div>
+                <label class="block mb-1 text-sm font-medium">Type de recette *</label>
+                <select name="type_recette" required class="w-full px-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50">
+                    <option value="">Sélectionner un type...</option>
+                    {% if types_recette %}
+                        {% for type in types_recette %}
+                        <option value="{{ type.value }}">{{ type.value }}</option>
+                        {% endfor %}
+                    {% else %}
+                        <option value="">Aucun type disponible</option>
+                    {% endif %}
+                </select>
+            </div>
+            
+            <div>
+                <label class="block mb-1 text-sm font-medium">Description</label>
+                <textarea name="description" rows="3" class="w-full px-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50" placeholder="Description du plat..."></textarea>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block mb-1 text-sm font-medium">Prix de vente (FCFA)</label>
+                    <input type="number" step="0.01" name="prix_vente" class="w-full px-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50" placeholder="0">
+                </div>
+                <div>
+                    <label class="block mb-1 text-sm font-medium">Temps de préparation (minutes)</label>
+                    <input type="number" name="temps_preparation" class="w-full px-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50" value="0">
+                </div>
+            </div>
+            
+            <!-- Image -->
+            <div>
+                <label class="block mb-1 text-sm font-medium">Image du plat</label>
+                <input type="file" name="image" class="w-full px-3 py-2 input-md3 rounded-lg" accept="image/*">
+                <p class="mt-1 text-xs text-on-surface-variant">Formats acceptés: JPG, PNG. Taille max: 5MB</p>
+            </div>
+            
+            <!-- Options POS -->
+            <div class="grid grid-cols-2 gap-4">
+                <div class="flex items-center gap-2">
+                    <input type="checkbox" name="visible_dans_pos" id="visible_dans_pos" class="w-4 h-4 rounded" checked>
+                    <label for="visible_dans_pos" class="text-sm">Visible dans le point de vente</label>
+                </div>
+                <div>
+                    <label class="block mb-1 text-sm font-medium">Ordre d'affichage</label>
+                    <input type="number" name="ordre_affichage" class="w-full px-3 py-2 input-md3 rounded-lg" value="0" placeholder="0">
+                    <p class="mt-1 text-xs text-on-surface-variant">Plus le nombre est petit, plus il apparaît en haut</p>
+                </div>
+            </div>
+            
+            <div>
+                <label class="block mb-1 text-sm font-medium">Notes internes</label>
+                <textarea name="notes" rows="2" class="w-full px-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50" placeholder="Notes pour la cuisine..."></textarea>
+            </div>
+            
+            <div class="p-4 border-outline/10 rounded-lg bg-blue-900/20">
+                <div class="flex gap-2">
+                    <i class="text-blue-400 fas fa-info-circle"></i>
+                    <div class="text-sm text-blue-300">
+                        <p class="font-medium">Après création</p>
+                        <p>Vous pourrez ajouter les ingrédients et les étapes de préparation.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="flex gap-3 pt-4">
+                <button type="submit" class="flex-1 px-4 py-2 text-white rounded-lg bg-secondary hover:bg-secondary/80">
+                    <i class="fas fa-save"></i> Créer la recette
+                </button>
+                <a href="{% url 'restaurant:recettes' %}" class="flex-1 px-4 py-2 text-center text-on-surface bg-surface-container-highest rounded-lg hover:bg-surface-container-highest">
+                    Annuler
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

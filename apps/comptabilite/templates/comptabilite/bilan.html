@@ -1,0 +1,98 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load static %}
+
+{% block title %}Bilan comptable{% endblock %}
+
+{% block header %}Bilan comptable{% endblock %}
+{% block subtitle %}Situation patrimoniale au {{ date_bilan|date:"d/m/Y" }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    
+    <!-- Filtre date -->
+    <div class="bg-surface-container-low rounded-xl shadow-md p-4">
+        <form method="get" class="flex flex-wrap gap-4 items-end">
+            <div class="form-control">
+                <label class="label text-sm">Date du bilan</label>
+                <input type="date" name="date" value="{{ date_bilan }}" class="input-md3 rounded-lg">
+            </div>
+            <button type="submit" class="btn btn-primary">Actualiser</button>
+        </form>
+    </div>
+    
+    <!-- Bilan -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        <!-- ACTIF -->
+        <div class="bg-surface-container-low rounded-xl shadow-md">
+            <div class="px-6 py-4 border-b border-outline/10 bg-success/10">
+                <h3 class="font-bold text-success text-lg">ACTIF</h3>
+                <p class="text-xs text-on-surface-variant">Emplois des ressources</p>
+            </div>
+            <div class="divide-y divide-outline/10">
+                {% for item in actif %}
+                <div class="px-6 py-3 flex justify-between hover:bg-surface-container-low">
+                    <div>
+                        <span class="font-mono text-sm text-on-surface-variant">{{ item.compte__code }}</span>
+                        <span class="ml-2 text-sm">{{ item.compte__libelle|truncatechars:40 }}</span>
+                    </div>
+                    <span class="font-mono font-bold">{{ item.solde|floatformat:0 }} F</span>
+                </div>
+                {% empty %}
+                <div class="px-6 py-8 text-center text-on-surface-variant">Aucun compte d'actif</div>
+                {% endfor %}
+            </div>
+            <div class="px-6 py-3 border-t border-outline/10 bg-surface-container-high flex justify-between font-bold">
+                <span>TOTAL ACTIF</span>
+                <span class="text-success">{{ total_actif|floatformat:0 }} F</span>
+            </div>
+        </div>
+        
+        <!-- PASSIF -->
+        <div class="bg-surface-container-low rounded-xl shadow-md">
+            <div class="px-6 py-4 border-b border-outline/10 bg-error/10">
+                <h3 class="font-bold text-error text-lg">PASSIF</h3>
+                <p class="text-xs text-on-surface-variant">Ressources de l'entreprise</p>
+            </div>
+            <div class="divide-y divide-outline/10">
+                {% for item in passif %}
+                <div class="px-6 py-3 flex justify-between hover:bg-surface-container-low">
+                    <div>
+                        <span class="font-mono text-sm text-on-surface-variant">{{ item.compte__code }}</span>
+                        <span class="ml-2 text-sm">{{ item.compte__libelle|truncatechars:40 }}</span>
+                    </div>
+                    <span class="font-mono font-bold">{{ item.solde|floatformat:0 }} F</span>
+                </div>
+                {% empty %}
+                <div class="px-6 py-8 text-center text-on-surface-variant">Aucun compte de passif</div>
+                {% endfor %}
+            </div>
+            <div class="px-6 py-3 border-t border-outline/10 bg-surface-container-high flex justify-between font-bold">
+                <span>TOTAL PASSIF</span>
+                <span class="text-error">{{ total_passif|floatformat:0 }} F</span>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Équilibre -->
+    <div class="bg-surface-container-low rounded-xl shadow-md p-4">
+        <div class="flex justify-between items-center">
+            <div>
+                <span class="font-semibold">Équilibre du bilan</span>
+                <p class="text-sm text-on-surface-variant">Actif - Passif = 0</p>
+            </div>
+            <div>
+                {% if resultat == 0 %}
+                    <span class="badge badge-success gap-2 text-lg px-4 py-2">
+                        <i class="fas fa-check-circle"></i> Bilan équilibré
+                    </span>
+                {% else %}
+                    <span class="badge badge-error gap-2 text-lg px-4 py-2">
+                        <i class="fas fa-exclamation-triangle"></i> Différence: {{ resultat|floatformat:0 }} F
+                    </span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

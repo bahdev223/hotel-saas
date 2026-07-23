@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Liste des factures{% endblock %}
+
+{% block header %}Liste des factures{% endblock %}
+{% block subtitle %}Toutes les factures{% endblock %}
+
+{% block content %}
+<div x-data="facturesApp()" x-init="init()" class="space-y-6">
+
+    <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="flex gap-2 flex-wrap">
+            <select x-model="filtreCategorie" @change="chargerFactures()" class="input-md3 rounded-lg text-sm">
+                <option value="">Toutes catégories</option>
+                <option value="CLIENT">Clients</option>
+                <option value="FOURNISSEUR">Fournisseurs</option>
+            </select>
+            <select x-model="filtreType" @change="chargerFactures()" class="input-md3 rounded-lg text-sm">
+                <option value="">Tous les types</option>
+                <option value="COMMANDE">Commande</option>
+                <option value="LOCATION">Hôtel</option>
+                <option value="MANUELLE">Manuelle</option>
+            </select>
+            <select x-model="filtreStatut" @change="chargerFactures()" class="input-md3 rounded-lg text-sm">
+                <option value="">Tous les statuts</option>
+                <option value="BROUILLON">Brouillon</option>
+                <option value="EMISE">Émise</option>
+                <option value="PAYEE">Payée</option>
+                <option value="ANNULEE">Annulée</option>
+            </select>
+        </div>
+        <a href="{% url 'facturation:creer' %}" class="bg-secondary text-on-secondary px-4 py-2 rounded-lg hover:bg-secondary/80 text-sm">
+            <i class="fas fa-plus mr-2"></i> Nouvelle facture
+        </a>
+    </div>
+
+    <div class="bg-surface-container-low rounded-xl border-outline/10 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-surface-container-high border-b border-outline/10">
+                    <tr class="border-b border-outline/10">
+                        <th class="px-4 py-3 text-left">N° Facture</th>
+                        <th class="px-4 py-3 text-left">Type</th>
+                        <th class="px-4 py-3 text-left">Client</th>
+                        <th class="px-4 py-3 text-left">Date</th>
+                        <th class="px-4 py-3 text-right">Montant</th>
+                        <th class="px-4 py-3 text-right">Payé</th>
+                        <th class="px-4 py-3 text-center">Statut</th>
+                        <th class="px-4 py-3 text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10">
+                    <template x-for="f in factures" :key="f.id">
+                        <tr class="hover:bg-surface-container-low">
+                            <td class="px-4 py-3 font-mono font-medium">
+                                <a :href="'/facturation/' + f.id + '/'" class="text-secondary hover:underline" x-text="f.numero"></a>
+                            </td>
+                            <td class="px-4 py-3">
+                                <span class="px-2 py-0.5 rounded-full text-xs font-medium"
+                                      :class="typeClass(f.type)" x-text="f.type"></span>
+                            </td>
+                            <td class="px-4 py-3" x-text="f.client_nom"></td>
+                            <td class="px-4 py-3 text-sm" x-text="f.date_emission"></td>
+                            <td class="px-4 py-3 text-right font-mono" x-text="formatMoney(f.montant_total) + ' F'"></td>
+                            <td class="px-4 py-3 text-right font-mono text-green-400" x-text="formatMoney(f.total_paye) + ' F'"></td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="px-2 py-1 rounded-full text-xs"
+                                      :class="statutClass(f.statut)" x-text="statutLabel(f.statut)"></span>
+                            </td>
+                            <td class="px-4 py-3 text-center space-x-2">
+                                <a :href="'/facturation/' + f.id + '/'" class="text-blue-400 hover:text-blue-400" title="Détail">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a :href="'/facturation/' + f.id + '/pdf/'" class="text-red-400 hover:text-red-400" target="_blank" title="PDF">
+                                    <i class="fas fa-file-pdf"></i>
+                                </a>
+                                <button x-show="f.statut !== 'PAYEE' && f.statut !== 'ANNULEE'"
+                                        @click="payerFacture(f.id)" class="text-secondary hover:text-secondary" title="Payer">
+                                    <i class="fas fa-credit-card"></i>
+                                </button>
+                            </td>
+                        </tr>
+                    </template>
+                    <tr x-show="!factures.length">
+                        <td colspan="8" class="px-4 py-8 text-center text-on-surface-variant">
+                            <i class="fas fa-file-invoice text-4xl mb-2 block"></i>
+                            Aucune facture
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% include 'paiements/components/paiement_dialog.html' %}
+
+<script>
+function facturesApp() {
+    return {
+        factures: [],
+        filtreCategorie: '',
+        filtreType: '',
+        filtreStatut: '',
+
+        async init() {
+            await this.chargerFactures();
+        },
+
+        async chargerFactures() {
+            try {
+                const params = new URLSearchParams();
+                if (this.filtreCategorie) params.set('categorie', this.filtreCategorie);
+                if (this.filtreType) params.set('type', this.filtreType);
+                if (this.filtreStatut) params.set('statut', this.filtreStatut);
+                const qs = params.toString();
+                const url = '/facturation/api/factures/' + (qs ? '?' + qs : '');
+                const r = await fetch(url);
+                const d = await r.json();
+                if (d.success) this.factures = d.factures;
+            } catch(e) {}
+        },
+
+        payerFacture(id) {
+            window.dispatchEvent(new CustomEvent('open-paiement-dialog', {
+                detail: { facture_id: id }
+            }));
+        },
+
+        typeClass(t) {
+            return t === 'COMMANDE' ? 'bg-blue-900/30 text-blue-300' :
+                   t === 'LOCATION' ? 'bg-green-900/30 text-green-300' :
+                   t === 'FOURNISSEUR' ? 'bg-amber-900/30 text-amber-300' :
+                   t === 'CLIENT' ? 'bg-purple-900/30 text-purple-300' :
+                   'bg-gray-700 text-on-surface';
+        },
+
+        statutClass(s) {
+            return s === 'PAYEE' ? 'bg-green-900/30 text-green-300' :
+                   s === 'EMISE' ? 'bg-blue-900/30 text-blue-300' :
+                   s === 'BROUILLON' ? 'bg-yellow-900/30 text-yellow-300' :
+                   'bg-red-900/30 text-red-300';
+        },
+
+        statutLabel(s) {
+            return s === 'PAYEE' ? 'Payée' :
+                   s === 'EMISE' ? 'Émise' :
+                   s === 'BROUILLON' ? 'Brouillon' :
+                   s === 'ANNULEE' ? 'Annulée' : s;
+        },
+
+        formatMoney(v) { return new Intl.NumberFormat('fr-FR').format(v || 0); }
+    }
+}
+</script>
+{% endblock %}

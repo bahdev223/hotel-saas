@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Supprimer {{ client.nom_complet }}{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto mt-12">
+    <div class="card-md3 p-8 text-center space-y-6">
+        <div class="w-16 h-16 rounded-full bg-red-900/30 flex items-center justify-center mx-auto">
+            <i class="fas fa-exclamation-triangle text-3xl text-red-400"></i>
+        </div>
+        <div>
+            <h1 class="text-xl font-bold text-on-surface">Confirmer la suppression</h1>
+            <p class="text-sm text-on-surface-variant mt-2">
+                Êtes-vous sûr de vouloir supprimer <strong>{{ client.nom_complet }}</strong> ?
+            </p>
+            <p class="text-xs text-on-surface-variant font-mono mt-1">{{ client.id }}</p>
+        </div>
+        {% if solde_total != 0 %}
+        <div class="bg-red-900/20 border border-red-800/30 rounded-lg p-3 text-sm text-red-300">
+            <i class="fas fa-ban mr-1"></i>
+            Solde non nul ({{ solde_total|floatformat:0 }} F) — suppression impossible.
+            Désactivez plutôt ce client depuis sa fiche.
+        </div>
+        <div class="flex gap-3">
+            <a href="{% url 'clients:detail' client.id %}" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm text-center hover:bg-surface-container-high transition">Retour</a>
+        </div>
+        {% else %}
+        <form method="post" class="flex gap-3">
+            {% csrf_token %}
+            <button type="submit" class="flex-1 bg-red-800 text-white py-2 rounded-lg text-sm hover:bg-red-700 transition"><i class="fas fa-trash mr-1"></i>Supprimer</button>
+            <a href="{% url 'clients:detail' client.id %}" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm text-center hover:bg-surface-container-high transition">Annuler</a>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

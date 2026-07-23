@@ -1,0 +1,53 @@
+{% extends 'paie/base_paie.html' %}
+{% load static %}
+
+{% block paie_content %}
+<div class="bg-surface-container-low rounded-xl shadow-md">
+    <div class="px-6 py-4 border-b">
+        <h2 class="text-xl font-bold">Bulletins de paie</h2>
+    </div>
+    
+    <div class="overflow-x-auto">
+        <table class="w-full">
+            <thead class="bg-surface-container-high">
+                <tr>
+                    <th class="px-4 py-3 text-left">Employé</th>
+                    <th class="px-4 py-3 text-left">Période</th>
+                    <th class="px-4 py-3 text-right">Salaire base</th>
+                    <th class="px-4 py-3 text-right">Net à payer</th>
+                    <th class="px-4 py-3 text-center">Statut</th>
+                    <th class="px-4 py-3 text-center">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for bulletin in bulletins %}
+                <tr class="border-t hover:bg-surface-container-low">
+                    <td class="px-4 py-3">{{ bulletin.employe.nom }} {{ bulletin.employe.prenom }}</td>
+                    <td class="px-4 py-3">{{ bulletin.periode.libelle }}</td>
+                    <td class="px-4 py-3 text-right">{{ bulletin.base_calcul|floatformat:0 }} F</td>
+                    <td class="px-4 py-3 text-right font-bold">{{ bulletin.net_a_payer|floatformat:0 }} F</td>
+                    <td class="px-4 py-3 text-center">
+                        {% if bulletin.statut == 'VALIDE' %}
+                        <span class="badge badge-success">Validé</span>
+                        {% elif bulletin.statut == 'CALCULE' %}
+                        <span class="badge badge-info">Calculé</span>
+                        {% else %}
+                        <span class="badge badge-warning">Brouillon</span>
+                        {% endif %}
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <a href="{% url 'paie:detail_bulletin' bulletin.id %}" class="text-blue-500 hover:text-blue-700">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="px-4 py-8 text-center text-on-surface-variant">Aucun bulletin généré</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

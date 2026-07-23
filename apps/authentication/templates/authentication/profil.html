@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Mon profil{% endblock %}
+
+{% block header %}<i class="fas fa-user-circle text-secondary mr-2"></i>Mon profil{% endblock %}
+{% block subtitle %}Gérez vos informations personnelles{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto space-y-6" x-data="profilApp()">
+
+    <!-- Photo & Identité -->
+    <div class="card-md3 p-6">
+        <div class="flex flex-col items-center gap-4">
+            <div class="relative">
+                <div class="w-28 h-28 rounded-full bg-surface-container-high flex items-center justify-center overflow-hidden ring-4 ring-secondary/20">
+                    {% if user.profile.avatar %}
+                    <img id="avatarPreview" src="{{ user.profile.avatar.url }}" class="w-full h-full object-cover">
+                    {% elif user.employe.photo %}
+                    <img id="avatarPreview" src="{{ user.employe.photo.url }}" class="w-full h-full object-cover">
+                    {% else %}
+                    <i class="fas fa-user text-4xl text-on-surface-variant"></i>
+                    {% endif %}
+                </div>
+                <label for="avatarInput" class="absolute -bottom-1 -right-1 w-9 h-9 rounded-full bg-secondary text-on-secondary flex items-center justify-center cursor-pointer hover:bg-secondary/80 transition shadow-lg">
+                    <i class="fas fa-camera text-sm"></i>
+                </label>
+            </div>
+            <div class="text-center">
+                <h2 class="text-xl font-bold text-on-surface">{{ user.first_name }} {{ user.last_name }}</h2>
+                <p class="text-sm text-on-surface-variant">{{ user.groups.first.name|default:"Aucun rôle" }}</p>
+                {% if user.employe %}
+                <p class="text-xs text-secondary font-mono mt-1">{{ user.employe.matricule }}</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if user.employe %}
+    <!-- Accès POS -->
+    <div class="card-md3 p-6">
+        <h3 class="font-semibold text-on-surface border-b border-outline/10 pb-3 flex items-center gap-2 mb-4">
+            <i class="fas fa-cash-register text-secondary"></i>Point de vente
+        </h3>
+        <div class="flex flex-wrap gap-3">
+            {% if user.employe.point_vente %}
+            <a href="{% url 'pos:liste_points_vente' %}" class="flex-1 min-w-[200px] bg-secondary text-black px-4 py-3 rounded-xl font-semibold hover:bg-secondary/80 transition flex items-center justify-center gap-2">
+                <i class="fas fa-store"></i>Accéder au POS
+            </a>
+            {% else %}
+            <a href="{% url 'pos:liste_points_vente' %}" class="flex-1 min-w-[200px] bg-secondary text-black px-4 py-3 rounded-xl font-semibold hover:bg-secondary/80 transition flex items-center justify-center gap-2">
+                <i class="fas fa-cash-register"></i>Point de vente
+            </a>
+            {% endif %}
+            <a href="{% url 'pos:employe_dashboard' %}" class="flex-1 min-w-[200px] border border-outline/10 py-3 rounded-xl text-sm text-center hover:bg-surface-container transition-smooth flex items-center justify-center gap-2">
+                <i class="fas fa-chart-bar"></i>Mon tableau de bord
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Formulaire -->
+    <form method="post" enctype="multipart/form-data" class="card-md3 p-6 space-y-5">
+        {% csrf_token %}
+
+        <input type="file" id="avatarInput" name="avatar" accept="image/*" class="hidden" @change="previewAvatar($event)">
+
+        <h3 class="font-semibold text-on-surface border-b border-outline/10 pb-3 flex items-center gap-2">
+            <i class="fas fa-address-card text-secondary"></i>Informations personnelles
+        </h3>
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="label-md3">Prénom</label>
+                <input type="text" name="first_name" value="{{ user.first_name }}" class="input-md3 rounded-lg w-full">
+            </div>
+            <div>
+                <label class="label-md3">Nom</label>
+                <input type="text" name="last_name" value="{{ user.last_name }}" class="input-md3 rounded-lg w-full">
+            </div>
+        </div>
+
+        <div>
+            <label class="label-md3">Email</label>
+            <input type="email" name="email" value="{{ user.email }}" class="input-md3 rounded-lg w-full" placeholder="email@exemple.com">
+        </div>
+
+        <div>
+            <label class="label-md3">Téléphone</label>
+            <input type="tel" name="telephone" value="{{ user.profile.telephone|default:'' }}" class="input-md3 rounded-lg w-full" placeholder="+224 ...">
+        </div>
+
+        <div class="flex gap-3 pt-4">
+            <a href="{% url 'authentication:changer_mot_de_passe' %}" class="flex-1 border border-outline/10 py-3 rounded-xl text-sm text-center hover:bg-surface-container transition-smooth flex items-center justify-center gap-2">
+                <i class="fas fa-key"></i>Mot de passe
+            </a>
+            <button type="submit" class="flex-1 bg-secondary text-black px-4 py-3 rounded-xl font-semibold hover:bg-secondary/80 transition flex items-center justify-center gap-2">
+                <i class="fas fa-save"></i>Enregistrer
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+function profilApp() {
+    return {
+        previewAvatar(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = document.getElementById('avatarPreview');
+                    if (img) {
+                        img.src = e.target.result;
+                    } else {
+                        const container = document.querySelector('.w-28.h-28.rounded-full');
+                        const newImg = document.createElement('img');
+                        newImg.id = 'avatarPreview';
+                        newImg.className = 'w-full h-full object-cover';
+                        newImg.src = e.target.result;
+                        const icon = container.querySelector('i');
+                        if (icon) icon.remove();
+                        container.appendChild(newImg);
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

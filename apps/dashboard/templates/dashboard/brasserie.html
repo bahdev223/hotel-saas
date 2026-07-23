@@ -1,0 +1,255 @@
+{% extends 'dashboard/base_brasserie.html' %}
+{% load static %}
+
+{% block title %}Brasserie — Tableau de bord{% endblock %}
+
+{% block header %}Brasserie{% endblock %}
+{% block subtitle %}Tableau de bord — Activités, stock et performances{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+<div x-data="{ search: '', filtreCat: '', filtreDomaine: '' }">
+
+    <!-- Actions -->
+    <div class="flex justify-end">
+        <a href="{% url 'dashboard:brasserie_produits' %}" class="px-4 py-2 rounded-lg text-sm bg-secondary text-black hover:bg-secondary/80 transition">
+            <i class="fas fa-box mr-1"></i> Gérer les produits
+        </a>
+    </div>
+
+    <!-- Ligne 1 : KPIs principaux -->
+    <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+        <div class="card-md3 p-5 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-success/20 flex items-center justify-center text-success text-xl"><i class="fas fa-chart-line"></i></div>
+            <div>
+                <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">CA du jour</p>
+                <p class="text-xl font-bold font-mono text-success">{{ ca_brasserie|floatformat:0 }} F</p>
+            </div>
+        </div>
+        <div class="card-md3 p-5 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-warning/20 flex items-center justify-center text-warning text-xl"><i class="fas fa-shopping-cart"></i></div>
+            <div>
+                <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Commandes en cours</p>
+                <p class="text-xl font-bold font-mono text-warning">{{ commandes_brasserie }}</p>
+            </div>
+        </div>
+        <div class="card-md3 p-5 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-info/20 flex items-center justify-center text-info text-xl"><i class="fas fa-box"></i></div>
+            <div>
+                <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Produits en stock</p>
+                <p class="text-xl font-bold font-mono">{{ nb_produits }}</p>
+            </div>
+        </div>
+        <div class="card-md3 p-5 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-warning/20 flex items-center justify-center text-warning text-xl"><i class="fas fa-exclamation-triangle"></i></div>
+            <div>
+                <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Alertes stock</p>
+                <p class="text-xl font-bold font-mono text-warning">{{ nb_alertes }}</p>
+            </div>
+        </div>
+        <div class="card-md3 p-5 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-error/20 flex items-center justify-center text-error text-xl"><i class="fas fa-times-circle"></i></div>
+            <div>
+                <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Ruptures</p>
+                <p class="text-xl font-bold font-mono text-error">{{ nb_ruptures }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ligne 2 : Entrepôt + valeur stock -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="card-md3 p-5 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-secondary/20 flex items-center justify-center text-secondary text-xl"><i class="fas fa-warehouse"></i></div>
+            <div>
+                <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Entrepôt</p>
+                <p class="text-xl font-bold font-mono">{{ entrepot.nom|default:"Aucun entrepôt BRASSERIE" }}</p>
+                {% if entrepot %}<p class="text-xs text-on-surface-variant">Code: {{ entrepot.code }}</p>{% endif %}
+            </div>
+        </div>
+        <div class="card-md3 p-5 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-success/20 flex items-center justify-center text-success text-xl"><i class="fas fa-coins"></i></div>
+            <div>
+                <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Valeur du stock</p>
+                <p class="text-xl font-bold font-mono text-success">{{ valeur_stock|floatformat:0 }} F</p>
+                <p class="text-xs text-on-surface-variant">Basée sur le prix d'achat</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Ligne 3 : Graphiques -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+        <!-- Évolution CA Brasserie (30 jours) -->
+        <div class="card-md3">
+            <div class="px-5 py-4 border-b border-outline/10">
+                <h3 class="text-sm font-semibold"><i class="fas fa-chart-line text-success mr-1.5"></i>Évolution du CA Brasserie (30 jours)</h3>
+            </div>
+            <div class="p-5">
+                <canvas id="caBrasserieChart" height="180"></canvas>
+            </div>
+        </div>
+
+        <!-- Top produits vendus -->
+        <div class="card-md3">
+            <div class="px-5 py-4 border-b border-outline/10">
+                <h3 class="text-sm font-semibold"><i class="fas fa-cocktail text-info mr-1.5"></i>Top produits les plus vendus</h3>
+            </div>
+            <div class="p-5">
+                {% if top_produits %}
+                <canvas id="topProduitsChart" height="180"></canvas>
+                {% else %}
+                <div class="text-center py-8 text-on-surface-variant text-sm">
+                    <i class="fas fa-chart-bar text-2xl block mb-2"></i>
+                    <p>Aucune vente enregistrée</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Ligne 4 : Stock + Activités -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Tableau stock (pleine largeur sur 2 colonnes) -->
+        <div class="card-md3 lg:col-span-2">
+            <div class="px-5 py-4 border-b border-outline/10 flex items-center justify-between flex-wrap gap-3">
+                <h3 class="text-sm font-semibold"><i class="fas fa-boxes text-secondary mr-1.5"></i>Produits en stock</h3>
+                <div class="flex gap-2 text-xs">
+                    <input type="text" x-model="search" placeholder="Rechercher..." class="input-md3 rounded-lg text-xs px-3 py-1.5 w-36">
+                    <select x-model="filtreCat" class="input-md3 rounded-lg text-xs px-2 py-1.5">
+                        <option value="">Toutes catégories</option>
+                        <template x-for="cat in JSON.parse('{{ categories_list_json|escapejs }}')" :key="cat">
+                            <option :value="cat" x-text="cat"></option>
+                        </template>
+                    </select>
+                    <select x-model="filtreDomaine" class="input-md3 rounded-lg text-xs px-2 py-1.5">
+                        <option value="">Tous domaines</option>
+                        {% for d in domaines %}
+                        <option value="{{ d.nom }}">{{ d.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="p-5">
+                {% if produits_stock %}
+                <div class="overflow-x-auto max-h-72 overflow-y-auto">
+                    <table class="w-full text-sm">
+                        <thead class="text-on-surface-variant border-b border-outline/10 text-[10px] uppercase tracking-wider">
+                            <tr>
+                                <th class="text-left py-2 font-medium">Produit</th>
+                                <th class="text-left py-2 font-medium">Catégorie</th>
+                                <th class="text-right py-2 font-medium">Stock</th>
+                                <th class="text-right py-2 font-medium">Prix vente</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for p in produits_stock %}
+                            <tr x-show="(!search || '{{ p.nom|escapejs }}'.toLowerCase().includes(search.toLowerCase()) || '{{ p.code|default:''|escapejs }}'.toLowerCase().includes(search.toLowerCase())) && (!filtreCat || '{{ p.categorie_nom|escapejs }}' === filtreCat) && (!filtreDomaine || '{{ p.domaine_nom|default:''|escapejs }}' === filtreDomaine)" class="border-b border-outline/5 hover:bg-surface-container-high transition-smooth">
+                                <td class="py-2">
+                                    <span class="font-medium">{{ p.nom }}</span>
+                                    {% if p.rupture %}
+                                    <span class="ml-1 px-1.5 py-0.5 text-[10px] rounded bg-error/20 text-error font-semibold">Rupture</span>
+                                    {% elif p.alerte %}
+                                    <i class="fas fa-exclamation-triangle text-warning ml-1" title="Stock bas"></i>
+                                    {% endif %}
+                                </td>
+                                <td class="py-2 text-sm text-on-surface-variant">{{ p.categorie_nom|default:"—" }}</td>
+                                <td class="py-2 text-right font-mono {% if p.rupture %}text-error{% elif p.alerte %}text-warning{% else %}text-green-400{% endif %}">
+                                    {{ p.quantite }}
+                                </td>
+                                <td class="py-2 text-right font-mono">{{ p.prix_vente|floatformat:0 }} F</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-8 text-on-surface-variant text-sm">
+                    <i class="fas fa-warehouse text-2xl block mb-2"></i>
+                    <p>Aucun produit dans l'entrepôt BRASSERIE</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Activités récentes -->
+        <div class="card-md3">
+            <div class="px-5 py-4 border-b border-outline/10">
+                <h3 class="text-sm font-semibold"><i class="fas fa-bolt text-warning mr-1.5"></i>Activités récentes</h3>
+            </div>
+            <div class="divide-y divide-outline/10 max-h-72 overflow-y-auto">
+                {% for a in activites %}
+                <div class="flex items-center gap-3 px-5 py-3 hover:bg-surface-container-high transition-smooth">
+                    <div class="w-12 text-[10px] text-on-surface-variant font-mono">{{ a.heure }}</div>
+                    <div class="flex-1 min-w-0">
+                        <span class="text-sm font-medium">{{ a.action }}</span>
+                        <p class="text-[11px] text-on-surface-variant truncate">{{ a.detail }}</p>
+                    </div>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded {% if a.type == 'success' %}bg-success/20 text-success{% else %}bg-info/20 text-info{% endif %}">{{ a.statut }}</span>
+                </div>
+                {% empty %}
+                <div class="px-5 py-8 text-center text-on-surface-variant text-sm">
+                    <i class="fas fa-clock text-2xl block mb-2"></i>
+                    <p>Aucune activité récente</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    // Évolution CA Brasserie (30 jours)
+    new Chart(document.getElementById('caBrasserieChart'), {
+        type: 'line',
+        data: {
+            labels: [{% for d in ca_brasserie_evolution %}'{{ d.date }}',{% endfor %}],
+            datasets: [{
+                label: 'CA Brasserie (FCFA)',
+                data: [{% for d in ca_brasserie_evolution %}{{ d.ca }},{% endfor %}],
+                borderColor: '#d97706',
+                backgroundColor: 'rgba(217, 119, 6, 0.1)',
+                tension: 0.4,
+                fill: true,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { legend: { display: false } },
+            scales: {
+                y: { beginAtZero: true, ticks: { callback: v => v.toLocaleString() + ' F' } }
+            }
+        }
+    });
+
+    {% if top_produits %}
+    // Top produits vendus
+    new Chart(document.getElementById('topProduitsChart'), {
+        type: 'bar',
+        data: {
+            labels: [{% for p in top_produits %}'{{ p.nom }}',{% endfor %}],
+            datasets: [{
+                label: 'Quantité vendue',
+                data: [{% for p in top_produits %}{{ p.quantite }},{% endfor %}],
+                backgroundColor: [
+                    '#d97706', '#0ea5e9', '#10b981', '#8b5cf6', '#ef4444'
+                ],
+                borderRadius: 6,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            indexAxis: 'y',
+            plugins: { legend: { display: false } },
+            scales: {
+                x: { beginAtZero: true, ticks: { stepSize: 1 } }
+            }
+        }
+    });
+    {% endif %}
+</script>
+{% endblock %}

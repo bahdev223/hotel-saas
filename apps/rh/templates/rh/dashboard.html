@@ -1,0 +1,185 @@
+{% extends 'rh/base_rh.html' %}
+{% load static %}
+
+{% block title %}Dashboard RH{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <h1 class="text-2xl font-bold text-on-surface mb-6">Dashboard Ressources Humaines</h1>
+    
+    <!-- Cartes KPI -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div class="stat-card p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-on-surface-variant text-sm">Total Employés</p>
+                    <p class="text-2xl font-bold text-secondary mt-1">{{ total_employes }}</p>
+                </div>
+                <div class="stat-icon"><i class="fas fa-users"></i></div>
+            </div>
+        </div>
+        
+        <div class="stat-card p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-on-surface-variant text-sm">Employés Actifs</p>
+                    <p class="text-2xl font-bold text-green-400 mt-1">{{ employes_actifs }}</p>
+                </div>
+                <div class="stat-icon"><i class="fas fa-user-check"></i></div>
+            </div>
+        </div>
+        
+        <div class="stat-card p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-on-surface-variant text-sm">Masse Salariale</p>
+                    <p class="text-2xl font-bold text-blue-400 mt-1">{{ masse_salariale|floatformat:0 }} F</p>
+                </div>
+                <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+            </div>
+        </div>
+        
+        <div class="stat-card p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-on-surface-variant text-sm">Salaire Moyen</p>
+                    <p class="text-2xl font-bold text-purple-400 mt-1">{{ salaire_moyen|floatformat:0 }} F</p>
+                </div>
+                <div class="stat-icon"><i class="fas fa-coins"></i></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Deuxième ligne KPI -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+        <div class="stat-card p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-on-surface-variant text-sm">Hommes</p>
+                    <p class="text-2xl font-bold text-blue-400 mt-1">{{ hommes }}</p>
+                </div>
+                <div class="stat-icon"><i class="fas fa-mars"></i></div>
+            </div>
+        </div>
+        
+        <div class="stat-card p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-on-surface-variant text-sm">Femmes</p>
+                    <p class="text-2xl font-bold text-pink-400 mt-1">{{ femmes }}</p>
+                </div>
+                <div class="stat-icon"><i class="fas fa-venus"></i></div>
+            </div>
+        </div>
+        
+        <div class="stat-card p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-on-surface-variant text-sm">Employés actifs</p>
+                    <p class="text-2xl font-bold text-green-400 mt-1">{{ employes_actifs }}</p>
+                </div>
+                <div class="stat-icon"><i class="fas fa-user-check"></i></div>
+            </div>
+        </div>
+        
+        <div class="stat-card p-5">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-on-surface-variant text-sm">Inactifs</p>
+                    <p class="text-2xl font-bold text-red-400 mt-1">{{ employes_inactifs }}</p>
+                </div>
+                <div class="stat-icon"><i class="fas fa-user-times"></i></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Répartition par département et poste -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div class="bg-surface-container-low rounded-xl shadow-md p-6">
+            <h3 class="font-semibold text-on-surface mb-4">Répartition par département</h3>
+            <div class="space-y-3">
+                {% for dept, count in departements.items %}
+                <div class="flex justify-between items-center">
+                    <span>{{ dept }}</span>
+                    <div class="flex items-center gap-4">
+                        <div class="w-48 bg-surface-container-highest rounded-full h-2">
+                            <div class="bg-secondary h-2 rounded-full" style="width: {% widthratio count total_employes 100 %}%"></div>
+                        </div>
+                        <span class="font-bold">{{ count }}</span>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-on-surface-variant text-center">Aucun département</p>
+                {% endfor %}
+            </div>
+        </div>
+        
+        <div class="bg-surface-container-low rounded-xl shadow-md p-6">
+            <h3 class="font-semibold text-on-surface mb-4">Répartition par poste</h3>
+            <div class="space-y-3">
+                {% for poste, count in postes.items %}
+                <div class="flex justify-between items-center">
+                    <span>{{ poste }}</span>
+                    <div class="flex items-center gap-4">
+                        <div class="w-48 bg-surface-container-highest rounded-full h-2">
+                            <div class="bg-blue-500 h-2 rounded-full" style="width: {% widthratio count total_employes 100 %}%"></div>
+                        </div>
+                        <span class="font-bold">{{ count }}</span>
+                    </div>
+                </div>
+                {% empty %}
+                <p class="text-on-surface-variant text-center">Aucun poste</p>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    
+    <!-- Derniers employés -->
+    <div class="bg-surface-container-low rounded-xl shadow-md">
+        <div class="px-6 py-4 border-b border-outline/10 flex justify-between items-center">
+            <h3 class="font-semibold text-on-surface">Derniers employés ajoutés</h3>
+            <a href="{% url 'rh:liste_employes' %}" class="text-sm text-secondary hover:underline">Voir tous →</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-surface-container-high">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">Matricule</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">Nom</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">Prénom</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">Email</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">Statut</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10">
+                    {% for employe in derniers_employes %}
+                    <tr class="hover:bg-surface-container-low">
+                        <td class="px-4 py-3 text-sm">{{ employe.matricule }}</td>
+                        <td class="px-4 py-3">{{ employe.nom }}</td>
+                        <td class="px-4 py-3">{{ employe.prenom }}</td>
+                        <td class="px-4 py-3">{{ employe.email }}</td>
+                        <td class="px-4 py-3">
+                            {% if employe.actif %}
+                            <span class="badge badge-success">Actif</span>
+                            {% else %}
+                            <span class="badge badge-error">Inactif</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3">
+                            {% if employe.matricule %}
+                            <a href="{% url 'rh:liste_employes' %}" class="text-secondary hover:underline">Voir</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-4 py-8 text-center text-on-surface-variant">Aucun employé</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

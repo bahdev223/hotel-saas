@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+
+{% block subnav %}
+<nav class="bg-surface-container border-b border-outline/10 overflow-x-auto">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex gap-1 py-1.5 text-sm whitespace-nowrap">
+            <a href="{% url 'hotel:dashboard' %}" class="px-3 py-1.5 rounded-lg hover:bg-surface-container-high transition-smooth {% if request.resolver_match.view_name == 'hotel:dashboard' %}text-secondary bg-secondary-container/20{% else %}text-on-surface-variant{% endif %}">
+                <i class="fas fa-chart-pie mr-1.5"></i>Dashboard
+            </a>
+            <a href="{% url 'hotel:liste_unites' %}" class="px-3 py-1.5 rounded-lg hover:bg-surface-container-high transition-smooth {% if 'unites' in request.resolver_match.view_name %}text-secondary bg-secondary-container/20{% else %}text-on-surface-variant{% endif %}">
+                <i class="fas fa-door-open mr-1.5"></i>Chambres
+            </a>
+        </div>
+    </div>
+</nav>
+{% endblock %}

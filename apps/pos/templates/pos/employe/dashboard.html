@@ -1,0 +1,425 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Mon tableau de bord{% endblock %}
+{% block header %}Mon tableau de bord{% endblock %}
+{% block subtitle %}{{ employe.nom_complet }}{% if pv_unique %} — {{ pv_unique.nom }}{% elif a_un_acces_pos %} — Accès POS{% endif %}{% endblock %}
+
+{% block content %}
+<style>
+    .stat-card {
+        background: var(--surface-container-low, #1c1b1b);
+        border: 1px solid rgba(142, 145, 146, 0.1);
+        border-radius: 16px;
+        transition: all 0.2s ease;
+    }
+    .stat-card:hover {
+        border-color: #e3c282;
+        box-shadow: 0 8px 20px -8px rgba(0,0,0,0.3);
+    }
+    .session-card {
+        border: 1px solid rgba(142, 145, 146, 0.1);
+        border-radius: 12px;
+        transition: all 0.2s ease;
+    }
+    .session-card:hover {
+        border-color: rgba(227, 194, 130, 0.3);
+    }
+    .vente-row {
+        border-left: 3px solid transparent;
+        transition: all 0.15s ease;
+    }
+    .vente-row:hover {
+        border-left-color: #e3c282;
+        background: rgba(227, 194, 130, 0.05);
+    }
+    .badge-pm {
+        font-size: 0.65rem;
+        padding: 0.15rem 0.5rem;
+        border-radius: 999px;
+        white-space: nowrap;
+    }
+    .timeline-item {
+        border-left: 2px solid rgba(142, 145, 146, 0.2);
+        padding-left: 1rem;
+        position: relative;
+        padding-bottom: 0.75rem;
+    }
+    .timeline-item::before {
+        content: '';
+        position: absolute;
+        left: -5px;
+        top: 4px;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #e3c282;
+    }
+    .timeline-item:hover {
+        background: rgba(227, 194, 130, 0.05);
+        border-left-color: #e3c282;
+    }
+</style>
+
+{% if a_un_acces_pos %}
+<!-- Accès rapide POS -->
+<div class="mb-6">
+    <div class="bg-surface-container-low border-2 border-secondary/30 rounded-2xl p-5">
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="text-lg font-bold text-secondary">
+                    <i class="fas fa-cash-register mr-2"></i>Point de vente
+                </h2>
+                {% if plannings %}
+                <p class="text-sm text-on-surface-variant mt-1">
+                    {% for p in plannings|slice:":3" %}
+                    <span class="inline-block mr-3"><i class="far fa-clock text-secondary mr-1"></i>{{ p.heure_debut|time:"H:i" }} - {{ p.heure_fin|time:"H:i" }} · {{ p.point_vente.nom|default:"-" }}</span>
+                    {% endfor %}
+                </p>
+                {% endif %}
+            </div>
+            {% if pv_unique %}
+            <a href="{% url 'pos:liste_points_vente' %}" class="btn-md3-primary text-sm px-6 py-3 rounded-xl flex items-center gap-2 shrink-0">
+                <i class="fas fa-cash-register text-lg"></i>
+                <span>Accéder au POS</span>
+            </a>
+            {% else %}
+            <a href="{% url 'pos:liste_points_vente' %}" class="btn-md3-primary text-sm px-6 py-3 rounded-xl flex items-center gap-2 shrink-0">
+                <i class="fas fa-store text-lg"></i>
+                <span>Choisir un point de vente</span>
+            </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Paiement Clients -->
+<div class="mb-6">
+    <div class="bg-surface-container-low border-2 border-emerald-600/30 rounded-2xl p-5">
+        <div class="flex items-center justify-between">
+            <div>
+                <h2 class="text-lg font-bold text-emerald-400">
+                    <i class="fas fa-hand-holding-usd mr-2"></i>Paiement Clients
+                </h2>
+                <p class="text-sm text-on-surface-variant mt-1">Gérer les dettes et dépôts des clients</p>
+            </div>
+            <a href="{% url 'pos:employe_paiement_clients' %}" class="bg-emerald-600 text-white px-5 py-3 rounded-xl text-sm font-bold hover:bg-emerald-700 transition flex items-center gap-2 shrink-0">
+                <i class="fas fa-arrow-right"></i>
+                <span>Accéder</span>
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Stats -->
+<div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-8">
+    <div class="stat-card p-4 text-center">
+        <i class="fas fa-shopping-bag text-secondary text-xl mb-1"></i>
+        <p class="text-xl font-bold">{{ nb_sessions }}</p>
+        <p class="text-[10px] text-on-surface-variant">Sessions</p>
+    </div>
+    <div class="stat-card p-4 text-center">
+        <i class="fas fa-play-circle text-green-400 text-xl mb-1"></i>
+        <p class="text-xl font-bold">{{ nb_ouvertes }}</p>
+        <p class="text-[10px] text-on-surface-variant">Ouvertes</p>
+    </div>
+    <div class="stat-card p-4 text-center">
+        <i class="fas fa-check-circle text-blue-400 text-xl mb-1"></i>
+        <p class="text-xl font-bold">{{ nb_fermees }}</p>
+        <p class="text-[10px] text-on-surface-variant">Fermées</p>
+    </div>
+    <div class="stat-card p-4 text-center" style="border-color: rgba(227, 194, 130, 0.3);">
+        <i class="fas fa-money-bill-wave text-yellow-400 text-xl mb-1"></i>
+        <p class="text-xl font-bold">{{ ca_aujourdhui|floatformat:0 }} F</p>
+        <p class="text-[10px] text-on-surface-variant">CA ajd ({{ nb_ventes_aujourdhui }})</p>
+    </div>
+    <div class="stat-card p-4 text-center">
+        <i class="fas fa-clipboard-list text-orange-400 text-xl mb-1"></i>
+        <p class="text-xl font-bold">{{ nb_commandes_ajd }}</p>
+        <p class="text-[10px] text-on-surface-variant">Commandes ajd</p>
+    </div>
+    <div class="stat-card p-4 text-center">
+        <i class="fas fa-spinner text-cyan-400 text-xl mb-1"></i>
+        <p class="text-xl font-bold">{{ nb_commandes_encours }}</p>
+        <p class="text-[10px] text-on-surface-variant">En cours</p>
+    </div>
+    <div class="stat-card p-4 text-center">
+        <i class="fas fa-ban text-red-400 text-xl mb-1"></i>
+        <p class="text-xl font-bold">{{ nb_annulations_ajd }}</p>
+        <p class="text-[10px] text-on-surface-variant">Annulations ajd</p>
+    </div>
+</div>
+
+{% if nb_ventes_aujourdhui %}
+<!-- Ventes du jour -->
+<div class="bg-surface-container-low rounded-xl shadow-md mb-6">
+    <div class="px-6 py-4 border-b border-outline/10 flex items-center justify-between">
+        <h2 class="text-lg font-bold"><i class="fas fa-sun text-yellow-400 mr-2"></i>Ventes du jour</h2>
+        <span class="text-xs text-on-surface-variant">{{ ca_aujourdhui|floatformat:0 }} F ({{ nb_ventes_aujourdhui }} vente{{ nb_ventes_aujourdhui|pluralize }})</span>
+    </div>
+    <div class="px-6 py-3 flex flex-wrap gap-2">
+        {% for pm, data in ventes_par_mode_ajd.items %}
+        <span class="badge-pm {% if pm == 'ESPECES' %}bg-green-900/40 text-green-300{% elif pm == 'CARTE' %}bg-blue-900/40 text-blue-300{% elif pm == 'MOBILE_MONEY' %}bg-purple-900/40 text-purple-300{% elif pm == 'COMPTE_CLIENT' %}bg-yellow-900/40 text-yellow-300{% else %}bg-gray-700/40 text-gray-300{% endif %}">
+            {{ data.label }}: {{ data.total|floatformat:0 }} F ({{ data.count }})
+        </span>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-6 mb-6">
+    <!-- Timeline -->
+    <div class="xl:col-span-1 bg-surface-container-low rounded-xl shadow-md">
+        <div class="px-6 py-4 border-b border-outline/10">
+            <h2 class="text-lg font-bold"><i class="fas fa-stream text-secondary mr-2"></i>Fil d'activité</h2>
+        </div>
+        <div class="px-4 py-3 max-h-[500px] overflow-y-auto">
+            {% for item in timeline %}
+            <div class="timeline-item">
+                <div class="flex items-center gap-2">
+                    <i class="fas {{ item.icon }} {{ item.color }} text-xs"></i>
+                    <span class="text-xs text-on-surface-variant">{{ item.date|date:"H:i" }}</span>
+                    {% if item.point_vente %}
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-surface-container-higher text-on-surface-variant">{{ item.point_vente }}</span>
+                    {% endif %}
+                </div>
+                <div class="text-sm font-medium mt-0.5">{{ item.title }}</div>
+                <div class="text-xs text-on-surface-variant">{{ item.subtitle }}</div>
+            </div>
+            {% empty %}
+            <div class="text-center text-on-surface-variant py-8">
+                <i class="fas fa-inbox text-3xl mb-2"></i>
+                <p>Aucune activité</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Journal de ventes -->
+    <div class="xl:col-span-2 bg-surface-container-low rounded-xl shadow-md">
+        <div class="px-6 py-4 border-b border-outline/10 flex items-center justify-between">
+            <h2 class="text-lg font-bold"><i class="fas fa-book text-secondary mr-2"></i>Journal des ventes</h2>
+            <span class="text-xs text-on-surface-variant">{{ toutes_ventes|length }} vente{{ toutes_ventes|pluralize }}</span>
+        </div>
+        <div class="overflow-x-auto max-h-[500px] overflow-y-auto">
+            <table class="w-full text-sm">
+                <thead class="sticky top-0 bg-surface-container-high">
+                    <tr class="border-b border-outline/10">
+                        <th class="px-4 py-2.5 text-left font-medium">Ticket</th>
+                        <th class="px-4 py-2.5 text-left font-medium">Date</th>
+                        <th class="px-4 py-2.5 text-left font-medium">PV</th>
+                        <th class="px-4 py-2.5 text-left font-medium">Client</th>
+                        <th class="px-4 py-2.5 text-left font-medium">Mode</th>
+                        <th class="px-4 py-2.5 text-right font-medium">Montant</th>
+                        <th class="px-4 py-2.5 text-left font-medium">Articles</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10">
+                    {% for v in toutes_ventes %}
+                    <tr class="hover:bg-surface-container-low transition-colors">
+                        <td class="px-4 py-2.5 font-mono">
+                            <span class="{% if v.statut == 'ANNULEE' %}text-red-400 line-through{% else %}text-on-surface{% endif %}">{{ v.numero }}</span>
+                        </td>
+                        <td class="px-4 py-2.5 text-xs text-on-surface-variant whitespace-nowrap">{{ v.created_at|date:"d/m/Y H:i" }}</td>
+                        <td class="px-4 py-2.5 text-xs">{{ v.point_vente.nom|default:"-" }}</td>
+                        <td class="px-4 py-2.5 text-xs">{{ v.client_nom|default:"-" }}</td>
+                        <td class="px-4 py-2.5">
+                            <span class="badge-pm {% if v.mode_paiement == 'ESPECES' %}bg-green-900/30 text-green-300{% elif v.mode_paiement == 'CARTE' %}bg-blue-900/30 text-blue-300{% elif v.mode_paiement == 'MOBILE_MONEY' %}bg-purple-900/30 text-purple-300{% elif v.mode_paiement == 'COMPTE_CLIENT' %}bg-yellow-900/30 text-yellow-300{% else %}bg-gray-700/30 text-gray-300{% endif %}">
+                                {{ v.get_mode_paiement_display }}
+                            </span>
+                        </td>
+                        <td class="px-4 py-2.5 text-right font-mono {% if v.statut == 'ANNULEE' %}text-red-400{% else %}text-secondary{% endif %}">
+                            {{ v.montant_total|floatformat:0 }} F
+                        </td>
+                        <td class="px-4 py-2.5 text-xs text-on-surface-variant max-w-[200px] truncate">
+                            {% for ligne in v.lignes.all %}{{ ligne.quantite|floatformat:0 }}× {{ ligne.article_nom }}{% if not forloop.last %}, {% endif %}{% endfor %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="px-4 py-8 text-center text-on-surface-variant">Aucune vente</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Commandes récentes -->
+{% if dernieres_commandes %}
+<div class="bg-surface-container-low rounded-xl shadow-md mb-6">
+    <div class="px-6 py-4 border-b border-outline/10 flex items-center justify-between">
+        <h2 class="text-lg font-bold"><i class="fas fa-clipboard-list text-orange-400 mr-2"></i>Mes commandes</h2>
+        <span class="text-xs text-on-surface-variant">{{ dernieres_commandes|length }} commande{{ dernieres_commandes|pluralize }}</span>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+            <thead class="bg-surface-container-high">
+                <tr class="border-b border-outline/10">
+                    <th class="px-4 py-2.5 text-left font-medium">N°</th>
+                    <th class="px-4 py-2.5 text-left font-medium">Date</th>
+                    <th class="px-4 py-2.5 text-left font-medium">PV</th>
+                    <th class="px-4 py-2.5 text-left font-medium">Client</th>
+                    <th class="px-4 py-2.5 text-left font-medium">Type</th>
+                    <th class="px-4 py-2.5 text-left font-medium">Articles</th>
+                    <th class="px-4 py-2.5 text-right font-medium">Montant</th>
+                    <th class="px-4 py-2.5 text-left font-medium">Statut</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-outline/10">
+                {% for c in dernieres_commandes %}
+                <tr class="hover:bg-surface-container-low transition-colors">
+                    <td class="px-4 py-2.5 font-mono text-xs">{{ c.numero }}</td>
+                    <td class="px-4 py-2.5 text-xs text-on-surface-variant whitespace-nowrap">{{ c.date_commande|date:"d/m/Y H:i" }}</td>
+                    <td class="px-4 py-2.5 text-xs">{{ c.point_vente.nom|default:"-" }}</td>
+                    <td class="px-4 py-2.5 text-xs">{{ c.client_nom|default:"-" }}</td>
+                    <td class="px-4 py-2.5 text-xs">{{ c.get_type_commande_display }}</td>
+                    <td class="px-4 py-2.5 text-xs text-on-surface-variant">{{ c.nb_lignes }} art.</td>
+                    <td class="px-4 py-2.5 text-right font-mono text-xs">{{ c.montant_total|floatformat:0 }} F</td>
+                    <td class="px-4 py-2.5">
+                        <span class="text-xs px-2 py-0.5 rounded-full whitespace-nowrap
+                            {% if c.statut == 'EN_ATTENTE' %}bg-yellow-900/30 text-yellow-300
+                            {% elif c.statut == 'EN_PREPARATION' %}bg-orange-900/30 text-orange-300
+                            {% elif c.statut == 'PRETE' %}bg-cyan-900/30 text-cyan-300
+                            {% elif c.statut == 'SERVIE' or c.statut == 'LIVREE' %}bg-green-900/30 text-green-300
+                            {% elif c.statut == 'ANNULEE' %}bg-red-900/30 text-red-300
+                            {% else %}bg-gray-700/30 text-gray-300{% endif %}">
+                            {{ c.get_statut_display }}
+                        </span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+    <!-- Plannings -->
+    <div class="bg-surface-container-low rounded-xl shadow-md">
+        <div class="px-6 py-4 border-b border-outline/10">
+            <h2 class="text-lg font-bold"><i class="fas fa-calendar-alt text-secondary mr-2"></i>Mes plannings</h2>
+        </div>
+        <div class="divide-y divide-outline/10 max-h-[400px] overflow-y-auto">
+            {% for p in plannings %}
+            <div class="px-6 py-3 flex items-center justify-between hover:bg-surface-container-low">
+                <div>
+                    <p class="font-medium">{{ p.point_vente.nom|default:"-" }}</p>
+                    <p class="text-xs text-on-surface-variant">{{ p.date|date:"d/m/Y" }} {{ p.heure_debut|time:"H:i" }} - {{ p.heure_fin|time:"H:i" }}</p>
+                </div>
+                <span class="text-xs px-2 py-1 rounded-full
+                    {% if p.statut == 'CONFIRME' %}bg-green-900/30 text-green-300
+                    {% elif p.statut == 'ANNULE' %}bg-red-900/30 text-red-300
+                    {% elif p.statut == 'EFFECTUE' %}bg-blue-900/30 text-blue-300
+                    {% else %}bg-yellow-900/30 text-yellow-300{% endif %}">
+                    {{ p.get_statut_display }}
+                </span>
+            </div>
+            {% empty %}
+            <div class="px-6 py-8 text-center text-on-surface-variant">
+                <i class="fas fa-calendar-times text-3xl mb-2"></i>
+                <p>Aucun planning</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Sessions -->
+    <div class="bg-surface-container-low rounded-xl shadow-md">
+        <div class="px-6 py-4 border-b border-outline/10">
+            <h2 class="text-lg font-bold"><i class="fas fa-history text-secondary mr-2"></i>Mes sessions</h2>
+        </div>
+        <div class="divide-y divide-outline/10 max-h-[400px] overflow-y-auto">
+            {% for s in sessions %}
+            <div class="session-card m-2 p-4" x-data="{ open: false }">
+                <div class="flex items-center justify-between cursor-pointer" @click="open = !open">
+                    <div class="flex-1 min-w-0">
+                        <p class="font-medium text-sm truncate">{{ s.point_vente.nom|default:"N/A" }}</p>
+                        <p class="text-xs text-on-surface-variant">{{ s.date_ouverture|date:"d/m/Y H:i" }}
+                        {% if s.date_fermeture %} → {{ s.date_fermeture|date:"d/m/Y H:i" }}{% endif %}</p>
+                    </div>
+                    <div class="text-right flex items-center gap-2 shrink-0">
+                        <div>
+                            <p class="font-mono text-sm">{{ s.total_ventes_calc|floatformat:0 }} F</p>
+                            <span class="text-xs px-2 py-0.5 rounded-full
+                                {% if s.statut == 'OUVERTE' %}bg-green-900/30 text-green-300
+                                {% elif s.statut == 'FERMEE' and s.fonds_collectes %}bg-blue-900/30 text-blue-300
+                                {% elif s.statut == 'FERMEE' and not s.fonds_collectes %}bg-orange-900/30 text-orange-300
+                                {% else %}bg-yellow-900/30 text-yellow-300{% endif %}">
+                                {{ s.get_statut_display }}{% if s.statut == 'FERMEE' and not s.fonds_collectes %} (en attente){% endif %}
+                            </span>
+                        </div>
+                        <i class="fas fa-chevron-down text-on-surface-variant text-xs transition-transform duration-200" :class="{ 'rotate-180': open }"></i>
+                    </div>
+                </div>
+                <div class="mt-2 text-xs text-on-surface-variant flex items-center gap-3 flex-wrap">
+                    <span><i class="fas fa-receipt mr-1"></i>{{ s.nombre_ventes_calc }} vente{{ s.nombre_ventes_calc|pluralize }}</span>
+                    {% for pm, d in s.ventes_par_mode.items %}
+                    <span class="badge-pm {% if pm == 'ESPECES' %}bg-green-900/30 text-green-300{% elif pm == 'CARTE' %}bg-blue-900/30 text-blue-300{% elif pm == 'MOBILE_MONEY' %}bg-purple-900/30 text-purple-300{% elif pm == 'COMPTE_CLIENT' %}bg-yellow-900/30 text-yellow-300{% else %}bg-gray-700/30 text-gray-300{% endif %}">
+                        {{ d.label }}: {{ d.total|floatformat:0 }} F
+                    </span>
+                    {% endfor %}
+                    {% if s.solde_reel is not None %}
+                    <span>Solde: {{ s.solde_reel|floatformat:0 }} F</span>
+                    {% endif %}
+                    {% if s.depot %}
+                    <span>Dépôt: {{ s.depot|floatformat:0 }} F</span>
+                    {% endif %}
+                </div>
+
+                <div x-show="open" class="mt-3 pt-3 border-t border-outline/10">
+                    {% for v in s.ventes_detail %}
+                    <div class="vente-row pl-3 py-2 text-sm">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <span class="font-medium">{{ v.numero }}</span>
+                                <span class="text-xs text-on-surface-variant ml-2">{{ v.created_at|date:"H:i" }}</span>
+                            </div>
+                            <span class="font-mono text-xs">{{ v.montant_total|floatformat:0 }} F</span>
+                        </div>
+                        <div class="text-xs text-on-surface-variant mt-1">
+                            {% for ligne in v.lignes.all %}
+                            <div class="flex items-center justify-between py-0.5">
+                                <span>{{ ligne.quantite|floatformat:0 }}× {{ ligne.article_nom }}</span>
+                                <span>{{ ligne.total_ligne|floatformat:0 }} F</span>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="text-xs text-on-surface-variant text-center py-2">Aucune vente</div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% empty %}
+            <div class="px-6 py-8 text-center text-on-surface-variant">
+                <i class="fas fa-inbox text-3xl mb-2"></i>
+                <p>Aucune session</p>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+
+<div class="mt-6 flex items-center justify-center gap-4">
+    {% if is_raf %}
+    <a href="{% url 'pos:raf_dashboard' %}" class="inline-flex items-center gap-2 px-5 py-3 bg-surface-container-high border border-outline/10 text-on-surface rounded-lg hover:bg-surface-container-higher transition shadow">
+        <i class="fas fa-chart-pie text-secondary"></i> Supervision
+    </a>
+    <a href="{% url 'pos:pos_raf' %}" class="inline-flex items-center gap-2 px-6 py-3 bg-secondary text-black rounded-lg hover:bg-secondary/80 transition shadow-lg">
+        ⚡ Guichet RAF
+    </a>
+    {% elif pv_unique %}
+    <a href="{% url 'pos:liste_points_vente' %}" class="inline-flex items-center gap-2 px-6 py-3 bg-secondary text-white rounded-lg hover:bg-secondary/80 transition">
+        <i class="fas fa-cash-register mr-2"></i>Accéder au POS
+    </a>
+    {% elif a_un_acces_pos %}
+    <a href="{% url 'pos:liste_points_vente' %}" class="inline-flex items-center gap-2 px-6 py-3 bg-secondary text-white rounded-lg hover:bg-secondary/80 transition">
+        <i class="fas fa-cash-register mr-2"></i>Accéder au point de vente
+    </a>
+    {% endif %}
+</div>
+{% endblock %}

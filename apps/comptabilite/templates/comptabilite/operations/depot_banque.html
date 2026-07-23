@@ -1,0 +1,52 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load static %}
+
+{% block title %}Dépôt banque - Comptabilité{% endblock %}
+
+{% block header %}Dépôt banque{% endblock %}
+{% block subtitle %}Versement d'espèces de la caisse vers le compte bancaire{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <form method="post" class="bg-surface-container-low rounded-2xl border-outline/10 p-6 space-y-4">
+        {% csrf_token %}
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">Date *</label>
+                <input type="date" name="date_operation" required value="{{ today|date:'Y-m-d' }}" class="w-full px-3 py-2 input-md3 rounded-lg">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Référence</label>
+                <input type="text" name="reference" class="w-full px-3 py-2 input-md3 rounded-lg" placeholder="Bordereau de dépôt">
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium mb-1">Caisse source *</label>
+            <select name="caisse_id" required class="w-full px-3 py-2 input-md3 rounded-lg">
+                <option value="">-- Sélectionner la caisse --</option>
+                {% for caisse in caisses %}
+                <option value="{{ caisse.id }}">{{ caisse.nom }} ({{ caisse.code }})</option>
+                {% endfor %}
+            </select>
+            <p class="text-xs text-on-surface-variant mt-1">L'argent part de cette caisse vers le compte bancaire (521).</p>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium mb-1">Montant (FCFA) *</label>
+            <input type="number" step="1" name="montant" required min="1" class="w-full px-3 py-2 input-md3 rounded-lg" placeholder="Montant à déposer">
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium mb-1">Notes</label>
+            <textarea name="notes" rows="2" class="w-full px-3 py-2 input-md3 rounded-lg"></textarea>
+        </div>
+
+        <div class="flex gap-3 pt-4">
+            <button type="submit" class="flex-1 bg-secondary text-on-secondary py-2 rounded-lg">Enregistrer le dépôt</button>
+            <a href="{% url 'comptabilite:operations' %}" class="flex-1 border-outline/10 py-2 rounded-lg text-center text-on-surface">Annuler</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

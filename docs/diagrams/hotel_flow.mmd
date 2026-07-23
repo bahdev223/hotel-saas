@@ -1,0 +1,17 @@
+sequenceDiagram
+
+    participant Client
+    participant Reception
+    participant Hotel
+    participant Paiement
+
+    Client->>Reception: Réserver chambre
+    Reception->>Hotel: Vérifier disponibilité
+    Hotel-->>Reception: Chambre disponible
+
+    Reception->>Paiement: Paiement acompte
+    Paiement-->>Reception: Validé
+
+    Reception-->>Client: Réservation confirmée
+
+    

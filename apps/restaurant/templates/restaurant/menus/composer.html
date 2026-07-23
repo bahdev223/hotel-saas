@@ -1,0 +1,433 @@
+{% extends 'restaurant/base_restaurant.html' %}
+{% load static %}
+
+{% block title %}Composition du menu - {{ menu.nom }}{% endblock %}
+
+{% block header %}Composition du menu{% endblock %}
+{% block subtitle %}{{ menu.nom }} - {{ menu.code }}{% endblock %}
+
+{% block content %}
+<div x-data="menuComposition()" x-init="init()" class="flex flex-col h-full">
+    
+    <div class="flex gap-6">
+        
+        <!-- ==================== COLONNE GAUCHE : RECETTES DISPONIBLES ==================== -->
+        <div class="w-1/3 bg-surface-container-low rounded-xl border-outline/10 shadow-md overflow-hidden">
+            <div class="p-4 border-b bg-surface-container-high">
+                <h3 class="font-semibold">
+                    <i class="fas fa-utensils text-secondary mr-2"></i>Recettes disponibles
+                </h3>
+                
+                <!-- Filtres -->
+                <div class="mt-3 flex gap-2">
+                    <button @click="filtreGroupe = 'TOUS'" 
+                            :class="filtreGroupe === 'TOUS' ? 'bg-secondary text-white' : 'bg-surface-container-high text-on-surface'"
+                            class="px-3 py-1 rounded-full text-sm transition">
+                        Tous
+                    </button>
+                    <button @click="filtreGroupe = 'ENTREE'" 
+                            :class="filtreGroupe === 'ENTREE' ? 'bg-secondary text-white' : 'bg-surface-container-high text-on-surface'"
+                            class="px-3 py-1 rounded-full text-sm transition">
+                        Entrées
+                    </button>
+                    <button @click="filtreGroupe = 'PLAT'" 
+                            :class="filtreGroupe === 'PLAT' ? 'bg-secondary text-white' : 'bg-surface-container-high text-on-surface'"
+                            class="px-3 py-1 rounded-full text-sm transition">
+                        Plats
+                    </button>
+                    <button @click="filtreGroupe = 'DESSERT'" 
+                            :class="filtreGroupe === 'DESSERT' ? 'bg-secondary text-white' : 'bg-surface-container-high text-on-surface'"
+                            class="px-3 py-1 rounded-full text-sm transition">
+                        Desserts
+                    </button>
+                    <button @click="filtreGroupe = 'BOISSON'" 
+                            :class="filtreGroupe === 'BOISSON' ? 'bg-secondary text-white' : 'bg-surface-container-high text-on-surface'"
+                            class="px-3 py-1 rounded-full text-sm transition">
+                        Boissons
+                    </button>
+                </div>
+                
+                <!-- Recherche -->
+                <div class="mt-3 relative">
+                    <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm"></i>
+                    <input type="text" x-model="searchRecette" 
+                           placeholder="Rechercher une recette..."
+                           class="w-full pl-9 pr-3 py-2 input-md3 rounded-lg text-sm">
+                </div>
+            </div>
+            
+            <!-- Liste des recettes -->
+            <div class="h-[calc(100vh-300px)] overflow-y-auto p-2 space-y-1">
+                <template x-for="recette in recettesFiltrees" :key="recette.id">
+                    <div class="flex items-center justify-between p-3 rounded-lg hover:bg-surface-container-low transition border-outline/10 hover:border-outline/10">
+                        <div class="flex-1">
+                            <div class="flex items-center gap-2">
+                                <span class="font-medium text-sm" x-text="recette.nom"></span>
+                                <span class="text-xs px-2 py-0.5 rounded-full" 
+                                      :class="{
+                                          'bg-blue-900/30 text-blue-300': recette.type_recette === 'ENTREE',
+                                          'bg-green-900/30 text-green-300': recette.type_recette === 'PLAT',
+                                          'bg-pink-900/30 text-pink-300': recette.type_recette === 'DESSERT',
+                                          'bg-orange-900/30 text-orange-300': recette.type_recette === 'BOISSON'
+                                      }"
+                                      x-text="recette.type_recette"></span>
+                            </div>
+                            <p class="text-xs text-on-surface-variant mt-1">
+                                <i class="fas fa-clock mr-1"></i>
+                                <span x-text="recette.temps_preparation_minutes"></span> min
+                                <span class="mx-1">•</span>
+                                <i class="fas fa-chart-line mr-1"></i>
+                                <span x-text="recette.cout_revient.toFixed(0)"></span> F
+                            </p>
+                        </div>
+                        <button @click="ajouterRecette(recette)" :disabled="{{ est_bloque_restaurant|lower }}"
+                                class="p-2 text-secondary hover:bg-secondary/20 rounded-lg transition">
+                            <i class="fas fa-plus"></i>
+                        </button>
+                    </div>
+                </template>
+                
+                <div x-show="recettesFiltrees.length === 0" class="text-center py-8 text-on-surface-variant">
+                    <i class="fas fa-search text-3xl mb-2"></i>
+                    <p>Aucune recette trouvée</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- ==================== COLONNE DROITE : COMPOSITION DU MENU ==================== -->
+        <div class="flex-1 bg-surface-container-low rounded-xl border-outline/10 shadow-md overflow-hidden">
+            <div class="p-4 border-b bg-surface-container-high flex justify-between items-center">
+                <div>
+                    <h3 class="font-semibold">
+                        <i class="fas fa-clipboard-list text-secondary mr-2"></i>Composition du menu
+                    </h3>
+                    <p class="text-sm text-on-surface-variant mt-1">
+                        <span x-text="lignes.length"></span> élément(s) | 
+                        Coût total: <span x-text="coutTotal.toFixed(0)"></span> F | 
+                        Prix vente: {{ menu.prix_vente|floatformat:0 }} F
+                    </p>
+                </div>
+                <div class="flex gap-2">
+                    <button @click="reorganiser()" :disabled="{{ est_bloque_restaurant|lower }}" class="px-3 py-1 border-outline/10 rounded-lg text-sm hover:bg-surface-container-low">
+                        <i class="fas fa-arrows-alt"></i> Réorganiser
+                    </button>
+                    <button @click="enregistrer()" :disabled="{{ est_bloque_restaurant|lower }}" class="px-3 py-1 bg-secondary text-white rounded-lg text-sm hover:bg-secondary/80">
+                        <i class="fas fa-save"></i> Enregistrer
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Groupes du menu -->
+            <div class="p-4 space-y-6">
+                
+                <!-- Entrées -->
+                <div class="border-outline/10 rounded-lg overflow-hidden" x-show="lignesParGroupe['ENTREE'].length > 0">
+                    <div class="px-4 py-2 bg-blue-900/20 border-b">
+                        <span class="font-medium text-blue-300">🍽️ Entrées</span>
+                        <span class="text-sm text-blue-400 ml-2" x-text="lignesParGroupe['ENTREE'].length"></span>
+                    </div>
+                    <div class="divide-y">
+                        <template x-for="(ligne, idx) in lignesParGroupe['ENTREE']" :key="ligne.id">
+                            <div class="p-3 flex items-center justify-between hover:bg-surface-container-low">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-medium" x-text="ligne.recette_nom"></span>
+                                        <span class="text-xs px-2 py-0.5 rounded-full" 
+                                              :class="ligne.type_ligne === 'FIXE' ? 'bg-green-900/30 text-green-300' : 'bg-yellow-900/30 text-yellow-300'"
+                                              x-text="ligne.type_ligne === 'FIXE' ? 'Inclus' : 'Au choix'"></span>
+                                    </div>
+                                    <p class="text-xs text-on-surface-variant">
+                                        Coût: <span x-text="ligne.cout.toFixed(0)"></span> F
+                                    </p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <select x-model="ligne.type_ligne" :disabled="{{ est_bloque_restaurant|lower }}"
+                                            class="text-sm border-outline/10 rounded px-2 py-1">
+                                        <option value="FIXE">Inclus d'office</option>
+                                        <option value="CHOIX">Au choix du client</option>
+                                        <option value="SUPPLEMENT">Supplément payant</option>
+                                    </select>
+                                    <input type="number" x-model="ligne.quantite" min="1" :disabled="{{ est_bloque_restaurant|lower }}"
+                                           class="w-16 text-center border-outline/10 rounded px-2 py-1 text-sm">
+                                    <button @click="supprimerLigne(ligne.id)" :disabled="{{ est_bloque_restaurant|lower }}" class="text-red-400 hover:text-red-300 p-1">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- Plats -->
+                <div class="border-outline/10 rounded-lg overflow-hidden" x-show="lignesParGroupe['PLAT'].length > 0">
+                    <div class="px-4 py-2 bg-green-900/20 border-b">
+                        <span class="font-medium text-green-300">🍖 Plats principaux</span>
+                        <span class="text-sm text-green-400 ml-2" x-text="lignesParGroupe['PLAT'].length"></span>
+                    </div>
+                    <div class="divide-y">
+                        <template x-for="ligne in lignesParGroupe['PLAT']" :key="ligne.id">
+                            <div class="p-3 flex items-center justify-between hover:bg-surface-container-low">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-medium" x-text="ligne.recette_nom"></span>
+                                        <span class="text-xs px-2 py-0.5 rounded-full" 
+                                              :class="ligne.type_ligne === 'FIXE' ? 'bg-green-900/30 text-green-300' : 'bg-yellow-900/30 text-yellow-300'"
+                                              x-text="ligne.type_ligne"></span>
+                                    </div>
+                                    <p class="text-xs text-on-surface-variant">
+                                        Coût: <span x-text="ligne.cout.toFixed(0)"></span> F
+                                    </p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <select x-model="ligne.type_ligne" :disabled="{{ est_bloque_restaurant|lower }}" class="text-sm border-outline/10 rounded px-2 py-1">
+                                        <option value="FIXE">Inclus</option>
+                                        <option value="CHOIX">Au choix</option>
+                                        <option value="SUPPLEMENT">Supplément</option>
+                                    </select>
+                                    <input type="number" x-model="ligne.quantite" min="1" :disabled="{{ est_bloque_restaurant|lower }}"
+                                           class="w-16 text-center border-outline/10 rounded px-2 py-1 text-sm">
+                                    <button @click="supprimerLigne(ligne.id)" :disabled="{{ est_bloque_restaurant|lower }}" class="text-red-400 hover:text-red-300 p-1">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- Desserts -->
+                <div class="border-outline/10 rounded-lg overflow-hidden" x-show="lignesParGroupe['DESSERT'].length > 0">
+                    <div class="px-4 py-2 bg-pink-900/20 border-b">
+                        <span class="font-medium text-pink-300">🍰 Desserts</span>
+                        <span class="text-sm text-pink-400 ml-2" x-text="lignesParGroupe['DESSERT'].length"></span>
+                    </div>
+                    <div class="divide-y">
+                        <template x-for="ligne in lignesParGroupe['DESSERT']" :key="ligne.id">
+                            <div class="p-3 flex items-center justify-between hover:bg-surface-container-low">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-medium" x-text="ligne.recette_nom"></span>
+                                        <span class="text-xs px-2 py-0.5 rounded-full" 
+                                              :class="ligne.type_ligne === 'FIXE' ? 'bg-green-900/30 text-green-300' : 'bg-yellow-900/30 text-yellow-300'"
+                                              x-text="ligne.type_ligne"></span>
+                                    </div>
+                                    <p class="text-xs text-on-surface-variant">
+                                        Coût: <span x-text="ligne.cout.toFixed(0)"></span> F
+                                    </p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <select x-model="ligne.type_ligne" :disabled="{{ est_bloque_restaurant|lower }}" class="text-sm border-outline/10 rounded px-2 py-1">
+                                        <option value="FIXE">Inclus</option>
+                                        <option value="CHOIX">Au choix</option>
+                                        <option value="SUPPLEMENT">Supplément</option>
+                                    </select>
+                                    <input type="number" x-model="ligne.quantite" min="1" :disabled="{{ est_bloque_restaurant|lower }}"
+                                           class="w-16 text-center border-outline/10 rounded px-2 py-1 text-sm">
+                                    <button @click="supprimerLigne(ligne.id)" :disabled="{{ est_bloque_restaurant|lower }}" class="text-red-400 hover:text-red-300 p-1">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- Boissons -->
+                <div class="border-outline/10 rounded-lg overflow-hidden" x-show="lignesParGroupe['BOISSON'].length > 0">
+                    <div class="px-4 py-2 bg-orange-900/20 border-b">
+                        <span class="font-medium text-orange-300">🥤 Boissons</span>
+                        <span class="text-sm text-orange-400 ml-2" x-text="lignesParGroupe['BOISSON'].length"></span>
+                    </div>
+                    <div class="divide-y">
+                        <template x-for="ligne in lignesParGroupe['BOISSON']" :key="ligne.id">
+                            <div class="p-3 flex items-center justify-between hover:bg-surface-container-low">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-medium" x-text="ligne.recette_nom"></span>
+                                        <span class="text-xs px-2 py-0.5 rounded-full" 
+                                              :class="ligne.type_ligne === 'FIXE' ? 'bg-green-900/30 text-green-300' : 'bg-yellow-900/30 text-yellow-300'"
+                                              x-text="ligne.type_ligne"></span>
+                                    </div>
+                                    <p class="text-xs text-on-surface-variant">
+                                        Coût: <span x-text="ligne.cout.toFixed(0)"></span> F
+                                    </p>
+                                </div>
+                                <div class="flex gap-2">
+                                    <select x-model="ligne.type_ligne" :disabled="{{ est_bloque_restaurant|lower }}" class="text-sm border-outline/10 rounded px-2 py-1">
+                                        <option value="FIXE">Inclus</option>
+                                        <option value="CHOIX">Au choix</option>
+                                        <option value="SUPPLEMENT">Supplément +<span x-text="ligne.prix_supplement"></span></option>
+                                    </select>
+                                    <input type="number" x-model="ligne.quantite" min="1" :disabled="{{ est_bloque_restaurant|lower }}"
+                                           class="w-16 text-center border-outline/10 rounded px-2 py-1 text-sm">
+                                    <button @click="supprimerLigne(ligne.id)" :disabled="{{ est_bloque_restaurant|lower }}" class="text-red-400 hover:text-red-300 p-1">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </template>
+                    </div>
+                </div>
+                
+                <!-- Message vide -->
+                <div x-show="lignes.length === 0" class="text-center py-12 text-on-surface-variant">
+                    <i class="fas fa-utensils text-4xl mb-3"></i>
+                    <p>Aucune recette dans ce menu</p>
+                    <p class="text-sm">Ajoutez des recettes depuis la colonne de gauche</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function menuComposition() {
+    return {
+        // Données
+        menuId: {{ menu.id }},
+        recettesDisponibles: [],
+        lignes: [],
+        
+        // Filtres
+        filtreGroupe: 'TOUS',
+        searchRecette: '',
+        
+        // Computed
+        get recettesFiltrees() {
+            let result = this.recettesDisponibles;
+            
+            // Filtre par groupe
+            if (this.filtreGroupe !== 'TOUS') {
+                result = result.filter(r => r.type_recette === this.filtreGroupe);
+            }
+            
+            // Filtre par recherche
+            if (this.searchRecette) {
+                const search = this.searchRecette.toLowerCase();
+                result = result.filter(r => r.nom.toLowerCase().includes(search));
+            }
+            
+            // Exclure les recettes déjà ajoutées
+            const idsAjoutees = this.lignes.map(l => l.recette_id);
+            result = result.filter(r => !idsAjoutees.includes(r.id));
+            
+            return result;
+        },
+        
+        get lignesParGroupe() {
+            const groupes = {
+                'ENTREE': [],
+                'PLAT': [],
+                'DESSERT': [],
+                'BOISSON': [],
+                'AUTRE': []
+            };
+            
+            for (const ligne of this.lignes) {
+                const groupe = ligne.groupe || 'AUTRE';
+                if (groupes[groupe]) {
+                    groupes[groupe].push(ligne);
+                } else {
+                    groupes['AUTRE'].push(ligne);
+                }
+            }
+            
+            return groupes;
+        },
+        
+        get coutTotal() {
+            return this.lignes.reduce((total, ligne) => total + (ligne.cout || 0), 0);
+        },
+        
+        // Méthodes
+        async init() {
+            await this.chargerRecettes();
+            await this.chargerLignes();
+        },
+        
+        async chargerRecettes() {
+            const response = await fetch('/restaurant/api/recettes/disponibles/');
+            const data = await response.json();
+            if (data.success) {
+                this.recettesDisponibles = data.recettes;
+            }
+        },
+        
+        async chargerLignes() {
+            const response = await fetch(`/restaurant/api/menus/${this.menuId}/lignes/`);
+            const data = await response.json();
+            if (data.success) {
+                this.lignes = data.lignes;
+            }
+        },
+        
+        ajouterRecette(recette) {
+            // Déterminer le groupe par défaut
+            let groupe = 'AUTRE';
+            if (recette.type_recette === 'ENTREE') groupe = 'ENTREE';
+            else if (recette.type_recette === 'PLAT') groupe = 'PLAT';
+            else if (recette.type_recette === 'DESSERT') groupe = 'DESSERT';
+            else if (recette.type_recette === 'BOISSON') groupe = 'BOISSON';
+            
+            this.lignes.push({
+                id: Date.now(),
+                recette_id: recette.id,
+                recette_nom: recette.nom,
+                groupe: groupe,
+                type_ligne: 'FIXE',
+                quantite: 1,
+                cout: recette.cout_revient,
+                prix_supplement: 0
+            });
+        },
+        
+        supprimerLigne(id) {
+            this.lignes = this.lignes.filter(l => l.id !== id);
+        },
+        
+        async enregistrer() {
+            const data = {
+                menu_id: this.menuId,
+                lignes: this.lignes.map(l => ({
+                    recette_id: l.recette_id,
+                    groupe: l.groupe,
+                    type_ligne: l.type_ligne,
+                    quantite: l.quantite,
+                    prix_supplement: l.prix_supplement || 0
+                }))
+            };
+            
+            const response = await fetch('/restaurant/api/menus/composition/save/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.getCsrfToken()
+                },
+                body: JSON.stringify(data)
+            });
+            
+            const result = await response.json();
+            if (result.success) {
+                alert('✅ Menu enregistré avec succès');
+                window.location.href = '/restaurant/menus/';
+            } else {
+                alert('❌ Erreur: ' + result.error);
+            }
+        },
+        
+        reorganiser() {
+            // Fonction pour le drag & drop (implémentation simplifiée)
+            alert('Fonction de réorganisation à implémenter');
+        },
+        
+        getCsrfToken() {
+            return document.querySelector('[name=csrfmiddlewaretoken]').value;
+        }
+    }
+}
+</script>
+
+<style>
+[x-cloak] { display: none; }
+</style>
+{% endblock %}

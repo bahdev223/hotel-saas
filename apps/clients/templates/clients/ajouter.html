@@ -1,0 +1,68 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Ajouter un client{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto space-y-6">
+    <div class="flex items-center gap-4">
+        <a href="{% url 'clients:liste' %}" class="text-on-surface-variant hover:text-on-surface"><i class="fas fa-arrow-left text-xl"></i></a>
+        <div>
+            <h1 class="text-2xl font-bold text-on-surface">
+                <i class="fas fa-user-plus text-secondary mr-2"></i>Nouveau client
+            </h1>
+            <p class="text-sm text-on-surface-variant mt-1">Ajouter un client à la base</p>
+        </div>
+    </div>
+
+    <form method="post" class="card-md3 p-6 space-y-4">
+        {% csrf_token %}
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="label-md3">Nom <span class="text-error">*</span></label>
+                <input type="text" name="nom" required class="input-md3 rounded-lg w-full" placeholder="Nom">
+            </div>
+            <div>
+                <label class="label-md3">Prénom</label>
+                <input type="text" name="prenom" class="input-md3 rounded-lg w-full" placeholder="Prénom">
+            </div>
+        </div>
+        <div>
+            <label class="label-md3">Téléphone <span class="text-red-400">*</span></label>
+            <input type="text" name="telephone" required class="input-md3 rounded-lg w-full" placeholder="+221 77 123 45 67">
+        </div>
+        <div>
+            <label class="label-md3">Email</label>
+            <input type="email" name="email" class="input-md3 rounded-lg w-full" placeholder="client@email.com">
+        </div>
+        <div>
+            <label class="label-md3">Adresse</label>
+            <textarea name="adresse" class="input-md3 rounded-lg w-full text-sm" rows="2" placeholder="Adresse complète"></textarea>
+        </div>
+        <div>
+            <label class="label-md3">Type de client</label>
+            <select name="type_client" class="input-md3 rounded-lg w-full">
+                <option value="PARTICULIER">Particulier</option>
+                <option value="ENTREPRISE">Entreprise</option>
+                <option value="AGENCE">Agence de voyage</option>
+            </select>
+        </div>
+        <div>
+            <label class="label-md3">Solde initial (FCFA)</label>
+            <input type="number" step="1" name="solde_initial" class="input-md3 rounded-lg w-full" placeholder="0 (optionnel)">
+            <p class="text-xs text-on-surface-variant mt-1">Solde de départ si le client a déjà une avance ou une créance</p>
+        </div>
+        {% if messages %}
+        <div class="space-y-1">
+            {% for msg in messages %}
+            <div class="text-sm {% if msg.tags == 'error' %}text-error{% else %}text-green-400{% endif %}"><i class="fas fa-{% if msg.tags == 'error' %}times-circle{% else %}check-circle{% endif %} mr-1"></i>{{ msg }}</div>
+            {% endfor %}
+        </div>
+        {% endif %}
+        <div class="flex gap-3 pt-2">
+            <button type="submit" class="flex-1 btn-md3-primary py-2 rounded-lg text-sm"><i class="fas fa-save mr-1"></i>Enregistrer</button>
+            <a href="{% url 'clients:liste' %}" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm text-center hover:bg-surface-container-high transition">Annuler</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

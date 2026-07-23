@@ -1,0 +1,301 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Centre de commandes{% endblock %}
+
+{% block header %}Centre de commandes{% endblock %}
+{% block subtitle %}Gestion centralisée des commandes{% endblock %}
+
+{% block content %}
+<div x-data="centreCommandes()" x-init="init()" class="space-y-6">
+
+<div class="flex items-center gap-4">
+    <select x-model="filtrePointVente" @change="chargerCommandes()" class="input-md3 rounded-lg text-sm flex-1 max-w-xs">
+        <option value="">Tous les points de vente</option>
+        {% for pv in points_vente %}
+        <option value="{{ pv.id }}">{{ pv.nom }}</option>
+        {% endfor %}
+    </select>
+</div>
+
+<!-- Stats -->
+<div class="px-6 pt-4">
+    <div class="grid grid-cols-6 gap-3">
+        <div class="bg-surface-container-low border border-outline/10 rounded-xl p-3 text-center">
+            <p class="text-lg font-bold text-yellow-400" x-text="stats.en_attente"></p>
+            <p class="text-xs text-on-surface-variant">En attente</p>
+        </div>
+        <div class="bg-surface-container-low border border-outline/10 rounded-xl p-3 text-center">
+            <p class="text-lg font-bold text-purple-400" x-text="stats.en_cours_livraison"></p>
+            <p class="text-xs text-on-surface-variant">En livraison</p>
+        </div>
+        <div class="bg-surface-container-low border border-outline/10 rounded-xl p-3 text-center">
+            <p class="text-lg font-bold text-blue-400" x-text="stats.en_preparation"></p>
+            <p class="text-xs text-on-surface-variant">Préparation</p>
+        </div>
+        <div class="bg-surface-container-low border border-outline/10 rounded-xl p-3 text-center">
+            <p class="text-lg font-bold text-green-400" x-text="stats.prete"></p>
+            <p class="text-xs text-on-surface-variant">Prêtes</p>
+        </div>
+        <div class="bg-surface-container-low border border-outline/10 rounded-xl p-3 text-center">
+            <p class="text-lg font-bold text-secondary" x-text="stats.payees"></p>
+            <p class="text-xs text-on-surface-variant">Payées</p>
+        </div>
+        <div class="bg-surface-container-low border border-outline/10 rounded-xl p-3 text-center">
+            <p class="text-lg font-bold text-red-400" x-text="stats.ca_jour"></p>
+            <p class="text-xs text-on-surface-variant">CA aujourd'hui</p>
+        </div>
+    </div>
+</div>
+
+<!-- Tabs statuts -->
+<div class="flex gap-2 px-6 pt-4 overflow-x-auto">
+    <template x-for="tab in tabs" :key="tab.key">
+        <button @click="activeTab = tab.key" class="px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition"
+                :class="activeTab === tab.key ? 'bg-secondary text-black' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'">
+            <span x-text="tab.label"></span>
+            <span class="ml-1.5 text-xs opacity-70" x-text="tab.count"></span>
+        </button>
+    </template>
+</div>
+
+<!-- Contenu -->
+<div class="p-6">
+    <div x-show="loading" class="text-center py-12 text-on-surface-variant">
+        <i class="fas fa-spinner fa-spin text-2xl"></i>
+        <p class="mt-2 text-sm">Chargement...</p>
+    </div>
+
+    <div x-show="!loading && commandesFiltrees.length === 0" class="text-center py-12 text-on-surface-variant">
+        <i class="fas fa-inbox text-4xl mb-3 block"></i>
+        <p class="text-sm">Aucune commande dans cette catégorie</p>
+    </div>
+
+    <div x-show="!loading" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+        <template x-for="c in commandesFiltrees" :key="c.id">
+            <div class="bg-surface-container-low border border-outline/10 rounded-xl p-4 hover:shadow-md transition space-y-2">
+                <!-- Header commande -->
+                <div class="flex items-start justify-between">
+                    <div>
+                        <span class="font-bold text-on-surface" x-text="'#' + c.numero"></span>
+                        <span class="ml-2 text-xs px-2 py-0.5 rounded-full text-white"
+                              :class="statutClass(c.statut_code)" x-text="c.statut"></span>
+                    </div>
+                    <span class="text-xs text-on-surface-variant" x-text="c.date"></span>
+                </div>
+                
+                <!-- Infos -->
+                <div class="flex items-center gap-3 text-xs text-on-surface-variant">
+                    <span><i class="fas fa-store mr-1"></i><span x-text="c.point_vente"></span></span>
+                    <span x-show="c.table"><i class="fas fa-chair mr-1"></i>Table <span x-text="c.table"></span></span>
+                    <span x-show="c.type !== 'Sur place'"><i class="fas fa-bag-shopping mr-1"></i><span x-text="c.type"></span></span>
+                </div>
+                <div class="text-xs text-on-surface-variant"><i class="fas fa-user mr-1"></i><span x-text="c.client"></span></div>
+                
+                <!-- Lignes preview -->
+                <div class="text-xs text-on-surface-variant">
+                    <span x-text="c.lignes_count + ' article(s)'"></span>
+                    <span x-show="c.temps_attente > 0" class="ml-2"><i class="fas fa-clock mr-1"></i><span x-text="c.temps_attente + ' min'"></span></span>
+                </div>
+
+                <!-- Montant + Actions -->
+                <div class="flex items-center justify-between pt-2 border-t border-outline/10">
+                    <div class="flex items-center gap-2">
+                        <span class="font-bold text-secondary" x-text="formatMoney(c.montant) + ' F'"></span>
+                        <span x-show="c.facture_numero" class="text-xs px-2 py-0.5 bg-secondary/20 text-secondary rounded-full" title="Facture">
+                            <i class="fas fa-file-invoice mr-1"></i><span x-text="c.facture_numero"></span>
+                        </span>
+                    </div>
+                    <div class="flex gap-1.5">
+                        <button @click="detailCommande(c.id)" class="text-xs px-2 py-1 bg-surface-container-high text-on-surface-variant rounded hover:bg-surface-container transition">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                        <button x-show="c.statut_code === 'EN_ATTENTE'" @click="changerStatut(c.id, 'EN_PREPARATION')" class="text-xs px-2 py-1 bg-blue-900/30 text-blue-300 rounded hover:bg-blue-900/50 transition">
+                            Préparer
+                        </button>
+                        <button x-show="c.statut_code === 'EN_PREPARATION'" @click="changerStatut(c.id, 'PRETE')" class="text-xs px-2 py-1 bg-yellow-900/30 text-yellow-300 rounded hover:bg-yellow-900/50 transition">
+                            Prête
+                        </button>
+                        <button x-show="c.statut_code === 'PRETE' && c.type_code === 'LIVRAISON'" @click="changerStatut(c.id, 'EN_COURS_DE_LIVRAISON')" class="text-xs px-2 py-1 bg-purple-900/30 text-purple-300 rounded hover:bg-purple-900/50 transition">
+                            En livraison
+                        </button>
+                        <button x-show="c.statut_code === 'PRETE' && c.type_code !== 'LIVRAISON'" @click="changerStatut(c.id, 'SERVIE')" class="text-xs px-2 py-1 bg-green-900/30 text-green-300 rounded hover:bg-green-900/50 transition">
+                            Servir
+                        </button>
+                        <button x-show="c.statut_code === 'EN_COURS_DE_LIVRAISON'" @click="changerStatut(c.id, 'LIVREE')" class="text-xs px-2 py-1 bg-green-900/30 text-green-300 rounded hover:bg-green-900/50 transition">
+                            Livrée
+                        </button>
+                        <button x-show="c.statut_code === 'SERVIE'" @click="payerCommande(c.id)" class="text-xs px-2 py-1 bg-secondary text-black rounded hover:bg-secondary/80 transition">
+                            Payer
+                        </button>
+                        <button x-show="c.statut_code === 'EN_ATTENTE' || c.statut_code === 'EN_PREPARATION'" @click="changerStatut(c.id, 'ANNULEE')" class="text-xs px-2 py-1 bg-red-900/30 text-red-300 rounded hover:bg-red-900/50 transition">
+                            Annuler
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </template>
+    </div>
+</div>
+
+<!-- Modal détail -->
+<div x-show="detailOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4" @click.self="detailOpen = false">
+    <div class="w-full max-w-lg bg-surface-container-high rounded-2xl shadow-xl overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-outline/10">
+            <h3 class="font-bold text-on-surface">Commande <span x-text="'#' + detail.numero"></span></h3>
+            <button @click="detailOpen = false" class="text-on-surface-variant hover:text-on-surface"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="p-6 space-y-3 max-h-96 overflow-y-auto scrollbar-thin">
+            <div class="grid grid-cols-2 gap-3 text-sm">
+                <div><span class="text-on-surface-variant">Client :</span> <span class="text-on-surface" x-text="detail.client_nom || 'Anonyme'"></span></div>
+                <div><span class="text-on-surface-variant">Statut :</span> <span class="text-on-surface font-medium" x-text="detail.statut"></span></div>
+                <div><span class="text-on-surface-variant">Type :</span> <span class="text-on-surface" x-text="detail.type_commande"></span></div>
+                <div x-show="detail.table_numero"><span class="text-on-surface-variant">Table :</span> <span class="text-on-surface" x-text="detail.table_numero"></span></div>
+                <div><span class="text-on-surface-variant">Date :</span> <span class="text-on-surface" x-text="detail.date_commande"></span></div>
+                <div><span class="text-on-surface-variant">Attente :</span> <span class="text-on-surface" x-text="detail.temps_attente + ' min'"></span></div>
+            </div>
+            <div x-show="detail.client_telephone" class="text-sm"><span class="text-on-surface-variant">Tel :</span> <span class="text-on-surface" x-text="detail.client_telephone"></span></div>
+            <div x-show="detail.adresse_livraison" class="text-sm"><span class="text-on-surface-variant">Adresse :</span> <span class="text-on-surface" x-text="detail.adresse_livraison"></span></div>
+            <div x-show="detail.notes" class="text-sm"><span class="text-on-surface-variant">Notes :</span> <span class="text-orange-400" x-text="detail.notes"></span></div>
+
+            <div class="pt-3 border-t border-outline/10">
+                <p class="text-sm font-semibold text-on-surface mb-2">Articles</p>
+                <template x-for="l in detail.lignes" :key="l.article + l.prix_unitaire">
+                    <div class="flex justify-between text-sm py-1">
+                        <span><span class="text-on-surface-variant" x-text="l.quantite + 'x'"></span> <span class="text-on-surface" x-text="l.article"></span></span>
+                        <span class="font-mono text-secondary" x-text="formatMoney(l.total) + ' F'"></span>
+                    </div>
+                </template>
+                <div class="flex justify-between text-sm font-bold pt-2 mt-2 border-t border-outline/10">
+                    <span>Total</span>
+                    <span class="text-secondary" x-text="formatMoney(detail.montant_total) + ' F'"></span>
+                </div>
+                <div x-show="detail.facture_numero" class="flex justify-between text-sm pt-1">
+                    <span class="text-on-surface-variant">Facture</span>
+                    <span class="text-secondary font-medium" x-text="detail.facture_numero"></span>
+                </div>
+            </div>
+        </div>
+        <div class="px-6 py-4 border-t border-outline/10 flex justify-end gap-2">
+            <button @click="detailOpen = false" class="px-4 py-2 text-sm rounded-lg bg-surface-container-high text-on-surface-variant hover:bg-surface-container">Fermer</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function centreCommandes() {
+    return {
+        filtrePointVente: '',
+        activeTab: 'EN_ATTENTE',
+        loading: true,
+        commandes: [],
+        detailOpen: false,
+        detail: {},
+        stats: { en_attente: 0, en_preparation: 0, prete: 0, payees: 0, ca_jour: 0 },
+
+        tabs: [],
+
+        init() {
+            this.chargerCommandes();
+            setInterval(() => this.chargerCommandes(), 15000);
+        },
+
+        get commandesFiltrees() {
+            if (this.activeTab === 'TOUTES') return this.commandes;
+            return this.commandes.filter(c => c.statut_code === this.activeTab);
+        },
+
+        async chargerCommandes() {
+            try {
+                let url = '/pos/api/commandes/liste/';
+                const params = new URLSearchParams();
+                if (this.filtrePointVente) params.set('point_vente', this.filtrePointVente);
+                const qs = params.toString();
+                if (qs) url += '?' + qs;
+
+                const res = await fetch(url);
+                const data = await res.json();
+                if (data.success) {
+                    this.commandes = data.commandes;
+                    this.calculerStats();
+                    this.mettreAJourTabs();
+                }
+            } catch(e) { console.error(e); }
+            finally { this.loading = false; }
+        },
+
+        calculerStats() {
+            const en_attente = this.commandes.filter(c => c.statut_code === 'EN_ATTENTE').length;
+            const en_preparation = this.commandes.filter(c => c.statut_code === 'EN_PREPARATION').length;
+            const prete = this.commandes.filter(c => c.statut_code === 'PRETE').length;
+            const en_cours_livraison = this.commandes.filter(c => c.statut_code === 'EN_COURS_DE_LIVRAISON').length;
+            const servies = this.commandes.filter(c => c.statut_code === 'SERVIE' || c.statut_code === 'LIVREE');
+            const payees = servies.length;
+            const ca_jour = servies.reduce((s, c) => s + c.montant, 0);
+            this.stats = { en_attente, en_preparation, prete, en_cours_livraison, payees, ca_jour: this.formatMoney(ca_jour) + ' F' };
+        },
+
+        mettreAJourTabs() {
+            const compter = (code) => this.commandes.filter(c => c.statut_code === code).length;
+            this.tabs = [
+                { key: 'TOUTES', label: 'Toutes', count: this.commandes.length },
+                { key: 'EN_ATTENTE', label: 'En attente', count: compter('EN_ATTENTE') },
+                { key: 'EN_PREPARATION', label: 'En préparation', count: compter('EN_PREPARATION') },
+                { key: 'PRETE', label: 'Prêtes', count: compter('PRETE') },
+                { key: 'EN_COURS_DE_LIVRAISON', label: 'En livraison', count: compter('EN_COURS_DE_LIVRAISON') },
+                { key: 'SERVIE', label: 'Servies', count: compter('SERVIE') + compter('LIVREE') },
+                { key: 'ANNULEE', label: 'Annulées', count: compter('ANNULEE') },
+            ];
+        },
+
+        async detailCommande(id) {
+            try {
+                const res = await fetch(`/pos/api/commandes/${id}/`);
+                const data = await res.json();
+                if (data.success) {
+                    this.detail = data.commande;
+                    this.detailOpen = true;
+                }
+            } catch(e) { console.error(e); }
+        },
+
+        async changerStatut(id, statut) {
+            try {
+                const res = await fetch(`/pos/api/commandes/${id}/changer-statut/`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCookie('csrftoken') },
+                    body: JSON.stringify({ statut })
+                });
+                const data = await res.json();
+                if (data.success) this.chargerCommandes();
+                else alert('Erreur: ' + data.error);
+            } catch(e) { alert('Erreur réseau'); }
+        },
+
+        async payerCommande(id) {
+            window.dispatchEvent(new CustomEvent('open-paiement-dialog', {
+                detail: { commande_id: id }
+            }));
+        },
+
+        statutClass(code) {
+            const map = {
+                'EN_ATTENTE': 'bg-yellow-600',
+                'EN_PREPARATION': 'bg-blue-600',
+                'PRETE': 'bg-green-600',
+                'EN_COURS_DE_LIVRAISON': 'bg-purple-600',
+                'SERVIE': 'bg-gray-600',
+                'LIVREE': 'bg-gray-600',
+                'ANNULEE': 'bg-red-700',
+            };
+            return map[code] || 'bg-surface-container-highest';
+        },
+
+        formatMoney(v) { return new Intl.NumberFormat('fr-FR').format(v || 0); },
+        getCookie(n) { let v = `; ${document.cookie}`, p = v.split(`; ${n}=`); return p.length === 2 ? p.pop().split(';').shift() : ''; }
+    }
+}
+</script>
+
+{% include 'paiements/components/paiement_dialog.html' %}
+{% endblock %}

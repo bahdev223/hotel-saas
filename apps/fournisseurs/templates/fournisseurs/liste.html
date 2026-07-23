@@ -1,0 +1,112 @@
+{% extends 'fournisseurs/base_fournisseurs.html' %}
+{% load static %}
+
+{% block title %}Fournisseurs{% endblock %}
+
+{% block content %}
+<div x-data="fournisseurApp()" class="space-y-6">
+
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-on-surface flex items-center gap-3">
+                <i class="fas fa-truck text-secondary"></i>Fournisseurs
+            </h1>
+            <p class="text-sm text-on-surface-variant mt-1">{{ total }} fournisseur(s)</p>
+        </div>
+        <a href="{% url 'fournisseurs:ajouter' %}" class="btn-md3-primary text-sm px-4 py-2 rounded-lg">
+            <i class="fas fa-plus mr-1"></i>Ajouter
+        </a>
+    </div>
+
+    <!-- Search -->
+    <div class="relative max-w-xs">
+        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm"></i>
+        <input type="text" x-model="search" @input.debounce.300ms="filtrer()"
+               class="input-md3 rounded-lg pl-9 text-sm w-full" placeholder="Rechercher...">
+    </div>
+
+    {% if fournisseurs %}
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for f in fournisseurs %}
+        <button onclick="detailFournisseur('{{ f.id }}')" class="card-md3 p-5 hover:border-secondary/50 transition-smooth block text-left w-full">
+            <div class="flex justify-between items-start mb-3">
+                <div>
+                    <h3 class="font-semibold">{{ f.nom }}</h3>
+                    <p class="text-xs text-on-surface-variant font-mono">{{ f.code }}</p>
+                </div>
+                <span class="text-xs px-2 py-1 rounded-full bg-green-900/30 text-green-300">Actif</span>
+            </div>
+            <div class="space-y-1 text-sm text-on-surface-variant">
+                {% if f.telephone %}<p><i class="fas fa-phone mr-2 w-4"></i>{{ f.telephone }}</p>{% endif %}
+                {% if f.email %}<p><i class="fas fa-envelope mr-2 w-4"></i>{{ f.email }}</p>{% endif %}
+                {% if f.identifiant_fiscal %}<p><i class="fas fa-file-invoice mr-2 w-4"></i>NIF: {{ f.identifiant_fiscal }}</p>{% endif %}
+            </div>
+        </button>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-16 text-on-surface-variant">
+        <i class="fas fa-truck text-5xl mb-4 block"></i>
+        <p class="text-sm">Aucun fournisseur</p>
+        <a href="{% url 'fournisseurs:ajouter' %}" class="text-secondary text-sm mt-2 inline-block hover:underline">Ajouter un fournisseur</a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function fournisseurApp() {
+    return { search: '', filtrer() { location.href = '?search=' + encodeURIComponent(this.search); } }
+}
+function getCookie(name) {
+    let v = '; ' + document.cookie, p = v.split('; ' + name + '=');
+    return p.length === 2 ? p.pop().split(';').shift() : null;
+}
+</script>
+
+<!-- Dialogue détail fournisseur -->
+<dialog id="dialog-detail-fournisseur" class="rounded-2xl shadow-xl p-0 w-full max-w-lg bg-surface-container border border-outline/10">
+    <div class="p-6 space-y-4">
+        <div class="flex justify-between items-center mb-2">
+            <h3 class="text-lg font-bold text-on-surface" id="detail-four-nom"><i class="fas fa-truck text-secondary mr-2"></i></h3>
+            <button type="button" onclick="document.getElementById('dialog-detail-fournisseur').close()" class="text-on-surface-variant hover:text-on-surface"><i class="fas fa-times"></i></button>
+        </div>
+        <div id="detail-four-body" class="text-center py-8 text-on-surface-variant">
+            <i class="fas fa-spinner fa-spin text-2xl"></i>
+            <p class="mt-2 text-sm">Chargement...</p>
+        </div>
+    </div>
+</dialog>
+
+<script>
+const FOURNISSEURS_DATA = {
+    {% for f in fournisseurs %}"{{ f.id }}": { nom: '{{ f.nom|escapejs }}', code: '{{ f.code|escapejs }}', telephone: '{{ f.telephone|escapejs }}', email: '{{ f.email|escapejs }}', nif: '{{ f.identifiant_fiscal|escapejs }}', adresse: '{{ f.adresse|escapejs }}' },
+    {% endfor %}
+};
+
+function detailFournisseur(fournisseurId) {
+    const dialog = document.getElementById('dialog-detail-fournisseur');
+    const data = FOURNISSEURS_DATA[fournisseurId];
+    if (!data) return;
+    document.getElementById('detail-four-nom').innerHTML = '<i class="fas fa-truck text-secondary mr-2"></i>' + data.nom;
+    document.getElementById('detail-four-body').innerHTML = `
+        <div class="space-y-3 text-sm">
+            <div class="grid grid-cols-2 gap-3">
+                <div><span class="text-xs text-on-surface-variant block">Code</span><span class="font-medium">${data.code}</span></div>
+                <div><span class="text-xs text-on-surface-variant block">NIF</span><span class="font-medium">${data.nif || '-'}</span></div>
+            </div>
+            <div class="border-t border-outline/10 pt-3 mt-3">
+                <div><span class="text-xs text-on-surface-variant block">Téléphone</span><span class="font-medium">${data.telephone || '-'}</span></div>
+                <div class="mt-2"><span class="text-xs text-on-surface-variant block">Email</span><span class="font-medium">${data.email || '-'}</span></div>
+                <div class="mt-2"><span class="text-xs text-on-surface-variant block">Adresse</span><span class="font-medium">${data.adresse || '-'}</span></div>
+            </div>
+            <div class="flex gap-3 pt-4 border-t border-outline/10 mt-4">
+                <a href="/fournisseurs/${fournisseurId}/" class="flex-1 btn-md3-primary py-2 rounded-lg text-sm text-center"><i class="fas fa-eye mr-1"></i>Fiche complète</a>
+                <a href="/fournisseurs/${fournisseurId}/modifier/" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm text-center hover:bg-surface-container-high"><i class="fas fa-edit mr-1"></i>Modifier</a>
+            </div>
+            <button onclick="document.getElementById('dialog-detail-fournisseur').close()" class="w-full border border-outline/10 py-2 rounded-lg text-sm hover:bg-surface-container-high mt-2">Fermer</button>
+        </div>
+    `;
+    dialog.showModal();
+}
+</script>
+{% endblock %}

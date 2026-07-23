@@ -1,0 +1,51 @@
+<div x-show="modals.unite" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4" @click.self="closeModal('unite')">
+    <div class="w-full max-w-lg rounded-2xl bg-surface-container-high shadow-xl">
+        <div class="flex items-center justify-between border-b border-outline/10 px-5 py-4">
+            <div class="flex items-center gap-3">
+                <div class="flex h-10 w-10 items-center justify-center rounded-lg bg-secondary/20 text-secondary">
+                    <i class="fas fa-door-open"></i>
+                </div>
+                <div>
+                    <h2 class="text-lg font-semibold text-on-surface">Nouvelle chambre</h2>
+                    <p class="text-sm text-on-surface-variant">Chambre Standard ou VIP</p>
+                </div>
+            </div>
+            <button @click="closeModal('unite')" class="flex h-9 w-9 items-center justify-center rounded-lg text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="space-y-4 p-5">
+            <div class="grid gap-4 sm:grid-cols-2">
+                <label class="block">
+                    <span class="mb-1 block text-sm font-medium text-on-surface-variant">Code</span>
+                    <input x-model="uniteForm.code" class="input-md3 w-full px-3 py-2 rounded-lg" placeholder="CH-101">
+                </label>
+                <label class="block">
+                    <span class="mb-1 block text-sm font-medium text-on-surface-variant">Nom</span>
+                    <input x-model="uniteForm.nom" class="input-md3 w-full px-3 py-2 rounded-lg" placeholder="Chambre 101">
+                </label>
+            </div>
+            <div class="grid gap-4 sm:grid-cols-2">
+                <label class="block">
+                    <span class="mb-1 block text-sm font-medium text-on-surface-variant">Type</span>
+                    <select x-model="uniteForm.type_unite" class="input-md3 w-full px-3 py-2 rounded-lg">
+                        <option value="CHAMBRE">Chambre (Standard)</option>
+                        <option value="VIP">VIP</option>
+                    </select>
+                </label>
+                <label class="block">
+                    <span class="mb-1 block text-sm font-medium text-on-surface-variant">Capacite</span>
+                    <input type="number" min="1" x-model="uniteForm.capacite" class="input-md3 w-full px-3 py-2 rounded-lg">
+                </label>
+            </div>
+            <label class="block">
+                <span class="mb-1 block text-sm font-medium text-on-surface-variant">Prix par heure (F)</span>
+                <input type="number" min="0" x-model="uniteForm.prix" class="input-md3 w-full px-3 py-2 rounded-lg" placeholder="0">
+            </label>
+            <div class="flex gap-3 pt-2">
+                <button @click="saveUnite()" class="btn-md3-primary flex-1 py-2 rounded-lg font-medium"><i class="fas fa-check mr-2"></i>Enregistrer</button>
+                <button @click="closeModal('unite')" class="btn-md3-secondary flex-1 py-2 rounded-lg font-medium">Annuler</button>
+            </div>
+        </div>
+    </div>
+</div>

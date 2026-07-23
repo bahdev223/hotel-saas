@@ -1,0 +1,284 @@
+{% extends 'rh/base_rh.html' %}
+{% load static %}
+
+{% block title %}Départements - RH{% endblock %}
+
+{% block content %}
+<div x-data="departementManagement()" x-init="init()">
+    <div class="bg-surface-container-low rounded-xl shadow-md">
+        <div class="px-6 py-4 border-b border-outline/10 flex justify-between items-center">
+            <div>
+                <h1 class="text-2xl font-bold">Départements</h1>
+                <p class="text-sm text-on-surface-variant mt-1">Gestion des départements de l'entreprise</p>
+            </div>
+            <button @click="openModal = true; resetForm()" class="btn btn-primary btn-sm">
+                <i class="fas fa-plus"></i> Nouveau département
+            </button>
+        </div>
+        
+        <!-- Stats rapides -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4 p-6 border-b border-outline/10 bg-surface-container-high">
+            <div class="text-center">
+                <p class="text-2xl font-bold text-secondary">{{ departements|length }}</p>
+                <p class="text-xs text-on-surface-variant">Total départements</p>
+            </div>
+            <div class="text-center">
+                <p class="text-2xl font-bold text-green-400">{{ total_employes|default:0 }}</p>
+                <p class="text-xs text-on-surface-variant">Employés</p>
+            </div>
+            <div class="text-center">
+                <p class="text-2xl font-bold text-blue-400">{{ moy_employes|default:0 }}</p>
+                <p class="text-xs text-on-surface-variant">Moy. par département</p>
+            </div>
+        </div>
+        
+        <!-- Tableau -->
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-surface-container-high">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-sm font-semibold">Code</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold">Libellé</th>
+                        <th class="px-6 py-3 text-center text-sm font-semibold">Employés</th>
+                        <th class="px-6 py-3 text-left text-sm font-semibold">Responsable</th>
+                        <th class="px-6 py-3 text-center text-sm font-semibold">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10">
+                    {% for dept in departements %}
+                    <tr class="hover:bg-surface-container-low transition">
+                        <td class="px-6 py-3">
+                            <span class="font-mono text-sm">{{ dept.code }}</span>
+                        </td>
+                        <td class="px-6 py-3">
+                            <span class="font-medium">{{ dept.libelle }}</span>
+                        </td>
+                        <td class="px-6 py-3 text-center">
+                            <span class="badge badge-info">{{ dept.employes.count }}</span>
+                        </td>
+                        <td class="px-6 py-3 text-sm">
+                            {% if dept.responsable %}
+                            {{ dept.responsable.nom }} {{ dept.responsable.prenom }}
+                            {% else %}
+                            <span class="text-on-surface-variant">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-6 py-3 text-center">
+                            <button @click="editDepartement('{{ dept.id }}')" class="text-blue-500 hover:text-blue-700 mx-1" title="Modifier">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button @click="deleteDepartement('{{ dept.id }}', '{{ dept.libelle }}')" class="text-red-500 hover:text-red-700 mx-1" title="Supprimer">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-8 text-center text-on-surface-variant">
+                            <i class="fas fa-building text-4xl mb-2 block"></i>
+                            Aucun département
+                            <button @click="openModal = true" class="block mx-auto mt-2 text-secondary hover:underline">
+                                Créer le premier département
+                            </button>
+                         </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- MODAL AJOUT / MODIFICATION DÉPARTEMENT -->
+    <div x-show="openModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="openModal = false">
+        <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-md">
+            <div class="px-6 py-4 border-b border-outline/10 flex justify-between items-center">
+                <h2 class="text-xl font-bold" x-text="modalTitle">Département</h2>
+                <button @click="openModal = false" class="text-on-surface-variant hover:text-on-surface">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <form @submit.prevent="saveDepartement" class="p-6">
+                {% csrf_token %}
+                <input type="hidden" x-model="form.id">
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1">Code *</label>
+                    <input type="text" x-model="form.code" required 
+                           class="w-full px-3 py-2 input-md3 rounded-lg focus:ring-2 focus:ring-secondary/50"
+                           placeholder="Ex: RH, IT, FIN...">
+                    <p class="text-xs text-on-surface-variant mt-1">Code unique du département</p>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1">Libellé *</label>
+                    <input type="text" x-model="form.libelle" required 
+                           class="w-full px-3 py-2 input-md3 rounded-lg"
+                           placeholder="Ex: Ressources Humaines">
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium mb-1">Responsable</label>
+                    <select x-model="form.responsable_id" class="w-full px-3 py-2 input-md3 rounded-lg">
+                        <option value="">Sélectionner un responsable</option>
+                        {% for emp in employes_list %}
+                        <option value="{{ emp.id }}">{{ emp.nom }} {{ emp.prenom }} ({{ emp.matricule }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="flex gap-3 mt-6 pt-4 border-t border-outline/10">
+                    <button type="submit" class="flex-1 bg-secondary text-white px-4 py-2 rounded-lg hover:bg-secondary/80 transition" :disabled="loading">
+                        <i class="fas fa-save mr-2"></i>
+                        <span x-text="loading ? 'Enregistrement...' : 'Enregistrer'"></span>
+                    </button>
+                    <button type="button" @click="openModal = false" class="flex-1 bg-surface-container-highest text-on-surface px-4 py-2 rounded-lg hover:bg-surface-container-highest transition">
+                        Annuler
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- MODAL CONFIRMATION SUPPRESSION -->
+    <div x-show="showDeleteModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="showDeleteModal = false">
+        <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-md p-6">
+            <div class="text-center">
+                <i class="fas fa-exclamation-triangle text-red-400 text-5xl mb-4"></i>
+                <h3 class="text-xl font-bold mb-2">Confirmer la suppression</h3>
+                <p class="text-on-surface-variant mb-6">Supprimer le département <span class="font-bold" x-text="deleteNom"></span> ?</p>
+                <div class="flex gap-3">
+                    <button @click="confirmDelete" class="flex-1 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">
+                        Oui, supprimer
+                    </button>
+                    <button @click="showDeleteModal = false" class="flex-1 bg-surface-container-highest text-on-surface px-4 py-2 rounded-lg hover:bg-surface-container-highest">
+                        Annuler
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function departementManagement() {
+    return {
+        openModal: false,
+        showDeleteModal: false,
+        loading: false,
+        modalTitle: 'Ajouter un département',
+        deleteId: null,
+        deleteNom: '',
+        form: {
+            id: '',
+            code: '',
+            libelle: '',
+            responsable_id: ''
+        },
+        
+        init() {
+            // Initialisation
+        },
+        
+        resetForm() {
+            this.modalTitle = 'Ajouter un département';
+            this.form = {
+                id: '',
+                code: '',
+                libelle: '',
+                responsable_id: ''
+            };
+        },
+        
+        editDepartement(id) {
+            this.modalTitle = 'Modifier le département';
+            this.loading = true;
+            
+            fetch(`/rh/departements/${id}/api/`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        this.form.id = data.departement.id;
+                        this.form.code = data.departement.code;
+                        this.form.libelle = data.departement.libelle;
+                        this.form.responsable_id = data.departement.responsable_id || '';
+                        this.openModal = true;
+                    }
+                })
+                .catch(error => console.error('Erreur:', error))
+                .finally(() => {
+                    this.loading = false;
+                });
+        },
+        
+        deleteDepartement(id, nom) {
+            this.deleteId = id;
+            this.deleteNom = nom;
+            this.showDeleteModal = true;
+        },
+        
+        async confirmDelete() {
+            try {
+                const response = await fetch(`/rh/departements/${this.deleteId}/supprimer/`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': this.getCookie('csrftoken')
+                    }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert('Erreur: ' + data.error);
+                }
+            } catch (error) {
+                alert('Erreur réseau');
+            } finally {
+                this.showDeleteModal = false;
+            }
+        },
+        
+        async saveDepartement() {
+            this.loading = true;
+            const isEdit = this.form.id !== '';
+            const url = isEdit ? `/rh/departements/${this.form.id}/modifier/` : '/rh/departements/api/ajouter/';
+            
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        code: this.form.code,
+                        libelle: this.form.libelle,
+                        responsable_id: this.form.responsable_id
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    window.location.reload();
+                } else {
+                    alert('Erreur: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Erreur:', error);
+                alert('Erreur réseau');
+            } finally {
+                this.loading = false;
+            }
+        },
+        
+        getCookie(name) {
+            let value = `; ${document.cookie}`;
+            let parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return parts.pop().split(';').shift();
+        }
+    }
+}
+</script>
+{% endblock %}
+    

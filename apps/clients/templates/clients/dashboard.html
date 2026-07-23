@@ -1,0 +1,787 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Clients - Tableau de bord{% endblock %}
+
+{% block content %}
+{% csrf_token %}
+<div x-data="clientsApp()" x-init="init()" class="space-y-6">
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-on-surface">
+                <i class="fas fa-users text-secondary mr-2"></i>Clients
+            </h1>
+            <p class="text-sm text-on-surface-variant mt-1">Gestion des clients</p>
+        </div>
+        <button @click="openDialog('liste')" class="btn-md3-primary text-sm px-4 py-2 rounded-lg">
+            <i class="fas fa-list mr-1"></i>Tous les clients
+        </button>
+    </div>
+
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="card-md3 p-4">
+            <div class="stat-icon bg-secondary/10"><i class="fas fa-users text-secondary"></i></div>
+            <div class="text-2xl font-bold text-on-surface mt-2" x-text="stats.total"></div>
+            <div class="text-xs text-on-surface-variant">Total clients</div>
+        </div>
+        <div class="card-md3 p-4">
+            <div class="stat-icon bg-green-900/30"><i class="fas fa-check-circle text-green-400"></i></div>
+            <div class="text-2xl font-bold text-green-400 mt-2" x-text="stats.actifs"></div>
+            <div class="text-xs text-on-surface-variant">Actifs</div>
+        </div>
+        <div class="card-md3 p-4">
+            <div class="stat-icon bg-blue-900/30"><i class="fas fa-building text-blue-400"></i></div>
+            <div class="text-2xl font-bold text-blue-400 mt-2" x-text="stats.entreprises"></div>
+            <div class="text-xs text-on-surface-variant">Entreprises</div>
+        </div>
+        <div class="card-md3 p-4">
+            <div class="stat-icon bg-purple-900/30"><i class="fas fa-plane text-purple-400"></i></div>
+            <div class="text-2xl font-bold text-purple-400 mt-2" x-text="stats.agences"></div>
+            <div class="text-xs text-on-surface-variant">Agences</div>
+        </div>
+    </div>
+
+    <div class="card-md3">
+        <div class="p-4 border-b border-outline/10 flex items-center justify-between">
+            <h2 class="font-semibold"><i class="fas fa-clock text-secondary mr-2"></i>Derniers clients</h2>
+            <button @click="openDialog('liste')" class="text-xs text-secondary hover:text-secondary/80 transition">Voir tout <i class="fas fa-arrow-right ml-1"></i></button>
+        </div>
+        <div class="divide-y divide-outline/10">
+            <template x-for="c in recents" :key="c.id">
+                <button @click="voirClient(c)" class="w-full flex items-center gap-3 p-3 hover:bg-surface-container-high transition text-left">
+                    <div class="w-9 h-9 rounded-full bg-secondary/10 flex items-center justify-center shrink-0">
+                        <i class="fas fa-user text-secondary text-sm"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-medium text-sm" x-text="c.nom_complet"></div>
+                        <div class="text-xs text-on-surface-variant" x-text="(c.telephone || '-') + ' · ' + c.type_client_display"></div>
+                    </div>
+                    <div class="text-right">
+                        <span class="text-xs px-2 py-0.5 rounded-full" :class="c.statut === 'ACTIF' ? 'bg-green-900/30 text-green-300' : c.statut === 'INACTIF' ? 'bg-yellow-900/30 text-yellow-300' : 'bg-red-900/30 text-red-300'" x-text="c.statut_display"></span>
+                        <div class="text-xs text-on-surface-variant mt-1" x-show="c.solde !== 0" x-text="formatSolde(c.solde)"></div>
+                    </div>
+                </button>
+            </template>
+            <div x-show="recents.length === 0" class="text-center py-8 text-on-surface-variant">
+                <i class="fas fa-user-slash text-3xl mb-2 block"></i>
+                <p class="text-sm">Aucun client</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== DIALOG CLIENTS ========== -->
+    <div x-show="showDialog" x-cloak class="fixed inset-0 z-50 flex items-start justify-center pt-12 pb-8 bg-black/70 backdrop-blur-sm" @click.away="showDialog = false" @keydown.escape.window="showDialog = false">
+        <div class="w-full max-w-4xl mx-4 bg-surface-container-low rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(100vh-6rem)]" @click.stop>
+            <!-- Dialog header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-outline/10 shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center">
+                        <i class="fas fa-users text-secondary"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold">Gestion des clients</h2>
+                        <p class="text-xs text-on-surface-variant" x-text="'Clients · ' + clients.length + ' enregistrés'"></p>
+                    </div>
+                </div>
+                <button @click="showDialog = false" class="w-8 h-8 rounded-full bg-surface-container-high hover:bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface"><i class="fas fa-times"></i></button>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex border-b border-outline/10 shrink-0">
+                <button @click="activeTab = 'liste'" class="flex-1 py-3 text-sm font-medium text-center transition" :class="activeTab === 'liste' ? 'text-secondary border-b-2 border-secondary' : 'text-on-surface-variant hover:text-on-surface'"><i class="fas fa-list mr-1"></i>Liste</button>
+                <button @click="activeTab = 'ajouter'" class="flex-1 py-3 text-sm font-medium text-center transition" :class="activeTab === 'ajouter' ? 'text-secondary border-b-2 border-secondary' : 'text-on-surface-variant hover:text-on-surface'"><i class="fas fa-plus-circle mr-1"></i>Ajouter</button>
+            </div>
+
+            <!-- Tab: Liste -->
+            <div x-show="activeTab === 'liste'" class="flex flex-col flex-1 overflow-hidden">
+                <div class="p-4 border-b border-outline/10 space-y-3 shrink-0">
+                    <div class="flex gap-3">
+                        <div class="flex-1 relative">
+                            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant"></i>
+                            <input type="text" x-model="search" @input.debounce="rechercher()" placeholder="Rechercher par nom, téléphone, ID..." class="w-full pl-9 pr-3 py-2 input-md3 rounded-lg text-sm">
+                        </div>
+                        <select x-model="typeFilter" @change="rechercher()" class="input-md3 rounded-lg text-sm">
+                            <option value="">Tous types</option>
+                            <option value="PARTICULIER">Particulier</option>
+                            <option value="ENTREPRISE">Entreprise</option>
+                            <option value="AGENCE">Agence</option>
+                        </select>
+                        <select x-model="statutFilter" @change="rechercher()" class="input-md3 rounded-lg text-sm">
+                            <option value="">Tous statuts</option>
+                            <option value="ACTIF">Actif</option>
+                            <option value="INACTIF">Inactif</option>
+                            <option value="BLACKLIST">Blacklisté</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="flex-1 overflow-y-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-surface-container-high text-on-surface-variant text-xs uppercase tracking-wider sticky top-0">
+                            <tr>
+                                <th class="text-left px-4 py-3 font-medium">Client</th>
+                                <th class="text-left px-4 py-3 font-medium">Téléphone</th>
+                                <th class="text-left px-4 py-3 font-medium">Type</th>
+                                <th class="text-right px-4 py-3 font-medium">Solde</th>
+                                <th class="text-center px-4 py-3 font-medium">Statut</th>
+                                <th class="text-right px-4 py-3 font-medium">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-outline/10">
+                            <template x-for="c in clientsFiltres" :key="c.id">
+                                <tr class="hover:bg-surface-container-high transition">
+                                    <td class="px-4 py-3">
+                                        <button @click="voirClient(c)" class="font-medium hover:text-secondary transition text-left" x-text="c.nom_complet"></button>
+                                        <div class="text-xs text-on-surface-variant font-mono" x-text="c.id"></div>
+                                    </td>
+                                    <td class="px-4 py-3 text-on-surface-variant" x-text="c.telephone || '-'"></td>
+                                    <td class="px-4 py-3"><span class="text-xs" x-text="c.type_client_display"></span></td>
+                                    <td class="px-4 py-3 text-right">
+                                        <span class="font-mono font-medium" :class="c.solde > 0 ? 'text-green-400' : c.solde < 0 ? 'text-red-400' : 'text-on-surface-variant'" x-text="formatSolde(c.solde)"></span>
+                                    </td>
+                                    <td class="px-4 py-3 text-center">
+                                        <span class="text-xs px-2 py-0.5 rounded-full" :class="c.statut === 'ACTIF' ? 'bg-green-900/30 text-green-300' : c.statut === 'INACTIF' ? 'bg-yellow-900/30 text-yellow-300' : 'bg-red-900/30 text-red-300'" x-text="c.statut_display"></span>
+                                    </td>
+                                    <td class="px-4 py-3 text-right">
+                                        <button @click="voirClient(c)" class="text-secondary hover:text-secondary/80 text-sm mr-2" title="Détails"><i class="fas fa-eye"></i></button>
+                                        <button @click="editerClient(c)" class="text-on-surface-variant hover:text-on-surface text-sm" title="Modifier"><i class="fas fa-edit"></i></button>
+                                    </td>
+                                </tr>
+                            </template>
+                            <tr x-show="clientsFiltres.length === 0">
+                                <td colspan="6" class="text-center py-12 text-on-surface-variant">
+                                    <i class="fas fa-user-slash text-3xl mb-2 block"></i>
+                                    <p class="text-sm">Aucun client trouvé</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Tab: Ajouter -->
+            <div x-show="activeTab === 'ajouter'" class="p-6 overflow-y-auto">
+                <form @submit.prevent="ajouterClient()" class="max-w-lg mx-auto space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="label-md3">Nom <span class="text-error">*</span></label>
+                            <input type="text" x-model="form.nom" required class="input-md3 rounded-lg w-full" placeholder="Nom">
+                        </div>
+                        <div>
+                            <label class="label-md3">Prénom</label>
+                            <input type="text" x-model="form.prenom" class="input-md3 rounded-lg w-full" placeholder="Prénom">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="label-md3">Téléphone <span class="text-red-400">*</span></label>
+                        <input type="text" x-model="form.telephone" required class="input-md3 rounded-lg w-full" placeholder="+221 77 123 45 67">
+                    </div>
+                    <div>
+                        <label class="label-md3">Email</label>
+                        <input type="email" x-model="form.email" class="input-md3 rounded-lg w-full" placeholder="client@email.com">
+                    </div>
+                    <div>
+                        <label class="label-md3">Adresse</label>
+                        <textarea x-model="form.adresse" class="input-md3 rounded-lg w-full text-sm" rows="2" placeholder="Adresse complète"></textarea>
+                    </div>
+                    <div>
+                        <label class="label-md3">Type de client</label>
+                        <select x-model="form.type_client" class="input-md3 rounded-lg w-full">
+                            <option value="PARTICULIER">Particulier</option>
+                            <option value="ENTREPRISE">Entreprise</option>
+                            <option value="AGENCE">Agence de voyage</option>
+                        </select>
+                    </div>
+                    <div x-show="formError" class="text-sm text-error"><i class="fas fa-exclamation-circle mr-1"></i><span x-text="formError"></span></div>
+                    <div class="flex gap-3 pt-2">
+                        <button type="submit" class="flex-1 btn-md3-primary py-2 rounded-lg text-sm" :disabled="saving">
+                            <i class="fas fa-spinner fa-spin mr-1" x-show="saving" x-cloak></i>
+                            <span x-text="saving ? 'Enregistrement...' : 'Enregistrer'"></span>
+                        </button>
+                        <button @click="activeTab = 'liste'" type="button" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm hover:bg-surface-container-high transition">Annuler</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== DIALOG DÉTAIL CLIENT ========== -->
+    <div x-show="showDetail" x-cloak class="fixed inset-0 z-[60] flex items-start justify-center pt-8 pb-8 bg-black/60 backdrop-blur-sm" @click.away="showDetail = false" @keydown.escape.window="showDetail = false">
+        <div class="w-full max-w-3xl mx-4 bg-surface-container-low rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[calc(100vh-4rem)]" @click.stop>
+            <!-- Header -->
+            <div class="flex items-center justify-between px-6 py-4 border-b border-outline/10 shrink-0">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full bg-secondary/10 flex items-center justify-center">
+                        <i class="fas fa-user text-secondary"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold" x-text="detailClient.nom_complet"></h2>
+                        <p class="text-xs text-on-surface-variant font-mono" x-text="detailClient.id"></p>
+                    </div>
+                </div>
+                <button @click="showDetail = false" class="w-8 h-8 rounded-full bg-surface-container-high hover:bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface"><i class="fas fa-times"></i></button>
+            </div>
+
+            <!-- Stats rapides -->
+            <div class="grid grid-cols-4 gap-2 px-4 py-3 bg-surface-container-high/50 border-b border-outline/10 shrink-0">
+                <div class="text-center">
+                    <div class="text-lg font-bold" :class="detailSolde > 0 ? 'text-green-400' : detailSolde < 0 ? 'text-red-400' : 'text-on-surface-variant'" x-text="formatSolde(detailSolde)"></div>
+                    <div class="text-[10px] text-on-surface-variant uppercase tracking-wider">Solde</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-lg font-bold" x-text="operationsCount"></div>
+                    <div class="text-[10px] text-on-surface-variant uppercase tracking-wider">Opérations</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-lg font-bold" :class="detailClient.statut === 'ACTIF' ? 'text-green-400' : 'text-yellow-400'" x-text="detailClient.statut_display"></div>
+                    <div class="text-[10px] text-on-surface-variant uppercase tracking-wider">Statut</div>
+                </div>
+                <div class="text-center">
+                    <div class="text-lg font-bold" :class="facturesImpayees > 0 ? 'text-red-400' : 'text-green-400'" x-text="facturesImpayees"></div>
+                    <div class="text-[10px] text-on-surface-variant uppercase tracking-wider">Impayées</div>
+                </div>
+            </div>
+
+            <!-- Barre d'action rapide -->
+            <div class="flex items-center gap-2 px-4 py-2 border-b border-outline/10 shrink-0 bg-surface-container-high/30">
+                <button @click="editerClient(detailClient); showDetail = false" class="btn-sm bg-secondary/10 text-secondary hover:bg-secondary/20 rounded-lg px-3 py-1.5 text-xs font-medium transition"><i class="fas fa-edit mr-1"></i>Modifier</button>
+                <button @click="refreshDetail()" class="btn-sm bg-surface-container-high hover:bg-surface-container rounded-lg px-3 py-1.5 text-xs font-medium text-on-surface-variant hover:text-on-surface transition" :disabled="!detailLoaded"><i class="fas fa-sync-alt mr-1" :class="{'fa-spin': !detailLoaded}"></i>Actualiser</button>
+                <span x-show="detailLastRefresh" class="text-[10px] text-on-surface-variant ml-auto"><i class="far fa-clock mr-1"></i><span x-text="detailLastRefresh"></span></span>
+            </div>
+
+            <!-- Tabs -->
+            <div class="flex border-b border-outline/10 shrink-0 overflow-x-auto">
+                <button @click="detailTab = 'infos'" class="px-5 py-3 text-sm font-medium whitespace-nowrap transition" :class="detailTab === 'infos' ? 'text-secondary border-b-2 border-secondary' : 'text-on-surface-variant hover:text-on-surface'"><i class="fas fa-address-card mr-1"></i>Infos</button>
+                <button @click="detailTab = 'operations'" class="px-5 py-3 text-sm font-medium whitespace-nowrap transition" :class="detailTab === 'operations' ? 'text-secondary border-b-2 border-secondary' : 'text-on-surface-variant hover:text-on-surface'"><i class="fas fa-history mr-1"></i>Opérations <span x-show="operationsCount > 0" class="ml-1 text-xs bg-secondary/20 px-1.5 py-0.5 rounded-full" x-text="operationsCount"></span></button>
+                <button @click="detailTab = 'factures'" class="px-5 py-3 text-sm font-medium whitespace-nowrap transition" :class="detailTab === 'factures' ? 'text-secondary border-b-2 border-secondary' : 'text-on-surface-variant hover:text-on-surface'"><i class="fas fa-file-invoice mr-1"></i>Factures <span x-show="facturesImpayees > 0" class="ml-1 text-xs bg-red-900/40 text-red-300 px-1.5 py-0.5 rounded-full" x-text="facturesImpayees"></span></button>
+                <button @click="detailTab = 'solde'" class="px-5 py-3 text-sm font-medium whitespace-nowrap transition" :class="detailTab === 'solde' ? 'text-secondary border-b-2 border-secondary' : 'text-on-surface-variant hover:text-on-surface'"><i class="fas fa-wallet mr-1"></i>Solde & mouvements</button>
+            </div>
+
+            <!-- Tab: Infos -->
+            <div x-show="detailTab === 'infos'" class="p-6 overflow-y-auto">
+                <div class="grid grid-cols-2 gap-6 text-sm">
+                    <div class="space-y-4">
+                        <div><span class="text-on-surface-variant block text-xs uppercase tracking-wider">Téléphone</span><span class="font-medium" x-text="detailClient.telephone || '-'"></span></div>
+                        <div><span class="text-on-surface-variant block text-xs uppercase tracking-wider">Email</span><span class="font-medium" x-text="detailClient.email || '-'"></span></div>
+                        <div><span class="text-on-surface-variant block text-xs uppercase tracking-wider">Type</span><span class="font-medium" x-text="detailClient.type_client_display"></span></div>
+                        <div><span class="text-on-surface-variant block text-xs uppercase tracking-wider">Identifiant fiscal</span><span class="font-medium" x-text="detailClient.identifiant_fiscal || '-'"></span></div>
+                    </div>
+                    <div class="space-y-4">
+                        <div><span class="text-on-surface-variant block text-xs uppercase tracking-wider">Inscription</span><span class="font-medium" x-text="detailClient.date_inscription"></span></div>
+                        <div><span class="text-on-surface-variant block text-xs uppercase tracking-wider">Adresse</span><span class="font-medium" x-text="detailClient.adresse || '-'"></span></div>
+                        <div><span class="text-on-surface-variant block text-xs uppercase tracking-wider">Crédit plafond</span><span class="font-medium" x-text="detailClient.credit_plafond ? formatSolde(detailClient.credit_plafond) : '-'"></span></div>
+                        <div x-show="detailClient.notes"><span class="text-on-surface-variant block text-xs uppercase tracking-wider">Notes</span><span class="font-medium italic" x-text="detailClient.notes"></span></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab: Opérations (unifiées + filtres) -->
+            <div x-show="detailTab === 'operations'" class="flex flex-col flex-1 overflow-hidden">
+                <div x-show="!detailLoaded" class="flex items-center justify-center h-32 text-on-surface-variant"><i class="fas fa-spinner fa-spin mr-2"></i> Chargement...</div>
+                <template x-if="detailLoaded">
+                    <div class="flex flex-col flex-1 overflow-hidden">
+                        <!-- Filtres -->
+                        <div class="flex gap-2 p-3 border-b border-outline/10 shrink-0 overflow-x-auto">
+                            <select x-model="opFilterType" class="input-md3 rounded-lg text-xs py-1.5 px-2">
+                                <option value="">Tous types</option>
+                                <option value="commande">Commandes</option>
+                                <option value="vente">Ventes</option>
+                                <option value="facture">Factures</option>
+                                <option value="paiement">Paiements</option>
+                                <option value="location">Locations</option>
+                            </select>
+                            <select x-model="opFilterStatut" class="input-md3 rounded-lg text-xs py-1.5 px-2">
+                                <option value="">Tous statuts</option>
+                                <option value="EN_ATTENTE">En attente</option>
+                                <option value="SERVIE">Servie</option>
+                                <option value="PAYEE">Payée</option>
+                                <option value="EMISE">Émise</option>
+                                <option value="ANNULEE">Annulée</option>
+                                <option value="VALIDE">Validé</option>
+                                <option value="EN_COURS">En cours</option>
+                            </select>
+                            <input type="text" x-model="opSearch" placeholder="🔍 Réf, PV, article..." class="input-md3 rounded-lg text-xs py-1.5 px-2 flex-1 min-w-[120px]">
+                            <span class="text-[10px] text-on-surface-variant self-center whitespace-nowrap" x-text="`${operationsFiltrees.length} / ${operationsCount}`"></span>
+                        </div>
+                        <!-- Liste -->
+                        <div class="flex-1 overflow-y-auto p-2 space-y-[2px]">
+                            <template x-for="(op, i) in operationsPages" :key="op._type + '-' + op.id">
+                                <div class="flex items-center gap-2 px-3 py-2 rounded-lg hover:bg-surface-container-high transition text-sm" :class="i % 2 === 0 ? 'bg-surface-container-high/30' : ''">
+                                    <!-- Icône type -->
+                                    <div class="w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs"
+                                         :class="op._type === 'location' ? 'bg-blue-900/30 text-blue-400' : op._type === 'commande' ? 'bg-orange-900/30 text-orange-400' : op._type === 'vente' ? 'bg-purple-900/30 text-purple-400' : op._type === 'facture' ? 'bg-red-900/30 text-red-400' : 'bg-green-900/30 text-green-400'">
+                                        <i :class="op._type === 'location' ? 'fas fa-bed' : op._type === 'commande' ? 'fas fa-clipboard-list' : op._type === 'vente' ? 'fas fa-receipt' : op._type === 'facture' ? 'fas fa-file-invoice' : 'fas fa-credit-card'"></i>
+                                    </div>
+                                    <!-- Contenu -->
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-medium text-xs truncate" x-text="op.numero || op.reference || op.unite || '#'+op.id"></span>
+                                            <span class="text-[10px] text-on-surface-variant truncate" x-text="formatDate(op.date)"></span>
+                                        </div>
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-[10px] text-on-surface-variant truncate" x-text="op.point_vente || op.mode || op.type || op.unite"></span>
+                                            <span x-show="op.payee" class="text-[10px] text-green-400"><i class="fas fa-check-circle"></i></span>
+                                        </div>
+                                    </div>
+                                    <!-- Montant + statut -->
+                                    <div class="text-right shrink-0">
+                                        <div class="font-mono text-xs font-medium" :class="op._type === 'paiement' ? (op.sens_code === 'ENTREE' ? 'text-green-400' : 'text-red-400') : ''" x-text="formatSolde(op.montant)"></div>
+                                        <span class="text-[10px] px-1.5 py-0.5 rounded"
+                                              :class="(op.statut_code === 'PAYEE' || op.statut === 'VALIDE' || op.statut_code === 'SERVIE' || op.statut_code === 'LIVREE' || op.statut_code === 'TERMINEE') ? 'bg-green-900/30 text-green-300' : (op.statut_code === 'ANNULEE' || op.statut_code === 'ANNULE') ? 'bg-red-900/30 text-red-300' : (op.statut_code === 'EN_ATTENTE' || op.statut_code === 'EMISE') ? 'bg-yellow-900/30 text-yellow-300' : 'bg-blue-900/30 text-blue-300'"
+                                              x-text="op.statut_code ? (op.statut_code.charAt(0) + op.statut_code.slice(1).toLowerCase()) : (op.statut || '')"></span>
+                                    </div>
+                                </div>
+                            </template>
+                            <div x-show="operationsFiltrees.length === 0" class="text-center py-8 text-on-surface-variant">
+                                <i class="fas fa-inbox text-3xl mb-2 block"></i>
+                                <p class="text-sm">Aucune opération trouvée</p>
+                            </div>
+                        </div>
+                        <!-- Voir plus -->
+                        <div x-show="operationsPages.length < operationsFiltrees.length" class="shrink-0 p-2 text-center border-t border-outline/10">
+                            <button @click="opPage++" class="text-xs text-secondary hover:text-secondary/80 font-medium transition">
+                                <i class="fas fa-chevron-down mr-1"></i>Voir plus (<span x-text="operationsFiltrees.length - operationsPages.length"></span>)
+                            </button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Tab: Factures -->
+            <div x-show="detailTab === 'factures'" class="flex flex-col flex-1 overflow-hidden">
+                <div x-show="!detailLoaded" class="flex items-center justify-center h-32 text-on-surface-variant"><i class="fas fa-spinner fa-spin mr-2"></i> Chargement...</div>
+                <template x-if="detailLoaded">
+                    <div class="flex-1 overflow-y-auto p-4 space-y-3">
+                        <!-- Stats factures -->
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="bg-surface-container-high rounded-xl p-3 text-center">
+                                <div class="text-xs text-on-surface-variant">Total facturé</div>
+                                <div class="text-lg font-bold text-on-surface" x-text="formatSolde(statsFactures.total)"></div>
+                            </div>
+                            <div class="bg-surface-container-high rounded-xl p-3 text-center">
+                                <div class="text-xs text-on-surface-variant">Total payé</div>
+                                <div class="text-lg font-bold text-green-400" x-text="formatSolde(statsFactures.paye)"></div>
+                            </div>
+                            <div class="bg-surface-container-high rounded-xl p-3 text-center">
+                                <div class="text-xs text-on-surface-variant">Reste à payer</div>
+                                <div class="text-lg font-bold" :class="statsFactures.reste > 0 ? 'text-red-400' : 'text-green-400'" x-text="formatSolde(statsFactures.reste)"></div>
+                            </div>
+                        </div>
+                        <!-- Liste factures -->
+                        <template x-for="f in operations.factures" :key="f.id">
+                            <div class="flex items-center justify-between bg-surface-container-high rounded-lg px-4 py-3 text-sm">
+                                <div>
+                                    <div class="font-medium text-xs" x-text="f.numero"></div>
+                                    <div class="text-[10px] text-on-surface-variant" x-text="f.type + ' · ' + formatDate(f.date)"></div>
+                                </div>
+                                <div class="text-right">
+                                    <div class="font-mono text-xs" x-text="formatSolde(f.montant)"></div>
+                                    <div class="flex items-center gap-2 justify-end">
+                                        <span x-show="f.reste > 0" class="text-[10px] text-red-400">Reste: <span x-text="formatSolde(f.reste)"></span></span>
+                                        <span class="text-[10px] px-1.5 py-0.5 rounded" :class="f.statut_code === 'PAYEE' ? 'bg-green-900/30 text-green-300' : f.statut_code === 'EMISE' ? 'bg-yellow-900/30 text-yellow-300' : 'bg-red-900/30 text-red-300'" x-text="f.statut"></span>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
+                        <div x-show="operations.factures.length === 0" class="text-center py-8 text-on-surface-variant">
+                            <i class="fas fa-file-invoice text-3xl mb-2 block"></i>
+                            <p class="text-sm">Aucune facture</p>
+                        </div>
+                    </div>
+                </template>
+            </div>
+
+            <!-- Tab: Solde & mouvements -->
+            <div x-show="detailTab === 'solde'" class="flex-1 overflow-y-auto p-4">
+                <div x-show="!detailLoaded" class="flex items-center justify-center h-32 text-on-surface-variant"><i class="fas fa-spinner fa-spin mr-2"></i> Chargement...</div>
+                <template x-if="detailLoaded">
+                    <div class="space-y-4">
+                        <!-- Résumé -->
+                        <div class="grid grid-cols-3 gap-3">
+                            <div class="bg-surface-container-high rounded-xl p-4 text-center">
+                                <div class="text-xs text-on-surface-variant uppercase tracking-wider">Total dépôts</div>
+                                <div class="text-xl font-bold text-green-400 mt-1" x-text="formatSolde(operations.solde.total_depots)"></div>
+                            </div>
+                            <div class="bg-surface-container-high rounded-xl p-4 text-center">
+                                <div class="text-xs text-on-surface-variant uppercase tracking-wider">Total retraits</div>
+                                <div class="text-xl font-bold text-red-400 mt-1" x-text="formatSolde(operations.solde.total_retraits)"></div>
+                            </div>
+                            <div class="bg-surface-container-high rounded-xl p-4 text-center">
+                                <div class="text-xs text-on-surface-variant uppercase tracking-wider">Solde</div>
+                                <div class="text-xl font-bold mt-1" :class="(operations.solde.solde_calculé || 0) > 0 ? 'text-green-400' : (operations.solde.solde_calculé || 0) < 0 ? 'text-red-400' : 'text-on-surface-variant'" x-text="formatSolde(operations.solde.solde_calculé || 0)"></div>
+                            </div>
+                        </div>
+                        <!-- Barre de progression visuelle -->
+                        <div class="bg-surface-container-high rounded-xl p-4">
+                            <div class="flex justify-between text-xs text-on-surface-variant mb-2">
+                                <span>Dépôts <span class="text-green-400 font-medium" x-text="formatSolde(operations.solde.total_depots)"></span></span>
+                                <span>Retraits <span class="text-red-400 font-medium" x-text="formatSolde(operations.solde.total_retraits)"></span></span>
+                            </div>
+                            <div class="h-3 bg-surface-container rounded-full overflow-hidden flex">
+                                <div class="h-full bg-green-500/50 transition-all duration-500" :style="'width:' + barreDepots + '%'"></div>
+                                <div class="h-full bg-red-500/50 transition-all duration-500" :style="'width:' + barreRetraits + '%'"></div>
+                            </div>
+                        </div>
+                        <!-- Comptes par exercice -->
+                        <div x-show="operations.solde.comptes.length > 0">
+                            <h4 class="text-sm font-semibold text-on-surface-variant mb-2 flex items-center gap-2"><i class="fas fa-calendar-alt"></i>Soldes par exercice</h4>
+                            <div class="space-y-[2px]">
+                                <template x-for="c in operations.solde.comptes" :key="c.exercice">
+                                    <div class="flex items-center justify-between bg-surface-container-high rounded-lg px-4 py-3 text-sm">
+                                        <div>
+                                            <span class="font-medium" x-text="c.exercice_label"></span>
+                                            <span class="text-[10px] text-on-surface-variant ml-2">Mis à jour <span x-text="formatDate(c.mis_a_jour)"></span></span>
+                                        </div>
+                                        <div class="flex items-center gap-4">
+                                            <span class="text-on-surface-variant text-[10px]">Écart: <span x-text="formatSolde(c.ecart_lettrage)"></span></span>
+                                            <span class="font-mono font-medium text-sm" :class="c.solde > 0 ? 'text-green-400' : c.solde < 0 ? 'text-red-400' : ''" x-text="formatSolde(c.solde)"></span>
+                                        </div>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        <!-- Paiements récents -->
+                        <div x-show="operations.paiements.filter(p => p.statut === 'VALIDE').length > 0">
+                            <h4 class="text-sm font-semibold text-on-surface-variant mb-2 flex items-center gap-2"><i class="fas fa-credit-card"></i>Derniers paiements</h4>
+                            <div class="space-y-[2px]">
+                                <template x-for="p in operations.paiements.filter(p => p.statut === 'VALIDE').slice(0, 10)" :key="p.id">
+                                    <div class="flex items-center justify-between bg-surface-container-high rounded-lg px-4 py-2 text-sm">
+                                        <div>
+                                            <span class="font-mono text-xs" x-text="p.reference"></span>
+                                            <span class="text-[10px] text-on-surface-variant ml-2" x-text="p.mode + ' · ' + formatDate(p.date)"></span>
+                                        </div>
+                                        <span class="font-mono text-xs font-medium" :class="p.sens_code === 'ENTREE' ? 'text-green-400' : 'text-red-400'" x-text="(p.sens_code === 'ENTREE' ? '+ ' : '- ') + formatSolde(p.montant)"></span>
+                                    </div>
+                                </template>
+                            </div>
+                        </div>
+                        <div x-show="!operations.solde.comptes.length && (!operations.paiements || operations.paiements.length === 0)" class="text-center py-8 text-on-surface-variant">
+                            <i class="fas fa-wallet text-3xl mb-2 block"></i>
+                            <p class="text-sm">Aucun mouvement de solde</p>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- ========== DIALOG MODIFIER ========== -->
+    <div x-show="showEdit" x-cloak class="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.away="showEdit = false" @keydown.escape.window="showEdit = false">
+        <div class="w-full max-w-lg mx-4 bg-surface-container-low rounded-2xl shadow-2xl overflow-hidden" @click.stop>
+            <div class="flex items-center justify-between px-6 py-4 border-b border-outline/10">
+                <h2 class="text-lg font-bold"><i class="fas fa-user-edit text-secondary mr-2"></i>Modifier <span x-text="editForm.nom_complet"></span></h2>
+                <button @click="showEdit = false" class="w-8 h-8 rounded-full bg-surface-container-high hover:bg-surface-container flex items-center justify-center text-on-surface-variant hover:text-on-surface"><i class="fas fa-times"></i></button>
+            </div>
+            <form @submit.prevent="sauvegarderClient()" class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="label-md3">Nom <span class="text-error">*</span></label>
+                        <input type="text" x-model="editForm.nom" required class="input-md3 rounded-lg w-full">
+                    </div>
+                    <div>
+                        <label class="label-md3">Prénom</label>
+                        <input type="text" x-model="editForm.prenom" class="input-md3 rounded-lg w-full">
+                    </div>
+                </div>
+                <div>
+                    <label class="label-md3">Téléphone <span class="text-red-400">*</span></label>
+                    <input type="text" x-model="editForm.telephone" required class="input-md3 rounded-lg w-full">
+                </div>
+                <div>
+                    <label class="label-md3">Email</label>
+                    <input type="email" x-model="editForm.email" class="input-md3 rounded-lg w-full">
+                </div>
+                <div>
+                    <label class="label-md3">Adresse</label>
+                    <textarea x-model="editForm.adresse" class="input-md3 rounded-lg w-full text-sm" rows="2"></textarea>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button type="submit" class="flex-1 btn-md3-primary py-2 rounded-lg text-sm" :disabled="saving">
+                        <i class="fas fa-spinner fa-spin mr-1" x-show="saving" x-cloak></i>
+                        <span x-text="saving ? 'Enregistrement...' : 'Enregistrer'"></span>
+                    </button>
+                    <button @click="showEdit = false" type="button" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm hover:bg-surface-container-high transition">Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function clientsApp() {
+    return {
+        // ── État général ──
+        stats: { total: 0, actifs: 0, entreprises: 0, agences: 0 },
+        recents: [],
+        clients: [],
+        search: '',
+        typeFilter: '',
+        statutFilter: '',
+        showDialog: false,
+        activeTab: 'liste',
+
+        // ── Détail client ──
+        showDetail: false,
+        detailTab: 'infos',
+        detailClient: {},
+        detailLoaded: false,
+        detailSolde: 0,
+        detailLastRefresh: null,
+        operations: { locations: [], commandes: [], ventes: [], factures: [], paiements: [], solde: { comptes: [], total_depots: 0, total_retraits: 0, 'solde_calculé': 0 } },
+
+        // ── Filtres opérations ──
+        opFilterType: '',
+        opFilterStatut: '',
+        opSearch: '',
+        opPage: 1,
+
+        // ── Formulaires ──
+        showEdit: false,
+        saving: false,
+        formError: '',
+        form: { nom: '', prenom: '', telephone: '', email: '', adresse: '', type_client: 'PARTICULIER' },
+        editForm: { id: '', nom_complet: '', nom: '', prenom: '', telephone: '', email: '', adresse: '' },
+
+        // ═══════════════════════════════════════════════
+        //  INIT
+        // ═══════════════════════════════════════════════
+        async init() {
+            await this.chargerStats();
+        },
+
+        // ═══════════════════════════════════════════════
+        //  COMPUTED (propriétés calculées)
+        // ═══════════════════════════════════════════════
+        get operationsCount() {
+            return this.operations.locations.length
+                 + this.operations.commandes.length
+                 + this.operations.ventes.length
+                 + this.operations.factures.length
+                 + this.operations.paiements.length;
+        },
+
+        get facturesImpayees() {
+            return this.operations.factures.filter(f => f.statut_code !== 'PAYEE' && f.statut_code !== 'ANNULEE').length;
+        },
+
+        get statsFactures() {
+            const factures = this.operations.factures || [];
+            const total = factures.reduce((s, f) => s + (f.montant || 0), 0);
+            const paye = factures.filter(f => f.statut_code === 'PAYEE').reduce((s, f) => s + (f.montant || 0), 0);
+            const reste = factures
+                .filter(f => f.statut_code !== 'PAYEE' && f.statut_code !== 'ANNULEE')
+                .reduce((s, f) => s + ((f.reste || f.montant || 0) - (f.paye || 0)), 0);
+            return { total, paye, reste };
+        },
+
+        // ── Opérations filtrées (unifiées + tri chrono) ──
+        get operationsFiltrees() {
+            let list = [];
+            for (const type of ['location', 'commande', 'vente', 'facture', 'paiement']) {
+                const key = type + 's';
+                const items = this.operations[key] || [];
+                for (const op of items) {
+                    list.push({ ...op, _type: type });
+                }
+            }
+            if (this.opFilterType) {
+                list = list.filter(op => op._type === this.opFilterType);
+            }
+            if (this.opFilterStatut) {
+                const s = this.opFilterStatut;
+                list = list.filter(op => op.statut_code === s || op.statut === s);
+            }
+            if (this.opSearch) {
+                const q = this.opSearch.toLowerCase();
+                list = list.filter(op =>
+                    (op.numero && op.numero.toLowerCase().includes(q))
+                    || (op.reference && op.reference.toLowerCase().includes(q))
+                    || (op.point_vente && op.point_vente.toLowerCase().includes(q))
+                    || (op.unite && op.unite.toLowerCase().includes(q))
+                    || (op.mode && op.mode.toLowerCase().includes(q))
+                );
+            }
+            list.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
+            return list;
+        },
+
+        get operationsPages() {
+            return this.operationsFiltrees.slice(0, this.opPage * 25);
+        },
+
+        // ── Barre de progression solde ──
+        get barreDepots() {
+            const d = this.operations.solde.total_depots || 0;
+            const r = this.operations.solde.total_retraits || 0;
+            const total = d + r;
+            return total === 0 ? 50 : (d / total) * 100;
+        },
+        get barreRetraits() {
+            const d = this.operations.solde.total_depots || 0;
+            const r = this.operations.solde.total_retraits || 0;
+            const total = d + r;
+            return total === 0 ? 50 : (r / total) * 100;
+        },
+
+        // ═══════════════════════════════════════════════
+        //  CLIENTS — chargement
+        // ═══════════════════════════════════════════════
+        async chargerStats() {
+            try {
+                const r = await fetch('/api/clients/liste/');
+                const d = await r.json();
+                if (d.success) {
+                    this.clients = d.clients;
+                    this.recents = d.clients.slice(0, 5);
+                    this.stats.total = d.clients.length;
+                    this.stats.actifs = d.clients.filter(c => c.statut === 'ACTIF').length;
+                    this.stats.entreprises = d.clients.filter(c => c.type_client === 'ENTREPRISE').length;
+                    this.stats.agences = d.clients.filter(c => c.type_client === 'AGENCE').length;
+                }
+            } catch(e) { console.error(e); }
+        },
+
+        openDialog(tab) {
+            this.activeTab = tab || 'liste';
+            this.search = '';
+            this.typeFilter = '';
+            this.statutFilter = '';
+            this.showDialog = true;
+            if (this.clients.length === 0) this.chargerStats();
+        },
+
+        get clientsFiltres() {
+            let list = this.clients;
+            if (this.search) {
+                const q = this.search.toLowerCase();
+                list = list.filter(c =>
+                    c.nom_complet.toLowerCase().includes(q)
+                    || (c.telephone && c.telephone.includes(q))
+                    || c.id.toLowerCase().includes(q)
+                );
+            }
+            if (this.typeFilter) list = list.filter(c => c.type_client === this.typeFilter);
+            if (this.statutFilter) list = list.filter(c => c.statut === this.statutFilter);
+            return list;
+        },
+
+        rechercher() {},
+
+        // ═══════════════════════════════════════════════
+        //  DÉTAIL CLIENT
+        // ═══════════════════════════════════════════════
+        async voirClient(c) {
+            this.showDetail = true;
+            this.detailTab = 'infos';
+            this.opFilterType = '';
+            this.opFilterStatut = '';
+            this.opSearch = '';
+            this.opPage = 1;
+            this.detailClient = c;
+            this.detailSolde = c.solde || 0;
+            this.detailLoaded = false;
+            this.operations = { locations: [], commandes: [], ventes: [], factures: [], paiements: [], solde: { comptes: [], total_depots: 0, total_retraits: 0, 'solde_calculé': 0 } };
+            await this._chargerDetail(c.id);
+        },
+
+        async refreshDetail() {
+            if (!this.detailClient.id) return;
+            this.detailLoaded = false;
+            await this._chargerDetail(this.detailClient.id);
+        },
+
+        async _chargerDetail(clientId) {
+            try {
+                const r = await fetch('/api/clients/' + clientId + '/detail/');
+                const d = await r.json();
+                if (d.success) {
+                    this.detailClient = d.client;
+                    this.detailSolde = d.solde['solde_calculé'] || d.solde.solde_calculé || 0;
+                    this.operations = { ...d.operations, solde: d.solde };
+                }
+            } catch(e) { console.error(e); }
+            this.detailLoaded = true;
+            this.detailLastRefresh = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        },
+
+        // ═══════════════════════════════════════════════
+        //  ÉDITION CLIENT
+        // ═══════════════════════════════════════════════
+        editerClient(c) {
+            this.editForm = {
+                id: c.id,
+                nom_complet: c.nom_complet,
+                nom: c.nom,
+                prenom: c.prenom || '',
+                telephone: c.telephone || '',
+                email: c.email || '',
+                adresse: c.adresse || '',
+                type_client: c.type_client,
+            };
+            this.showEdit = true;
+        },
+
+        async ajouterClient() {
+            if (!this.form.nom.trim()) { this.formError = 'Le nom est requis'; return; }
+            this.formError = '';
+            this.saving = true;
+            try {
+                const r = await fetch('/clients/ajouter/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': getCsrfToken() },
+                    body: new URLSearchParams(this.form).toString()
+                });
+                const html = await r.text();
+                if (r.ok && !html.includes('class="text-error"')) {
+                    this.form = { nom: '', prenom: '', telephone: '', email: '', adresse: '', type_client: 'PARTICULIER' };
+                    this.activeTab = 'liste';
+                    await this.chargerStats();
+                } else {
+                    this.formError = 'Erreur lors de l\'ajout';
+                }
+            } catch(e) { this.formError = 'Erreur réseau'; }
+            this.saving = false;
+        },
+
+        async sauvegarderClient() {
+            this.saving = true;
+            try {
+                const r = await fetch('/clients/' + this.editForm.id + '/modifier/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': getCsrfToken() },
+                    body: new URLSearchParams(this.editForm).toString()
+                });
+                if (r.ok) {
+                    this.showEdit = false;
+                    await this.chargerStats();
+                }
+            } catch(e) { console.error(e); }
+            this.saving = false;
+        },
+
+        // ═══════════════════════════════════════════════
+        //  FORMATAGE
+        // ═══════════════════════════════════════════════
+        formatSolde(solde) {
+            const val = Number(solde) || 0;
+            if (val === 0) return '0 F';
+            const abs = Math.abs(val);
+            const fmt = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(abs);
+            return (val < 0 ? '- ' : '') + fmt + ' F';
+        },
+
+        formatDate(iso) {
+            if (!iso) return '';
+            try {
+                const d = new Date(iso);
+                return d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                     + ' ' + d.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+            } catch(e) { return iso; }
+        }
+    }
+}
+
+function getCsrfToken() {
+    return document.querySelector('[name=csrfmiddlewaretoken]')?.value || '';
+}
+</script>
+{% endblock %}

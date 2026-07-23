@@ -1,0 +1,119 @@
+{% extends 'hotel/base_hotel.html' %}
+{% load static %}
+
+{% block title %}{{ unite.nom }}{% endblock %}
+{% block header %}<i class="fas fa-door-open text-secondary mr-2"></i>{{ unite.code }} - {{ unite.nom }}{% endblock %}
+{% block subtitle %}{{ unite.get_type_unite_display }}{% endblock %}
+
+{% block content %}
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="lg:col-span-1">
+        <div class="card-md3 overflow-hidden">
+            <div class="aspect-[4/3] bg-surface-container-high relative">
+                {% if unite.image %}
+                <img src="{{ unite.image.url }}" alt="{{ unite.nom }}" class="w-full h-full object-cover">
+                {% else %}
+                <div class="w-full h-full flex items-center justify-center text-on-surface-variant">
+                    <i class="fas fa-image text-5xl opacity-30"></i>
+                </div>
+                {% endif %}
+                <span class="absolute top-3 right-3 px-3 py-1 rounded-full text-xs font-medium
+                    {% if unite.statut == 'DISPONIBLE' %}bg-green-900/60 text-green-300
+                    {% elif unite.statut == 'OCCUPEE' %}bg-red-900/60 text-red-300
+                    {% elif unite.statut == 'NETTOYAGE' %}bg-yellow-900/60 text-yellow-300
+                    {% else %}bg-gray-900/60 text-gray-300{% endif %}">
+                    {{ unite.get_statut_display }}
+                </span>
+            </div>
+            <div class="p-4 space-y-3">
+                <div class="flex gap-2">
+                    <a href="{% url 'hotel:modifier_unite' unite.id %}" class="flex-1 btn-md3-primary text-center text-sm py-2 rounded-lg"><i class="fas fa-edit mr-1"></i>Modifier</a>
+                </div>
+                <form method="post" action="{% url 'hotel:changer_statut_unite' unite.id %}">
+                    {% csrf_token %}
+                    <select name="statut" class="input-md3 rounded-lg w-full text-sm" onchange="this.form.submit()">
+                        {% for key, label in unite.STATUT_CHOICES %}
+                        <option value="{{ key }}" {% if unite.statut == key %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="lg:col-span-2 space-y-4">
+        <div class="card-md3 p-6">
+            <h3 class="font-semibold mb-4"><i class="fas fa-info-circle text-secondary mr-2"></i>Informations</h3>
+            <div class="grid grid-cols-2 gap-4 text-sm">
+                <div><span class="text-on-surface-variant">Code</span><p class="font-mono font-medium">{{ unite.code }}</p></div>
+                <div><span class="text-on-surface-variant">Nom</span><p class="font-medium">{{ unite.nom }}</p></div>
+                <div><span class="text-on-surface-variant">Type</span><p>{{ unite.get_type_unite_display }}</p></div>
+                <div><span class="text-on-surface-variant">Capacité</span><p>{{ unite.capacite }} personnes</p></div>
+                {% if unite.surface_m2 %}
+                <div><span class="text-on-surface-variant">Surface</span><p>{{ unite.surface_m2 }} m²</p></div>
+                {% endif %}
+                <div><span class="text-on-surface-variant">Prix</span><p class="font-bold text-secondary">{{ unite.prix|floatformat:0 }} F /h{% if unite.prix_jour %} <span class="text-sm text-on-surface-variant font-normal">| {{ unite.prix_jour|floatformat:0 }} F /j</span>{% endif %}</p></div>
+            </div>
+            {% if unite.description %}
+            <div class="mt-4 pt-4 border-t border-outline/10">
+                <span class="text-on-surface-variant text-sm">Description</span>
+                <p class="text-sm mt-1">{{ unite.description }}</p>
+            </div>
+            {% endif %}
+            {% if unite.equipements %}
+            <div class="mt-4 pt-4 border-t border-outline/10">
+                <span class="text-on-surface-variant text-sm">Équipements</span>
+                <div class="flex flex-wrap gap-2 mt-2">
+                    {% for eq in unite.equipements %}
+                    <span class="px-2 py-1 rounded-lg bg-surface-container-high text-xs">{{ eq }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="card-md3">
+            <div class="px-6 py-4 border-b border-outline/10"><h3 class="font-semibold"><i class="fas fa-history text-secondary mr-2"></i>Dernières locations</h3></div>
+            {% if locations %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-surface-container-high">
+                        <tr class="text-on-surface-variant">
+                            <th class="px-4 py-3 text-left">Client</th>
+                            <th class="px-4 py-3 text-left">Début</th>
+                            <th class="px-4 py-3 text-left">Fin</th>
+                            <th class="px-4 py-3 text-right">Montant</th>
+                            <th class="px-4 py-3 text-center">Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-outline/10">
+                        {% for loc in locations %}
+                        <tr class="hover:bg-surface-container-low">
+                            <td class="px-4 py-3 font-medium">{{ loc.client.nom_complet }}</td>
+                            <td class="px-4 py-3 text-on-surface-variant text-xs">{{ loc.date_debut|date:"d/m/Y H:i" }}</td>
+                            <td class="px-4 py-3 text-on-surface-variant text-xs">{{ loc.date_fin|date:"d/m/Y H:i" }}</td>
+                            <td class="px-4 py-3 text-right font-mono">{{ loc.montant_total|floatformat:0 }} F</td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-medium
+                                    {% if loc.statut == 'ACTIVE' %}bg-green-900/30 text-green-300
+                                    {% elif loc.statut == 'TERMINEE' %}bg-blue-900/30 text-blue-300
+                                    {% else %}bg-gray-900/30 text-gray-300{% endif %}">
+                                    {{ loc.get_statut_display }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-6 text-center text-on-surface-variant text-sm">Aucune location pour cette unité</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="{% url 'hotel:liste_unites' %}" class="text-sm text-secondary hover:underline"><i class="fas fa-arrow-left mr-1"></i>Retour à la liste</a>
+</div>
+{% endblock %}

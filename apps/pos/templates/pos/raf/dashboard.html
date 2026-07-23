@@ -1,0 +1,479 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}RAF — Supervision{% endblock %}
+{% block header %}Vision 360° Caisses{% endblock %}
+{% block subtitle %}{{ today|date:"d/m/Y" }} — {{ now|date:"H:i:s" }}{% endblock %}
+
+{% block content %}
+<div x-data="rafDashboard360()" x-init="initDashboard()" class="space-y-4">
+
+  <!-- REFRESH NOTIFICATION -->
+  <div x-show="notification" x-text="notification"
+       class="fixed top-20 right-6 z-50 bg-green-900/80 text-green-300 px-4 py-2 rounded-xl text-sm shadow-xl border border-green-700/40 backdrop-blur-sm transition-all duration-500"
+       x-cloak @click="notification = ''"></div>
+
+  <!-- FAB ACTIONS -->
+  <div class="flex flex-wrap gap-2">
+    <a href="{% url 'pos:raf_collecte' %}" class="bg-green-700 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-green-800 transition flex items-center gap-2 shadow">
+      <i class="fas fa-hand-holding-usd"></i> Collecte
+    </a>
+    <a href="{% url 'pos:raf_transferts' %}" class="border border-outline/10 bg-surface-container-high px-4 py-2 rounded-lg text-sm hover:bg-surface-container-higher transition flex items-center gap-2">
+      <i class="fas fa-history text-secondary"></i> Transferts
+    </a>
+    <a href="{% url 'pos:planning' %}" class="border border-outline/10 bg-surface-container-high px-4 py-2 rounded-lg text-sm hover:bg-surface-container-higher transition flex items-center gap-2">
+      <i class="fas fa-calendar-alt text-secondary"></i> Planning
+    </a>
+    <a href="{% url 'pos:sessions_liste' %}" class="border border-outline/10 bg-surface-container-high px-4 py-2 rounded-lg text-sm hover:bg-surface-container-higher transition flex items-center gap-2">
+      <i class="fas fa-list text-secondary"></i> Sessions
+    </a>
+    <a href="{% url 'pos:liste_ventes' %}" class="border border-outline/10 bg-surface-container-high px-4 py-2 rounded-lg text-sm hover:bg-surface-container-higher transition flex items-center gap-2">
+      <i class="fas fa-receipt text-green-400"></i> Ventes
+    </a>
+    <a href="{% url 'pos:pos_raf' %}" class="bg-secondary text-black px-5 py-2 rounded-lg text-sm font-bold hover:bg-secondary/80 transition flex items-center gap-2 shadow">
+      ⚡ Guichet RAF
+    </a>
+    <button @click="chargerDonnees()" class="border border-outline/10 bg-surface-container-high px-4 py-2 rounded-lg text-sm hover:bg-surface-container-higher transition flex items-center gap-2" :disabled="loading">
+      <i class="fas fa-sync-alt" :class="loading ? 'fa-spin' : ''"></i> <span class="hidden sm:inline">Actualiser</span>
+    </button>
+  </div>
+
+  <!-- STATS ROW (cartes serveur + Alpine) -->
+  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-9 gap-2">
+    <div class="bg-surface-container-low rounded-xl border border-green-500/30 p-3 text-center">
+      <p class="text-xl font-bold text-green-400"><span x-text="data.stats.nb_ouvertes || '{{ sessions_ouvertes|length }}'"></span></p>
+      <p class="text-[10px] text-on-surface-variant mt-0.5">Sessions ouvertes</p>
+    </div>
+    <div class="bg-surface-container-low rounded-xl border border-orange-500/30 p-3 text-center">
+      <p class="text-xl font-bold text-orange-400"><span x-text="data.stats.nb_attente || '{{ sessions_attente|length }}'"></span></p>
+      <p class="text-[10px] text-on-surface-variant mt-0.5">À collecter</p>
+    </div>
+    <div class="bg-surface-container-low rounded-xl border border-purple-500/30 p-3 text-center">
+      <p class="text-xl font-bold text-purple-400"><span x-text="data.stats.nb_collectees_ajd || '{{ sessions_collectees_ajd|length }}'"></span></p>
+      <p class="text-[10px] text-on-surface-variant mt-0.5">Collectées ajd</p>
+    </div>
+    <div class="bg-surface-container-low rounded-xl border border-indigo-500/30 p-3 text-center">
+      <p class="text-xl font-bold text-indigo-400"><span x-text="formatNumber(data.stats.montant_transfere_ajd) || '{{ stats.montant_transfere_ajd|floatformat:0 }}'"></span> <span class="text-xs">F</span></p>
+      <p class="text-[10px] text-on-surface-variant mt-0.5">Transféré (F)</p>
+    </div>
+    <div class="bg-surface-container-low rounded-xl border border-pink-500/30 p-3 text-center">
+      <p class="text-xl font-bold text-pink-400"><span x-text="formatNumber(data.stats.ca_aujourdhui) || '{{ stats.ca_aujourdhui|floatformat:0 }}'"></span> <span class="text-xs">F</span></p>
+      <p class="text-[10px] text-on-surface-variant mt-0.5">CA aujourd'hui</p>
+    </div>
+    <div class="bg-surface-container-low rounded-xl border border-blue-500/30 p-3 text-center">
+      <p class="text-xl font-bold text-blue-400"><span x-text="data.stats.nb_aujourdhui || '{{ stats.nb_aujourdhui }}'"></span></p>
+      <p class="text-[10px] text-on-surface-variant mt-0.5">Sessions ajd</p>
+    </div>
+    <div class="bg-surface-container-low rounded-xl border border-cyan-500/30 p-3 text-center">
+      <p class="text-xl font-bold text-cyan-400"><span x-text="data.stats.nb_plannings_ajd || '{{ plannings_ajd|length }}'"></span></p>
+      <p class="text-[10px] text-on-surface-variant mt-0.5">Plannings ajd</p>
+    </div>
+    <div class="bg-surface-container-low rounded-xl border border-yellow-500/30 p-3 text-center">
+      <p class="text-xl font-bold text-yellow-400"><span x-text="data.stats.nb_pv_actifs || '{{ stats.nb_pv_actifs }}'"></span></p>
+      <p class="text-[10px] text-on-surface-variant mt-0.5">PV actifs</p>
+    </div>
+    <div class="bg-surface-container-low rounded-xl border border-green-500/30 p-3 text-center">
+      <p class="text-xl font-bold text-green-400"><span x-text="data.stats.total_a_traiter || '{{ stats.total_a_traiter }}'"></span></p>
+      <p class="text-[10px] text-on-surface-variant mt-0.5">À traiter</p>
+    </div>
+  </div>
+
+  <!-- MAIN GRID: 3 colonnes -->
+  <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+    <!-- COL 1 : Ouvertures attendues + Sessions ouvertes -->
+    <div class="space-y-4">
+
+      <!-- DEMANDES D'OUVERTURE -->
+      <div class="bg-surface-container-low rounded-xl border border-cyan-500/20 overflow-hidden" x-show="(data.demandes && data.demandes.length) || {% if demandes %}true{% else %}false{% endif %}" x-cloak>
+        <div class="px-4 py-2.5 bg-cyan-900/20 border-b border-cyan-500/20 flex items-center justify-between">
+          <h2 class="font-semibold text-sm"><i class="fas fa-play-circle text-cyan-400 mr-1"></i>Ouvertures attendues</h2>
+          <span class="text-xs text-cyan-400"><span x-text="data.demandes ? data.demandes.length : '{{ demandes|length }}'"></span> demande(s)</span>
+        </div>
+        <div class="divide-y divide-outline/10 max-h-[300px] overflow-y-auto">
+          {% for d in demandes %}
+          <div class="px-4 py-2.5 hover:bg-surface-container-low transition text-sm flex items-center justify-between" x-show="!data.demandes || !data.demandes.length">
+            <div>
+              <p class="font-medium">{{ d.point_vente.nom }}</p>
+              <p class="text-xs text-on-surface-variant">{{ d.employe.nom_complet }} · {{ d.planning.heure_debut|date:"H:i" }} - {{ d.planning.heure_fin|date:"H:i" }}</p>
+            </div>
+            <a href="{% url 'pos:raf_collecte' %}" class="text-xs bg-cyan-700 text-white px-3 py-1 rounded-lg hover:bg-cyan-800 transition shrink-0">
+              <i class="fas fa-coins mr-1"></i>Déposer
+            </a>
+          </div>
+          {% empty %}
+          {% endfor %}
+          <template x-for="d in (data.demandes || [])" :key="d.planning_id">
+            <div class="px-4 py-2.5 hover:bg-surface-container-low transition text-sm flex items-center justify-between">
+              <div>
+                <p class="font-medium" x-text="d.point_vente"></p>
+                <p class="text-xs text-on-surface-variant"><span x-text="d.employe"></span> · <span x-text="d.planning"></span></p>
+              </div>
+              <a href="{% url 'pos:raf_collecte' %}" class="text-xs bg-cyan-700 text-white px-3 py-1 rounded-lg hover:bg-cyan-800 transition shrink-0">
+                <i class="fas fa-coins mr-1"></i>Déposer
+              </a>
+            </div>
+          </template>
+        </div>
+      </div>
+
+      <!-- SESSIONS OUVERTES -->
+      <div class="bg-surface-container-low rounded-xl border border-green-500/20 overflow-hidden">
+        <div class="px-4 py-2.5 bg-green-900/20 border-b border-green-500/20 flex items-center justify-between">
+          <h2 class="font-semibold text-sm"><i class="fas fa-cash-register text-green-400 mr-1"></i>Sessions ouvertes</h2>
+          <span class="text-xs text-green-400"><span x-text="data.stats ? data.stats.nb_ouvertes : '{{ sessions_ouvertes|length }}'"></span> session(s)</span>
+        </div>
+        <div class="divide-y divide-outline/10 max-h-[400px] overflow-y-auto" x-show="(data.ouvertes && data.ouvertes.length) || {% if sessions_ouvertes %}true{% else %}false{% endif %}">
+          {% for s in sessions_ouvertes %}
+          <div class="px-4 py-2.5 hover:bg-surface-container-low transition text-sm" x-show="!data.ouvertes || !data.ouvertes.length">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-medium">{{ s.point_vente.nom }}</p>
+                <p class="text-xs text-on-surface-variant"><i class="fas fa-user mr-1"></i>{{ s.caissier_ouverture.nom_complet }} · {{ s.date_ouverture|date:"d/m/Y H:i" }}</p>
+              </div>
+              <div class="text-right shrink-0">
+                <p class="font-mono font-bold text-secondary">{{ s.total_ventes|floatformat:0 }} F</p>
+                <p class="text-xs text-on-surface-variant"><i class="fas fa-receipt mr-0.5"></i>{{ s.nombre_ventes }} vente(s)</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3 mt-1 text-xs text-on-surface-variant">
+              <span><i class="fas fa-clock mr-0.5"></i>durée: {{ s.date_ouverture|date:"H:i" }}</span>
+              <span>solde init: <span class="font-mono">{{ s.solde_initial|floatformat:0 }} F</span></span>
+              <a href="/pos/sessions/{{ s.id }}/" class="text-blue-400 hover:text-blue-300 ml-auto"><i class="fas fa-eye"></i></a>
+            </div>
+          </div>
+          {% empty %}
+          {% endfor %}
+          <template x-for="s in (data.ouvertes || [])" :key="s.id">
+            <div class="px-4 py-2.5 hover:bg-surface-container-low transition text-sm">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="font-medium" x-text="s.point_vente"></p>
+                  <p class="text-xs text-on-surface-variant"><i class="fas fa-user mr-1"></i><span x-text="s.caissier"></span> · <span x-text="s.date_ouverture"></span></p>
+                </div>
+                <div class="text-right shrink-0">
+                  <p class="font-mono font-bold text-secondary" x-text="formatNumber(s.total_ventes) + ' F'"></p>
+                  <p class="text-xs text-on-surface-variant"><i class="fas fa-receipt mr-0.5"></i><span x-text="s.nb_ventes"></span> vente(s)</p>
+                </div>
+              </div>
+              <div class="flex items-center gap-3 mt-1 text-xs text-on-surface-variant">
+                <span><i class="fas fa-clock mr-0.5"></i>durée: <span x-text="s.timesince"></span></span>
+                <span>solde init: <span class="font-mono" x-text="formatNumber(s.solde_initial) + ' F'"></span></span>
+                <a :href="'/pos/sessions/' + s.id + '/'" class="text-blue-400 hover:text-blue-300 ml-auto"><i class="fas fa-eye"></i></a>
+              </div>
+            </div>
+          </template>
+        </div>
+        <div class="text-center py-8 text-on-surface-variant text-sm" x-show="!((data.ouvertes && data.ouvertes.length) || {% if sessions_ouvertes %}true{% else %}false{% endif %})">
+          <i class="fas fa-check-circle text-3xl text-green-500 mb-2 block"></i>
+          Aucune session ouverte
+        </div>
+        <div class="px-4 py-2 border-t border-outline/10 text-center">
+          <a class="text-xs text-secondary hover:text-secondary/80 font-medium" href="{% url 'pos:sessions_liste' %}?statut=OUVERTE">Voir les sessions ouvertes →</a>
+          &nbsp;|&nbsp;
+          <a class="text-xs text-secondary hover:text-secondary/80 font-medium" href="{% url 'pos:sessions_liste' %}">Toutes les sessions →</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- COL 2 : À collecter + Collectées récentes -->
+    <div class="space-y-4">
+
+      <!-- À COLLECTER -->
+      <div class="bg-surface-container-low rounded-xl border border-orange-500/20 overflow-hidden">
+        <div class="px-4 py-2.5 bg-orange-900/20 border-b border-orange-500/20 flex items-center justify-between">
+          <h2 class="font-semibold text-sm"><i class="fas fa-clock text-orange-400 mr-1"></i>À collecter</h2>
+          <span class="text-xs text-orange-400"><span x-text="data.stats ? data.stats.nb_attente : '{{ sessions_attente|length }}'"></span> session(s)</span>
+        </div>
+        <div class="divide-y divide-outline/10 max-h-[400px] overflow-y-auto" x-show="(data.attente && data.attente.length) || {% if sessions_attente %}true{% else %}false{% endif %}">
+          {% for s in sessions_attente %}
+          <div class="px-4 py-2.5 hover:bg-surface-container-low transition text-sm" x-show="!data.attente || !data.attente.length">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="font-medium">{{ s.point_vente.nom }}</p>
+                <p class="text-xs text-on-surface-variant">fermé par {{ s.caissier_fermeture.nom_complet }} le {{ s.date_fermeture|date:"d/m/Y H:i" }}</p>
+              </div>
+              <div class="text-right shrink-0">
+                <p class="font-mono font-bold text-orange-400">{{ s.total_ventes|floatformat:0 }} F</p>
+                <p class="text-xs text-on-surface-variant">{{ s.nombre_ventes }} vente(s)</p>
+              </div>
+            </div>
+            <div class="mt-1.5 flex items-center gap-2">
+              <span class="text-xs text-on-surface-variant">Attendu: <span class="font-mono font-medium text-secondary">{{ s.solde_initial|add:s.total_ventes|floatformat:0 }} F</span></span>
+              <a href="{% url 'pos:raf_collecte' %}" class="ml-auto text-xs bg-orange-700 text-white px-3 py-1 rounded-lg hover:bg-orange-800 transition shrink-0">
+                <i class="fas fa-hand-holding-usd mr-1"></i>Collecter
+              </a>
+            </div>
+          </div>
+          {% empty %}
+          {% endfor %}
+          <template x-for="s in (data.attente || [])" :key="s.id">
+            <div class="px-4 py-2.5 hover:bg-surface-container-low transition text-sm">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="font-medium" x-text="s.point_vente"></p>
+                  <p class="text-xs text-on-surface-variant">fermé par <span x-text="s.ferme_par"></span> le <span x-text="s.ferme_le"></span></p>
+                </div>
+                <div class="text-right shrink-0">
+                  <p class="font-mono font-bold text-orange-400" x-text="formatNumber(s.total_ventes) + ' F'"></p>
+                  <p class="text-xs text-on-surface-variant"><span x-text="s.nb_ventes"></span> vente(s)</p>
+                </div>
+              </div>
+              <div class="mt-1.5 flex items-center gap-2">
+                <span class="text-xs text-on-surface-variant">Attendu: <span class="font-mono font-medium text-secondary" x-text="formatNumber(s.solde_attendu) + ' F'"></span></span>
+                <a href="{% url 'pos:raf_collecte' %}" class="ml-auto text-xs bg-orange-700 text-white px-3 py-1 rounded-lg hover:bg-orange-800 transition shrink-0">
+                  <i class="fas fa-hand-holding-usd mr-1"></i>Collecter
+                </a>
+              </div>
+            </div>
+          </template>
+        </div>
+        <div class="text-center py-8 text-on-surface-variant text-sm" x-show="!((data.attente && data.attente.length) || {% if sessions_attente %}true{% else %}false{% endif %})">
+          <i class="fas fa-check-circle text-3xl text-green-500 mb-2 block"></i>
+          Tout est collecté
+        </div>
+        <div class="px-4 py-2 border-t border-outline/10 text-center">
+          <a href="{% url 'pos:raf_collecte' %}" class="text-xs text-secondary hover:text-secondary/80 font-medium">Voir toutes les collectes →</a>
+        </div>
+      </div>
+
+      <!-- DERNIÈRES COLLECTÉES -->
+      <div class="bg-surface-container-low rounded-xl border border-green-500/20 overflow-hidden" x-show="(data.collectees && data.collectees.length) || {% if sessions_collectees_ajd %}true{% else %}false{% endif %}">
+        <div class="px-4 py-2.5 bg-green-900/20 border-b border-green-500/20 flex items-center justify-between">
+          <h2 class="font-semibold text-sm"><i class="fas fa-check-circle text-green-400 mr-1"></i>Collectées ajd</h2>
+          <span class="text-xs text-green-400"><span x-text="data.stats ? data.stats.nb_collectees_ajd : '{{ sessions_collectees_ajd|length }}'"></span> collecte(s)</span>
+        </div>
+        <div class="divide-y divide-outline/10 max-h-[260px] overflow-y-auto">
+          {% for s in sessions_collectees_ajd %}
+          <div class="px-4 py-2.5 hover:bg-surface-container-low transition text-sm flex items-center justify-between" x-show="!data.collectees || !data.collectees.length">
+            <div>
+              <p class="font-medium">{{ s.point_vente.nom }}</p>
+              <p class="text-xs text-on-surface-variant">{{ s.ferme_par_raf.nom_complet }} · {{ s.date_collecte|date:"H:i" }}</p>
+            </div>
+            <div class="text-right shrink-0">
+              <p class="font-mono font-bold text-secondary">{{ s.depot|floatformat:0 }} F</p>
+              <p class="text-[10px] text-on-surface-variant font-mono truncate max-w-[120px]">{{ s.transfert_caisse.reference|default:"-" }}</p>
+            </div>
+          </div>
+          {% empty %}
+          {% endfor %}
+          <template x-for="s in (data.collectees || [])" :key="s.id">
+            <div class="px-4 py-2.5 hover:bg-surface-container-low transition text-sm flex items-center justify-between">
+              <div>
+                <p class="font-medium" x-text="s.point_vente"></p>
+                <p class="text-xs text-on-surface-variant"><span x-text="s.raf"></span> · <span x-text="s.date_collecte"></span></p>
+              </div>
+              <div class="text-right shrink-0">
+                <p class="font-mono font-bold text-secondary" x-text="formatNumber(s.montant) + ' F'"></p>
+                <p class="text-[10px] text-on-surface-variant font-mono truncate max-w-[120px]" x-text="s.reference"></p>
+              </div>
+            </div>
+          </template>
+        </div>
+        <div class="px-4 py-2 border-t border-outline/10 text-center">
+          <a href="{% url 'pos:raf_transferts' %}" class="text-xs text-secondary hover:text-secondary/80 font-medium">Tous les transferts →</a>
+        </div>
+      </div>
+    </div>
+
+    <!-- COL 3 : Transferts + Plannings -->
+    <div class="space-y-4">
+
+      <!-- TRANSFERTS DU JOUR -->
+      <div class="bg-surface-container-low rounded-xl border border-indigo-500/20 overflow-hidden">
+        <div class="px-4 py-2.5 bg-indigo-900/20 border-b border-indigo-500/20 flex items-center justify-between">
+          <h2 class="font-semibold text-sm"><i class="fas fa-exchange-alt text-indigo-400 mr-1"></i>Transferts du jour</h2>
+          <span class="text-xs text-indigo-400"><span x-text="data.transferts ? data.transferts.length : '{{ transferts_ajd|length }}'"></span> transfert(s)</span>
+        </div>
+        <div class="divide-y divide-outline/10 max-h-[320px] overflow-y-auto" x-show="(data.transferts && data.transferts.length) || {% if transferts_ajd %}true{% else %}false{% endif %}">
+          {% for t in transferts_ajd %}
+          <div class="px-4 py-2 hover:bg-surface-container-low transition text-xs" x-show="!data.transferts || !data.transferts.length">
+            <div class="flex items-center justify-between">
+              <div class="flex-1 min-w-0">
+                <p class="font-medium text-sm truncate">{{ t.source.nom }} → {{ t.destination.nom }}</p>
+                <p class="text-on-surface-variant mt-0.5">{{ t.date|date:"H:i" }} · <span class="font-mono">{{ t.reference|default:"-" }}</span></p>
+              </div>
+              <div class="text-right shrink-0 ml-2">
+                <p class="font-mono font-bold text-secondary">{{ t.montant|floatformat:0 }} F</p>
+                <p class="text-on-surface-variant">{{ t.valide_par.get_full_name }}</p>
+              </div>
+            </div>
+          </div>
+          {% empty %}
+          {% endfor %}
+          <template x-for="t in (data.transferts || [])" :key="t.reference">
+            <div class="px-4 py-2 hover:bg-surface-container-low transition text-xs">
+              <div class="flex items-center justify-between">
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium text-sm truncate"><span x-text="t.source"></span> → <span x-text="t.destination"></span></p>
+                  <p class="text-on-surface-variant mt-0.5"><span x-text="t.heure"></span> · <span class="font-mono" x-text="t.reference"></span></p>
+                </div>
+                <div class="text-right shrink-0 ml-2">
+                  <p class="font-mono font-bold text-secondary" x-text="formatNumber(t.montant) + ' F'"></p>
+                  <p class="text-on-surface-variant" x-text="t.valide_par"></p>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+        <div class="text-center py-8 text-on-surface-variant text-sm" x-show="!((data.transferts && data.transferts.length) || {% if transferts_ajd %}true{% else %}false{% endif %})">
+          <i class="fas fa-inbox text-3xl mb-2 block"></i>
+          Aucun transfert aujourd'hui
+        </div>
+        <div class="px-4 py-2 border-t border-outline/10 text-center">
+          <a href="{% url 'pos:raf_transferts' %}" class="text-xs text-secondary hover:text-secondary/80 font-medium">Historique complet →</a>
+        </div>
+      </div>
+
+      <!-- PLANNINGS AUJOURD'HUI -->
+      <div class="bg-surface-container-low rounded-xl border border-purple-500/20 overflow-hidden">
+        <div class="px-4 py-2.5 bg-purple-900/20 border-b border-purple-500/20 flex items-center justify-between">
+          <h2 class="font-semibold text-sm"><i class="fas fa-calendar-alt text-purple-400 mr-1"></i>Plannings du jour</h2>
+          <span class="text-xs text-purple-400"><span x-text="data.stats ? data.stats.nb_plannings_ajd : '{{ plannings_ajd|length }}'"></span> planning(s)</span>
+        </div>
+        <div class="divide-y divide-outline/10 max-h-[260px] overflow-y-auto">
+          {% for p in plannings_ajd %}
+          <div class="px-4 py-2.5 hover:bg-surface-container-low transition text-sm flex items-center justify-between">
+            <div>
+              <p class="font-medium">{{ p.point_vente.nom }}</p>
+              <p class="text-xs text-on-surface-variant">{{ p.employe.nom_complet }} · {{ p.heure_debut|date:"H:i" }} - {{ p.heure_fin|date:"H:i" }}</p>
+            </div>
+            <span class="text-xs px-2 py-0.5 rounded-full shrink-0
+              {% if p.statut == 'CONFIRME' %}bg-green-900/30 text-green-300
+              {% elif p.statut == 'ANNULE' %}bg-red-900/30 text-red-300
+              {% elif p.statut == 'EFFECTUE' %}bg-blue-900/30 text-blue-300
+              {% else %}bg-yellow-900/30 text-yellow-300{% endif %}">
+              {{ p.get_statut_display }}
+            </span>
+          </div>
+          {% empty %}
+          <div class="text-center py-8 text-on-surface-variant text-sm">
+            <i class="fas fa-calendar-times text-3xl mb-2 block"></i>
+            Aucun planning aujourd'hui
+          </div>
+          {% endfor %}
+        </div>
+        <div class="px-4 py-2 border-t border-outline/10 text-center">
+          <a href="{% url 'pos:planning' %}" class="text-xs text-secondary hover:text-secondary/80 font-medium">Planning complet →</a>
+        </div>
+      </div>
+
+      <!-- COMMANDES PAYÉES (Annulation RAF) -->
+      <div class="bg-surface-container-low rounded-xl border border-red-500/20 overflow-hidden">
+        <div class="px-4 py-2.5 bg-red-900/20 border-b border-red-500/20 flex items-center justify-between">
+          <h2 class="font-semibold text-sm"><i class="fas fa-ban text-red-400 mr-1"></i>Commandes payées</h2>
+          <span class="text-xs text-red-400"><span x-text="commandesPayees.length"></span> commande(s)</span>
+        </div>
+        <div class="divide-y divide-outline/10 max-h-[320px] overflow-y-auto" x-show="commandesPayees.length">
+          <template x-for="c in commandesPayees" :key="c.id">
+            <div class="px-4 py-2 hover:bg-surface-container-low transition text-sm">
+              <div class="flex items-center justify-between">
+                <div class="flex-1 min-w-0">
+                  <p class="font-medium truncate" x-text="c.numero + ' — ' + c.point_vente"></p>
+                  <p class="text-xs text-on-surface-variant"><span x-text="c.client"></span> · <span x-text="c.date"></span></p>
+                  <p class="text-xs text-on-surface-variant">Mode: <span x-text="c.mode_paiement"></span></p>
+                </div>
+                <div class="text-right shrink-0 ml-2">
+                  <p class="font-mono font-bold text-secondary" x-text="formatNumber(c.montant) + ' F'"></p>
+                  <button @click="annulerCommande(c.id, c.numero)"
+                          class="text-xs bg-red-700 text-white px-2.5 py-1 rounded-lg hover:bg-red-800 transition mt-1"
+                          :disabled="annulationLoading === c.id">
+                    <i class="fas fa-spinner fa-spin mr-1" x-show="annulationLoading === c.id" x-cloak></i>
+                    <span x-text="annulationLoading === c.id ? 'Annulation...' : 'Annuler'"></span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </template>
+        </div>
+        <div class="text-center py-8 text-on-surface-variant text-sm" x-show="!commandesPayees.length">
+          <i class="fas fa-check-circle text-3xl mb-2 block text-green-500"></i>
+          Aucune commande payée à annuler
+        </div>
+        <div class="px-4 py-2 border-t border-outline/10 text-center">
+          <a href="{% url 'pos:liste_ventes' %}" class="text-xs text-secondary hover:text-secondary/80 font-medium">Toutes les ventes →</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+function rafDashboard360() {
+  return {
+    data: { stats: {}, ouvertes: [], attente: [], collectees: [], transferts: [], plannings: [], demandes: [] },
+    loading: false,
+    notification: '',
+    intervalId: null,
+    commandesPayees: [],
+    annulationLoading: null,
+
+    initDashboard() {
+      this.chargerDonnees();
+      this.chargerCommandesPayees();
+      this.intervalId = setInterval(() => {
+        this.chargerDonnees(true);
+        this.chargerCommandesPayees();
+      }, 30000);
+    },
+
+    async chargerCommandesPayees() {
+      try {
+        const r = await fetch('/pos/api/commandes/payees/');
+        const d = await r.json();
+        if (d.success) this.commandesPayees = d.commandes;
+      } catch(e) {}
+    },
+
+    async annulerCommande(id, numero) {
+      if (!confirm(`Annuler la commande ${numero} ? Cette action remboursera le stock et annulera le paiement.`)) return;
+      this.annulationLoading = id;
+      try {
+        const r = await fetch(`/pos/api/commandes/${id}/annuler/`, {
+          method: 'POST',
+          headers: { 'X-CSRFToken': getCSRFToken() },
+        });
+        const d = await r.json();
+        if (d.success) {
+          this.notification = `✓ Commande ${numero} annulée`;
+          this.commandesPayees = this.commandesPayees.filter(c => c.id !== id);
+        } else {
+          alert('Erreur: ' + (d.error || 'Échec'));
+        }
+      } catch(e) {
+        alert('Erreur réseau: ' + e.message);
+      } finally {
+        this.annulationLoading = null;
+        setTimeout(() => this.notification = '', 3000);
+      }
+    },
+
+    async chargerDonnees(silent=false) {
+      if (this.loading && silent) return;
+      if (!silent) this.loading = true;
+      try {
+        const r = await fetch('/pos/api/raf/dashboard-data/');
+        const d = await r.json();
+        if (!d.success) { console.error(d.error); return; }
+        this.data = d;
+        if (!silent) {
+          this.notification = '✓ Données actualisées (' + d.now + ')';
+          setTimeout(() => this.notification = '', 3000);
+        }
+      } catch(e) { console.error(e); }
+      finally { if (!silent) this.loading = false; }
+    },
+
+    formatNumber(v) { return new Intl.NumberFormat('fr-FR').format(v || 0); },
+  }
+}
+
+function getCSRFToken() {
+  const cookies = document.cookie.split('; ');
+  for (const c of cookies) {
+    if (c.startsWith('csrftoken=')) return c.split('=')[1];
+  }
+  return '';
+}
+</script>
+{% endblock %}

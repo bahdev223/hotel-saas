@@ -1,0 +1,64 @@
+<!-- apps/dashboard/templates/dashboard/patron/base_patron.html -->
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Patron Dashboard - Résidence DAMOU{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            background: #f0f2f5;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .stat-card {
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 25px -12px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+</head>
+<body>
+    
+    <!-- Top bar simple -->
+    <div class="bg-surface-container-low shadow-md px-6 py-4 sticky top-0 z-50">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 bg-secondary rounded-xl flex items-center justify-center">
+                    <i class="text-xl text-white fas fa-chart-line"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl font-bold text-on-surface">Dashboard Patron</h1>
+                    <p class="text-sm text-on-surface-variant">Vue stratégique en temps réel</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-calendar-alt text-on-surface-variant"></i>
+                    <span class="text-sm text-on-surface-variant">{% now "l d F Y" %}</span>
+                </div>
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-user-circle text-on-surface-variant text-xl"></i>
+                    <span class="text-sm font-medium text-on-surface">{{ user.username }}</span>
+                </div>
+                <a href="{% url 'admin:logout' %}" class="px-3 py-1.5 text-sm text-red-400 bg-red-50 rounded-lg hover:bg-red-100">
+                    <i class="fas fa-sign-out-alt mr-1"></i> Déconnexion
+                </a>
+                <button onclick="location.reload()" class="px-3 py-1.5 text-sm bg-surface-container-high rounded-lg hover:bg-surface-container-highest">
+                    <i class="fas fa-sync-alt"></i> Rafraîchir
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Contenu principal -->
+    <div class="container mx-auto px-6 py-6">
+        {% block patron_content %}{% endblock %}
+    </div>
+    
+</body>
+</html>

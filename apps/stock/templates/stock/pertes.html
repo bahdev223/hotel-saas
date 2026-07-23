@@ -1,0 +1,162 @@
+{% extends 'stock/base_stock.html' %}
+{% load static %}
+
+{% block title %}Pertes stock{% endblock %}
+
+{% block content %}
+<div x-data="pertesApp()" x-init="init()" class="space-y-6">
+
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold"><i class="fas fa-trash-alt text-red-400 mr-2"></i>Pertes stock</h1>
+            <p class="text-sm text-on-surface-variant">Produits périmés, cassés, vols, etc.</p>
+        </div>
+        <button @click="openDeclarer()" class="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-red-700 transition flex items-center gap-2">
+            <i class="fas fa-plus"></i> Déclarer une perte
+        </button>
+    </div>
+
+    <!-- Tableau des pertes -->
+    <div class="bg-surface-container-low rounded-xl border border-outline/10 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-surface-container-high">
+                    <tr class="border-b border-outline/10 text-on-surface-variant">
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase">Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase">Produit</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase">Entrepôt</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold uppercase">Qté</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase">Motif</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold uppercase">Par</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10">
+                    {% for p in pertes %}
+                    <tr class="text-on-surface hover:bg-surface-container-high/50">
+                        <td class="px-4 py-3 text-sm whitespace-nowrap">{{ p.date_mouvement|date:"d/m/Y H:i" }}</td>
+                        <td class="px-4 py-3 text-sm">{{ p.produit.nom }}</td>
+                        <td class="px-4 py-3 text-sm">{{ p.entrepot_source.nom }}</td>
+                        <td class="px-4 py-3 text-sm text-right font-mono text-red-400">{{ p.quantite|floatformat:0 }}</td>
+                        <td class="px-4 py-3 text-sm">
+                            <span class="bg-red-900/30 text-red-300 px-2 py-0.5 rounded-full text-xs">{{ p.raison|default:"Perte" }}</span>
+                        </td>
+                        <td class="px-4 py-3 text-sm text-on-surface-variant">{{ p.utilisateur }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="px-4 py-12 text-center text-on-surface-variant">
+                            <i class="fas fa-check-circle text-4xl text-green-500 mb-2 block"></i>
+                            <p>Aucune perte enregistrée</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Dialog Déclarer une perte -->
+    <div x-show="dialogOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
+         @click.away="dialogOpen = false">
+        <div class="w-full max-w-md bg-surface-container-low rounded-2xl shadow-xl mx-4 overflow-hidden" @click.stop>
+            <div class="px-5 py-4 border-b border-outline/10">
+                <h3 class="font-bold">Déclarer une perte</h3>
+            </div>
+            <div class="p-5 space-y-4">
+                <div>
+                    <label class="label-md3">Produit</label>
+                    <select x-model="produitId" class="w-full input-md3 rounded-lg text-sm">
+                        <option value="">Sélectionner...</option>
+                        {% for p in produits %}
+                        <option value="{{ p.id }}">{{ p.nom }} ({{ p.unite_base }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="label-md3">Entrepôt</label>
+                    <select x-model="entrepotId" class="w-full input-md3 rounded-lg text-sm">
+                        <option value="">Sélectionner...</option>
+                        {% for e in entrepots %}
+                        <option value="{{ e.id }}">{{ e.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="label-md3">Quantité</label>
+                    <input type="number" x-model="quantite" min="0" step="1" placeholder="0"
+                           class="w-full input-md3 rounded-lg text-right text-lg font-bold font-mono">
+                </div>
+                <div>
+                    <label class="label-md3">Motif</label>
+                    <select x-model="motif" class="w-full input-md3 rounded-lg text-sm">
+                        <option value="Périmé">📅 Périmé</option>
+                        <option value="Cassé">💔 Cassé</option>
+                        <option value="Vol">🚫 Vol</option>
+                        <option value="Erreur inventaire">📋 Erreur inventaire</option>
+                        <option value="Autre">❓ Autre</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="label-md3">Notes (optionnel)</label>
+                    <input type="text" x-model="notes" placeholder="Précisions..."
+                           class="w-full input-md3 rounded-lg text-sm">
+                </div>
+                <div x-show="erreur" class="text-red-400 text-xs" x-text="erreur"></div>
+            </div>
+            <div class="px-5 py-4 border-t border-outline/10 flex gap-3">
+                <button @click="dialogOpen = false" class="flex-1 border border-outline/10 py-2.5 rounded-lg text-sm">Annuler</button>
+                <button @click="confirmer()" :disabled="!produitId || !entrepotId || !quantite || quantite <= 0 || chargement"
+                        class="flex-1 bg-red-600 text-white py-2.5 rounded-lg text-sm font-bold"
+                        :class="(!produitId || !entrepotId || !quantite || quantite <= 0 || chargement) ? 'opacity-40' : ''">
+                    <i class="fas fa-spinner fa-spin mr-1" x-show="chargement" x-cloak></i>
+                    <span x-text="chargement ? 'Enregistrement...' : 'Enregistrer la perte'"></span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Succès -->
+    <div x-show="succes" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click="succes = false">
+        <div class="bg-surface-container-low rounded-2xl p-8 text-center mx-4 max-w-sm">
+            <div class="w-16 h-16 rounded-full bg-green-900/30 mx-auto flex items-center justify-center mb-4">
+                <i class="fas fa-check-circle text-4xl text-green-400"></i>
+            </div>
+            <p class="text-lg font-bold text-on-surface">Perte enregistrée !</p>
+            <p class="text-sm text-on-surface-variant mt-1" x-text="messageSucces"></p>
+            <button @click="succes = false; dialogOpen = false; location.reload()" class="mt-4 bg-secondary text-on-secondary px-6 py-2 rounded-lg font-bold">Fermer</button>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function pertesApp() {
+    return {
+        dialogOpen: false, produitId: '', entrepotId: '', quantite: 0, motif: 'Périmé', notes: '',
+        chargement: false, erreur: '', succes: false, messageSucces: '',
+
+        init() {},
+
+        openDeclarer() { this.dialogOpen = true; this.produitId = ''; this.entrepotId = ''; this.quantite = 0; this.motif = 'Périmé'; this.notes = ''; this.erreur = ''; },
+
+        async confirmer() {
+            if (!this.produitId || !this.entrepotId || !this.quantite || this.quantite <= 0) { this.erreur = 'Champs obligatoires'; return; }
+            this.chargement = true; this.erreur = '';
+            try {
+                const r = await fetch('/stock/api/pertes/declarer/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCookie('csrftoken') },
+                    body: JSON.stringify({ produit_id: this.produitId, entrepot_id: this.entrepotId, quantite: this.quantite, motif: this.motif, notes: this.notes })
+                });
+                const d = await r.json();
+                if (d.success) { this.succes = true; this.messageSucces = d.message; }
+                else { this.erreur = d.error || 'Erreur'; }
+            } catch(e) { this.erreur = 'Erreur réseau'; }
+            finally { this.chargement = false; }
+        },
+
+        getCookie(n) { const v = document.cookie.split('; ').find(r => r.startsWith(n + '=')); return v ? v.split('=')[1] : null; },
+    }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,233 @@
+    <!-- apps/restaurant/templates/restaurant/menus/modifier.html -->
+{% extends 'restaurant/base_restaurant.html' %}
+{% load static %}
+
+{% block title %}Composer {{ menu.nom }}{% endblock %}
+
+{% block content %}
+<div x-data="menuCompositionApp()" x-init="init()" class="max-w-7xl mx-auto py-8 px-4">
+    
+    <!-- En-tête -->
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold">{{ menu.nom }}</h1>
+            <p class="text-sm text-on-surface-variant">Composer le menu</p>
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'restaurant:menus_liste' %}" class="px-4 py-2 border-outline/10 rounded-lg hover:bg-surface-container-low">Annuler</a>
+            <button form="formMenu" type="submit" class="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/80">
+                💾 Enregistrer
+            </button>
+        </div>
+    </div>
+    
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        <!-- COLONNE GAUCHE - Formulaire menu -->
+        <div class="lg:col-span-2 space-y-6">
+            
+            <form id="formMenu" method="post" class="bg-surface-container-low rounded-xl shadow-md overflow-hidden">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="update">
+                
+                <div class="p-6 space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="block text-sm font-medium mb-1">Code</label><input type="text" name="code" value="{{ menu.code }}" class="w-full px-3 py-2 input-md3 rounded-lg"></div>
+                        <div><label class="block text-sm font-medium mb-1">Nom</label><input type="text" name="nom" value="{{ menu.nom }}" class="w-full px-3 py-2 input-md3 rounded-lg"></div>
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Type de menu</label>
+                            <select name="type_menu" class="w-full px-3 py-2 input-md3 rounded-lg">
+                                {% for value, label in types_menu %}
+                                <option value="{{ value }}" {% if menu.type_menu == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Prix de vente (F)</label>
+                            <input type="number" step="100" name="prix_vente" value="{{ menu.prix_vente|default:'' }}" class="w-full px-3 py-2 input-md3 rounded-lg">
+                            <button type="button" @click="calculerPrixRecommandee()" class="text-xs text-secondary mt-1 hover:underline">Calculer prix recommandé</button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="flex items-center gap-2">
+                            <input type="checkbox" name="visible_dans_pos" {% if menu.visible_dans_pos %}checked{% endif %} class="w-4 h-4">
+                            <span>Visible dans le POS</span>
+                        </label>
+                    </div>
+                    <div><label class="block text-sm font-medium mb-1">Description</label><textarea name="description" rows="3" class="w-full px-3 py-2 input-md3 rounded-lg">{{ menu.description|default:'' }}</textarea></div>
+                </div>
+            </form>
+            
+            <!-- ========== COMPOSITION DU MENU ========== -->
+            <div class="bg-surface-container-low rounded-xl shadow-md overflow-hidden">
+                <div class="px-6 py-4 border-b bg-surface-container-high flex justify-between items-center">
+                    <h2 class="font-semibold"><i class="fas fa-layer-group mr-2 text-secondary"></i> Composition du menu</h2>
+                    <button @click="openLigneModal()" class="text-sm text-secondary hover:underline">
+                        <i class="fas fa-plus mr-1"></i> Ajouter une ligne
+                    </button>
+                </div>
+                
+                <!-- Groupes -->
+                <div class="divide-y">
+                    {% for groupe, lignes in lignes_par_groupe.items %}
+                    <div class="p-4">
+                        <h3 class="font-semibold text-on-surface mb-3 flex items-center gap-2">
+                            <i class="fas fa-tag text-on-surface-variant"></i> {{ groupe }}
+                        </h3>
+                        <div class="space-y-2">
+                            {% for ligne in lignes %}
+                            <div class="flex items-center justify-between p-3 bg-surface-container-high rounded-lg">
+                                <div class="flex-1">
+                                    <div class="flex items-center gap-2">
+                                        <span class="font-medium">{{ ligne.recette.nom }}</span>
+                                        {% if ligne.type_ligne == 'FIXE' %}
+                                        <span class="text-xs bg-green-900/30 text-green-300 px-2 py-0.5 rounded">Inclus</span>
+                                        {% elif ligne.type_ligne == 'CHOIX' %}
+                                        <span class="text-xs bg-blue-900/30 text-blue-300 px-2 py-0.5 rounded">Au choix</span>
+                                        {% else %}
+                                        <span class="text-xs bg-orange-900/30 text-orange-300 px-2 py-0.5 rounded">+{{ ligne.prix_supplement|floatformat:0 }} F</span>
+                                        {% endif %}
+                                    </div>
+                                    <div class="text-sm text-on-surface-variant">{{ ligne.quantite }} portion(s)</div>
+                                </div>
+                                <button @click="deleteLigne('{{ ligne.id }}')" class="text-red-400 hover:text-red-300">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
+                            {% empty %}
+                            <div class="text-center text-on-surface-variant py-4">Aucune ligne dans ce groupe</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    {% empty %}
+                    <div class="p-8 text-center text-on-surface-variant">
+                        <i class="fas fa-layer-group text-4xl mb-2 block"></i>
+                        <p>Aucune ligne dans ce menu</p>
+                        <p class="text-sm">Cliquez sur "Ajouter une ligne"</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- COLONNE DROITE - Récap -->
+        <div class="space-y-6">
+            <div class="bg-surface-container-low rounded-xl shadow-md p-6 sticky top-6">
+                <h3 class="font-semibold mb-4">📊 Récapitulatif</h3>
+                <div class="space-y-3">
+                    <div class="flex justify-between"><span>Coût revient</span><span class="font-bold text-orange-400" x-text="formatMoney(coutRevient) + ' F'">0 F</span></div>
+                    <div class="flex justify-between"><span>Prix vente</span><span class="font-bold text-secondary" x-text="formatMoney(prixVente) + ' F'">0 F</span></div>
+                    <div class="flex justify-between border-t pt-2"><span>Marge</span><span class="font-bold text-green-400" x-text="formatMoney(marge) + ' F'">0 F</span></div>
+                    <div class="flex justify-between"><span>Marge %</span><span class="font-bold" x-text="margePourcentage + '%'">0%</span></div>
+                </div>
+                <div class="mt-4 p-3 bg-surface-container-high rounded-lg">
+                    <p class="text-sm font-medium">Temps préparation</p>
+                    <p class="text-2xl font-bold text-secondary" x-text="tempsPreparation + ' min'">0 min</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- MODAL AJOUT LIGNE -->
+    <div x-show="ligneModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="ligneModal = false">
+        <div class="bg-surface-container-low rounded-xl shadow-2xl w-full max-w-md mx-4" @click.stop>
+            <div class="px-5 py-3 border-b flex justify-between items-center">
+                <h2 class="font-semibold text-lg">Ajouter une ligne</h2>
+                <button @click="ligneModal = false" class="text-on-surface-variant">✕</button>
+            </div>
+            <div class="p-5 space-y-4">
+                <div>
+                    <label class="text-sm font-medium">Recette</label>
+                    <select x-model="ligneForm.recette_id" class="w-full px-3 py-2 input-md3 rounded-lg mt-1">
+                        <option value="">Sélectionner...</option>
+                        {% for type, recettes in recettes_par_type.items %}
+                        <optgroup label="{{ type }}">
+                            {% for r in recettes %}
+                            <option value="{{ r.id }}">{{ r.nom }} ({{ r.prix_vente|floatformat:0 }} F)</option>
+                            {% endfor %}
+                        </optgroup>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-sm font-medium">Groupe</label>
+                    <select x-model="ligneForm.groupe" class="w-full px-3 py-2 input-md3 rounded-lg mt-1">
+                        {% for value, label in groupes %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-sm font-medium">Type</label>
+                    <select x-model="ligneForm.type_ligne" class="w-full px-3 py-2 input-md3 rounded-lg mt-1">
+                        {% for value, label in types_ligne %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div><label class="text-sm font-medium">Quantité</label><input type="number" x-model="ligneForm.quantite" class="w-full px-3 py-2 input-md3 rounded-lg"></div>
+                    <div x-show="ligneForm.type_ligne === 'SUPPLEMENT'"><label class="text-sm font-medium">Prix (F)</label><input type="number" x-model="ligneForm.prix_supplement" class="w-full px-3 py-2 input-md3 rounded-lg"></div>
+                </div>
+                <div class="flex gap-3 pt-3">
+                    <button @click="saveLigne()" class="flex-1 bg-secondary text-white py-2 rounded-lg">Enregistrer</button>
+                    <button @click="ligneModal = false" class="flex-1 border-outline/10 rounded-lg py-2">Annuler</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function menuCompositionApp() {
+    return {
+        ligneModal: false,
+        ligneForm: { recette_id: '', groupe: 'PLAT', type_ligne: 'FIXE', quantite: 1, prix_supplement: 0 },
+        coutRevient: {{ menu.get_cout_revient_total|default:0 }},
+        prixVente: {{ menu.prix_vente|default:0 }},
+        tempsPreparation: {{ menu.get_temps_preparation_realiste|default:0 }},
+        
+        get marge() { return this.prixVente - this.coutRevient; },
+        get margePourcentage() { return this.prixVente > 0 ? (this.marge / this.prixVente * 100).toFixed(1) : 0; },
+        
+        openLigneModal() { this.ligneModal = true; },
+        
+        async saveLigne() {
+            const form = new FormData();
+            form.append('action', 'add_ligne');
+            form.append('recette_id', this.ligneForm.recette_id);
+            form.append('groupe', this.ligneForm.groupe);
+            form.append('type_ligne', this.ligneForm.type_ligne);
+            form.append('quantite', this.ligneForm.quantite);
+            form.append('prix_supplement', this.ligneForm.prix_supplement);
+            form.append('csrfmiddlewaretoken', this.getCookie('csrftoken'));
+            
+            await fetch(window.location.href, { method: 'POST', body: form });
+            window.location.reload();
+        },
+        
+        deleteLigne(ligneId) {
+            if (!confirm('Supprimer cette ligne ?')) return;
+            const form = new FormData();
+            form.append('action', 'delete_ligne');
+            form.append('ligne_id', ligneId);
+            form.append('csrfmiddlewaretoken', this.getCookie('csrftoken'));
+            fetch(window.location.href, { method: 'POST', body: form }).then(() => window.location.reload());
+        },
+        
+        async calculerPrixRecommandee() {
+            const res = await fetch('/restaurant/api/menu/{{ menu.id }}/calculer-prix/');
+            const data = await res.json();
+            if (data.success) {
+                alert(`Coût: ${data.cout_total} F\nPrix recommandé: ${data.prix_recommande} F`);
+            }
+        },
+        
+        formatMoney(v) { return new Intl.NumberFormat('fr-FR').format(v || 0); },
+        getCookie(n) { let v = `; ${document.cookie}`, p = v.split(`; ${n}=`); return p.length === 2 ? p.pop().split(';').shift() : null; }
+    }
+}
+</script>
+{% endblock %}

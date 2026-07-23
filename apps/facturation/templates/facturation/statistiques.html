@@ -1,0 +1,99 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Statistiques facturation{% endblock %}
+
+{% block header %}Statistiques{% endblock %}
+{% block subtitle %}Analyse des factures{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div class="bg-surface-container-low rounded-xl border-outline/10 p-6">
+            <h3 class="font-semibold mb-4">📊 Par statut</h3>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-on-surface-variant">Brouillon</span>
+                    <span class="font-bold text-yellow-400" id="statBrouillon">-</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-on-surface-variant">Émise</span>
+                    <span class="font-bold text-blue-400" id="statEmise">-</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-on-surface-variant">Payée</span>
+                    <span class="font-bold text-green-400" id="statPayee">-</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-on-surface-variant">Annulée</span>
+                    <span class="font-bold text-red-400" id="statAnnulee">-</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="bg-surface-container-low rounded-xl border-outline/10 p-6">
+            <h3 class="font-semibold mb-4">💰 Chiffre d'affaires</h3>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-on-surface-variant">CA du mois</span>
+                    <span class="font-bold text-secondary text-xl" id="caMois">0 F</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-on-surface-variant">CA total</span>
+                    <span class="font-bold text-secondary text-xl" id="caTotal">0 F</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="bg-surface-container-low rounded-xl border-outline/10 p-6">
+        <h3 class="font-semibold mb-4">📈 Évolution mensuelle</h3>
+        <div class="h-64 flex items-center justify-center text-on-surface-variant">
+            <i class="fas fa-chart-line text-4xl mb-2 block"></i>
+            <p>Graphique à implémenter</p>
+        </div>
+    </div>
+</div>
+
+<script>
+async function loadStats() {
+    try {
+        const response = await fetch('/facturation/api/stats/');
+        const data = await response.json();
+        if (data.success) {
+            document.getElementById('caMois').innerText = new Intl.NumberFormat('fr-FR').format(data.stats.ca_mois || 0) + ' F';
+        }
+    } catch(e) {
+        console.error(e);
+    }
+    
+    try {
+        const response = await fetch('/facturation/api/factures/');
+        const data = await response.json();
+        if (data.success) {
+            let brouillon = 0, emise = 0, payee = 0, annulee = 0;
+            let caTotal = 0;
+            for (const f of data.factures) {
+                if (f.statut === 'BROUILLON') brouillon++;
+                else if (f.statut === 'EMISE') emise++;
+                else if (f.statut === 'PAYEE') {
+                    payee++;
+                    caTotal += f.montant_total;
+                }
+                else if (f.statut === 'ANNULEE') annulee++;
+            }
+            document.getElementById('statBrouillon').innerText = brouillon;
+            document.getElementById('statEmise').innerText = emise;
+            document.getElementById('statPayee').innerText = payee;
+            document.getElementById('statAnnulee').innerText = annulee;
+            document.getElementById('caTotal').innerText = new Intl.NumberFormat('fr-FR').format(caTotal) + ' F';
+        }
+    } catch(e) {
+        console.error(e);
+    }
+}
+
+loadStats();
+</script>
+{% endblock %}

@@ -1,0 +1,158 @@
+<!-- apps/restaurant/templates/restaurant/recettes/modifier.html -->
+{% extends 'restaurant/base_restaurant.html' %}
+{% load static %}
+
+{% block title %}Modifier {{ recette.nom }}{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto py-8 px-4">
+    
+    <!-- En-tête avec icône -->
+    <div class="flex justify-between items-center mb-6">
+        <div>
+            <h1 class="text-2xl font-bold">
+                <i class="fas fa-edit text-secondary mr-2"></i>
+                Modifier {{ recette.nom }}
+            </h1>
+            <p class="text-sm text-on-surface-variant mt-1">Modifier les informations de base de la recette</p>
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'restaurant:recettes' %}" class="px-4 py-2 border-outline/10 rounded-lg hover:bg-surface-container-low transition">
+                <i class="fas fa-arrow-left mr-1"></i> Annuler
+            </a>
+            <button form="formRecette" type="submit" class="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/80 transition">
+                <i class="fas fa-save mr-1"></i> Enregistrer
+            </button>
+        </div>
+    </div>
+    
+    <!-- Formulaire -->
+    <div class="bg-surface-container-low rounded-xl shadow-md overflow-hidden">
+        <form id="formRecette" method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="update">
+            
+            <div class="p-6 space-y-5">
+                <!-- Code et Nom -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface mb-1">
+                            <i class="fas fa-barcode text-on-surface-variant w-4 mr-1"></i> Code
+                        </label>
+                        <input type="text" name="code" value="{{ recette.code|default:'' }}" 
+                               class="w-full px-3 py-2 border-outline/10 rounded-lg focus:ring-secondary/50 focus:border-secondary/50">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface mb-1">
+                            <i class="fas fa-tag text-on-surface-variant w-4 mr-1"></i> Nom *
+                        </label>
+                        <input type="text" name="nom" value="{{ recette.nom }}" required
+                               class="w-full px-3 py-2 border-outline/10 rounded-lg focus:ring-secondary/50 focus:border-secondary/50">
+                    </div>
+                </div>
+                
+                <!-- Type et Prix -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface mb-1">
+                            <i class="fas fa-layer-group text-on-surface-variant w-4 mr-1"></i> Type
+                        </label>
+                        <select name="type_recette" class="w-full px-3 py-2 border-outline/10 rounded-lg">
+                            {% for value, label in types_recette %}
+                            <option value="{{ value }}" {% if recette.type_recette == value %}selected{% endif %}>{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface mb-1">
+                            <i class="fas fa-money-bill-wave text-on-surface-variant w-4 mr-1"></i> Prix vente (FCFA)
+                        </label>
+                        <input type="number" step="100" name="prix_vente" value="{{ recette.prix_vente|default:'' }}" 
+                               class="w-full px-3 py-2 border-outline/10 rounded-lg focus:ring-secondary/50 focus:border-secondary/50">
+                    </div>
+                </div>
+                
+                <!-- Temps et Ordre -->
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface mb-1">
+                            <i class="fas fa-clock text-on-surface-variant w-4 mr-1"></i> Temps préparation (min)
+                        </label>
+                        <input type="number" name="temps_preparation" value="{{ recette.temps_preparation_minutes }}" 
+                               class="w-full px-3 py-2 border-outline/10 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface mb-1">
+                            <i class="fas fa-sort-numeric-down text-on-surface-variant w-4 mr-1"></i> Ordre affichage
+                        </label>
+                        <input type="number" name="ordre_affichage" value="{{ recette.ordre_affichage }}" 
+                               class="w-full px-3 py-2 border-outline/10 rounded-lg">
+                    </div>
+                </div>
+                
+                <!-- Visible dans POS -->
+                <div>
+                    <label class="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" name="visible_dans_pos" {% if recette.visible_dans_pos %}checked{% endif %} 
+                               class="w-4 h-4 text-secondary rounded focus:ring-secondary/50">
+                        <span class="text-sm text-on-surface">
+                            <i class="fas fa-eye text-on-surface-variant mr-1"></i> Visible dans le point de vente (POS)
+                        </span>
+                    </label>
+                </div>
+                
+                <!-- Description -->
+                <div>
+                    <label class="block text-sm font-medium text-on-surface mb-1">
+                        <i class="fas fa-align-left text-on-surface-variant w-4 mr-1"></i> Description
+                    </label>
+                    <textarea name="description" rows="3" class="w-full px-3 py-2 border-outline/10 rounded-lg">{{ recette.description|default:'' }}</textarea>
+                </div>
+                
+                <!-- Image -->
+                <div>
+                    <label class="block text-sm font-medium text-on-surface mb-1">
+                        <i class="fas fa-image text-on-surface-variant w-4 mr-1"></i> Image
+                    </label>
+                    <div class="flex items-center gap-4">
+                        {% if recette.image %}
+                        <img src="{{ recette.image.url }}" class="w-20 h-20 object-cover rounded-lg border-outline/10">
+                        {% else %}
+                        <div class="w-20 h-20 bg-surface-container-high rounded-lg border-outline/10 flex items-center justify-center">
+                            <i class="fas fa-utensils text-on-surface-variant text-2xl"></i>
+                        </div>
+                        {% endif %}
+                        <input type="file" name="image" accept="image/*" class="flex-1">
+                    </div>
+                </div>
+                
+                <!-- Notes internes -->
+                <div>
+                    <label class="block text-sm font-medium text-on-surface mb-1">
+                        <i class="fas fa-sticky-note text-on-surface-variant w-4 mr-1"></i> Notes internes
+                    </label>
+                    <textarea name="notes" rows="2" class="w-full px-3 py-2 border-outline/10 rounded-lg">{{ recette.notes|default:'' }}</textarea>
+                    <p class="text-xs text-on-surface-variant mt-1">Ces notes ne sont visibles que par le personnel</p>
+                </div>
+            </div>
+            
+            <!-- Actions -->
+            <div class="px-6 py-4 bg-surface-container-high border-t flex justify-end gap-3">
+                <a href="{% url 'restaurant:recettes' %}" class="px-4 py-2 border-outline/10 rounded-lg hover:bg-surface-container-high transition">
+                    <i class="fas fa-times mr-1"></i> Annuler
+                </a>
+                <button type="submit" class="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/80 transition">
+                    <i class="fas fa-save mr-1"></i> Enregistrer les modifications
+                </button>
+            </div>
+        </form>
+    </div>
+    
+    <!-- Lien vers la gestion des ingrédients/étapes -->
+    <div class="mt-4 text-center">
+        <a href="{% url 'restaurant:recette_detail' recette.id %}" class="text-sm text-secondary hover:underline">
+            <i class="fas fa-arrow-right mr-1"></i> Gérer les ingrédients et étapes
+        </a>
+    </div>
+</div>
+{% endblock %}

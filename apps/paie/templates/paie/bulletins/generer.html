@@ -1,0 +1,38 @@
+{% extends 'paie/base_paie.html' %}
+{% load static %}
+
+{% block paie_content %}
+<div class="max-w-md mx-auto">
+    <div class="bg-surface-container-low rounded-xl shadow-md">
+        <div class="px-6 py-4 border-b">
+            <h2 class="text-xl font-bold">Générer les bulletins</h2>
+            <p class="text-sm text-on-surface-variant">Période : {{ periode.libelle }}</p>
+        </div>
+        
+        <div class="p-6">
+            <div class="bg-yellow-900/30 border border-yellow-200 rounded-lg p-4 mb-6">
+                <div class="flex gap-3">
+                    <i class="fas fa-info-circle text-yellow-400 text-xl"></i>
+                    <div class="text-sm text-yellow-200">
+                        <p class="font-medium">Attention</p>
+                        <p>Cette action va générer ou recalculer tous les bulletins de paie pour la période {{ periode.libelle }}.</p>
+                        <p class="mt-2">Les bulletins existants seront mis à jour.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <form method="post">
+                {% csrf_token %}
+                <div class="flex gap-3">
+                    <button type="submit" class="flex-1 btn btn-primary">
+                        <i class="fas fa-calculator"></i> Confirmer la génération
+                    </button>
+                    <a href="{% url 'paie:liste_periodes' %}" class="flex-1 btn btn-outline">
+                        Annuler
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

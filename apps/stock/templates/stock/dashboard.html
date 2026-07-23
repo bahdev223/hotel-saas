@@ -1,0 +1,586 @@
+﻿{% extends 'stock/base_stock.html' %}
+{% load static %}
+
+{% block title %}Gestion des stocks{% endblock %}
+
+{% block content %}
+<div x-data="stockApp()" class="space-y-6">
+
+    <!-- Tab Bar -->
+    <div class="flex gap-1 p-1 bg-surface-container-high rounded-xl w-fit">
+        <button @click="tab = 'dashboard'" 
+                class="px-5 py-2.5 text-sm font-medium rounded-lg transition-all"
+                :class="tab === 'dashboard' ? 'bg-secondary text-white shadow-md' : 'text-on-surface-variant hover:text-on-surface'">
+            <i class="fas fa-chart-pie mr-1.5"></i> Tableau de bord
+        </button>
+        <button @click="tab = 'mouvements'; if (!mouvementsCharge) { chargerMouvements() }" 
+                class="px-5 py-2.5 text-sm font-medium rounded-lg transition-all"
+                :class="tab === 'mouvements' ? 'bg-secondary text-white shadow-md' : 'text-on-surface-variant hover:text-on-surface'">
+            <i class="fas fa-exchange-alt mr-1.5"></i> Mouvements
+        </button>
+    </div>
+
+    <!-- ===================== TAB: TABLEAU DE BORD ===================== -->
+    <div x-show="tab === 'dashboard'">
+
+    <div>
+        <!-- KPI Cards -->
+        <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="stat-card p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-sm text-on-surface-variant font-medium">Total produits</span>
+                    <div class="stat-icon"><i class="fas fa-boxes-stacked"></i></div>
+                </div>
+                <p class="text-3xl font-bold text-secondary">{{ total_produits|default:0 }}</p>
+                <p class="text-xs text-on-surface-variant mt-1">Tous entrepôts</p>
+            </div>
+            <div class="stat-card p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-sm text-on-surface-variant font-medium">Valeur stock</span>
+                    <div class="stat-icon" style="background: rgba(74, 222, 128, 0.1);"><i class="fas fa-coins" style="color: #4ade80;"></i></div>
+                </div>
+                <p class="text-3xl font-bold" style="color: #4ade80;">{{ valeur_stock|floatformat:0|default:0 }} F</p>
+                <p class="text-xs text-on-surface-variant mt-1">Tous entrepôts</p>
+            </div>
+            <div class="stat-card p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-sm text-on-surface-variant font-medium">En rupture</span>
+                    <div class="stat-icon" style="background: rgba(248, 113, 113, 0.1);"><i class="fas fa-circle-exclamation" style="color: #f87171;"></i></div>
+                </div>
+                <p class="text-3xl font-bold" style="color: #f87171;">{{ produits_rupture|default:0 }}</p>
+                <p class="text-xs text-on-surface-variant mt-1"><span class="text-red-400">⚠ Attention</span></p>
+            </div>
+            <div class="stat-card p-5">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-sm text-on-surface-variant font-medium">Stock bas</span>
+                    <div class="stat-icon" style="background: rgba(251, 191, 36, 0.1);"><i class="fas fa-bell" style="color: #fbbf24;"></i></div>
+                </div>
+                <p class="text-3xl font-bold" style="color: #fbbf24;">{{ produits_alerte|default:0 }}</p>
+                <p class="text-xs text-on-surface-variant mt-1">En dessous du seuil</p>
+            </div>
+        </div>
+
+        {% if alertes_stock %}
+        <div class="stat-card p-5 mb-6 border border-orange-500/20">
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(251, 191, 36, 0.1);">
+                    <i class="fas fa-bell text-orange-400"></i>
+                </div>
+                <div>
+                    <h3 class="font-semibold text-orange-400">Alertes stock bas</h3>
+                    <p class="text-xs text-on-surface-variant">Produits en dessous du seuil de réapprovisionnement</p>
+                </div>
+            </div>
+            <div class="space-y-2">
+                {% for item in alertes_stock %}
+                <div class="flex justify-between items-center p-3 rounded-lg bg-orange-900/20 hover:bg-orange-900/30 transition-smooth">
+                    <div class="flex items-center gap-3">
+                        <i class="fas fa-exclamation-triangle text-orange-400 text-xs"></i>
+                        <div><p class="font-medium text-sm">{{ item.produit.nom }}</p><p class="text-xs text-on-surface-variant">Seuil: {{ item.seuil|floatformat:0 }} {{ item.produit.unite_base }}</p></div>
+                    </div>
+                    <div class="text-right">
+                        <p class="text-lg font-bold text-orange-400">{{ item.quantite|floatformat:0 }}</p>
+                        <p class="text-xs text-on-surface-variant">{{ item.produit.unite_base }}</p>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+
+    </div>
+
+    <!-- Entrepôts -->
+    <div>
+        <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-bold"><i class="fas fa-warehouse text-secondary mr-2"></i>Entrepôts</h2>
+            <div class="flex gap-2">
+                <button @click="openTransfertModal()" class="text-sm px-4 py-2 rounded-lg bg-blue-900/30 text-blue-300 hover:bg-blue-900/50 transition border border-blue-700/30">
+                    <i class="fas fa-exchange-alt mr-1"></i>Transfert
+                </button>
+                <button @click="showModal = true" class="btn-md3-primary text-sm px-4 py-2 rounded-lg">
+                    <i class="fas fa-plus mr-1"></i>Nouvel entrepôt
+                </button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {% for e in entrepots %}
+            <div class="stat-card p-5">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(227, 194, 130, 0.1);">
+                            <i class="fas fa-warehouse text-secondary"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold text-on-surface">{{ e.nom }}</h3>
+                            <p class="text-xs text-on-surface-variant font-mono">{{ e.code }}</p>
+                        </div>
+                    </div>
+                    <span class="text-xs font-medium px-2.5 py-1 rounded-full bg-secondary-container/20 text-secondary whitespace-nowrap">{{ e.type_display }}</span>
+                </div>
+                <div class="flex items-center justify-between text-sm border-t border-outline/10 pt-3">
+                    <span class="text-on-surface-variant"><i class="fas fa-box text-xs mr-1.5"></i>Produits</span>
+                    <span class="font-semibold text-on-surface">{{ e.produits_count }}</span>
+                </div>
+                <div class="flex items-center justify-between text-sm mt-2">
+                    <span class="text-on-surface-variant"><i class="fas fa-coins text-xs mr-1.5"></i>Valeur</span>
+                    <span class="font-semibold text-secondary">{{ e.valeur|floatformat:0 }} F</span>
+                </div>
+                <a href="{% url 'stock:detail_entrepot' e.id %}" class="mt-4 inline-flex w-full items-center justify-center gap-2 text-xs font-medium text-secondary bg-secondary/10 hover:bg-secondary/20 rounded-lg py-2.5 transition-smooth">
+                    <i class="fas fa-eye"></i> Détails
+                </a>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="stat-card p-0 overflow-hidden">
+        <div class="px-6 py-4 border-b border-outline/10 flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(227, 194, 130, 0.1);">
+                <i class="fas fa-clock-rotate-left text-secondary"></i>
+            </div>
+            <div>
+                <h3 class="font-semibold text-on-surface">Derniers mouvements</h3>
+                <p class="text-xs text-on-surface-variant">Les 15 dernières opérations</p>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-surface-container-high">
+                    <tr class="text-on-surface-variant">
+                        <th class="px-4 py-3 text-left">Date</th>
+                        <th class="px-4 py-3 text-left">Produit</th>
+                        <th class="px-4 py-3 text-left">Source</th>
+                        <th class="px-4 py-3 text-left">Destination</th>
+                        <th class="px-4 py-3 text-left">Type</th>
+                        <th class="px-4 py-3 text-left">Motif</th>
+                        <th class="px-4 py-3 text-right">Qté</th>
+                        <th class="px-4 py-3 text-left">Ref</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10">
+                    {% for mvt in derniers_mouvements %}
+                    <tr class="hover:bg-surface-container-low transition-colors">
+                        <td class="px-4 py-3 text-on-surface-variant">{{ mvt.date_mouvement|date:"d/m H:i" }}</td>
+                        <td class="px-4 py-3 font-medium">{{ mvt.produit.nom }}</td>
+                        <td class="px-4 py-3 text-xs text-on-surface-variant">{{ mvt.entrepot_source.nom|default:"—" }}</td>
+                        <td class="px-4 py-3 text-xs text-on-surface-variant">{{ mvt.entrepot_dest.nom|default:"—" }}</td>
+                        <td class="px-4 py-3">
+                            {% if mvt.type_mouvement == 'ENTREE' %}
+                            <span class="px-2 py-1 rounded-full text-xs bg-green-900/30 text-green-300"><i class="fas fa-arrow-down text-xs mr-1"></i>Entrée</span>
+                            {% elif mvt.type_mouvement == 'SORTIE' %}
+                            <span class="px-2 py-1 rounded-full text-xs bg-red-900/30 text-red-300"><i class="fas fa-arrow-up text-xs mr-1"></i>Sortie</span>
+                            {% elif mvt.type_mouvement == 'TRANSFERT' %}
+                            <span class="px-2 py-1 rounded-full text-xs bg-blue-900/30 text-blue-300"><i class="fas fa-exchange-alt text-xs mr-1"></i>Transfert</span>
+                            {% elif mvt.type_mouvement == 'INITIALISATION' %}
+                            <span class="px-2 py-1 rounded-full text-xs bg-purple-900/30 text-purple-300"><i class="fas fa-rocket text-xs mr-1"></i>Initialisation</span>
+                            {% endif %}
+                        </td>
+                        <td class="px-4 py-3 text-on-surface-variant text-xs">{{ mvt.get_motif_display }}</td>
+                        <td class="px-4 py-3 text-right font-mono">
+                            {% if mvt.type_mouvement == 'SORTIE' %}
+                            <span class="text-red-400">-{{ mvt.quantite|floatformat:0 }}</span>
+                            {% elif mvt.type_mouvement == 'ENTREE' %}
+                            <span class="text-green-400">+{{ mvt.quantite|floatformat:0 }}</span>
+                            {% else %}
+                            <span class="text-blue-400">{{ mvt.quantite|floatformat:0 }}</span>
+                            {% endif %}
+                            <span class="text-xs text-on-surface-variant ml-1">{{ mvt.produit.unite_base }}</span>
+                        </td>
+                        <td class="px-4 py-3 text-on-surface-variant text-xs">{{ mvt.reference|default:"-" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="px-4 py-8 text-center text-on-surface-variant">Aucun mouvement</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    </div>
+    <!-- ===================== TAB: MOUVEMENTS ===================== -->
+    <div x-show="tab === 'mouvements'">
+        <div class="bg-surface-container-low rounded-xl border border-outline/10 overflow-hidden">
+            <div class="px-5 py-3 bg-surface-container-high border-b border-outline/10 flex flex-wrap items-center justify-between gap-3">
+                <h3 class="font-semibold">
+                    <i class="fas fa-exchange-alt text-secondary mr-2"></i>Mouvements de stock
+                </h3>
+                <div class="flex gap-2 flex-wrap text-xs">
+                    <div class="flex gap-1 mr-2">
+                        <button @click="setPeriode('jour')" class="px-2.5 py-1.5 rounded-lg font-medium transition-all"
+                                :class="periode === 'jour' ? 'bg-secondary text-black' : 'bg-surface-container hover:bg-surface-container-higher text-on-surface-variant'">Aujourd'hui</button>
+                        <button @click="setPeriode('semaine')" class="px-2.5 py-1.5 rounded-lg font-medium transition-all"
+                                :class="periode === 'semaine' ? 'bg-secondary text-black' : 'bg-surface-container hover:bg-surface-container-higher text-on-surface-variant'">Cette semaine</button>
+                        <button @click="setPeriode('mois')" class="px-2.5 py-1.5 rounded-lg font-medium transition-all"
+                                :class="periode === 'mois' ? 'bg-secondary text-black' : 'bg-surface-container hover:bg-surface-container-higher text-on-surface-variant'">Ce mois</button>
+                        <button @click="setPeriode('')" class="px-2.5 py-1.5 rounded-lg font-medium transition-all"
+                                :class="!periode ? 'bg-secondary text-black' : 'bg-surface-container hover:bg-surface-container-higher text-on-surface-variant'">Tout</button>
+                    </div>
+                    <select x-model="filtreType" @change="chargerMouvements()" class="input-md3 rounded-lg text-xs py-1.5 px-2">
+                        <option value="">Tous types</option>
+                        <option value="ENTREE">Entrées</option>
+                        <option value="SORTIE">Sorties</option>
+                    </select>
+                    <select x-model="filtreMotif" @change="chargerMouvements()" class="input-md3 rounded-lg text-xs py-1.5 px-2">
+                        <option value="">Tous motifs</option>
+                        <template x-for="m in motifsDisponibles" :key="m">
+                            <option :value="m.code" x-text="m.label"></option>
+                        </template>
+                    </select>
+                    <select x-model="filtreEntrepot" @change="chargerMouvements()" class="input-md3 rounded-lg text-xs py-1.5 px-2">
+                        <option value="">Tous entrepôts</option>
+                        {% for e in entrepots %}
+                        <option value="{{ e.id }}">{{ e.nom }}</option>
+                        {% endfor %}
+                    </select>
+                    <select x-model="filtreProduit" @change="chargerMouvements()" class="input-md3 rounded-lg text-xs py-1.5 px-2 max-w-[160px]">
+                        <option value="">Tous produits</option>
+                        {% for p in produits %}
+                        <option value="{{ p.id }}">{{ p.nom }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-surface-container-high text-on-surface-variant text-xs uppercase">
+                        <tr>
+                            <th class="px-4 py-3 text-left font-semibold">Date</th>
+                            <th class="px-4 py-3 text-left font-semibold">Produit</th>
+                            <th class="px-4 py-3 text-center font-semibold">Type</th>
+                            <th class="px-4 py-3 text-right font-semibold">Qté</th>
+                            <th class="px-4 py-3 text-left font-semibold">Source</th>
+                            <th class="px-4 py-3 text-left font-semibold">Destination</th>
+                            <th class="px-4 py-3 text-left font-semibold">Motif</th>
+                            <th class="px-4 py-3 text-left font-semibold">Réf</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-outline/10">
+                        <template x-for="m in mouvements" :key="m.id">
+                            <tr class="text-on-surface hover:bg-surface-container-high/50">
+                                <td class="px-4 py-3 whitespace-nowrap" x-text="m.date"></td>
+                                <td class="px-4 py-3" x-text="m.produit_nom"></td>
+                                <td class="px-4 py-3 text-center">
+                                    <span class="px-2 py-0.5 rounded-full text-xs font-medium"
+                                          :class="m.type_mouvement === 'ENTREE' ? 'bg-green-900/30 text-green-300' : 'bg-red-900/30 text-red-300'"
+                                          x-text="m.type_mouvement"></span>
+                                </td>
+                                <td class="px-4 py-3 text-right font-mono" x-text="m.quantite"></td>
+                                <td class="px-4 py-3 text-on-surface-variant" x-text="m.source_nom || '-'"></td>
+                                <td class="px-4 py-3 text-on-surface-variant" x-text="m.dest_nom || '-'"></td>
+                                <td class="px-4 py-3"><span class="text-xs" x-text="m.motif_display"></span></td>
+                                <td class="px-4 py-3 text-xs text-on-surface-variant font-mono" x-text="m.reference || '-'"></td>
+                            </tr>
+                        </template>
+                        <tr x-show="!mouvements.length">
+                            <td colspan="8" class="px-4 py-8 text-center text-on-surface-variant">Aucun mouvement</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div x-show="showModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.away="showModal = false" @keydown.escape.window="showModal = false">
+        <div class="w-full max-w-md bg-surface-container-low rounded-2xl shadow-xl mx-4" @click.stop>
+            <div class="px-6 py-4 border-b border-outline/10 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(227, 194, 130, 0.1);">
+                        <i class="fas fa-warehouse text-secondary"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-on-surface">Nouvel entrepôt</h2>
+                        <p class="text-xs text-on-surface-variant">Ajouter un point de stock</p>
+                    </div>
+                </div>
+                <button @click="showModal = false" class="w-8 h-8 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-smooth">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form @submit.prevent="saveEntrepot" class="p-6 space-y-4">
+                <div>
+                    <label class="label-md3">Code</label>
+                    <input type="text" x-model="form.code" class="input-md3 rounded-lg w-full" placeholder="Ex: BAR01" required>
+                </div>
+                <div>
+                    <label class="label-md3">Nom</label>
+                    <input type="text" x-model="form.nom" class="input-md3 rounded-lg w-full" placeholder="Ex: Bar Principal" required>
+                </div>
+                <div>
+                    <label class="label-md3">Type</label>
+                    <select x-model="form.type_entrepot" class="input-md3 rounded-lg w-full" required>
+                        <option value="">Sélectionner...</option>
+                        {% for key, label in types %}
+                        <option value="{{ key }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="flex gap-3 pt-2">
+                    <button type="submit" class="flex-1 btn-md3-primary py-2.5 rounded-lg" :disabled="saving || !form.code || !form.nom || !form.type_entrepot">
+                        <i class="fas fa-spinner fa-spin" x-show="saving" x-cloak></i>
+                        <span x-text="saving ? 'Création...' : 'Créer l\'entrepôt'"></span>
+                    </button>
+                    <button type="button" @click="showModal = false" class="flex-1 border border-outline/10 py-2.5 rounded-lg text-sm text-on-surface-variant hover:bg-surface-container transition-smooth">Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL TRANSFERT ==================== -->
+    <div x-show="transfertModal" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.away="transfertModal = false" @keydown.escape.window="transfertModal = false">
+        <div class="w-full max-w-2xl bg-surface-container-low rounded-2xl shadow-xl mx-4" @click.stop>
+            <div class="px-6 py-4 border-b border-outline/10 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(59, 130, 246, 0.1);">
+                        <i class="fas fa-exchange-alt text-blue-400"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-lg font-bold text-on-surface">Transfert inter-entrepôts</h2>
+                        <p class="text-xs text-on-surface-variant">Déplacer du stock entre entrepôts</p>
+                    </div>
+                </div>
+                <button @click="transfertModal = false" class="w-8 h-8 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-smooth">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <form @submit.prevent="effectuerTransfert" class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="label-md3">Entrepôt source</label>
+                        <select x-model="transfert.source" @change="transfert.produit = ''; chargerProduitsSource()" class="input-md3 rounded-lg w-full" required>
+                            <option value="">Sélectionner...</option>
+                            <template x-for="e in entrepotsListe" :key="e.id">
+                                <option :value="e.id" x-text="e.nom + ' (' + e.code + ')'" :disabled="e.id === transfert.dest"></option>
+                            </template>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="label-md3">Entrepôt destination</label>
+                        <select x-model="transfert.dest" class="input-md3 rounded-lg w-full" required>
+                            <option value="">Sélectionner...</option>
+                            <template x-for="e in entrepotsListe" :key="e.id">
+                                <option :value="e.id" x-text="e.nom + ' (' + e.code + ')'" :disabled="e.id === transfert.source"></option>
+                            </template>
+                        </select>
+                    </div>
+                </div>
+
+                <div x-show="transfert.source">
+                    <label class="label-md3">Filtres <span class="text-on-surface-variant font-normal">— affinez la liste des produits</span></label>
+                    <div class="flex flex-wrap gap-2 mb-3">
+                        <select x-model="filtreDomaine" @change="chargerProduitsSource()" class="input-md3 rounded-lg text-xs py-1.5 px-2 min-w-[140px]">
+                            <option value="">Tous domaines</option>
+                            <template x-for="d in domainesListe" :key="d.id">
+                                <option :value="d.id" x-text="d.nom"></option>
+                            </template>
+                        </select>
+                        <select x-model="filtreCategorie" @change="chargerProduitsSource()" class="input-md3 rounded-lg text-xs py-1.5 px-2 min-w-[140px]">
+                            <option value="">Toutes catégories</option>
+                            <template x-for="c in categoriesListe" :key="c.id">
+                                <option :value="c.id" x-text="c.nom"></option>
+                            </template>
+                        </select>
+                        <input type="text" x-model="filtreSearch" @input.debounce="chargerProduitsSource()" placeholder="Rechercher un produit..."
+                               class="input-md3 rounded-lg text-xs py-1.5 px-2 min-w-[160px] flex-1">
+                    </div>
+
+                    <label class="label-md3">Produit <span class="text-on-surface-variant font-normal" x-text="'(' + produitsSource.length + ' résultats)'"></span></label>
+                    <div class="max-h-48 overflow-y-auto border border-outline/10 rounded-lg divide-y divide-outline/10">
+                        <template x-for="p in produitsSource" :key="p.produit_id">
+                            <div @click="transfert.produit = p.produit_id; transfertQuantiteMax = p.quantite"
+                                 class="flex items-center justify-between px-3 py-2 text-sm cursor-pointer"
+                                 :class="transfert.produit === p.produit_id ? 'bg-secondary/20 text-on-surface' : 'hover:bg-surface-container-high'"
+                                 :style="p.quantite <= 0 ? 'opacity:0.4;cursor:not-allowed' : ''">
+                                <div class="flex items-center gap-2 min-w-0">
+                                    <i class="fas fa-box text-on-surface-variant text-xs shrink-0"></i>
+                                    <span class="truncate font-medium" x-text="p.produit_nom"></span>
+                                    <span x-show="p.domaine" class="text-[10px] px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant shrink-0" x-text="p.domaine"></span>
+                                    <span x-show="p.categorie" class="text-[10px] px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant shrink-0" x-text="p.categorie"></span>
+                                </div>
+                                <span class="font-mono text-xs shrink-0 ml-2" :class="p.quantite > 0 ? 'text-green-400' : 'text-red-400'" x-text="p.quantite + ' dispo'"></span>
+                            </div>
+                        </template>
+                        <div x-show="!produitsSource.length" class="px-3 py-4 text-center text-xs text-on-surface-variant">Aucun produit trouvé</div>
+                    </div>
+                </div>
+
+                <div x-show="transfert.produit">
+                    <label class="label-md3">Quantité</label>
+                    <input type="number" x-model="transfert.quantite" min="1" :max="transfertQuantiteMax" class="input-md3 rounded-lg w-full" placeholder="Quantité à transférer" required>
+                    <p class="text-xs text-on-surface-variant mt-1">
+                        Max disponible : <span class="text-secondary font-semibold" x-text="transfertQuantiteMax"></span>
+                    </p>
+                </div>
+                <div x-show="transfertErreur" class="p-3 rounded-lg bg-red-900/30 text-red-300 text-sm" x-text="transfertErreur"></div>
+                <div class="flex gap-3 pt-2">
+                    <button type="submit" class="flex-1 btn-md3-primary py-2.5 rounded-lg" :disabled="transfertSaving || !transfert.source || !transfert.dest || !transfert.produit || !transfert.quantite || transfert.source === transfert.dest">
+                        <i class="fas fa-spinner fa-spin" x-show="transfertSaving" x-cloak></i>
+                        <span x-text="transfertSaving ? 'Transfert...' : 'Effectuer le transfert'"></span>
+                    </button>
+                    <button type="button" @click="transfertModal = false" class="flex-1 border border-outline/10 py-2.5 rounded-lg text-sm text-on-surface-variant hover:bg-surface-container transition-smooth">Annuler</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function stockApp() {
+    return {
+        tab: 'dashboard',
+        mouvements: [],
+        mouvementsCharge: false,
+        filtreType: '',
+        filtreMotif: '',
+        filtreEntrepot: '',
+        filtreProduit: '',
+        motifsDisponibles: [],
+        periode: '',
+        showModal: false,
+        saving: false,
+        form: { code: '', nom: '', type_entrepot: '' },
+        transfertModal: false,
+        transfertSaving: false,
+        transfertErreur: '',
+        transfert: { source: '', dest: '', produit: '', quantite: 1 },
+        entrepotsListe: [],
+        produitsSource: [],
+        transfertQuantiteMax: 0,
+        filtreDomaine: '',
+        filtreCategorie: '',
+        filtreSearch: '',
+        domainesListe: [],
+        categoriesListe: [],
+
+        async chargerMouvements() {
+            this.mouvementsCharge = true;
+            try {
+                const p = new URLSearchParams();
+                if (this.filtreType) p.set('type', this.filtreType);
+                if (this.filtreMotif) p.set('motif', this.filtreMotif);
+                if (this.filtreEntrepot) p.set('entrepot', this.filtreEntrepot);
+                if (this.filtreProduit) p.set('produit', this.filtreProduit);
+                if (this.periode) p.set('periode', this.periode);
+                const r = await fetch('/stock/api/mouvements/liste/?' + p.toString());
+                const d = await r.json();
+                if (d.success) this.mouvements = d.mouvements;
+            } catch(e) { console.error(e); }
+        },
+
+        setPeriode(p) { this.periode = p; this.chargerMouvements(); },
+
+        async chargerMotifs() {
+            try {
+                const r = await fetch('/stock/api/mouvements/motifs/');
+                const d = await r.json();
+                if (d.success) this.motifsDisponibles = d.motifs;
+            } catch(e) {}
+        },
+
+        async saveEntrepot() {
+            if (!this.form.code || !this.form.nom || !this.form.type_entrepot) return;
+            this.saving = true;
+            try {
+                const r = await fetch('/stock/api/entrepots/ajouter/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCookie('csrftoken') },
+                    body: JSON.stringify(this.form)
+                });
+                const d = await r.json();
+                if (d.success) {
+                    this.showModal = false;
+                    location.reload();
+                } else {
+                    alert('Erreur: ' + d.error);
+                }
+            } catch(e) {
+                alert('Erreur réseau');
+            } finally {
+                this.saving = false;
+            }
+        },
+
+        getCookie(name) {
+            let v = '; ' + document.cookie, p = v.split('; ' + name + '=');
+            return p.length === 2 ? p.pop().split(';').shift() : null;
+        },
+
+        /* ===== Transfert inter-entrepôts ===== */
+        async openTransfertModal() {
+            this.transfert = { source: '', dest: '', produit: '', quantite: 1, reference: '' };
+            this.produitsSource = [];
+            this.transfertQuantiteMax = 0;
+            this.filtreDomaine = '';
+            this.filtreCategorie = '';
+            this.filtreSearch = '';
+            this.transfertErreur = '';
+            this.transfertModal = true;
+            try {
+                const [re, rd, rc] = await Promise.all([
+                    fetch('/stock/api/entrepots/liste/'),
+                    fetch('/stock/api/domaines/liste/'),
+                    fetch('/stock/api/categories/liste/'),
+                ]);
+                const de = await re.json();
+                if (de.success) this.entrepotsListe = de.entrepots;
+                const dd = await rd.json();
+                if (dd.success) this.domainesListe = dd.domaines;
+                const dc = await rc.json();
+                if (dc.success) this.categoriesListe = dc.categories;
+            } catch(e) { console.error(e); }
+        },
+
+        async chargerProduitsSource() {
+            this.transfert.produit = '';
+            this.produitsSource = [];
+            this.transfertQuantiteMax = 0;
+            if (!this.transfert.source) return;
+            try {
+                const p = new URLSearchParams();
+                if (this.filtreDomaine) p.set('domaine', this.filtreDomaine);
+                if (this.filtreCategorie) p.set('categorie', this.filtreCategorie);
+                if (this.filtreSearch) p.set('search', this.filtreSearch);
+                const qs = p.toString();
+                const r = await fetch('/stock/api/entrepots/' + this.transfert.source + '/stocks/' + (qs ? '?' + qs : ''));
+                const d = await r.json();
+                if (d.success) this.produitsSource = d.stocks;
+            } catch(e) { console.error(e); }
+        },
+
+        async effectuerTransfert() {
+            if (!this.transfert.source || !this.transfert.dest || !this.transfert.produit || !this.transfert.quantite) return;
+            if (this.transfert.source === this.transfert.dest) { this.transfertErreur = 'La source et la destination doivent être différentes'; return; }
+            this.transfertSaving = true;
+            this.transfertErreur = '';
+            try {
+                const r = await fetch('/stock/api/transferts/effectuer/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCookie('csrftoken') },
+                    body: JSON.stringify({
+                        source: parseInt(this.transfert.source),
+                        dest: parseInt(this.transfert.dest),
+                        produit: parseInt(this.transfert.produit),
+                        quantite: parseFloat(this.transfert.quantite),
+                        reference: this.transfert.reference,
+                    })
+                });
+                const d = await r.json();
+                if (d.success) {
+                    this.transfertModal = false;
+                    location.reload();
+                } else {
+                    this.transfertErreur = d.error || 'Erreur lors du transfert';
+                }
+            } catch(e) {
+                this.transfertErreur = 'Erreur réseau';
+            } finally {
+                this.transfertSaving = false;
+            }
+        }
+    }
+}
+</script>
+{% endblock %}

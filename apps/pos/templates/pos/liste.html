@@ -1,0 +1,239 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Points de vente{% endblock %}
+
+{% block content %}
+<div x-data="posDashboard()" x-init="charger(true)" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
+
+    <!-- Header -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-on-surface"><i class="fas fa-store text-secondary mr-2"></i>Points de vente</h1>
+            <p class="text-sm text-on-surface-variant mt-1"><template x-if="!loading">🟢 En direct — mise à jour toutes les 30s</template><template x-if="loading">⏳ Chargement...</template></p>
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'pos:liste_ventes' %}" class="px-4 py-2 border border-outline/10 rounded-lg text-sm hover:bg-surface-container transition-smooth">
+                <i class="fas fa-history mr-1"></i>Ventes
+            </a>
+            <a href="{% url 'pos:planning' %}" class="px-4 py-2 border border-outline/10 rounded-lg text-sm hover:bg-surface-container transition-smooth">
+                <i class="fas fa-calendar-alt mr-1"></i>Planning
+            </a>
+            <template x-if="isAdmin">
+                <button @click="modalAjouter = true" class="btn-md3-primary text-sm px-4 py-2 rounded-lg">
+                    <i class="fas fa-plus mr-1"></i>Nouveau
+                </button>
+            </template>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="stat-card p-4">
+            <p class="text-xs text-on-surface-variant">Total points</p>
+            <p class="text-xl font-bold text-secondary mt-1" x-text="stats.total"></p>
+        </div>
+        <div class="stat-card p-4">
+            <p class="text-xs text-on-surface-variant">Actifs</p>
+            <p class="text-xl font-bold text-green-400 mt-1" x-text="stats.actifs"></p>
+        </div>
+        <div class="stat-card p-4">
+            <p class="text-xs text-on-surface-variant">Inactifs</p>
+            <p class="text-xl font-bold text-red-400 mt-1" x-text="stats.inactifs"></p>
+        </div>
+        <div class="stat-card p-4">
+            <p class="text-xs text-on-surface-variant">Ventes aujourd'hui</p>
+            <p class="text-xl font-bold text-secondary mt-1" x-text="formatMoney(stats.today_sales) + ' F'"></p>
+        </div>
+    </div>
+
+    <!-- Grille des points de vente -->
+    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <template x-for="p in points" :key="p.id">
+            <div class="card-md3 p-5 transition-all hover:border-secondary/30 relative">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center gap-3">
+                        <div class="w-10 h-10 rounded-xl bg-secondary-container/20 flex items-center justify-center">
+                            <i class="fas fa-store text-secondary"></i>
+                        </div>
+                        <div>
+                            <h3 class="font-semibold" x-text="p.nom"></h3>
+                            <p class="text-xs text-on-surface-variant font-mono" x-text="p.code + ' · ' + p.emplacement"></p>
+                        </div>
+                    </div>
+                    <span class="w-2 h-2 rounded-full mt-2"
+                          :class="p.session_active ? 'bg-green-500 animate-pulse' : 'bg-red-500'"></span>
+                </div>
+
+                <!-- Session active -->
+                <div class="mb-3 rounded-lg p-3 text-xs space-y-1"
+                     :class="p.session_active ? 'bg-green-900/20 border border-green-700/30' : 'bg-surface-container-high'">
+                    <template x-if="p.session_active">
+                        <div>
+                            <span class="text-green-400 font-semibold"><i class="fas fa-circle text-[8px] mr-1"></i>Session ouverte</span>
+                            <span class="text-on-surface-variant ml-2" x-text="'par ' + p.session_active.caissier"></span>
+                            <span class="text-on-surface-variant ml-1" x-text="'· ' + p.session_active.date_ouverture"></span>
+                            <div class="mt-1 text-secondary font-medium" x-text="'CA: ' + formatMoney(p.session_active.total_ventes) + ' F'"></div>
+                        </div>
+                    </template>
+                    <template x-if="!p.session_active">
+                        <span class="text-on-surface-variant"><i class="fas fa-circle text-[8px] mr-1 text-red-500"></i>Aucune session active</span>
+                    </template>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 text-sm">
+                    <div>
+                        <span class="text-on-surface-variant text-xs">Compte</span>
+                        <p class="font-medium" x-text="p.caisse_nom || '-'"></p>
+                    </div>
+                    <div>
+                        <span class="text-on-surface-variant text-xs">Entrepôt</span>
+                        <p class="font-medium" x-text="p.entrepot_nom || '-'"></p>
+                    </div>
+                    <div>
+                        <span class="text-on-surface-variant text-xs">Planifiés ajd</span>
+                        <p class="font-medium" :class="p.employes_planifies > 0 ? 'text-green-400' : ''" x-text="p.employes_planifies"></p>
+                    </div>
+                    <div>
+                        <span class="text-on-surface-variant text-xs">Ventes ajd</span>
+                        <p class="font-medium text-secondary" x-text="formatMoney(p.today_sales) + ' F'"></p>
+                    </div>
+                </div>
+
+                <!-- Quick actions -->
+                <div class="flex gap-2 mt-4 pt-3 border-t border-outline/10">
+                    <a :href="'/pos/' + p.id + '/'" class="flex-1 text-center px-3 py-2 rounded-lg text-xs font-medium bg-secondary/10 text-secondary hover:bg-secondary/20 transition-smooth">
+                        <i class="fas fa-eye mr-1"></i>Détails
+                    </a>
+                    <a :href="'/pos/caisse/' + p.code.toLowerCase() + '/'" class="flex-1 text-center px-3 py-2 rounded-lg text-xs font-medium bg-secondary text-black hover:bg-secondary/80 transition-smooth">
+                        <i class="fas fa-cash-register mr-1"></i>POS
+                    </a>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <!-- Empty state -->
+    <div x-show="!loading && points.length === 0" class="col-span-full text-center py-16 text-on-surface-variant">
+        <i class="fas fa-store text-5xl mb-4 block"></i>
+        <p class="text-sm">Aucun point de vente</p>
+    </div>
+
+    <!-- Modal Ajouter -->
+    <div x-show="modalAjouter" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.away="modalAjouter = false">
+        <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-lg mx-4 overflow-hidden" @click.stop>
+            <div class="flex items-center justify-between px-6 py-4 border-b border-outline/10">
+                <h2 class="text-lg font-semibold"><i class="fas fa-plus-circle text-secondary mr-2"></i>Ajouter un point de vente</h2>
+                <button @click="modalAjouter = false; ajoutErreur = ''" class="text-on-surface-variant hover:text-on-surface"><i class="fas fa-times text-xl"></i></button>
+            </div>
+            <form @submit.prevent="soumettreAjout" class="p-6 space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-on-surface mb-1">Nom du point de vente *</label>
+                    <input type="text" x-model="ajoutNom" required
+                           class="w-full px-3 py-2 border border-outline/10 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50"
+                           placeholder="Ex: Restaurant principal, Bar piscine">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-on-surface mb-1">Compte associé *</label>
+                    <select x-model="ajoutCaisseId" required class="w-full px-3 py-2 border border-outline/10 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50">
+                        <option value="">Sélectionner un compte...</option>
+                        <template x-for="c in caissesDisponibles" :key="c.id">
+                            <option :value="c.id" x-text="c.nom + ' (' + formatMoney(c.solde) + ' F)'"></option>
+                        </template>
+                    </select>
+                </div>
+                <div x-show="ajoutSuccess" class="bg-green-900/20 rounded-lg p-4 text-sm text-green-300">
+                    <i class="fas fa-check-circle mr-2"></i>
+                    Point de vente créé. <span class="font-semibold" x-text="ajoutSuccessNom"></span><br>
+                    Login: <strong x-text="ajoutSuccessUser"></strong><br>
+                    Mot de passe: <strong x-text="ajoutSuccessPass"></strong>
+                </div>
+                <div x-show="ajoutErreur" class="bg-red-900/20 rounded-lg p-3 text-sm text-red-300" x-text="ajoutErreur"></div>
+                <div class="flex gap-3 pt-2" x-show="!ajoutSuccess">
+                    <button type="submit" class="bg-secondary text-white px-6 py-2 rounded-lg hover:bg-secondary/80 transition" :disabled="saving">
+                        <i class="fas fa-spinner fa-spin mr-1" x-show="saving"></i>
+                        <i class="fas fa-save mr-1" x-show="!saving"></i>
+                        Créer
+                    </button>
+                    <button type="button" @click="modalAjouter = false; ajoutErreur = ''" class="border border-outline/10 text-on-surface px-6 py-2 rounded-lg hover:bg-surface-container-low transition">Annuler</button>
+                </div>
+                <div class="flex gap-3 pt-2" x-show="ajoutSuccess">
+                    <button type="button" @click="modalAjouter = false; ajoutSuccess = ''; ajoutErreur = ''; charger()" class="bg-secondary text-white px-6 py-2 rounded-lg hover:bg-secondary/80 transition">
+                        <i class="fas fa-check mr-1"></i>Terminé
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function posDashboard() {
+    return {
+        points: [],
+        stats: { total: 0, actifs: 0, inactifs: 0, today_sales: 0 },
+        isAdmin: false,
+        loading: true,
+        modalAjouter: false,
+        ajoutNom: '',
+        ajoutCaisseId: '',
+        ajoutSuccess: false,
+        ajoutSuccessNom: '',
+        ajoutSuccessUser: '',
+        ajoutSuccessPass: '',
+        ajoutErreur: '',
+        saving: false,
+        caissesDisponibles: [],
+        intervalId: null,
+
+        async charger(initial) {
+            if (!initial) this.loading = true;
+            try {
+                const r = await fetch('/pos/api/point-vente/dashboard/');
+                const d = await r.json();
+                if (d.success) {
+                    this.points = d.points;
+                    this.stats = d.stats;
+                    this.isAdmin = d.is_admin;
+                    this.caissesDisponibles = d.caisses_disponibles || [];
+                }
+            } catch (e) {}
+            this.loading = false;
+        },
+
+        init() {
+            this.intervalId = setInterval(() => this.charger(false), 30000);
+        },
+
+        async soumettreAjout() {
+            this.saving = true;
+            this.ajoutErreur = '';
+            this.ajoutSuccess = false;
+            try {
+                const r = await fetch('/pos/api/point-vente/ajouter/', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
+                    body: JSON.stringify({nom: this.ajoutNom, caisse_id: this.ajoutCaisseId})
+                });
+                const d = await r.json();
+                this.saving = false;
+                if (d.success) {
+                    this.ajoutSuccess = true;
+                    this.ajoutSuccessNom = d.point.nom;
+                    this.ajoutSuccessUser = d.point.username;
+                    this.ajoutSuccessPass = d.point.password;
+                } else {
+                    this.ajoutErreur = d.error;
+                }
+            } catch (e) {
+                this.saving = false;
+                this.ajoutErreur = 'Erreur réseau';
+            }
+        },
+
+        formatMoney(v) { return new Intl.NumberFormat('fr-FR').format(v || 0); },
+    };
+}
+</script>
+{% endblock %}

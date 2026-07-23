@@ -1,0 +1,37 @@
+<div class="overflow-x-auto">
+    <table class="w-full min-w-[720px]">
+        <thead class="bg-surface-container-high">
+            <tr class="border-b border-outline/10 text-sm text-on-surface-variant">
+                <th class="px-4 py-3 text-left font-medium">Code</th>
+                <th class="px-4 py-3 text-left font-medium">Nom</th>
+                <th class="px-4 py-3 text-left font-medium">Type</th>
+                <th class="px-4 py-3 text-right font-medium">Capacite</th>
+                <th class="px-4 py-3 text-right font-medium">Prix/h</th>
+                <th class="px-4 py-3 text-center font-medium">Statut</th>
+                <th class="px-4 py-3 text-center font-medium">Actions</th>
+            </tr>
+        </thead>
+        <tbody class="divide-y divide-outline/10">
+            <template x-for="u in unites" :key="u.id">
+                <tr class="hover:bg-surface-container-low transition-colors">
+                    <td class="px-4 py-3 font-medium text-on-surface" x-text="u.code"></td>
+                    <td class="px-4 py-3 text-on-surface" x-text="u.nom"></td>
+                    <td class="px-4 py-3 text-on-surface" x-text="u.type_display || u.type_unite"></td>
+                    <td class="px-4 py-3 text-right text-on-surface" x-text="u.capacite"></td>
+                    <td class="px-4 py-3 text-right font-mono text-secondary" x-text="formatMoney(u.prix) + ' F'"></td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="rounded-full bg-surface-container-high px-2 py-1 text-xs text-on-surface-variant" x-text="u.statut"></span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <button @click="supprimerUnite(u.id, u.code)" class="text-red-400 hover:text-red-300 transition" title="Supprimer">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>
+            </template>
+            <tr x-show="unites.length === 0">
+                <td colspan="7" class="px-4 py-8 text-center text-on-surface-variant">Aucune unite chargee</td>
+            </tr>
+        </tbody>
+    </table>
+</div>

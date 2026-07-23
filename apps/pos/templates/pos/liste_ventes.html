@@ -1,0 +1,373 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Historique des ventes{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto py-8 px-4" x-data="historique()" x-init="init()">
+
+    <!-- Header with stats cards -->
+    <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
+        <div>
+            <h1 class="text-2xl font-bold">Historique des ventes</h1>
+            <p class="text-sm text-on-surface-variant">Toutes les transactions validées</p>
+        </div>
+        <div class="flex items-center gap-3 text-sm">
+            <span class="bg-surface-container-high px-3 py-1.5 rounded-lg font-medium" x-text="itemsFiltres.length + ' entrée' + (itemsFiltres.length > 1 ? 's' : '')"></span>
+            <span class="bg-primary/20 text-primary px-3 py-1.5 rounded-lg font-bold text-base" x-text="formatMoney(total) + ' F'"></span>
+        </div>
+    </div>
+
+    <!-- Filtres -->
+    <div class="bg-surface-container-low rounded-xl p-4 mb-6 flex flex-wrap gap-3 items-end border border-outline/10">
+        <div>
+            <label class="label-md3 text-xs text-on-surface-variant">Point de vente</label>
+            <select x-model="filtrePointVente" @change="filtrer()" class="input-md3 rounded-lg text-sm">
+                <option value="">Tous</option>
+                {% for pv in points_vente %}
+                <option value="{{ pv.id }}">{{ pv.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="label-md3 text-xs text-on-surface-variant">Employé</label>
+            <select x-model="filtreEmploye" @change="filtrer()" class="input-md3 rounded-lg text-sm">
+                <option value="">Tous</option>
+                {% for emp in employes %}
+                <option value="{{ emp.id }}">{{ emp.nom_complet }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="label-md3 text-xs text-on-surface-variant">Du</label>
+            <input type="date" x-model="filtreDateDebut" @change="filtrer()" class="input-md3 rounded-lg text-sm">
+        </div>
+        <div>
+            <label class="label-md3 text-xs text-on-surface-variant">Au</label>
+            <input type="date" x-model="filtreDateFin" @change="filtrer()" class="input-md3 rounded-lg text-sm">
+        </div>
+        <div>
+            <label class="label-md3 text-xs text-on-surface-variant">Heure début</label>
+            <input type="time" x-model="filtreHeureDebut" @change="filtrer()" class="input-md3 rounded-lg text-sm">
+        </div>
+        <div>
+            <label class="label-md3 text-xs text-on-surface-variant">Heure fin</label>
+            <input type="time" x-model="filtreHeureFin" @change="filtrer()" class="input-md3 rounded-lg text-sm">
+        </div>
+        <div>
+            <label class="label-md3 text-xs text-on-surface-variant">Domaine</label>
+            <select x-model="filtreDomaine" @change="filtrer()" class="input-md3 rounded-lg text-sm">
+                <option value="">Tous</option>
+                <option value="brasserie">🍺 Brasserie</option>
+                <option value="restaurant">🍽️ Restaurant</option>
+                <option value="hotel">🏨 Hôtel</option>
+            </select>
+        </div>
+        <div>
+            <label class="label-md3 text-xs text-on-surface-variant">Session</label>
+            <select x-model="filtreSession" @change="filtrer()" class="input-md3 rounded-lg text-sm max-w-[220px]">
+                <option value="">Toutes</option>
+                {% for s in sessions %}
+                <option value="{{ s.id }}">#{{ s.id }} — {{ s.point_vente.nom|default:"?" }} {{ s.date_ouverture|date:"d/m H:i" }}{% if s.caissier_ouverture %} ({{ s.caissier_ouverture.nom_complet }}){% endif %}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div>
+            <label class="label-md3 text-xs text-on-surface-variant">Produit</label>
+            <select x-model="filtreProduit" @change="filtrer()" class="input-md3 rounded-lg text-sm max-w-[200px]">
+                <option value="">Tous</option>
+                {% for p in produits %}
+                <option value="{{ p.id }}">{{ p.nom }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="flex gap-1">
+            <button @click="setPeriode('aujourdhui')" class="text-xs px-3 py-2 rounded-lg font-medium transition-colors"
+                    :class="periode === 'aujourdhui' ? 'bg-secondary text-black' : 'bg-surface-container-high hover:bg-surface-container text-on-surface-variant'">Aujourd'hui</button>
+            <button @click="setPeriode('mois')" class="text-xs px-3 py-2 rounded-lg font-medium transition-colors"
+                    :class="periode === 'mois' ? 'bg-secondary text-black' : 'bg-surface-container-high hover:bg-surface-container text-on-surface-variant'">Ce mois</button>
+            <button @click="setPeriode('')" class="text-xs px-3 py-2 rounded-lg font-medium transition-colors"
+                    :class="!periode ? 'bg-secondary text-black' : 'bg-surface-container-high hover:bg-surface-container text-on-surface-variant'">Tout</button>
+        </div>
+    </div>
+
+    <!-- Tableau -->
+    <div class="bg-surface-container-low rounded-xl shadow-md overflow-hidden border border-outline/10">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-surface-container-high">
+                    <tr class="border-b border-outline/10">
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase tracking-wider">N°</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Date</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Point de vente</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Client</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Caissier</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Montant</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Paiement</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Statut</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="item in itemsFiltres" :key="item.id">
+                        <tr class="border-t border-outline/10 hover:bg-surface-container-high/50 transition-colors cursor-pointer" @click="detailVente = item">
+                            <td class="px-4 py-3 font-mono text-sm font-medium" x-text="item.numero"></td>
+                            <td class="px-4 py-3 text-sm whitespace-nowrap" x-text="item.date"></td>
+                            <td class="px-4 py-3 text-sm" x-text="item.point_vente"></td>
+                            <td class="px-4 py-3 text-sm max-w-[160px] truncate" x-text="item.client || '-'"></td>
+                            <td class="px-4 py-3 text-sm" x-text="item.caissier || '-'"></td>
+                            <td class="px-4 py-3 text-right font-semibold" x-text="formatMoney(item.montant) + ' F'"></td>
+                            <td class="px-4 py-3 text-sm" x-text="item.mode_paiement || '-'"></td>
+                            <td class="px-4 py-3">
+                                <span class="px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap"
+                                      :class="{
+                                        'bg-green-900/30 text-green-400': item.statut_code === 'PAYEE' || item.statut_code === 'SERVIE' || item.statut_code === 'TERMINEE',
+                                        'bg-blue-900/30 text-blue-400': item.statut_code === 'LIVREE',
+                                        'bg-yellow-900/30 text-yellow-400': item.statut_code === 'EN_COURS' || item.statut_code === 'EN_ATTENTE',
+                                        'bg-red-900/30 text-red-400': item.statut_code === 'ANNULEE'
+                                      }"
+                                      x-text="item.statut"></span>
+                            </td>
+                        </tr>
+                    </template>
+                    <tr x-show="!itemsFiltres.length">
+                        <td colspan="8" class="text-center py-12 text-on-surface-variant">
+                            <div class="flex flex-col items-center gap-2">
+                                <svg class="w-10 h-10 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                                <span>Aucune vente trouvée</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Modal détail vente -->
+    <div x-show="detailVente" class="fixed inset-0 z-50 flex items-center justify-center p-4"
+         @keydown.escape.window="detailVente = null">
+        <div class="fixed inset-0 bg-black/60" @click="detailVente = null"></div>
+        <div class="relative bg-surface-container-low rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-outline/10">
+            <template x-if="detailVente">
+                <div class="p-6">
+                        <!-- Header modal -->
+                        <div class="flex items-center justify-between mb-4">
+                            <div>
+                                <h2 class="text-lg font-bold" x-text="'Vente ' + detailVente.numero"></h2>
+                                <p class="text-sm text-on-surface-variant" x-text="detailVente.date"></p>
+                            </div>
+                            <button @click="detailVente = null" class="p-2 hover:bg-surface-container-high rounded-xl transition-colors">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+
+                        <!-- Infos vente -->
+                        <div class="bg-surface-container-high rounded-xl p-4 mb-4 space-y-2 text-sm">
+                            <div class="flex justify-between">
+                                <span class="text-on-surface-variant">Point de vente</span>
+                                <span class="font-medium" x-text="detailVente.point_vente"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-on-surface-variant">Client</span>
+                                <span class="font-medium" x-text="detailVente.client || '-'"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-on-surface-variant">Caissier</span>
+                                <span class="font-medium" x-text="detailVente.caissier || '-'"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-on-surface-variant">Paiement</span>
+                                <span class="font-medium" x-text="detailVente.mode_paiement || '-'"></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-on-surface-variant">Statut</span>
+                                <span class="px-2 py-0.5 rounded-full text-xs font-medium"
+                                      :class="detailVente.statut_code === 'PAYEE' || detailVente.statut_code === 'SERVIE' || detailVente.statut_code === 'TERMINEE' ? 'bg-green-900/30 text-green-400' : 'bg-yellow-900/30 text-yellow-400'"
+                                      x-text="detailVente.statut"></span>
+                            </div>
+                        </div>
+
+                        <!-- Articles -->
+                        <div class="mb-4">
+                            <h3 class="text-sm font-semibold text-on-surface-variant mb-2 flex items-center gap-1.5">
+                                Articles
+                                <span class="text-xs bg-surface-container-high px-2 py-0.5 rounded-full" x-text="detailVente.lignes_count || 0"></span>
+                            </h3>
+                            <template x-if="detailVente.lignes && detailVente.lignes.length">
+                                <div class="space-y-1">
+                                    <template x-for="(ligne, idx) in detailVente.lignes" :key="idx">
+                                        <div class="flex items-center justify-between text-sm py-1.5 px-3 bg-surface-container-high/50 rounded-lg">
+                                            <div class="flex-1 min-w-0">
+                                                <span class="font-medium truncate block" x-text="ligne.nom"></span>
+                                            </div>
+                                            <div class="flex items-center gap-3 text-on-surface-variant flex-shrink-0 ml-3">
+                                                <span x-text="formatMoney(ligne.prix) + ' F'"></span>
+                                                <span class="text-xs">×</span>
+                                                <span x-text="ligne.quantite"></span>
+                                                <span class="font-semibold text-right w-20" x-text="formatMoney(ligne.total) + ' F'"></span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                            <template x-if="!detailVente.lignes || !detailVente.lignes.length">
+                                <p class="text-sm text-on-surface-variant italic">Aucun article détaillé</p>
+                            </template>
+                        </div>
+
+                        <!-- Total -->
+                        <div class="bg-primary/10 rounded-xl p-4 flex items-center justify-between mb-4">
+                            <span class="text-sm font-semibold">Total</span>
+                            <span class="text-xl font-bold text-primary" x-text="formatMoney(detailVente.montant) + ' F'"></span>
+                        </div>
+
+                        <!-- Actions -->
+                        <div class="flex gap-2">
+                            <button @click="imprimer(detailVente)" class="flex-1 flex items-center justify-center gap-2 bg-surface-container-high hover:bg-surface-container rounded-xl py-3 text-sm font-medium transition-colors">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                                Réimprimer le reçu
+                            </button>
+                            <button @click="detailVente = null" class="px-6 bg-surface-container-high hover:bg-surface-container rounded-xl py-3 text-sm font-medium transition-colors">
+                                Fermer
+                            </button>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+function historique() {
+    return {
+        filtrePointVente: '',
+        filtreEmploye: '',
+        filtreDateDebut: '',
+        filtreDateFin: '',
+        filtreHeureDebut: '',
+        filtreHeureFin: '',
+        filtreDomaine: '',
+        filtreSession: '',
+        filtreProduit: '',
+        periode: '',
+        ventes: [],
+        detailVente: null,
+
+        get items() {
+            return this.ventes;
+        },
+
+        get itemsFiltres() {
+            let result = this.items;
+            if (this.filtrePointVente) result = result.filter(i => i.point_vente_id == this.filtrePointVente);
+            if (this.filtreEmploye) result = result.filter(i => i.caissier_id == this.filtreEmploye);
+            result.sort((a, b) => {
+                const da = a.dateOrig || a.date;
+                const db = b.dateOrig || b.date;
+                return db.localeCompare(da);
+            });
+            return result;
+        },
+
+        get total() {
+            return this.itemsFiltres.reduce((s, i) => s + (i.montant || 0), 0);
+        },
+
+        init() {
+            this.chargerVentes();
+        },
+
+        setPeriode(p) {
+            this.periode = p;
+            const now = new Date();
+            if (p === 'aujourdhui') {
+                this.filtreDateDebut = now.toISOString().slice(0, 10);
+                this.filtreDateFin = now.toISOString().slice(0, 10);
+            } else if (p === 'mois') {
+                this.filtreDateDebut = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().slice(0, 10);
+                this.filtreDateFin = now.toISOString().slice(0, 10);
+            } else {
+                this.filtreDateDebut = '';
+                this.filtreDateFin = '';
+            }
+            this.filtrer();
+        },
+
+        filtrer() {
+            this.chargerVentes();
+        },
+
+        async chargerVentes() {
+            const p = new URLSearchParams();
+            if (this.filtrePointVente) p.set('point_vente', this.filtrePointVente);
+            if (this.filtreEmploye) p.set('employe_id', this.filtreEmploye);
+            if (this.filtreDateDebut) p.set('date_debut', this.filtreDateDebut);
+            if (this.filtreDateFin) p.set('date_fin', this.filtreDateFin);
+            if (this.filtreHeureDebut) p.set('heure_debut', this.filtreHeureDebut);
+            if (this.filtreHeureFin) p.set('heure_fin', this.filtreHeureFin);
+            if (this.filtreDomaine) p.set('domaine', this.filtreDomaine);
+            if (this.filtreSession) p.set('session_id', this.filtreSession);
+            if (this.filtreProduit) p.set('produit_id', this.filtreProduit);
+            try {
+                const r = await fetch('/pos/api/ventes/?' + p);
+                const d = await r.json();
+                if (d.success) this.ventes = d.ventes;
+            } catch(e) {}
+        },
+
+        ouvrirDetail(item) {
+            this.detailVente = item;
+        },
+
+        imprimer(item) {
+            const venteId = item.id;
+            if (item.is_commande) {
+                alert('Réimpression non disponible pour les commandes non payées.');
+                return;
+            }
+            fetch(`/pos/api/ventes/${venteId}/recu/`)
+                .then(r => r.json())
+                .then(d => {
+                    if (!d.success) return alert('Reçu introuvable');
+                    const recu = d.recu;
+                    const now = new Date(recu.date);
+                    const dateStr = now.toLocaleDateString('fr-FR') + ' ' + now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
+                    let lignesHtml = '';
+                    if (recu.lignes && recu.lignes.length) {
+                        lignesHtml = '<div class="row row-items items-header"><span class="item-desc">Article</span><span class="item-qty">Qt\u00E9</span><span class="item-price">PU</span><span class="item-total">Total</span></div>';
+                        recu.lignes.forEach(l => {
+                            lignesHtml += '<div class="row row-items"><span class="item-desc">' + l.description + '</span><span class="item-qty">' + l.quantite + '</span><span class="item-price">' + new Intl.NumberFormat('fr-FR').format(l.prix_unitaire) + '</span><span class="item-total">' + new Intl.NumberFormat('fr-FR').format(l.total_ttc) + '</span></div>';
+                        });
+                    }
+                    const styles = '@page{size:80mm auto;margin:0}*{margin:0;padding:0;box-sizing:border-box}body{font-family:"Courier New",monospace;font-size:12px;line-height:1.3;color:#000;width:80mm;padding:2mm 3mm;background:#fff}.header{text-align:center;border-bottom:1px dashed #333;padding-bottom:4px;margin-bottom:6px}.header h1{font-size:16px;font-weight:bold;letter-spacing:1px;text-transform:uppercase}.receipt-title{text-align:center;font-size:14px;font-weight:bold;margin:4px 0}.divider{border-top:1px dashed #333;margin:4px 0}.row{display:flex;justify-content:space-between;font-size:11px}.row-items{display:flex;justify-content:space-between;font-size:11px;padding:1px 0}.items-header{border-bottom:1px dashed #333;padding-bottom:2px;margin-bottom:2px;font-weight:bold}.item-desc{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.item-qty{width:30px;text-align:center}.item-price{width:50px;text-align:right}.item-total{width:60px;text-align:right}.total{font-weight:bold;font-size:13px;border-top:1px solid #333;border-bottom:1px solid #333;padding:4px 0;margin:4px 0}.payment-info{font-size:11px;margin:4px 0}.payment-info div{margin:1px 0}.footer{text-align:center;font-size:10px;margin-top:6px;padding-top:4px;border-top:1px dashed #333}.footer .merci{font-size:14px;font-weight:bold;margin:2px 0}.no-print{text-align:center;margin:10px 0}.no-print button{background:#000;color:#fff;border:none;padding:8px 24px;font-size:14px;border-radius:4px;cursor:pointer;margin:0 4px}.no-print button:hover{opacity:0.8}@media print{.no-print{display:none}@page{margin:0}body{margin:0;padding:2mm 3mm}}';
+                    const html = '<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Re\u00E7u ' + recu.reference + '</title><style>' + styles + '</style></head><body>'
+                        + '<div class="no-print"><button onclick="window.print()">\uD83D\uDDA8\uFE0F Imprimer</button><button onclick="window.close()" style="background:#666;">Fermer</button></div>'
+                        + '<div class="header"><h1>R\u00E9sidence DAMOU</h1></div>'
+                        + '<div class="receipt-title">RE\u00C7U DE CAISSE</div>'
+                        + '<div class="divider"></div>'
+                        + '<div class="row"><span>R\u00E9f: <strong>' + recu.reference + '</strong></span><span>' + dateStr + '</span></div>'
+                        + (recu.point_vente ? '<div class="row"><span>PV:</span><span>' + recu.point_vente + '</span></div>' : '')
+                        + (recu.client_nom ? '<div class="row"><span>Client:</span><span>' + recu.client_nom + '</span></div>' : '')
+                        + '<div class="divider"></div>'
+                        + (lignesHtml ? lignesHtml + '<div class="divider"></div>' : '')
+                        + '<div class="row total"><span>MONTANT TOTAL</span><span>' + new Intl.NumberFormat('fr-FR').format(recu.montant) + ' F</span></div>'
+                        + '<div class="divider"></div>'
+                        + '<div class="payment-info">'
+                        + '<div class="row"><span>Mode</span><span><strong>' + recu.mode_label + '</strong></span></div>'
+                        + (recu.servi_par ? '<div class="row"><span>Servi par:</span><span>' + recu.servi_par + '</span></div>' : '')
+                        + (recu.caisse ? '<div class="row"><span>Caisse:</span><span>' + recu.caisse + '</span></div>' : '')
+                        + '</div>'
+                        + '<div class="footer"><div class="merci">MERCI DE VOTRE VISITE</div><div style="font-size:9px;">' + recu.reference + '</div></div>'
+                        + '</body></html>';
+                    const w = window.open('', '_blank', 'width=400,height=600');
+                    if (w) { w.document.write(html); w.document.close(); }
+                })
+                .catch(e => alert('Erreur: ' + e.message));
+        },
+
+        formatMoney(v) { return new Intl.NumberFormat('fr-FR').format(v || 0); }
+    }
+}
+</script>
+{% endblock %}

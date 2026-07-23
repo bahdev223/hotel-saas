@@ -1,0 +1,31 @@
+<div class="card-md3 overflow-hidden">
+    <div class="flex items-center justify-between border-b border-outline/10 bg-surface-container-high px-6 py-4">
+        <h3 class="font-semibold text-on-surface">Clients</h3>
+        <button @click="openModal('client')" class="btn-md3-primary px-3 py-2 text-sm rounded-lg"><i class="fas fa-plus mr-1"></i>Ajouter</button>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full min-w-[720px]">
+            <thead class="bg-surface-container-high">
+                <tr class="border-b border-outline/10 text-sm text-on-surface-variant">
+                    <th class="px-4 py-3 text-left font-medium">Nom</th>
+                    <th class="px-4 py-3 text-left font-medium">Telephone</th>
+                    <th class="px-4 py-3 text-left font-medium">Email</th>
+                    <th class="px-4 py-3 text-left font-medium">Adresse</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-outline/10">
+                <template x-for="c in clients" :key="c.id">
+                    <tr class="hover:bg-surface-container-low transition-colors">
+                        <td class="px-4 py-3 font-medium text-on-surface" x-text="c.nom + ' ' + c.prenom"></td>
+                        <td class="px-4 py-3 text-on-surface" x-text="c.telephone"></td>
+                        <td class="px-4 py-3 text-on-surface" x-text="c.email || '-'"></td>
+                        <td class="px-4 py-3 text-on-surface" x-text="c.adresse || '-'"></td>
+                    </tr>
+                </template>
+                <tr x-show="clients.length === 0">
+                    <td colspan="4" class="px-4 py-8 text-center text-on-surface-variant">Aucun client charge</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>

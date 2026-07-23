@@ -1,0 +1,88 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load static %}
+{% load compta_filters %}
+
+{% block title %}Dépôt client - Comptabilité{% endblock %}
+
+{% block header %}Dépôt client{% endblock %}
+{% block subtitle %}Approvisionnement du compte client{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <form method="post" class="bg-surface-container-low rounded-2xl border-outline/10 p-6 space-y-4">
+        {% csrf_token %}
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-medium mb-1">Date *</label>
+                <input type="date" name="date_operation" required value="{{ today|date:'Y-m-d' }}" class="w-full px-3 py-2 input-md3 rounded-lg">
+            </div>
+            <div>
+                <label class="block text-sm font-medium mb-1">Mode de paiement</label>
+                <select name="mode_paiement" class="w-full px-3 py-2 input-md3 rounded-lg">
+                    <option value="ESPECES">💰 Espèces</option>
+                    <option value="CARTE">💳 Carte bancaire</option>
+                    <option value="VIREMENT">🏦 Virement</option>
+                    <option value="CHEQUE">📄 Chèque</option>
+                    <option value="MOBILE_MONEY">📱 Mobile Money</option>
+                </select>
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium mb-1">Client *</label>
+            <select name="client_id" id="client-select" required class="w-full px-3 py-2 input-md3 rounded-lg">
+                <option value="">-- Sélectionner un client --</option>
+                {% for client in clients %}
+                <option value="{{ client.id }}" data-solde="{{ client_soldes|get_item:client.id|floatformat:0 }}">{{ client.nom_complet }}</option>
+                {% endfor %}
+            </select>
+            <div id="solde-display" class="mt-2 text-sm hidden">
+                <span class="text-on-surface-variant">Solde actuel :</span>
+                <span id="solde-value" class="font-mono font-semibold text-green-400">0 F</span>
+            </div>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium mb-1">Montant (FCFA) *</label>
+            <input type="number" step="1" name="montant" required min="1" class="w-full px-3 py-2 input-md3 rounded-lg" placeholder="Montant déposé">
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium mb-1">Caisse *</label>
+            <select name="caisse_id" required class="w-full px-3 py-2 input-md3 rounded-lg">
+                <option value="">-- Sélectionner --</option>
+                {% for caisse in caisses %}
+                <option value="{{ caisse.id }}">{{ caisse.nom }} ({{ caisse.code }})</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div>
+            <label class="block text-sm font-medium mb-1">Notes</label>
+            <textarea name="notes" rows="2" class="w-full px-3 py-2 input-md3 rounded-lg" placeholder="Motif du dépôt (optionnel)"></textarea>
+        </div>
+
+        <div class="flex gap-3 pt-4">
+            <button type="submit" class="flex-1 bg-secondary text-on-secondary py-2 rounded-lg">Enregistrer le dépôt</button>
+            <a href="{% url 'comptabilite:operations' %}" class="flex-1 border-outline/10 py-2 rounded-lg text-center text-on-surface">Annuler</a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.getElementById('client-select').addEventListener('change', function() {
+    const display = document.getElementById('solde-display');
+    const value = document.getElementById('solde-value');
+    const selected = this.options[this.selectedIndex];
+    if (selected && selected.value) {
+        const solde = parseFloat(selected.dataset.solde) || 0;
+        value.textContent = solde.toLocaleString() + ' F';
+        value.className = 'font-mono font-semibold ' + (solde >= 0 ? 'text-green-400' : 'text-red-400');
+        display.classList.remove('hidden');
+    } else {
+        display.classList.add('hidden');
+    }
+});
+</script>
+{% endblock %}

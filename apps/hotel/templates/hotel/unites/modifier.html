@@ -1,0 +1,115 @@
+{% extends 'hotel/base_hotel.html' %}
+{% load static %}
+
+{% block title %}Modifier {{ unite.nom }}{% endblock %}
+{% block header %}<i class="fas fa-edit text-secondary mr-2"></i>{{ unite.code }} - {{ unite.nom }}{% endblock %}
+{% block subtitle %}Modifier une chambre (VIP ou Standard){% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <form method="post" enctype="multipart/form-data" class="card-md3 p-6 space-y-5">
+        {% csrf_token %}
+
+        {% if messages %}
+        <div class="space-y-2">
+            {% for message in messages %}
+            <div class="rounded-lg p-4 text-sm {% if message.tags == 'success' %}bg-green-900/30 text-green-300{% elif message.tags == 'error' %}bg-red-900/30 text-red-300{% else %}bg-secondary-container/20 text-on-surface{% endif %}">
+                <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %} mr-2"></i>{{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="label-md3">Code</label>
+                <input type="text" name="code" value="{{ unite.code }}" class="input-md3 rounded-lg w-full" required>
+            </div>
+            <div>
+                <label class="label-md3">Type</label>
+                <select name="type_unite" class="input-md3 rounded-lg w-full">
+                    {% for key, label in type_choices %}
+                    <option value="{{ key }}" {% if unite.type_unite == key %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <p class="text-[10px] text-on-surface-variant mt-1">Chambre (Standard) ou VIP uniquement</p>
+            </div>
+            <div class="col-span-2">
+                <label class="label-md3">Nom</label>
+                <input type="text" name="nom" value="{{ unite.nom }}" class="input-md3 rounded-lg w-full" required>
+            </div>
+            <div>
+                <label class="label-md3">Capacité (personnes)</label>
+                <input type="number" name="capacite" value="{{ unite.capacite }}" min="1" class="input-md3 rounded-lg w-full">
+            </div>
+            <div>
+                <label class="label-md3">Surface (m²)</label>
+                <input type="number" name="surface_m2" step="0.1" value="{{ unite.surface_m2|default:'' }}" class="input-md3 rounded-lg w-full" placeholder="Optionnel">
+            </div>
+            <div>
+                <label class="label-md3">Prix par heure (F)</label>
+                <input type="number" name="prix" step="100" value="{{ unite.prix }}" class="input-md3 rounded-lg w-full" required>
+            </div>
+            <div>
+                <label class="label-md3">Prix par jour (F)</label>
+                <input type="number" name="prix_jour" step="100" value="{{ unite.prix_jour }}" class="input-md3 rounded-lg w-full">
+            </div>
+        </div>
+
+        <div>
+            <label class="label-md3">Description</label>
+            <textarea name="description" rows="3" class="input-md3 rounded-lg w-full text-sm" placeholder="Optionnel...">{{ unite.description|default:'' }}</textarea>
+        </div>
+
+        <div>
+            <label class="label-md3">Image</label>
+            <div class="mt-1 relative">
+                {% if unite.image %}
+                <div class="mb-3 relative w-48 aspect-video rounded-lg overflow-hidden bg-surface-container-high">
+                    <img src="{{ unite.image.url }}" class="w-full h-full object-cover">
+                </div>
+                {% endif %}
+                <div id="preview-container" class="hidden mb-3 relative w-48 aspect-video rounded-lg overflow-hidden bg-surface-container-high">
+                    <img id="image-preview" class="w-full h-full object-cover">
+                    <button type="button" onclick="clearImage()" class="absolute top-1 right-1 w-6 h-6 bg-black/50 rounded-full flex items-center justify-center text-white text-xs hover:bg-black/70"><i class="fas fa-times"></i></button>
+                </div>
+                <input type="file" name="image" accept="image/*" onchange="previewImage(event)" class="input-md3 rounded-lg w-full text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-secondary file:text-on-secondary file:text-xs file:font-bold hover:file:bg-secondary/90">
+            </div>
+        </div>
+
+        <div>
+            <label class="label-md3">Équipements</label>
+            <div class="flex flex-wrap gap-2">
+                {% for eq in equipements_list %}
+                <label class="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container-high cursor-pointer hover:bg-surface-container text-sm transition-smooth">
+                    <input type="checkbox" name="equipements" value="{{ eq }}" {% if eq in unite.equipements %}checked{% endif %} class="accent-secondary">
+                    {{ eq }}
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="flex gap-3 pt-2">
+            <button type="submit" class="flex-1 btn-md3-primary py-2 rounded-lg"><i class="fas fa-save mr-1"></i>Enregistrer</button>
+            <a href="{% url 'hotel:detail_unite' unite.id %}" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm text-center hover:bg-surface-container transition-smooth">Annuler</a>
+        </div>
+    </form>
+</div>
+
+<script>
+function previewImage(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+        document.getElementById('image-preview').src = ev.target.result;
+        document.getElementById('preview-container').classList.remove('hidden');
+    };
+    reader.readAsDataURL(file);
+}
+function clearImage() {
+    document.querySelector('input[name="image"]').value = '';
+    document.getElementById('preview-container').classList.add('hidden');
+}
+</script>
+{% endblock %}

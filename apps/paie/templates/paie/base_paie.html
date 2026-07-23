@@ -1,0 +1,21 @@
+<!-- apps/paie/templates/paie/base_paie.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Paie - Résidence DAMOU{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-on-surface">Gestion de paie</h1>
+        <div class="flex gap-2">
+            <a href="{% url 'paie:dashboard' %}" class="btn btn-sm btn-outline">Dashboard</a>
+            <a href="{% url 'paie:liste_bulletins' %}" class="btn btn-sm btn-outline">Bulletins</a>
+            <a href="{% url 'paie:liste_periodes' %}" class="btn btn-sm btn-outline">Périodes</a>
+            <a href="{% url 'paie:liste_rubriques' %}" class="btn btn-sm btn-outline">Rubriques</a>
+        </div>
+    </div>
+    
+    {% block paie_content %}{% endblock %}
+</div>
+{% endblock %}

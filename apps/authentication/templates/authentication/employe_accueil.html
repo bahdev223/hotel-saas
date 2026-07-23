@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Mon espace — {{ employe.nom_complet }}{% endblock %}
+
+{% block header %}{% endblock %}
+{% block subtitle %}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+
+    <!-- Profil Header -->
+    <div class="relative bg-surface-container-low rounded-2xl shadow-lg overflow-hidden mb-6">
+        <div class="h-32 bg-gradient-to-r from-secondary/30 via-secondary/10 to-transparent"></div>
+        <div class="relative px-6 pb-6">
+            <div class="flex items-end -mt-16">
+                <div class="w-24 h-24 rounded-2xl bg-gradient-to-br from-secondary to-secondary/60 shadow-lg flex items-center justify-center text-4xl font-bold text-white ring-4 ring-surface-container-low">
+                    {{ employe.nom|first }}{{ employe.prenom|first }}
+                </div>
+                <div class="ml-5 mb-1">
+                    <h1 class="text-2xl font-bold">{{ employe.nom_complet }}</h1>
+                    <div class="flex items-center gap-3 mt-1">
+                        <span class="text-sm font-mono text-on-surface-variant">{{ employe.matricule }}</span>
+                        <span class="w-1 h-1 rounded-full bg-on-surface-variant/30"></span>
+                        <span class="text-sm text-on-surface-variant">{{ employe.poste.intitule|default:'-' }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-4 flex flex-wrap gap-2">
+                {% if groupe %}
+                <span class="px-3 py-1.5 text-xs font-semibold bg-secondary/10 text-secondary rounded-full border border-secondary/20">
+                    <i class="fas fa-tag mr-1.5"></i>{{ groupe.name }}
+                </span>
+                {% endif %}
+                {% if employe.actif %}
+                <span class="px-3 py-1.5 text-xs font-semibold bg-green-500/10 text-green-400 rounded-full border border-green-500/20">
+                    <i class="fas fa-circle mr-1.5 text-[8px]"></i>Actif
+                </span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Infos — cartes jolies -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="bg-surface-container-low rounded-xl p-4 border border-outline/5 stat-card">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center">
+                    <i class="fas fa-building text-blue-400 text-lg"></i>
+                </div>
+                <div>
+                    <p class="text-[11px] font-medium text-on-surface-variant uppercase tracking-wider">Département</p>
+                    <p class="text-sm font-semibold mt-0.5">{{ employe.departement.libelle|default:'-' }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-surface-container-low rounded-xl p-4 border border-outline/5 stat-card">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-purple-500/10 flex items-center justify-center">
+                    <i class="fas fa-briefcase text-purple-400 text-lg"></i>
+                </div>
+                <div>
+                    <p class="text-[11px] font-medium text-on-surface-variant uppercase tracking-wider">Poste</p>
+                    <p class="text-sm font-semibold mt-0.5">{{ employe.poste.intitule|default:'-' }}</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-surface-container-low rounded-xl p-4 border border-outline/5 stat-card">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-emerald-500/10 flex items-center justify-center">
+                    <i class="fas fa-money-bill-wave text-emerald-400 text-lg"></i>
+                </div>
+                <div>
+                    <p class="text-[11px] font-medium text-on-surface-variant uppercase tracking-wider">Salaire</p>
+                    <p class="text-sm font-semibold mt-0.5">{% if employe.poste and employe.poste.salaire_base %}{{ employe.poste.salaire_base|floatformat:0 }} F{% else %}-{% endif %}</p>
+                </div>
+            </div>
+        </div>
+        <div class="bg-surface-container-low rounded-xl p-4 border border-outline/5 stat-card">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center">
+                    <i class="fas fa-calendar-alt text-amber-400 text-lg"></i>
+                </div>
+                <div>
+                    <p class="text-[11px] font-medium text-on-surface-variant uppercase tracking-wider">Embauche</p>
+                    <p class="text-sm font-semibold mt-0.5">{{ employe.date_embauche|date:'d/m/Y'|default:'-' }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <!-- Mon tableau de bord -->
+        <a href="{% url 'pos:employe_dashboard' %}" class="group relative bg-surface-container-low rounded-xl p-5 border border-outline/5 hover:border-secondary/40 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
+            <div class="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center mb-4 group-hover:bg-blue-500/20 transition-colors">
+                <i class="fas fa-chart-pie text-blue-400 text-xl"></i>
+            </div>
+            <h3 class="font-bold text-sm">Mon tableau de bord</h3>
+            <p class="text-xs text-on-surface-variant mt-1">Sessions · Ventes · Planning</p>
+        </a>
+
+        <!-- Point de vente — bouton unique -->
+        {% if a_un_acces_pos %}
+        <a href="{% url 'pos:liste_points_vente' %}" class="group relative bg-secondary/10 rounded-xl p-5 border-2 border-secondary/40 hover:border-secondary hover:shadow-lg transition-all duration-200 hover:-translate-y-1">
+            <div class="w-12 h-12 rounded-xl bg-secondary/20 flex items-center justify-center mb-4 group-hover:bg-secondary/30 transition-colors">
+                <i class="fas fa-cash-register text-secondary text-xl"></i>
+            </div>
+            <h3 class="font-bold text-sm text-secondary">Point de vente</h3>
+            <p class="text-xs text-on-surface-variant mt-1"><i class="fas fa-arrow-right text-secondary mr-1"></i>Accéder au point de vente</p>
+        </a>
+        {% endif %}
+
+        <!-- Mot de passe -->
+        <a href="{% url 'authentication:changer_mot_de_passe' %}" class="group relative bg-surface-container-low rounded-xl p-5 border border-outline/5 hover:border-secondary/40 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
+            <div class="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center mb-4 group-hover:bg-secondary/20 transition-colors">
+                <i class="fas fa-key text-secondary text-xl"></i>
+            </div>
+            <h3 class="font-bold text-sm">Mot de passe</h3>
+            <p class="text-xs text-on-surface-variant mt-1">Changer votre mot de passe</p>
+        </a>
+
+        <!-- Déconnexion -->
+        <a href="{% url 'authentication:logout' %}" class="group relative bg-surface-container-low rounded-xl p-5 border border-outline/5 hover:border-red-500/40 transition-all duration-200 hover:-translate-y-1 hover:shadow-lg">
+            <div class="w-12 h-12 rounded-xl bg-red-500/10 flex items-center justify-center mb-4 group-hover:bg-red-500/20 transition-colors">
+                <i class="fas fa-sign-out-alt text-red-400 text-xl"></i>
+            </div>
+            <h3 class="font-bold text-sm">Déconnexion</h3>
+            <p class="text-xs text-on-surface-variant mt-1">Quitter votre session</p>
+        </a>
+    </div>
+
+</div>
+{% endblock %}

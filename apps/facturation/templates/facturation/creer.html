@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Créer une facture{% endblock %}
+
+{% block header %}Nouvelle facture{% endblock %}
+{% block subtitle %}Créer une facture manuelle{% endblock %}
+
+{% block content %}
+<div x-data="factureCreator()" x-init="init()" class="max-w-3xl mx-auto">
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+
+        <div class="bg-surface-container-low rounded-xl border-outline/10 p-6 space-y-4">
+            <h2 class="font-semibold text-lg text-secondary">Client</h2>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-sm font-medium mb-1">Nom du client *</label>
+                    <input type="text" name="client_nom" x-model="client_nom" required class="w-full px-3 py-2 input-md3 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Contact client</label>
+                    <input type="text" name="client_contact" x-model="client_contact" class="w-full px-3 py-2 input-md3 rounded-lg" placeholder="Téléphone">
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-surface-container-low rounded-xl border-outline/10 p-6 space-y-4">
+            <div class="flex justify-between items-center">
+                <h2 class="font-semibold text-lg text-secondary">Articles / Prestations</h2>
+                <button type="button" @click="ajouterLigne()" class="bg-secondary text-on-secondary px-3 py-1.5 rounded-lg text-sm hover:bg-secondary/80">
+                    <i class="fas fa-plus mr-1"></i> Ajouter
+                </button>
+            </div>
+
+            <div class="overflow-x-auto" x-show="lignes.length > 0">
+                <table class="w-full">
+                    <thead class="bg-surface-container-high text-sm">
+                        <tr>
+                            <th class="px-3 py-2 text-left">Description</th>
+                            <th class="px-3 py-2 text-right w-24">Quantité</th>
+                            <th class="px-3 py-2 text-right w-32">Prix unitaire</th>
+                            <th class="px-3 py-2 text-right w-20">TVA %</th>
+                            <th class="px-3 py-2 text-right w-32">Total TTC</th>
+                            <th class="px-3 py-2 text-center w-16"></th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-outline/10">
+                        <template x-for="(ligne, idx) in lignes" :key="idx">
+                            <tr>
+                                <td class="px-3 py-2">
+                                    <input type="text" x-model="ligne.description" class="w-full px-2 py-1 input-md3 rounded-lg text-sm" placeholder="Libellé">
+                                </td>
+                                <td class="px-3 py-2">
+                                    <input type="number" x-model="ligne.quantite" min="0.01" step="0.01" class="w-full px-2 py-1 input-md3 rounded-lg text-sm text-right">
+                                </td>
+                                <td class="px-3 py-2">
+                                    <input type="number" x-model="ligne.prix_unitaire" min="0" step="1" class="w-full px-2 py-1 input-md3 rounded-lg text-sm text-right" placeholder="0">
+                                </td>
+                                <td class="px-3 py-2">
+                                    <input type="number" x-model="ligne.tva" min="0" max="100" step="0.1" class="w-full px-2 py-1 input-md3 rounded-lg text-sm text-right">
+                                </td>
+                                <td class="px-3 py-2 text-right font-mono text-sm" x-text="formatMoney(totalLigne(idx)) + ' F'"></td>
+                                <td class="px-3 py-2 text-center">
+                                    <button type="button" @click="lignes.splice(idx, 1)" class="text-red-400 hover:text-red-400" title="Supprimer">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
+                    </tbody>
+                    <tfoot class="bg-surface-container-high">
+                        <tr>
+                            <td colspan="3" class="px-3 py-2 text-right font-semibold">Total HT :</td>
+                            <td colspan="2" class="px-3 py-2 text-right font-mono font-semibold" x-text="formatMoney(totalHT) + ' F'"></td>
+                            <td></td>
+                        </tr>
+                        <tr>
+                            <td colspan="3" class="px-3 py-2 text-right font-semibold">TVA :</td>
+                            <td colspan="2" class="px-3 py-2 text-right font-mono font-semibold" x-text="formatMoney(totalTVA) + ' F'"></td>
+                            <td></td>
+                        </tr>
+                        <tr class="border-t border-outline/10">
+                            <td colspan="3" class="px-3 py-2 text-right font-bold text-secondary">Total TTC :</td>
+                            <td colspan="2" class="px-3 py-2 text-right font-mono font-bold text-secondary" x-text="formatMoney(totalTTC) + ' F'"></td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div x-show="lignes.length === 0" class="text-center py-6 text-on-surface-variant">
+                <i class="fas fa-receipt text-3xl mb-2 block"></i>
+                Aucun article. Cliquez sur "Ajouter" pour commencer.
+            </div>
+
+            <textarea name="lignes_json" x-model="lignesJSON" class="hidden"></textarea>
+        </div>
+
+        <div class="bg-surface-container-low rounded-xl border-outline/10 p-6 space-y-4">
+            <h2 class="font-semibold text-lg text-secondary">Notes</h2>
+            <div>
+                <textarea name="notes" rows="2" class="w-full px-3 py-2 input-md3 rounded-lg"></textarea>
+            </div>
+        </div>
+
+        <div class="flex gap-3">
+            <button type="submit" class="flex-1 bg-secondary text-on-secondary py-3 rounded-lg font-bold hover:bg-secondary/80 transition">
+                <i class="fas fa-save mr-2"></i> Créer la facture
+            </button>
+            <a href="{% url 'facturation:liste' %}" class="flex-1 bg-surface-container-highest text-on-surface py-3 rounded-lg text-center hover:bg-surface-container-highest transition">
+                Annuler
+            </a>
+        </div>
+    </form>
+</div>
+
+<script>
+function factureCreator() {
+    return {
+        client_nom: '',
+        client_contact: '',
+        lignes: [],
+
+        get lignesJSON() {
+            return JSON.stringify(this.lignes);
+        },
+
+        ajouterLigne() {
+            this.lignes.push({ description: '', quantite: 1, prix_unitaire: 0, tva: 18 });
+        },
+
+        totalLigne(idx) {
+            const l = this.lignes[idx];
+            const ht = parseFloat(l.quantite || 0) * parseFloat(l.prix_unitaire || 0);
+            const tva = ht * (parseFloat(l.tva || 0) / 100);
+            return ht + tva;
+        },
+
+        get totalHT() {
+            return this.lignes.reduce((s, l) => s + parseFloat(l.quantite || 0) * parseFloat(l.prix_unitaire || 0), 0);
+        },
+
+        get totalTVA() {
+            return this.lignes.reduce((s, l) => {
+                const ht = parseFloat(l.quantite || 0) * parseFloat(l.prix_unitaire || 0);
+                return s + ht * (parseFloat(l.tva || 0) / 100);
+            }, 0);
+        },
+
+        get totalTTC() {
+            return this.totalHT + this.totalTVA;
+        },
+
+        formatMoney(v) {
+            return new Intl.NumberFormat('fr-FR').format(Math.round(v));
+        },
+
+        init() {
+            this.ajouterLigne();
+        }
+    }
+}
+</script>
+{% endblock %}

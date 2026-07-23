@@ -1,0 +1,221 @@
+<!-- apps/comptabilite/templates/comptabilite/initialisation/plan_comptable.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Initialisation du plan comptable{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto py-8 px-4">
+    
+    <div class="flex items-center gap-4 mb-6">
+        <a href="{% url 'comptabilite:dashboard' %}" class="text-on-surface-variant hover:text-on-surface">
+            <i class="fas fa-arrow-left text-xl"></i>
+        </a>
+        <h1 class="text-2xl font-bold">
+            <i class="fas fa-database text-secondary mr-2"></i>
+            Initialisation du plan comptable
+        </h1>
+    </div>
+    
+    <div class="bg-surface-container-low rounded-2xl shadow-md p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+            <div>
+                <h2 class="text-lg font-semibold">📊 Plan comptable SYSCOHADA</h2>
+                <p class="text-sm text-on-surface-variant">Version 2014 - Système Comptable de l'OHADA</p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="verifierPlanComptable()" class="px-4 py-2 border-outline/10 rounded-lg hover:bg-surface-container-low">
+                    <i class="fas fa-check-circle mr-1"></i> Vérifier
+                </button>
+                <button onclick="initialiserPlanComptable()" class="px-4 py-2 bg-secondary text-on-secondary rounded-lg hover:bg-secondary/80">
+                    <i class="fas fa-play mr-1"></i> Initialiser
+                </button>
+            </div>
+        </div>
+        
+        <div id="statut" class="mb-4">
+            {% if stats.total > 0 %}
+            <div class="bg-green-900/20 border-l-4 border-secondary p-4 rounded">
+                <div class="flex items-center">
+                    <i class="fas fa-check-circle text-green-400 text-xl mr-3"></i>
+                    <div>
+                        <p class="font-medium text-green-300">Plan comptable initialisé</p>
+                        <p class="text-sm text-green-300">{{ stats.total }} comptes chargés</p>
+                    </div>
+                </div>
+            </div>
+            {% else %}
+            <div class="bg-yellow-900/20 border-l-4 border-secondary p-4 rounded">
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-triangle text-yellow-300 text-xl mr-3"></i>
+                    <div>
+                        <p class="font-medium text-yellow-300">Plan comptable non initialisé</p>
+                        <p class="text-sm text-yellow-300">Cliquez sur "Initialiser" pour charger le plan comptable SYSCOHADA</p>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div id="verification-result" class="hidden"></div>
+    </div>
+    
+    <!-- Statistiques -->
+    <div class="bg-surface-container-low rounded-2xl shadow-md p-6">
+        <h2 class="text-lg font-semibold mb-4">📈 Statistiques</h2>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="text-center p-3 bg-surface-container-high rounded-lg">
+                <div class="text-2xl font-bold text-secondary">{{ stats.total|default:0 }}</div>
+                <div class="text-xs text-on-surface-variant">Total comptes</div>
+            </div>
+            <div class="text-center p-3 bg-surface-container-high rounded-lg">
+                <div class="text-2xl font-bold text-blue-400">{{ stats.classes|default:0 }}</div>
+                <div class="text-xs text-on-surface-variant">Classes</div>
+            </div>
+            <div class="text-center p-3 bg-surface-container-high rounded-lg">
+                <div class="text-2xl font-bold text-green-400">{{ stats.comptes|default:0 }}</div>
+                <div class="text-xs text-on-surface-variant">Comptes</div>
+            </div>
+            <div class="text-center p-3 bg-surface-container-high rounded-lg">
+                <div class="text-2xl font-bold text-orange-400">{{ stats.sous_comptes|default:0 }}</div>
+                <div class="text-xs text-on-surface-variant">Sous-comptes</div>
+            </div>
+        </div>
+        
+        <!-- Par classe -->
+        <div class="mt-6">
+            <h3 class="font-medium mb-3">Répartition par classe</h3>
+            <div class="space-y-2">
+                <div class="flex items-center gap-3">
+                    <div class="w-24 text-sm font-mono">Classe 1</div>
+                    <div class="flex-1 h-2 bg-surface-container-highest rounded-full overflow-hidden">
+                        <div class="h-full bg-secondary rounded-full" style="width: {% widthratio stats.classe_1|default:0 stats.total|default:1 100 %}%"></div>
+                    </div>
+                    <div class="w-20 text-sm text-right">{{ stats.classe_1|default:0 }}</div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="w-24 text-sm font-mono">Classe 2</div>
+                    <div class="flex-1 h-2 bg-surface-container-highest rounded-full overflow-hidden">
+                        <div class="h-full bg-secondary rounded-full" style="width: {% widthratio stats.classe_2|default:0 stats.total|default:1 100 %}%"></div>
+                    </div>
+                    <div class="w-20 text-sm text-right">{{ stats.classe_2|default:0 }}</div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="w-24 text-sm font-mono">Classe 3</div>
+                    <div class="flex-1 h-2 bg-surface-container-highest rounded-full overflow-hidden">
+                        <div class="h-full bg-secondary rounded-full" style="width: {% widthratio stats.classe_3|default:0 stats.total|default:1 100 %}%"></div>
+                    </div>
+                    <div class="w-20 text-sm text-right">{{ stats.classe_3|default:0 }}</div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="w-24 text-sm font-mono">Classe 4</div>
+                    <div class="flex-1 h-2 bg-surface-container-highest rounded-full overflow-hidden">
+                        <div class="h-full bg-secondary rounded-full" style="width: {% widthratio stats.classe_4|default:0 stats.total|default:1 100 %}%"></div>
+                    </div>
+                    <div class="w-20 text-sm text-right">{{ stats.classe_4|default:0 }}</div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="w-24 text-sm font-mono">Classe 5</div>
+                    <div class="flex-1 h-2 bg-surface-container-highest rounded-full overflow-hidden">
+                        <div class="h-full bg-secondary rounded-full" style="width: {% widthratio stats.classe_5|default:0 stats.total|default:1 100 %}%"></div>
+                    </div>
+                    <div class="w-20 text-sm text-right">{{ stats.classe_5|default:0 }}</div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="w-24 text-sm font-mono">Classe 6</div>
+                    <div class="flex-1 h-2 bg-surface-container-highest rounded-full overflow-hidden">
+                        <div class="h-full bg-secondary rounded-full" style="width: {% widthratio stats.classe_6|default:0 stats.total|default:1 100 %}%"></div>
+                    </div>
+                    <div class="w-20 text-sm text-right">{{ stats.classe_6|default:0 }}</div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="w-24 text-sm font-mono">Classe 7</div>
+                    <div class="flex-1 h-2 bg-surface-container-highest rounded-full overflow-hidden">
+                        <div class="h-full bg-secondary rounded-full" style="width: {% widthratio stats.classe_7|default:0 stats.total|default:1 100 %}%"></div>
+                    </div>
+                    <div class="w-20 text-sm text-right">{{ stats.classe_7|default:0 }}</div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="w-24 text-sm font-mono">Classe 8</div>
+                    <div class="flex-1 h-2 bg-surface-container-highest rounded-full overflow-hidden">
+                        <div class="h-full bg-secondary rounded-full" style="width: {% widthratio stats.classe_8|default:0 stats.total|default:1 100 %}%"></div>
+                    </div>
+                    <div class="w-20 text-sm text-right">{{ stats.classe_8|default:0 }}</div>
+                </div>
+                <div class="flex items-center gap-3">
+                    <div class="w-24 text-sm font-mono">Classe 9</div>
+                    <div class="flex-1 h-2 bg-surface-container-highest rounded-full overflow-hidden">
+                        <div class="h-full bg-secondary rounded-full" style="width: {% widthratio stats.classe_9|default:0 stats.total|default:1 100 %}%"></div>
+                    </div>
+                    <div class="w-20 text-sm text-right">{{ stats.classe_9|default:0 }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+async function initialiserPlanComptable() {
+    const force = {{ stats.total|default:0 }} > 0;
+    const message = force ? '⚠️ Cette action va réinitialiser TOUS les comptes existants. Continuer ?' : '⚠️ Cette action va importer le plan comptable SYSCOHADA. Continuer ?';
+    
+    if (confirm(message)) {
+        try {
+            const response = await fetch('{% url "comptabilite:api_initialiser_plan_comptable" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({force: force})
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                alert('✅ ' + data.message);
+                location.reload();
+            } else {
+                alert('❌ ' + data.error);
+            }
+        } catch(e) {
+            alert('❌ Erreur réseau');
+        }
+    }
+}
+
+async function verifierPlanComptable() {
+    try {
+        const response = await fetch('{% url "comptabilite:api_stats_plan_comptable" %}');
+        const data = await response.json();
+        
+        const resultDiv = document.getElementById('verification-result');
+        if (data.success && data.stats.total > 0) {
+            resultDiv.className = 'mt-4 p-3 bg-green-900/20 rounded-lg';
+            resultDiv.innerHTML = `
+                <i class="fas fa-check-circle text-green-400 mr-2"></i>
+                Plan comptable valide: ${data.stats.total} comptes chargés
+            `;
+        } else {
+            resultDiv.className = 'mt-4 p-3 bg-yellow-900/20 rounded-lg';
+            resultDiv.innerHTML = `
+                <i class="fas fa-exclamation-triangle text-yellow-400 mr-2"></i>
+                Plan comptable non initialisé
+            `;
+        }
+        resultDiv.classList.remove('hidden');
+        
+        setTimeout(() => {
+            resultDiv.classList.add('hidden');
+        }, 5000);
+    } catch(e) {
+        console.error('Erreur:', e);
+    }
+}
+</script>
+
+<style>
+[x-cloak] { display: none; }
+</style>
+{% endblock %}
+    

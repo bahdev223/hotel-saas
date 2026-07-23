@@ -1,0 +1,676 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Planning — Point de vente{% endblock %}
+
+{% block header %}Planning{% endblock %}
+{% block subtitle %}Affectation du personnel par point de vente{% endblock %}
+
+{% block extra_css %}
+<style>
+.pv-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+.planning-table {
+    width: 100%;
+    min-width: 700px;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+.planning-table th {
+    padding: 10px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    background: rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+.planning-table td {
+    padding: 8px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    vertical-align: top;
+    min-height: 48px;
+    transition: background 0.12s;
+}
+.planning-table tr:not(.empty-row):hover td {
+    background: rgba(255,255,255,0.02);
+}
+.planning-table .creneau-label {
+    font-size: 12px;
+    font-weight: 600;
+    white-space: nowrap;
+    padding-right: 16px;
+    color: rgba(255,255,255,0.7);
+}
+.planning-table .cell-empty {
+    opacity: 0.3;
+    font-size: 18px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 36px;
+    border-radius: 6px;
+}
+.planning-table .cell-empty:hover {
+    opacity: 1;
+    background: rgba(255,255,255,0.06);
+}
+.planning-table .cell-filled {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.12s;
+    margin: 1px 0;
+    white-space: nowrap;
+}
+.planning-table .cell-filled:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+}
+.planning-table .cell-filled .dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.planning-table .today-col {
+    background: rgba(99, 102, 241, 0.04);
+}
+.planning-table .today-col .cell-empty {
+    background: rgba(99, 102, 241, 0.06);
+}
+.jour-checkbox {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.12s;
+    font-size: 12px;
+    font-weight: 500;
+    user-select: none;
+}
+.jour-checkbox.active {
+    background: rgb(var(--color-secondary));
+    color: black;
+}
+.jour-checkbox:not(.active) {
+    background: rgba(255,255,255,0.06);
+    color: rgba(255,255,255,0.5);
+}
+.jour-checkbox:hover {
+    background: rgba(255,255,255,0.12);
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div x-data="planningPvApp()" x-init="init()" class="space-y-5">
+
+    <!-- ==================== SÉLECTEUR POINT DE VENTE ==================== -->
+    <div class="bg-surface-container-low rounded-xl border border-outline/10 p-4">
+        <div class="flex flex-wrap items-center gap-4">
+            <div class="pv-header">
+                <i class="fas fa-store text-secondary"></i>
+                <select x-model="pvId" @change="changerPv()" class="bg-transparent border-none text-xl font-bold outline-none cursor-pointer">
+                    <option value="">— Sélectionnez un point de vente —</option>
+                    {% for p in points %}
+                    <option value="{{ p.id }}">{{ p.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex items-center gap-1 ml-auto">
+                <button @click="precedent()" class="px-2.5 py-2 border border-outline/10 rounded-lg text-sm hover:bg-surface-container" title="Précédent">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
+                <span class="px-3 py-2 text-sm font-medium min-w-[200px] text-center" x-text="titrePeriode"></span>
+                <button @click="suivant()" class="px-2.5 py-2 border border-outline/10 rounded-lg text-sm hover:bg-surface-container" title="Suivant">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
+                <button @click="aujourdhui()" class="px-3 py-2 bg-secondary text-black rounded-lg text-sm font-medium ml-1">Aujourd'hui</button>
+            </div>
+            <div class="flex gap-1 w-full mt-2 md:w-auto md:mt-0">
+                <button @click="mode = 'jour'; actualiser()" class="px-3 py-1.5 rounded-lg text-xs font-medium transition"
+                        :class="mode === 'jour' ? 'bg-secondary text-black' : 'border border-outline/10 hover:bg-surface-container'">
+                    <i class="fas fa-calendar-day mr-1"></i>Jour
+                </button>
+                <button @click="mode = 'semaine'; actualiser()" class="px-3 py-1.5 rounded-lg text-xs font-medium transition"
+                        :class="mode === 'semaine' ? 'bg-secondary text-black' : 'border border-outline/10 hover:bg-surface-container'">
+                    <i class="fas fa-calendar-week mr-1"></i>Semaine
+                </button>
+                <button @click="mode = 'mois'; actualiser()" class="px-3 py-1.5 rounded-lg text-xs font-medium transition"
+                        :class="mode === 'mois' ? 'bg-secondary text-black' : 'border border-outline/10 hover:bg-surface-container'">
+                    <i class="fas fa-calendar-alt mr-1"></i>Mois
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== PANEL AFFECTATION RAPIDE ==================== -->
+    <div x-show="pvId" class="bg-surface-container-low rounded-xl border border-outline/10 p-4">
+        <div class="flex items-center gap-2 mb-3">
+            <i class="fas fa-bolt text-secondary"></i>
+            <span class="font-semibold text-sm">Affectation rapide</span>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-3">
+            <div>
+                <label class="text-xs text-on-surface-variant">Employé</label>
+                <select x-model="mass.employe_id" class="w-full input-md3 rounded-lg text-sm mt-0.5">
+                    <option value="">-- Sélectionner --</option>
+                    {% for e in employes %}
+                    <option value="{{ e.id }}">{{ e.nom_complet }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="text-xs text-on-surface-variant">Du</label>
+                <input type="date" x-model="mass.date_debut" class="w-full input-md3 rounded-lg text-sm mt-0.5">
+            </div>
+            <div>
+                <label class="text-xs text-on-surface-variant">Au</label>
+                <input type="date" x-model="mass.date_fin" class="w-full input-md3 rounded-lg text-sm mt-0.5">
+            </div>
+            <div>
+                <label class="text-xs text-on-surface-variant">Début</label>
+                <input type="time" x-model="mass.heure_debut" class="w-full input-md3 rounded-lg text-sm mt-0.5">
+            </div>
+            <div>
+                <label class="text-xs text-on-surface-variant">Fin</label>
+                <input type="time" x-model="mass.heure_fin" class="w-full input-md3 rounded-lg text-sm mt-0.5">
+            </div>
+            <div>
+                <label class="text-xs text-on-surface-variant">Statut</label>
+                <select x-model="mass.statut" class="w-full input-md3 rounded-lg text-sm mt-0.5">
+                    <option value="PLANIFIE">Planifié</option>
+                    <option value="CONFIRME">Confirmé</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="flex flex-wrap items-center gap-2 mb-3">
+            <span class="text-xs text-on-surface-variant">Jours :</span>
+            <template x-for="(j, idx) in ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']" :key="idx">
+                <div @click="toggleJour(idx+1)" class="jour-checkbox" :class="mass.jours_semaine.includes(idx+1) ? 'active' : ''" x-text="j"></div>
+            </template>
+            <span class="mx-2 text-on-surface-variant/40">|</span>
+            <button @click="resetMass()" class="px-3 py-1.5 border border-outline/10 rounded-lg text-xs hover:bg-surface-container">
+                <i class="fas fa-eraser mr-1"></i>Effacer
+            </button>
+            <button @click="appliquerMasse()" :disabled="!massOk || savingMass"
+                    class="px-4 py-1.5 bg-secondary text-black rounded-lg text-sm font-medium disabled:opacity-40">
+                <i class="fas fa-spinner fa-spin mr-1" x-show="savingMass" x-cloak></i>
+                <i class="fas fa-check mr-1" x-show="!savingMass"></i>
+                <span x-text="savingMass ? 'Création...' : '📋 Appliquer'"></span>
+            </button>
+        </div>
+
+        <!-- Conflits -->
+        <div x-show="massResultat" class="p-3 rounded-lg text-sm"
+             :class="massResultat?.conflits?.length ? 'bg-red-900/20 text-red-300 border border-red-900/30' : 'bg-green-900/20 text-green-300'">
+            <p x-text="massResultat?.message"></p>
+            <div x-show="massResultat?.conflits?.length" class="mt-1 text-xs">
+                <p>⚠️ <span x-text="massResultat.conflits.length"></span> conflit(s) :</p>
+                <template x-for="c in massResultat.conflits" :key="c.date">
+                    <p class="ml-2">• <span x-text="c.date"></span> — <span x-text="c.existant_heure"></span> sur <span x-text="c.point_vente"></span></p>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- ==================== TABLEAU PLANNING ==================== -->
+    <div x-show="!pvId" class="bg-surface-container-low rounded-xl border border-outline/10 p-12 text-center text-on-surface-variant">
+        <i class="fas fa-store text-4xl mb-3 block"></i>
+        <p class="text-lg font-medium">Sélectionnez un point de vente</p>
+        <p class="text-sm">Choisissez un point de vente ci-dessus pour voir son planning</p>
+    </div>
+
+    <div x-show="pvId" class="bg-surface-container-low rounded-xl border border-outline/10 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="planning-table">
+                <thead>
+                    <tr>
+                        <th class="text-left w-28">Créneau</th>
+                        <template x-for="(jour, idx) in jours" :key="idx">
+                            <th class="text-center" :class="(estAujourdhui(jour.date) ? 'text-secondary' : '') + (jour.horsMois ? ' opacity-40' : '')">
+                                <span x-text="jour.nom"></span>
+                                <span class="block text-base font-bold" x-text="jour.num"></span>
+                            </th>
+                        </template>
+                    </tr>
+                </thead>
+                <tbody>
+                    <template x-for="creneau in creneaux" :key="creneau.key">
+                        <tr>
+                            <td class="creneau-label">
+                                <span x-text="creneau.heure_debut + ' — ' + creneau.heure_fin"></span>
+                            </td>
+                            <template x-for="(jour, idx) in jours" :key="idx">
+                                <td :class="estAujourdhui(jour.date) ? 'today-col' : ''">
+                                    <!-- Employee(s) for this slot -->
+                                    <template x-for="emp in getEmployes(jour.date, creneau.heure_debut, creneau.heure_fin)" :key="emp.planning_id">
+                                        <div @click="editPlanning(emp)"
+                                             class="cell-filled"
+                                             :class="couleurBg(emp.statut)">
+                                            <span class="dot" :class="couleurDot(emp.statut)"></span>
+                                            <span x-text="emp.employe_nom"></span>
+                                        </div>
+                                    </template>
+                                    <!-- Empty cell: show + if employee is filtered or always -->
+                                    <div @click="quickAdd(jour.date, creneau.heure_debut, creneau.heure_fin)"
+                                         class="cell-empty"
+                                         x-show="!getEmployes(jour.date, creneau.heure_debut, creneau.heure_fin).length">
+                                        <i class="fas fa-plus"></i>
+                                    </div>
+                                </td>
+                            </template>
+                        </tr>
+                    </template>
+                    <!-- Empty state -->
+                    <tr x-show="!creneaux.length && !loading">
+                        <td :colspan="jours.length + 1" class="text-center py-12 text-on-surface-variant">
+                            <i class="fas fa-calendar-day text-3xl mb-2 block"></i>
+                            <p>Aucun planning pour <span x-text="mode === 'jour' ? 'ce jour' : mode === 'mois' ? 'ce mois' : 'cette semaine'"></span></p>
+                            <p class="text-sm">Utilisez l'affectation rapide ci-dessus</p>
+                        </td>
+                    </tr>
+                    <tr x-show="loading">
+                        <td :colspan="jours.length + 1" class="text-center py-12 text-on-surface-variant">
+                            <i class="fas fa-spinner fa-spin text-xl"></i>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- ==================== MODAL AJOUTER/MODIFIER ==================== -->
+    <div x-show="modalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="closeModal()">
+        <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-md mx-4">
+            <div class="flex justify-between items-center p-4 border-b border-outline/10">
+                <h2 class="text-sm font-bold" x-text="editMode ? 'Modifier' : 'Ajouter un planning'"></h2>
+                <button @click="closeModal()" class="text-on-surface-variant hover:text-on-surface text-xl">✕</button>
+            </div>
+            <form @submit.prevent="sauvegarder()" class="p-4 space-y-3">
+                <div>
+                    <label class="text-xs text-on-surface-variant">Employé *</label>
+                    <select x-model="form.employe_id" required class="w-full input-md3 rounded-lg text-sm mt-1">
+                        <option value="">-- Choisir --</option>
+                        {% for e in employes %}
+                        <option value="{{ e.id }}">{{ e.nom_complet }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label class="text-xs text-on-surface-variant">Date *</label>
+                    <input type="date" x-model="form.date" required class="w-full input-md3 rounded-lg text-sm mt-1">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs text-on-surface-variant">Début *</label>
+                        <input type="time" x-model="form.heure_debut" required class="w-full input-md3 rounded-lg text-sm mt-1">
+                    </div>
+                    <div>
+                        <label class="text-xs text-on-surface-variant">Fin *</label>
+                        <input type="time" x-model="form.heure_fin" required class="w-full input-md3 rounded-lg text-sm mt-1">
+                    </div>
+                </div>
+                <div>
+                    <label class="text-xs text-on-surface-variant">Statut</label>
+                    <select x-model="form.statut" class="w-full input-md3 rounded-lg text-sm mt-1">
+                        <option value="PLANIFIE">Planifié</option>
+                        <option value="CONFIRME">Confirmé</option>
+                        <option value="ANNULE">Annulé</option>
+                    </select>
+                </div>
+                <div class="flex gap-2 pt-1">
+                    <button type="submit" class="flex-1 bg-secondary text-black py-2 rounded-lg text-sm font-medium" :disabled="saving">
+                        <i class="fas fa-spinner fa-spin mr-1" x-show="saving" x-cloak></i>
+                        <span x-text="saving ? '...' : (editMode ? 'Enregistrer' : 'Ajouter')"></span>
+                    </button>
+                    <button type="button" @click="closeModal()" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm">Annuler</button>
+                </div>
+            </form>
+            <div class="px-4 pb-4" x-show="editMode">
+                <button @click="supprimer()" class="text-xs text-red-400 hover:text-red-300">
+                    <i class="fas fa-trash mr-1"></i>Supprimer ce planning
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function formatDate(d) {
+    const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+    return y+'-'+m+'-'+day;
+}
+
+function planningPvApp() {
+    return {
+        // --- State ---
+        pvId: '',
+        employesTous: [],
+        plannings: [],
+        jours: [],
+        loading: false,
+        mode: 'semaine',
+        // Store reference date for navigation
+        refDate: new Date(),
+
+        // Mass assign
+        mass: {
+            employe_id: '',
+            date_debut: '',
+            date_fin: '',
+            heure_debut: '08:00',
+            heure_fin: '16:00',
+            jours_semaine: [1,2,3,4,5,6,7],
+            statut: 'PLANIFIE',
+            notes: '',
+        },
+        savingMass: false,
+        massResultat: null,
+
+        // Modal
+        modalOpen: false,
+        editMode: false,
+        saving: false,
+        form: { id: null, employe_id: '', date: '', heure_debut: '08:00', heure_fin: '16:00', statut: 'PLANIFIE', notes: '' },
+
+        // --- Computed ---
+        get massOk() {
+            return this.mass.employe_id && this.mass.date_debut && this.mass.date_fin;
+        },
+
+        get creneaux() {
+            const slots = new Map();
+            this.plannings.forEach(p => {
+                const key = p.heure_debut + '|' + p.heure_fin;
+                if (!slots.has(key)) {
+                    slots.set(key, { key, heure_debut: p.heure_debut, heure_fin: p.heure_fin });
+                }
+            });
+            return Array.from(slots.values()).sort((a, b) => a.heure_debut.localeCompare(b.heure_debut));
+        },
+
+        // --- Init ---
+        async init() {
+            {% for e in employes %}
+            this.employesTous.push({id: {{ e.id }}, nom: '{{ e.nom_complet|escapejs }}'});
+            {% endfor %}
+
+            {% if request.GET.point_vente %}
+            this.pvId = '{{ request.GET.point_vente }}';
+            {% endif %}
+
+            const today = new Date();
+            this.mass.date_debut = formatDate(today);
+            const fin = new Date(today);
+            fin.setDate(fin.getDate() + 6);
+            this.mass.date_fin = formatDate(fin);
+
+            this.refDate = new Date();
+            this.calculerDates();
+            if (this.pvId) this.charger();
+        },
+
+        // --- Période ---
+        get titrePeriode() {
+            if (!this.jours.length) return '';
+            const d = new Date(this.jours[0].date + 'T12:00:00');
+            if (this.mode === 'jour') {
+                return d.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            }
+            if (this.mode === 'semaine') {
+                const debut = new Date(this.jours[0].date + 'T12:00:00');
+                const finP = new Date(this.jours[this.jours.length-1].date + 'T12:00:00');
+                return 'Semaine du ' + debut.getDate() + ' ' + ['janv','févr','mars','avr','mai','juin','juil','août','sept','oct','nov','déc'][debut.getMonth()]
+                     + ' au ' + finP.getDate() + ' ' + ['janv','févr','mars','avr','mai','juin','juil','août','sept','oct','nov','déc'][finP.getMonth()];
+            }
+            if (this.mode === 'mois') {
+                return d.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+            }
+            return '';
+        },
+
+        calculerDates() {
+            this.jours = [];
+            const ref = new Date(this.refDate);
+
+            if (this.mode === 'jour') {
+                this.jours.push({ date: formatDate(ref), nom: ['Dim','Lun','Mar','Mer','Jeu','Ven','Sam'][ref.getDay()], num: ref.getDate() });
+            } else if (this.mode === 'semaine') {
+                const day = ref.getDay();
+                const diff = ref.getDate() - day + (day === 0 ? -6 : 1);
+                const lun = new Date(ref);
+                lun.setDate(diff);
+                for (let i = 0; i < 7; i++) {
+                    const d = new Date(lun);
+                    d.setDate(lun.getDate() + i);
+                    this.jours.push({ date: formatDate(d), nom: ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'][i], num: d.getDate() });
+                }
+            } else if (this.mode === 'mois') {
+                const annee = ref.getFullYear();
+                const mois = ref.getMonth();
+                const premier = new Date(annee, mois, 1);
+                const dernier = new Date(annee, mois + 1, 0);
+                const debutSemaine = premier.getDay() === 0 ? -6 : 1 - premier.getDay();
+                const debut = new Date(premier);
+                debut.setDate(debut.getDate() + debutSemaine);
+                for (let i = 0; i < 42; i++) {
+                    const d = new Date(debut);
+                    d.setDate(debut.getDate() + i);
+                    if (d > dernier && i > 27) break;
+                    const isCourant = d.getMonth() === mois;
+                    this.jours.push({
+                        date: formatDate(d),
+                        nom: ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'][i % 7],
+                        num: d.getDate(),
+                        horsMois: !isCourant,
+                    });
+                }
+            }
+        },
+
+        estAujourdhui(dateStr) {
+            return dateStr === formatDate(new Date());
+        },
+
+        precedent() {
+            if (this.mode === 'jour') this.refDate.setDate(this.refDate.getDate() - 1);
+            else if (this.mode === 'semaine') this.refDate.setDate(this.refDate.getDate() - 7);
+            else if (this.mode === 'mois') this.refDate.setMonth(this.refDate.getMonth() - 1);
+            this.calculerDates(); this.charger();
+        },
+        suivant() {
+            if (this.mode === 'jour') this.refDate.setDate(this.refDate.getDate() + 1);
+            else if (this.mode === 'semaine') this.refDate.setDate(this.refDate.getDate() + 7);
+            else if (this.mode === 'mois') this.refDate.setMonth(this.refDate.getMonth() + 1);
+            this.calculerDates(); this.charger();
+        },
+        aujourdhui() { this.refDate = new Date(); this.calculerDates(); this.charger(); },
+        actualiser() { this.refDate = new Date(); this.calculerDates(); this.charger(); },
+
+        // --- Point de vente ---
+        changerPv() {
+            this.massResultat = null;
+            this.calculerDates();
+            this.charger();
+        },
+
+        async charger() {
+            if (!this.pvId || !this.jours.length) return;
+            this.loading = true;
+            const debut = this.jours[0].date;
+            const fin = this.jours[this.jours.length-1].date;
+            let url = '/pos/api/planning/liste/?debut=' + debut + '&fin=' + fin + '&point_vente=' + this.pvId;
+            try {
+                const r = await fetch(url);
+                const d = await r.json();
+                this.plannings = d.success ? d.plannings : [];
+            } catch(e) {}
+            this.loading = false;
+        },
+
+        // --- Grid helpers ---
+        getEmployes(dateStr, hDebut, hFin) {
+            return this.plannings
+                .filter(p => p.date === dateStr && p.heure_debut === hDebut && p.heure_fin === hFin)
+                .map(p => ({
+                    planning_id: p.id,
+                    employe_id: p.employe_id,
+                    employe_nom: p.employe,
+                    statut: p.statut,
+                    date: p.date,
+                    heure_debut: p.heure_debut,
+                    heure_fin: p.heure_fin,
+                    notes: p.notes,
+                }));
+        },
+
+        couleurBg(statut) {
+            const map = {
+                PLANIFIE: 'bg-green-900/30 text-green-200',
+                CONFIRME: 'bg-blue-900/30 text-blue-200',
+                ANNULE: 'bg-red-900/30 text-red-200',
+                EFFECTUE: 'bg-green-600/30 text-green-100',
+            };
+            return map[statut] || 'bg-surface-container-high';
+        },
+        couleurDot(statut) {
+            const map = {
+                PLANIFIE: 'bg-green-400',
+                CONFIRME: 'bg-blue-400',
+                ANNULE: 'bg-red-400',
+                EFFECTUE: 'bg-green-300',
+            };
+            return map[statut] || 'bg-on-surface-variant';
+        },
+
+        // --- Quick add via cell click ---
+        quickAdd(dateStr, hDebut, hFin) {
+            if (!this.pvId) return;
+            this.editMode = false;
+            this.form = {
+                id: null,
+                point_vente_id: parseInt(this.pvId),
+                employe_id: '',
+                date: dateStr,
+                heure_debut: hDebut,
+                heure_fin: hFin,
+                statut: 'PLANIFIE',
+                notes: '',
+            };
+            this.modalOpen = true;
+        },
+
+        // --- Mass actions ---
+        toggleJour(j) {
+            const idx = this.mass.jours_semaine.indexOf(j);
+            if (idx > -1) this.mass.jours_semaine.splice(idx, 1);
+            else this.mass.jours_semaine.push(j);
+        },
+
+        resetMass() {
+            const today = new Date();
+            this.mass = {
+                employe_id: '',
+                date_debut: formatDate(today),
+                date_fin: formatDate(new Date(today.setDate(today.getDate() + 6))),
+                heure_debut: '08:00',
+                heure_fin: '16:00',
+                jours_semaine: [1,2,3,4,5,6,7],
+                statut: 'PLANIFIE',
+                notes: '',
+            };
+            this.massResultat = null;
+        },
+
+        async appliquerMasse() {
+            if (!this.massOk) return;
+            this.savingMass = true;
+            this.massResultat = null;
+            const payload = { ...this.mass, point_vente_id: parseInt(this.pvId) };
+            try {
+                const r = await fetch('/pos/api/planning/creer-masse/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCookie('csrftoken') },
+                    body: JSON.stringify(payload)
+                });
+                const d = await r.json();
+                this.massResultat = d;
+                if (d.success && !d.conflits?.length) this.charger();
+            } catch(e) {
+                this.massResultat = { message: '❌ Erreur réseau', conflits: [] };
+            }
+            this.savingMass = false;
+        },
+
+        // --- Modal ---
+        editPlanning(emp) {
+            this.editMode = true;
+            this.form = {
+                id: emp.planning_id,
+                point_vente_id: parseInt(this.pvId),
+                employe_id: emp.employe_id,
+                date: emp.date,
+                heure_debut: emp.heure_debut,
+                heure_fin: emp.heure_fin,
+                statut: emp.statut,
+                notes: emp.notes || '',
+            };
+            this.modalOpen = true;
+        },
+
+        closeModal() {
+            this.modalOpen = false;
+        },
+
+        async sauvegarder() {
+            this.saving = true;
+            try {
+                const r = await fetch('/pos/api/planning/creer/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCookie('csrftoken') },
+                    body: JSON.stringify({ ...this.form, point_vente_id: parseInt(this.pvId) })
+                });
+                const d = await r.json();
+                if (d.success) { this.closeModal(); this.charger(); }
+                else { alert('❌ ' + d.error); }
+            } catch(e) { alert('❌ Erreur réseau'); }
+            finally { this.saving = false; }
+        },
+
+        async supprimer() {
+            if (!confirm('Supprimer ce planning ?')) return;
+            try {
+                const r = await fetch('/pos/api/planning/supprimer/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCookie('csrftoken') },
+                    body: JSON.stringify({ id: this.form.id })
+                });
+                const d = await r.json();
+                if (d.success) { this.closeModal(); this.charger(); }
+                else { alert('❌ ' + d.error); }
+            } catch(e) { alert('Erreur réseau'); }
+        },
+
+        getCookie(n) { let v = `; ${document.cookie}`, p = v.split(`; ${n}=`); return p.length === 2 ? p.pop().split(';').shift() : ''; }
+    }
+}
+</script>
+{% endblock %}

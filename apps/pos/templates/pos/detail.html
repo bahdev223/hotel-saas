@@ -1,0 +1,384 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Détail - {{ point.nom }}{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-5">
+
+    <!-- En-tête compact -->
+    <div class="flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-xl bg-secondary-container/20 flex items-center justify-center">
+                <i class="fas fa-store text-secondary"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold">{{ point.nom }}</h1>
+                <p class="text-xs text-on-surface-variant font-mono">{{ point.code }} · {{ point.get_emplacement_display }}</p>
+            </div>
+        </div>
+        <div class="flex gap-2">
+            <a href="{% url 'pos:pos_by_slug' slug=point.code %}" class="btn-md3-primary text-sm px-3 py-1.5 rounded-lg">
+                <i class="fas fa-cash-register mr-1"></i>POS
+            </a>
+            <a href="{% url 'pos:liste_points_vente' %}" class="px-3 py-1.5 border border-outline/10 rounded-lg text-sm hover:bg-surface-container transition-smooth">
+                ← Retour
+            </a>
+        </div>
+    </div>
+
+    <!-- Cartes infos en grid compact -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <!-- Responsable (dynamique) -->
+        <div class="card-md3 p-4">
+            <p class="text-xs text-on-surface-variant uppercase tracking-wider mb-3">👤 Responsable</p>
+            {% if responsable_actif %}
+            <div class="bg-green-900/20 border border-green-700/30 rounded-lg p-3 mb-2">
+                <p class="text-xs text-green-400 mb-0.5">En poste actuellement</p>
+                <p class="font-semibold text-sm">{{ responsable_actif.nom }} {{ responsable_actif.prenom }}</p>
+                <p class="text-xs text-on-surface-variant">{{ responsable_actif.matricule }}</p>
+            </div>
+            {% else %}
+            <div class="bg-surface-container-high rounded-lg p-3 mb-2 text-center">
+                <p class="text-sm text-on-surface-variant">Aucun en poste</p>
+            </div>
+            {% endif %}
+            {% if point.responsable and point.responsable != responsable_actif %}
+            <div class="bg-surface-container-high rounded-lg p-2">
+                <p class="text-xs text-on-surface-variant">Assigné: <span class="font-medium text-on-surface">{{ point.responsable.nom }} {{ point.responsable.prenom }}</span></p>
+            </div>
+            {% endif %}
+            <button onclick="showEmployeModal()" class="mt-2 w-full text-xs text-blue-400 hover:text-blue-300 text-center block">
+                <i class="fas fa-exchange-alt mr-1"></i>Changer responsable assigné
+            </button>
+        </div>
+        <!-- Planning aujourd'hui -->
+        <div class="card-md3 p-4">
+            <p class="text-xs text-on-surface-variant uppercase tracking-wider mb-3">📅 Planning {{ today|date:"d/m" }}</p>
+            {% if plannings_ajd %}
+            <div class="space-y-1.5 max-h-32 overflow-y-auto scrollbar-md">
+                {% for p in plannings_ajd %}
+                <div class="flex items-center justify-between text-xs p-1.5 rounded {% if p.employe == responsable_actif %}bg-green-900/20{% endif %}">
+                    <span class="font-medium {% if p.employe == responsable_actif %}text-green-400{% else %}text-on-surface{% endif %}">
+                        {{ p.employe.nom }} {{ p.employe.prenom }} ({{ p.heure_debut|time:"H:i" }} - {{ p.heure_fin|time:"H:i" }})
+                    </span>
+                    <span class="text-on-surface-variant font-mono">{{ p.heure_debut|time:"H:i" }} - {{ p.heure_fin|time:"H:i" }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-sm text-on-surface-variant text-center py-3">Aucun planning</p>
+            {% endif %}
+            <a href="{% url 'pos:planning' %}?point_vente={{ point.id }}" class="block text-center text-xs text-secondary mt-2 hover:underline">Planning complet →</a>
+        </div>
+        <!-- Session + CA -->
+        <div class="card-md3 p-4">
+            <p class="text-xs text-on-surface-variant uppercase tracking-wider mb-3">💳 Session & Ventes</p>
+            {% if session_active %}
+            <div class="bg-green-900/20 border border-green-700/30 rounded-lg p-3 mb-2">
+                <p class="text-xs text-green-400 mb-0.5"><i class="fas fa-circle text-[6px] mr-1"></i>Session ouverte</p>
+                <p class="text-sm font-semibold">{{ session_active.caissier_ouverture.nom|default:"?" }}</p>
+                <p class="text-xs text-on-surface-variant">CA: {{ session_active.total_ventes|floatformat:0 }} F ({{ session_active.nombre_ventes }} vente{{ session_active.nombre_ventes|pluralize }})</p>
+            </div>
+            {% else %}
+            <div class="bg-surface-container-high rounded-lg p-3 mb-2 text-center">
+                <p class="text-sm text-on-surface-variant">Aucune session active</p>
+            </div>
+            {% endif %}
+            <div class="bg-surface-container-high rounded-lg p-2 text-center">
+                <p class="text-xs text-on-surface-variant">CA aujourd'hui</p>
+                <p class="text-lg font-bold text-secondary">{{ today_sales|floatformat:0 }} F</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Entrepôts + Accès -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="card-md3 p-4">
+            <div class="flex items-start justify-between mb-2">
+                <p class="text-xs text-on-surface-variant uppercase tracking-wider">📦 Entrepôts</p>
+            </div>
+            {% if point.entrepot %}
+            <div class="flex items-center justify-between py-1.5 border-b border-outline/5">
+                <div>
+                    <span class="font-semibold text-sm">{{ point.entrepot.nom }}</span>
+                    <span class="text-xs text-on-surface-variant ml-1">{{ point.entrepot.get_type_entrepot_display }}</span>
+                </div>
+                <span class="text-[10px] px-1.5 py-0.5 rounded bg-secondary/20 text-secondary">Principal</span>
+            </div>
+            {% else %}
+            <p class="text-sm text-on-surface-variant italic py-1">Aucun entrepôt principal</p>
+            {% endif %}
+            <div id="entrepots-list">
+            {% for pve in entrepots_autorises %}
+            <div id="entrepot-row-{{ pve.entrepot.id }}" class="flex items-center justify-between py-1.5 border-b border-outline/5">
+                <div>
+                    <span class="text-sm">{{ pve.entrepot.nom }}</span>
+                    <span class="text-xs text-on-surface-variant ml-1">{{ pve.entrepot.get_type_entrepot_display }}</span>
+                </div>
+                <button onclick="retirerEntrepot({{ pve.entrepot.id }})" class="text-red-400 hover:text-red-300" title="Retirer cet entrepôt">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>
+            {% endfor %}
+            </div>
+            <div class="mt-2">
+                <select id="entrepotAjouter" class="w-full input-md3 rounded-lg text-xs">
+                    <option value="">+ Ajouter un entrepôt...</option>
+                    {% for e in entrepots_ajoutables %}
+                    <option value="{{ e.id }}">{{ e.nom }} ({{ e.get_type_entrepot_display }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        <div class="card-md3 p-4">
+            <p class="text-xs text-on-surface-variant uppercase tracking-wider mb-3">🔗 Accès</p>
+            <code class="text-xs bg-surface-container-high px-2 py-1 rounded block mb-2 truncate">
+                {{ request.scheme }}://{{ request.get_host }}{% url 'pos:pos_by_slug' slug=point.code %}
+            </code>
+            <div class="flex gap-2">
+                <a href="{% url 'pos:planning' %}?point_vente={{ point.id }}" class="flex-1 text-center px-3 py-1.5 rounded-lg text-xs font-medium bg-green-900/20 text-green-400 hover:bg-green-900/30 transition-smooth">
+                    <i class="fas fa-calendar-alt mr-1"></i>Planning
+                </a>
+                <a href="{% url 'pos:modifier_point_vente' point.id %}" class="flex-1 text-center px-3 py-1.5 rounded-lg text-xs font-medium bg-blue-900/20 text-blue-400 hover:bg-blue-900/30 transition-smooth">
+                    <i class="fas fa-edit mr-1"></i>Modifier
+                </a>
+                <a href="{% url 'pos:pos_by_slug' slug=point.code %}" class="flex-1 text-center px-3 py-1.5 rounded-lg text-xs font-medium bg-secondary/10 text-secondary hover:bg-secondary/20 transition-smooth">
+                    <i class="fas fa-cash-register mr-1"></i>POS
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Caisse + Sessions -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <!-- Caisse -->
+        <div class="card-md3">
+            <div class="px-4 py-3 border-b border-outline/10 flex items-center justify-between">
+                <h2 class="text-sm font-semibold"><i class="fas fa-cash-register text-secondary mr-2"></i>Compte financier</h2>
+                {% if not point.caisse and caisses_disponibles %}
+                <button onclick="showAssocierCaisseModal()" class="text-xs bg-secondary text-black px-2 py-1 rounded-lg">
+                    + Associer
+                </button>
+                {% endif %}
+            </div>
+            <div class="p-4">
+                {% if point.caisse %}
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="font-semibold">{{ point.caisse.nom }}</p>
+                        <p class="text-xs text-on-surface-variant">{{ point.caisse.code }} · {{ point.caisse.get_type_financier_display }}{% if point.caisse.role %} ({{ point.caisse.get_role_display }}){% endif %}</p>
+                        <p class="text-sm font-bold text-secondary mt-1">{{ point.caisse.solde|floatformat:0 }} F</p>
+                    </div>
+                    <form method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action_caisse" value="dissocier">
+                        <button type="submit" class="text-xs text-red-400 hover:text-red-300" onclick="return confirm('Dissocier ?')">
+                            <i class="fas fa-unlink"></i>
+                        </button>
+                    </form>
+                </div>
+                {% else %}
+                <div class="text-center py-6 text-on-surface-variant">
+                    <i class="fas fa-cash-register text-3xl mb-2 block"></i>
+                    <p class="text-sm">Aucune caisse associée</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Sessions récentes -->
+        <div class="card-md3">
+            <div class="px-4 py-3 border-b border-outline/10 flex items-center justify-between">
+                <h2 class="text-sm font-semibold"><i class="fas fa-history text-secondary mr-2"></i>Sessions</h2>
+                {% if point.caisse %}
+                <button onclick="showOuvrirSessionModal()" class="text-xs bg-secondary text-black px-2 py-1 rounded-lg">
+                    + Ouvrir
+                </button>
+                {% endif %}
+            </div>
+            <div class="p-4">
+                {% if sessions_recentes %}
+                <div class="space-y-2">
+                    {% for session in sessions_recentes|slice:":5" %}
+                    <div class="flex items-center justify-between text-sm border-b border-outline/10 pb-2 last:border-0 last:pb-0">
+                        <div>
+                            <span class="text-xs text-on-surface-variant">{{ session.date_ouverture|date:"d/m H:i" }}</span>
+                        <span class="font-medium">{% if session.caissier_ouverture %}{{ session.caissier_ouverture.nom_complet }}{% endif %}</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs {% if session.statut == 'OUVERTE' %}text-green-400{% else %}text-on-surface-variant{% endif %}">
+                                {{ session.get_statut_display }}
+                            </span>
+                            <a href="{% url 'pos:session_detail' session.id %}" class="text-xs text-blue-400">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <a href="{% url 'pos:sessions_liste' %}?point_vente={{ point.id }}" class="block text-center text-xs text-secondary mt-3 hover:underline">Voir toutes →</a>
+                {% else %}
+                <p class="text-center text-sm text-on-surface-variant py-4">Aucune session</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- Modal employé -->
+<div id="employeModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-md mx-4">
+        <div class="flex justify-between items-center p-4 border-b border-outline/10">
+            <h2 class="text-sm font-bold">Changer responsable</h2>
+            <button onclick="closeModal('employeModal')" class="text-on-surface-variant hover:text-on-surface">✕</button>
+        </div>
+        <form method="post" action="{% url 'pos:changer_responsable' point.id %}" class="p-4 space-y-3">
+            {% csrf_token %}
+            <select name="responsable_id" required class="w-full input-md3 rounded-lg text-sm">
+                <option value="">-- Choisir --</option>
+                {% for employe in employes_disponibles %}
+                <option value="{{ employe.id }}" {% if point.responsable.id == employe.id %}selected{% endif %}>
+                    {{ employe.matricule }} - {{ employe.nom }} {{ employe.prenom }}
+                </option>
+                {% endfor %}
+            </select>
+            <div class="flex gap-2 pt-1">
+                <button type="submit" class="flex-1 bg-secondary text-black py-2 rounded-lg text-sm font-medium">Enregistrer</button>
+                <button type="button" onclick="closeModal('employeModal')" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm">Annuler</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal associer caisse -->
+<div id="associerCaisseModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-md mx-4">
+        <div class="flex justify-between items-center p-4 border-b border-outline/10">
+            <h2 class="text-sm font-bold">Associer une caisse</h2>
+            <button onclick="closeModal('associerCaisseModal')" class="text-on-surface-variant hover:text-on-surface">✕</button>
+        </div>
+        <form method="post" class="p-4 space-y-3">
+            {% csrf_token %}
+            <input type="hidden" name="action_caisse" value="associer">
+            <select name="caisse_id" required class="w-full input-md3 rounded-lg text-sm">
+                <option value="">-- Choisir --</option>
+                {% for caisse in caisses_disponibles %}
+                <option value="{{ caisse.id }}">{{ caisse.nom }} ({{ caisse.solde|floatformat:0 }} F)</option>
+                {% endfor %}
+            </select>
+            <div class="flex gap-2 pt-1">
+                <button type="submit" class="flex-1 bg-secondary text-black py-2 rounded-lg text-sm font-medium">Associer</button>
+                <button type="button" onclick="closeModal('associerCaisseModal')" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm">Annuler</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal ouvrir session -->
+<div id="ouvrirSessionModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm">
+    <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-md mx-4">
+        <div class="flex justify-between items-center p-4 border-b border-outline/10">
+            <h2 class="text-sm font-bold">Ouvrir une session</h2>
+            <button onclick="closeModal('ouvrirSessionModal')" class="text-on-surface-variant hover:text-on-surface">✕</button>
+        </div>
+        <form id="ouvrirSessionForm" class="p-4 space-y-3">
+            {% csrf_token %}
+            <input type="hidden" name="caissier_id" id="caissierOuverture" value="{{ caissier_auto.id|default:'' }}">
+            <div class="bg-surface-container-high rounded-lg p-3 text-sm" id="caissierInfo">
+                <span class="text-on-surface-variant text-xs">Caissier</span>
+                <p class="font-medium">{{ caissier_auto.nom|default:"—" }} {{ caissier_auto.prenom|default:"" }}</p>
+            </div>
+            {% if point.caisse %}
+            <div class="bg-blue-900/20 p-2 rounded text-xs text-blue-300">
+                Solde caisse: <strong>{{ point.caisse.solde|floatformat:0 }} F</strong>
+                <input type="hidden" name="solde_initial" value="{{ point.caisse.solde|floatformat:0 }}">
+            </div>
+            {% endif %}
+            <div class="flex gap-2 pt-1">
+                <button type="submit" class="flex-1 bg-secondary text-black py-2 rounded-lg text-sm font-medium">Ouvrir</button>
+                <button type="button" onclick="closeModal('ouvrirSessionModal')" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm">Annuler</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function showEmployeModal() { openModal('employeModal'); }
+function showAssocierCaisseModal() { openModal('associerCaisseModal'); }
+function showOuvrirSessionModal() { openModal('ouvrirSessionModal'); }
+
+function openModal(id) { const el = document.getElementById(id); el.classList.remove('hidden'); el.classList.add('flex'); }
+function closeModal(id) { const el = document.getElementById(id); el.classList.add('hidden'); el.classList.remove('flex'); }
+
+// Ajouter entrepôt secondaire (AJAX, sans rechargement)
+document.getElementById('entrepotAjouter').addEventListener('change', async function() {
+    const eid = this.value;
+    const opt = this.options[this.selectedIndex];
+    if (!eid) return;
+    try {
+        const r = await fetch('/pos/api/point-vente/{{ point.id }}/entrepot/ajouter/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+            body: JSON.stringify({ entrepot_id: eid })
+        });
+        const d = await r.json();
+        if (d.success) {
+            // Ajouter la ligne dans le DOM
+            const container = document.getElementById('entrepots-list');
+            const row = document.createElement('div');
+            row.id = 'entrepot-row-' + d.entrepot.id;
+            row.className = 'flex items-center justify-between py-1.5 border-b border-outline/5';
+            row.innerHTML = '<div><span class="text-sm">' + d.entrepot.nom + '</span><span class="text-xs text-on-surface-variant ml-1">' + d.entrepot.type + '</span></div><button onclick="retirerEntrepot(' + d.entrepot.id + ')" class="text-red-400 hover:text-red-300" title="Retirer cet entrepôt"><i class="fas fa-trash"></i></button>';
+            container.appendChild(row);
+            // Retirer l'option du select
+            opt.remove();
+        } else {
+            alert('❌ ' + d.error);
+        }
+    } catch(e) { alert('Erreur réseau'); }
+    this.value = '';
+});
+
+// Retirer entrepôt secondaire
+async function retirerEntrepot(entrepotId) {
+    if (!confirm('Retirer cet entrepôt ?')) return;
+    try {
+        const r = await fetch('/pos/api/point-vente/{{ point.id }}/entrepot/retirer/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+            body: JSON.stringify({ entrepot_id: entrepotId })
+        });
+        const d = await r.json();
+        if (d.success) { document.getElementById('entrepot-row-' + entrepotId)?.remove(); }
+        else { alert('❌ ' + d.error); }
+    } catch(e) { alert('Erreur réseau'); }
+}
+
+document.getElementById('ouvrirSessionForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    const btn = this.querySelector('button[type="submit"]');
+    btn.disabled = true; btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-1"></i>...';
+    try {
+        const r = await fetch('/pos/api/sessions/ouvrir/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+            body: JSON.stringify({
+                point_vente_id: {{ point.id }},
+                caisse_id: {{ point.caisse.id|default:"null" }},
+                caissier_id: document.getElementById('caissierOuverture').value,
+            })
+        });
+        const d = await r.json();
+        if (d.success) { window.location.reload(); }
+        else { alert('❌ ' + d.error); btn.disabled = false; btn.textContent = 'Ouvrir'; }
+    } catch(e) { alert('Erreur réseau'); btn.disabled = false; btn.textContent = 'Ouvrir'; }
+});
+
+document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') document.querySelectorAll('.fixed.inset-0').forEach(m => { if (!m.classList.contains('hidden')) closeModal(m.id); });
+});
+</script>
+{% endblock %}

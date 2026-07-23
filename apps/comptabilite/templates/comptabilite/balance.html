@@ -1,0 +1,88 @@
+{% extends 'comptabilite/base_compta.html' %}
+{% load static %}
+
+{% block title %}Balance des comptes{% endblock %}
+
+{% block header %}Balance générale{% endblock %}
+
+{% block subtitle %}Soldes des comptes - Exercice {{ exercice_courant.code|default:"2025" }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    
+    <!-- Infos exercice -->
+    <div class="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
+        <div class="flex items-center gap-3">
+            <i class="fas fa-calendar-alt text-emerald-600"></i>
+            <div>
+                <p class="text-sm text-emerald-800 font-semibold">Exercice {{ exercice_courant.code }}</p>
+                <p class="text-xs text-emerald-600">Du {{ exercice_courant.date_debut|date:"d/m/Y" }} au {{ exercice_courant.date_fin|date:"d/m/Y" }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Tableau de balance -->
+    <div class="bg-surface-container-low rounded-xl shadow-md overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-surface-container-high">
+                    <tr class="border-b border-outline/10">
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Compte</th>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Libellé</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase">Total Débit</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase">Total Crédit</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase">Solde</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10">
+                    {% for ligne in lignes %}
+                    <tr class="hover:bg-surface-container-low transition">
+                        <td class="px-4 py-3 font-mono text-sm font-semibold">{{ ligne.compte__code }}</td>
+                        <td class="px-4 py-3 text-sm">{{ ligne.compte__libelle }}</td>
+                        <td class="px-4 py-3 text-right font-mono text-red-400">
+                            {{ ligne.total_debit|floatformat:0|default:"0" }} F
+                        </td>
+                        <td class="px-4 py-3 text-right font-mono text-green-400">
+                            {{ ligne.total_credit|floatformat:0|default:"0" }} F
+                        </td>
+                        <td class="px-4 py-3 text-right font-mono font-bold {{ ligne.solde_class }}">
+                            {{ ligne.solde_display }}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-4 py-12 text-center text-on-surface-variant">
+                            <i class="fas fa-chart-line text-4xl mb-2 block"></i>
+                            <p>Aucune donnée trouvée pour cette période</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="bg-surface-container-high font-semibold border-t border-outline/10">
+                    <tr class="border-b border-outline/10">
+                        <td colspan="2" class="px-4 py-3 text-right">TOTAUX :</td>
+                        <td class="px-4 py-3 text-right font-mono text-red-400">{{ total_general_debit|floatformat:0|default:"0" }} F</td>
+                        <td class="px-4 py-3 text-right font-mono text-green-400">{{ total_general_credit|floatformat:0|default:"0" }} F</td>
+                        <td class="px-4 py-3 text-right font-mono font-bold">
+                            {% if ecart == 0 %}
+                                <span class="text-emerald-600">✓ ÉQUILIBRÉ</span>
+                            {% elif ecart > 0 %}
+                                <span class="text-red-400">{{ ecart|floatformat:0 }} F (Solde débiteur)</span>
+                            {% else %}
+                                <span class="text-green-400">{{ ecart|floatformat:0|slice:"1:" }} F (Solde créditeur)</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Légende -->
+    <div class="bg-surface-container-high rounded-lg p-4 text-sm text-on-surface-variant flex flex-wrap gap-4">
+        <div><i class="fas fa-info-circle mr-2 text-emerald-600"></i> <span class="font-mono text-red-400">(D)</span> = Solde Débiteur (Actif ou Charge)</div>
+        <div><span class="font-mono text-green-400">(C)</span> = Solde Créditeur (Passif ou Produit)</div>
+        <div><span class="text-xs">Solde = Total Débit - Total Crédit</span></div>
+    </div>
+</div>
+{% endblock %}

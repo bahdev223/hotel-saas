@@ -1,0 +1,449 @@
+{% extends 'stock/base_stock.html' %}
+{% load static %}
+
+{% block title %}Inventaire {{ inventaire.code }}{% endblock %}
+
+{% block content %}
+<div x-data="inventaireDetail()" x-init="init()" class="space-y-6">
+
+    <!-- En-tête -->
+    <div class="flex items-center justify-between">
+        <div>
+            <h1 class="text-2xl font-bold text-on-surface">
+                <i class="fas fa-clipboard-list text-secondary mr-2"></i>Inventaire {{ inventaire.code }}
+            </h1>
+            <p class="text-sm text-on-surface-variant mt-1">
+                {{ inventaire.entrepot.nom }} — {{ inventaire.date_debut|date:"d/m/Y H:i" }}
+                {% if inventaire.realise_par %} — Par {{ inventaire.realise_par }}{% endif %}
+            </p>
+        </div>
+        <div class="flex gap-2">
+            <span class="px-3 py-1.5 rounded-full text-sm font-medium
+                {% if inventaire.statut == 'VALIDE' %}bg-green-900/30 text-green-300
+                {% elif inventaire.statut == 'EN_COURS' %}bg-blue-900/30 text-blue-300
+                {% elif inventaire.statut == 'TERMINE' %}bg-yellow-900/30 text-yellow-300
+                {% else %}bg-surface-container-highest text-on-surface-variant{% endif %}">
+                {{ inventaire.get_statut_display }}
+            </span>
+            {% if inventaire.statut != 'VALIDE' %}
+            <form method="post" action="{% url 'stock:supprimer_inventaire' inventaire.id %}" class="inline" onsubmit="return confirm('Supprimer cet inventaire ? Cette action est irréversible.')">
+                {% csrf_token %}
+                <button type="submit" class="px-3 py-1.5 border border-red-500/30 text-red-400 rounded-lg text-sm hover:bg-red-900/20 transition-smooth">
+                    <i class="fas fa-trash mr-1"></i>Supprimer
+                </button>
+            </form>
+            {% endif %}
+            <a href="{% url 'stock:liste_inventaires' %}" class="px-3 py-1.5 border border-outline/10 rounded-lg text-sm hover:bg-surface-container transition-smooth">
+                <i class="fas fa-arrow-left mr-1"></i>Retour
+            </a>
+        </div>
+    </div>
+
+    <!-- Bannière mode -->
+    {% if est_premier %}
+    <div class="bg-blue-900/30 border border-blue-500/30 rounded-xl p-5 flex items-start gap-4">
+        <div class="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
+            <i class="fas fa-rocket text-blue-400 text-xl"></i>
+        </div>
+        <div>
+            <h3 class="font-bold text-lg text-blue-300">Initialisation du stock</h3>
+            <p class="text-sm text-on-surface-variant mt-1">
+                Aucun inventaire validé pour <strong>{{ inventaire.entrepot.nom }}</strong>.
+                Saisissez les quantités réelles ci-dessous pour définir le <strong>stock de départ</strong>.
+            </p>
+        </div>
+    </div>
+    {% else %}
+    <div class="bg-green-900/30 border border-green-500/30 rounded-xl p-5 flex items-start gap-4">
+        <div class="w-12 h-12 rounded-full bg-green-500/20 flex items-center justify-center shrink-0">
+            <i class="fas fa-clipboard-check text-green-400 text-xl"></i>
+        </div>
+        <div>
+            <h3 class="font-bold text-lg text-green-300">Inventaire de contrôle</h3>
+            <p class="text-sm text-on-surface-variant mt-1">
+                Comparez le stock théorique avec le stock réel pour <strong>{{ inventaire.entrepot.nom }}</strong>.
+                Les écarts seront automatiquement ajustés après validation.
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not est_premier %}
+    <!-- Valorisation -->
+    <div class="card-md3 p-5">
+        <div class="grid grid-cols-3 gap-6">
+            <div>
+                <p class="text-xs text-on-surface-variant uppercase tracking-wider">Valeur théorique</p>
+                <p class="text-2xl font-bold text-on-surface mt-1">{{ valeur_theorique|floatformat:0 }} F</p>
+            </div>
+            <div>
+                <p class="text-xs text-on-surface-variant uppercase tracking-wider">Valeur réelle</p>
+                <p class="text-2xl font-bold text-secondary mt-1">{{ valeur_reelle|floatformat:0 }} F</p>
+            </div>
+            <div>
+                <p class="text-xs text-on-surface-variant uppercase tracking-wider">Écart</p>
+                <p class="text-2xl font-bold mt-1
+                    {% if valeur_ecart > 0 %}text-red-400{% elif valeur_ecart < 0 %}text-green-400{% else %}text-on-surface{% endif %}">
+                    {% if valeur_ecart >= 0 %}+{% endif %}{{ valeur_ecart|floatformat:0 }} F
+                </p>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Barre de recherche + Filtres -->
+    <div class="flex flex-wrap gap-3 items-end">
+        <div class="relative flex-1 min-w-[200px] max-w-sm">
+            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm"></i>
+            <input type="text" x-model="search" class="input-md3 rounded-lg pl-9 text-sm w-full" placeholder="Rechercher un produit...">
+        </div>
+        <div>
+            <label class="text-xs text-on-surface-variant block mb-1">Catégorie</label>
+            <select x-model="filtreCategorie" class="input-md3 rounded-lg text-sm">
+                <option value="">Toutes</option>
+                <template x-for="cat in categories" :key="cat.id">
+                    <option :value="cat.id" x-text="cat.nom"></option>
+                </template>
+            </select>
+        </div>
+        <div>
+            <label class="flex items-center gap-2 text-sm text-on-surface-variant cursor-pointer">
+                <input type="checkbox" x-model="filtreEcart" class="accent-secondary">
+                Écart uniquement
+            </label>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-{% if est_premier %}3{% else %}2{% endif %} gap-4">
+        <div class="card-md3 p-4">
+             <p class="text-sm text-on-surface-variant">Produits</p>
+            <p class="text-2xl font-bold text-secondary mt-1 cursor-pointer" x-text="lignes.length" @click="console.log('📦 Produits — lignes.length:', lignes.length, '| nbModifies:', nbModifies)"></p>
+        </div>
+        <div class="card-md3 p-4">
+            <p class="text-sm text-on-surface-variant">{% if est_premier %}Quantités saisies{% else %}Écart total{% endif %}</p>
+            <p class="text-2xl font-bold mt-1" x-text="totalAffiche" :class="ecartTotal !== 0 && !{{ est_premier|lower }} ? (ecartTotal > 0 ? 'text-red-400' : 'text-green-400') : 'text-secondary'"></p>
+        </div>
+        {% if est_premier %}
+        <div class="card-md3 p-4">
+            <p class="text-sm text-on-surface-variant">Valeur estimée du stock</p>
+            <p class="text-2xl font-bold text-green-400 mt-1" x-text="formatMoney(valeurTotale) + ' F'"></p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Tableau -->
+    <div class="card-md3 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-surface-container-high border-b border-outline/10">
+                    <tr>
+                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Produit</th>
+                        {% if not est_premier %}
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase">Théorique</th>
+                        {% endif %}
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase">
+                            {{ est_premier|yesno:"Quantité initiale,Réel" }}
+                        </th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase">PU Achat</th>
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase">Valeur</th>
+                        {% if not est_premier %}
+                        <th class="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase">Écart</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10">
+                    <template x-for="(ligne, idx) in lignesFiltrees" :key="ligne.id">
+                        <tr class="hover:bg-surface-container-low transition">
+                            <td class="px-4 py-3 text-sm font-medium" x-text="ligne.produit_nom"></td>
+                            {% if not est_premier %}
+                            <td class="px-4 py-3 text-right font-mono text-sm text-on-surface-variant" x-text="ligne.quantite_theorique"></td>
+                            {% endif %}
+                             <td class="px-4 py-3 text-right">
+                                <input type="text" inputmode="numeric"
+                                       :value="ligne.quantite_reelle || ''"
+                                       @input="ligne.quantite_reelle = parseInt($event.target.value) || 0; ligne.modifie = true; console.log('✏️ input qte ->', ligne.produit_nom, ligne.quantite_reelle)"
+                                       :disabled="valide"
+                                       class="w-24 text-right bg-surface-container-high text-on-surface border-b-2 outline-none font-mono text-sm rounded px-2 py-1 transition-all"
+                                       :class="ligne.modifie ? 'border-secondary' : 'border-transparent'">
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <input type="text" inputmode="numeric"
+                                       :value="ligne.prix_unitaire || ''"
+                                       @input="ligne.prix_unitaire = parseInt($event.target.value) || 0; ligne.modifie = true"
+                                       :disabled="valide"
+                                       class="w-24 text-right bg-surface-container-high text-on-surface border-b-2 outline-none font-mono text-sm rounded px-2 py-1 transition-all"
+                                       :class="ligne.modifie ? 'border-secondary' : 'border-transparent'"
+                                       placeholder="0">
+                            </td>
+                             <td class="px-4 py-3 text-right font-mono text-sm text-secondary font-bold">
+                                 <span x-show="ligne.quantite_reelle > 0 && ligne.prix_unitaire > 0" x-text="formatMoney(ligne.quantite_reelle * ligne.prix_unitaire) + ' F'"></span>
+                                 <span x-show="ligne.quantite_reelle > 0 && !(ligne.prix_unitaire > 0)" class="text-red-400 text-xs">Saisir PU</span>
+                                 <span x-show="ligne.quantite_reelle <= 0" class="text-on-surface-variant">0 F</span>
+                             </td>
+                            {% if not est_premier %}
+                            <td class="px-4 py-3 text-right font-mono text-sm"
+                                x-text="(ligne.quantite_reelle - ligne.quantite_theorique > 0 ? '+' : '') + (ligne.quantite_reelle - ligne.quantite_theorique)"
+                                :class="ligne.quantite_reelle - ligne.quantite_theorique > 0 ? 'text-red-400' : (ligne.quantite_reelle - ligne.quantite_theorique < 0 ? 'text-green-400' : '')">
+                            </td>
+                            {% endif %}
+                        </tr>
+                    </template>
+                    <tr x-show="!lignesFiltrees.length">
+                        <td colspan="{% if est_premier %}4{% else %}6{% endif %}" class="px-4 py-12 text-center text-on-surface-variant">
+                            <i class="fas fa-box-open text-4xl mb-3 block"></i>
+                            <p class="text-sm">Aucun produit trouvé</p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    {% if inventaire.notes %}
+    <div class="card-md3 p-4">
+        <p class="text-xs text-on-surface-variant">Notes</p>
+        <p class="text-sm mt-1">{{ inventaire.notes }}</p>
+    </div>
+    {% endif %}
+
+    <!-- Boutons d'action -->
+    <div x-show="!valide" class="flex justify-end items-center gap-3">
+        <span x-show="nbModifies > 0" x-cloak class="text-xs text-orange-400 font-medium bg-orange-400/10 px-2 py-1 rounded-lg">
+            <span x-text="nbModifies"></span> modifié(s)
+        </span>
+        <span x-show="nbModifies === 0 && saving === false" x-cloak class="text-xs text-green-400 font-medium bg-green-400/10 px-2 py-1 rounded-lg">
+            ✓ Tout enregistré
+        </span>
+        <button @click="enregistrer()" :disabled="saving"
+                class="px-6 py-3 border border-outline/10 rounded-xl text-sm font-medium hover:bg-surface-container transition flex items-center gap-2 disabled:opacity-30">
+            <i class="fas fa-spinner fa-spin" x-show="saving"></i>
+            <i class="fas fa-save" x-show="!saving"></i>
+            Enregistrer
+        </button>
+        <button @click="valider()" :disabled="saving"
+                class="px-8 py-3 bg-secondary text-black rounded-xl font-bold hover:bg-secondary/80 transition flex items-center gap-2 disabled:opacity-30">
+            <i class="fas fa-spinner fa-spin" x-show="saving"></i>
+            <i class="fas fa-check" x-show="!saving"></i>
+            <span>{% if est_premier %}Valider le stock initial{% else %}Valider l'inventaire{% endif %}</span>
+        </button>
+    </div>
+</div>
+
+<script>
+function inventaireDetail() {
+    return {
+        lignes: [],
+        search: '',
+        filtreCategorie: '',
+        filtreEcart: false,
+        categories: [],
+        saving: false,
+        valide: {{ est_valide|lower }},
+
+        get lignesFiltrees() {
+            let r = this.lignes;
+            if (this.search) {
+                const q = this.search.toLowerCase();
+                r = r.filter(l => l.produit_nom.toLowerCase().includes(q));
+            }
+            if (this.filtreCategorie) {
+                r = r.filter(l => l.categorie_id == this.filtreCategorie);
+            }
+            if (this.filtreEcart) {
+                r = r.filter(l => (parseFloat(l.quantite_reelle || 0) - parseFloat(l.quantite_theorique || 0)) !== 0);
+            }
+            return r;
+        },
+
+        get totalAffiche() {
+            if ({{ est_premier|lower }}) {
+                const t = this.lignes.reduce((s, l) => s + (Number(l.quantite_reelle) || 0), 0);
+                console.log('📊 totalAffiche recalc:', t, '| sample:', this.lignes.slice(0,3).map(l => l.quantite_reelle));
+                return t;
+            }
+            return this.lignes.reduce((s, l) => s + (Number(l.quantite_reelle || 0) - Number(l.quantite_theorique || 0)), 0);
+        },
+
+        get valeurTotale() {
+            const t = this.lignes.reduce((s, l) => s + (Number(l.quantite_reelle || 0) * Number(l.prix_unitaire || 0)), 0);
+            return t;
+        },
+
+        get ecartTotal() {
+            if ({{ est_premier|lower }}) return 0;
+            return this.lignes.reduce((s, l) => s + (parseFloat(l.quantite_reelle || 0) - parseFloat(l.quantite_theorique || 0)), 0);
+        },
+
+        init() {
+            this.lignes = [];
+            const catsMap = {};
+            {% for ligne in lignes %}
+            this.lignes.push({
+                id: {{ ligne.id }},
+                produit_id: {{ ligne.produit.id }},
+                produit_nom: '{{ ligne.produit.nom|escapejs }}',
+                categorie_id: {% if ligne.produit.categorie %}{{ ligne.produit.categorie.id }}{% else %}null{% endif %},
+                categorie_nom: '{% if ligne.produit.categorie %}{{ ligne.produit.categorie.nom|escapejs }}{% else %}{% endif %}',
+                quantite_theorique: {{ ligne.quantite_theorique|floatformat:0 }},
+                quantite_reelle: {{ ligne.quantite_reelle|floatformat:0 }},
+                prix_unitaire: {{ ligne.prix_unitaire|floatformat:0 }},
+                modifie: false,
+            });
+            {% endfor %}
+            for (const l of this.lignes) {
+                if (l.categorie_id && !catsMap[l.categorie_id]) {
+                    catsMap[l.categorie_id] = { id: l.categorie_id, nom: l.categorie_nom };
+                }
+            }
+            this.categories = Object.values(catsMap).sort((a, b) => a.nom.localeCompare(b.nom));
+
+            // Dédupliquer (si init est appelé 2 fois par Alpine)
+            const seen = new Set();
+            this.lignes = this.lignes.filter(l => {
+                if (seen.has(l.id)) { console.log('🧹 DEDUP removed:', l.id, l.produit_nom); return false; }
+                seen.add(l.id); return true;
+            });
+            console.log('🔵 init DONE — lignes.length:', this.lignes.length, '| categories:', this.categories.length);
+
+            // bfcache : forcer rechargement si page restaurée du cache navigateur
+            window.addEventListener('pageshow', (e) => {
+                if (e.persisted && !this.valide) {
+                    location.reload();
+                }
+            });
+
+            // Avertir avant de quitter si modifications non enregistrées
+            window.addEventListener('beforeunload', (e) => {
+                if (this.nbModifies > 0) {
+                    e.preventDefault();
+                    e.returnValue = '';
+                }
+            });
+        },
+
+        formatMoney(v) {
+            return new Intl.NumberFormat('fr-FR').format(v || 0);
+        },
+
+        mettreAJour(ligneId) {
+            const ligne = this.lignes.find(l => l.id === ligneId);
+            if (ligne && !this.valide) {
+                ligne.modifie = true;
+            }
+        },
+
+        async sauvegarderLigne(l) {
+            const body = { quantite_reelle: l.quantite_reelle, prix_unitaire: l.prix_unitaire };
+            console.log('📤 SAVE', l.id, l.produit_nom, 'qte=' + l.quantite_reelle, 'prix=' + (l.prix_unitaire || 0));
+            const r = await fetch('/stock/api/inventaire/lignes/' + l.id + '/', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                body: JSON.stringify(body)
+            });
+            const d = await r.json();
+            console.log('📥 SAVE RESULT', l.id, d);
+            if (!d.success) throw new Error(d.error || 'Erreur serveur');
+        },
+
+        async rechargerDepuisServeur() {
+            console.log('🔄 RELOAD START — lignes.length before:', this.lignes.length);
+            try {
+                const r = await fetch('/stock/api/inventaires/{{ inventaire.id }}/lignes/');
+                const d = await r.json();
+                console.log('🔄 RELOAD FROM SERVER:', d.lignes ? d.lignes.length : 0, 'lignes');
+                if (d.success && d.lignes) {
+                    const freshMap = {};
+                    for (const f of d.lignes) freshMap[f.id] = f;
+                    for (const ligne of this.lignes) {
+                        const f = freshMap[ligne.id];
+                        if (f) {
+                            ligne.quantite_reelle = f.quantite_reelle;
+                            ligne.prix_unitaire = f.prix_unitaire;
+                            ligne.modifie = false;
+                        }
+                    }
+                    console.log('🔄 RELOAD END — lignes.length after:', this.lignes.length);
+                }
+            } catch(e) { console.error('🔄 RELOAD ERROR', e); }
+        },
+
+        get nbModifies() {
+            const seen = new Set();
+            return this.lignes.filter(l => l.modifie && !seen.has(l.id) && seen.add(l.id)).length;
+        },
+
+        async enregistrer() {
+            if (this.nbModifies === 0) {
+                alert('✅ Aucune modification en attente. Tout est déjà enregistré.');
+                return;
+            }
+            this.saving = true;
+            try {
+                // Dédupliquer par ID
+                const seen = new Set();
+                const modifiees = this.lignes.filter(l => l.modifie && !seen.has(l.id) && seen.add(l.id));
+                const resultats = await Promise.allSettled(
+                    modifiees.map(l => this.sauvegarderLigne(l))
+                );
+                let ok = 0, echecs = [];
+                resultats.forEach((r, i) => {
+                    if (r.status === 'fulfilled') {
+                        modifiees[i].modifie = false;
+                        ok++;
+                    } else {
+                        echecs.push(modifiees[i].produit_nom);
+                    }
+                });
+                if (echecs.length === 0) {
+                    await this.rechargerDepuisServeur();
+                    alert('✅ ' + ok + ' ligne(s) enregistrée(s) avec succès');
+                } else {
+                    alert('⚠ ' + ok + ' enregistrée(s), ' + echecs.length + ' échec(s) :\n' + echecs.slice(0, 5).join('\n'));
+                }
+            } catch(e) {
+                alert('❌ Erreur: ' + (e.message || 'réseau'));
+            } finally {
+                this.saving = false;
+            }
+        },
+
+        async valider() {
+            const sansPrix = this.lignes.filter(l => l.quantite_reelle > 0 && !(l.prix_unitaire > 0));
+            if (sansPrix.length) {
+                alert('❌ ' + sansPrix.length + ' produit(s) avec quantité mais sans prix d\'achat. Remplissez la colonne PU Achat.');
+                return;
+            }
+            if (!confirm(`{% if est_premier %}Valider le stock initial ? Cette action est irréversible.{% else %}Valider l'inventaire ? Les ajustements seront appliqués.{% endif %}`)) return;
+            this.saving = true;
+            try {
+                const seen = new Set();
+                const modifiees = this.lignes.filter(l => l.modifie && !seen.has(l.id) && seen.add(l.id));
+                for (const l of modifiees) {
+                    await this.sauvegarderLigne(l);
+                    l.modifie = false;
+                }
+                const r = await fetch('/stock/api/inventaires/{{ inventaire.id }}/valider/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': getCookie('csrftoken') }
+                });
+                const d = await r.json();
+                if (d.success) {
+                    this.valide = true;
+                    alert('✅ ' + d.message);
+                    location.reload();
+                } else {
+                    alert('❌ ' + (d.error || 'Erreur validation'));
+                }
+            } catch(e) { alert('❌ Erreur réseau'); }
+            finally { this.saving = false; }
+        }
+    }
+}
+
+function getCookie(name) {
+    let v = '; ' + document.cookie, p = v.split('; ' + name + '=');
+    return p.length === 2 ? p.pop().split(';').shift() : null;
+}
+</script>
+{% endblock %}

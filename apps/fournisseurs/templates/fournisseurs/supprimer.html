@@ -1,0 +1,23 @@
+{% extends 'fournisseurs/base_fournisseurs.html' %}
+{% load static %}
+
+{% block title %}Désactiver {{ fournisseur.nom }}{% endblock %}
+
+{% block content %}
+<div class="max-w-md mx-auto mt-12">
+    <div class="card-md3 p-8 text-center">
+        <i class="fas fa-exclamation-triangle text-5xl text-warning mb-4"></i>
+        <h2 class="text-xl font-bold mb-2">Désactiver ce fournisseur ?</h2>
+        <p class="text-on-surface-variant text-sm mb-6">
+            Êtes-vous sûr de vouloir désactiver <strong>{{ fournisseur.nom }}</strong> ({{ fournisseur.code }}) ?
+        </p>
+        <form method="post" class="flex gap-3 justify-center">
+            {% csrf_token %}
+            <button type="submit" class="px-6 py-2 bg-error/20 text-error rounded-lg text-sm font-semibold hover:bg-error/30 transition-smooth">
+                <i class="fas fa-times mr-1"></i>Désactiver
+            </button>
+            <a href="{% url 'fournisseurs:detail' fournisseur.id %}" class="px-6 py-2 border border-outline/10 rounded-lg text-sm hover:bg-surface-container transition-smooth">Annuler</a>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,13 @@
+sequenceDiagram
+
+    participant RH
+    participant PAIE
+    participant TRESORERIE
+    participant COMPTA
+
+    RH->>PAIE: Générer bulletins
+    PAIE->>TRESORERIE: Vérifier fonds
+    TRESORERIE-->>PAIE: OK
+    PAIE->>COMPTA: Écriture salaire
+    COMPTA-->>PAIE: Validée
+    

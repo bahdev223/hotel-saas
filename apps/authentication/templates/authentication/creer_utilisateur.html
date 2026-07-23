@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Créer un utilisateur{% endblock %}
+
+{% block header %}Créer un utilisateur{% endblock %}
+{% block subtitle %}Ajouter un nouvel utilisateur au système{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="bg-surface-container-low shadow-md rounded-xl">
+        <div class="px-6 py-4 border-b border-outline/10">
+            <h3 class="font-semibold">Nouvel utilisateur</h3>
+        </div>
+        
+        <form method="post" class="p-6 space-y-4">
+            {% csrf_token %}
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div class="form-control">
+                    <label class="label">Nom d'utilisateur <span class="text-error">*</span></label>
+                    <input type="text" name="username" class="input input-bordered" required>
+                </div>
+                <div class="form-control">
+                    <label class="label">Email <span class="text-error">*</span></label>
+                    <input type="email" name="email" class="input input-bordered" required>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div class="form-control">
+                    <label class="label">Prénom</label>
+                    <input type="text" name="first_name" class="input input-bordered">
+                </div>
+                <div class="form-control">
+                    <label class="label">Nom</label>
+                    <input type="text" name="last_name" class="input input-bordered">
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div class="form-control">
+                    <label class="label">Mot de passe <span class="text-error">*</span></label>
+                    <input type="password" name="password" class="input input-bordered" required>
+                </div>
+                <div class="form-control">
+                    <label class="label">Confirmer <span class="text-error">*</span></label>
+                    <input type="password" name="password_confirm" class="input input-bordered" required>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4">
+                <div class="form-control">
+                    <label class="label">Groupe <span class="text-error">*</span></label>
+                    <select name="group" class="select select-bordered" required>
+                        <option value="">Sélectionner un groupe</option>
+                        {% for group in groups %}
+                        <option value="{{ group.id }}">{{ group.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="form-control">
+                    <label class="label">Téléphone</label>
+                    <input type="tel" name="telephone" class="input input-bordered">
+                </div>
+            </div>
+            
+            <div class="form-control">
+                <label class="label">Matricule employé (RH)</label>
+                <input type="text" name="matricule_employe" class="input input-bordered" placeholder="EMP-001">
+            </div>
+            
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i>
+                <span>L'utilisateur pourra se connecter avec ces identifiants.</span>
+            </div>
+            
+            <div class="flex justify-end gap-3 pt-4">
+                <a href="{% url 'admin:auth_user_changelist' %}" class="btn btn-ghost">Annuler</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-user-plus"></i> Créer l'utilisateur
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,270 @@
+{% extends 'restaurant/base_restaurant.html' %}
+{% load static %}
+
+{% block title %}Stock — Restaurant{% endblock %}
+
+{% block content %}
+<div x-data="stockRestaurant()" x-init="init()" class="space-y-6">
+
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
+        <div>
+            <h2 class="text-lg font-bold text-on-surface">Stock de l'entrepôt</h2>
+            <p class="text-xs text-on-surface-variant" x-text="'{{ entrepot_nom }}'"></p>
+        </div>
+        <div class="flex gap-2">
+            <button @click="filtreType = ''; charger()" class="px-3 py-1.5 rounded-lg text-sm transition-smooth"
+                    :class="!filtreType ? 'bg-secondary text-black' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'">Tous</button>
+            <button @click="filtreType = 'MARCHANDISE'; charger()" class="px-3 py-1.5 rounded-lg text-sm transition-smooth"
+                    :class="filtreType === 'MARCHANDISE' ? 'bg-secondary text-black' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'">Marchandises</button>
+            <button @click="filtreType = 'MATIERE_PREMIERE'; charger()" class="px-3 py-1.5 rounded-lg text-sm transition-smooth"
+                    :class="filtreType === 'MATIERE_PREMIERE' ? 'bg-secondary text-black' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'">Matières premières</button>
+            <button @click="filtreType = 'CONSOMMABLE'; charger()" class="px-3 py-1.5 rounded-lg text-sm transition-smooth"
+                    :class="filtreType === 'CONSOMMABLE' ? 'bg-secondary text-black' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'">Consommables</button>
+            <select x-model="filtreDomaine" @change="charger()" class="px-3 py-1.5 rounded-lg text-sm bg-surface-container-high text-on-surface-variant border border-outline/10" x-show="domaines.length">
+                <option value="">Tous les domaines</option>
+                <template x-for="d in domaines" :key="d">
+                    <option :value="d" x-text="d"></option>
+                </template>
+            </select>
+            <button @click="openAddModal()" class="px-3 py-1.5 rounded-lg text-sm transition-smooth bg-secondary text-black font-semibold">
+                <i class="fas fa-plus mr-1"></i>Ajouter
+            </button>
+        </div>
+    </div>
+
+    <!-- Filtres par catégorie -->
+    <div class="flex items-center gap-2 flex-wrap" x-show="categories.length">
+        <span class="text-xs text-on-surface-variant uppercase tracking-wider font-medium">Catégorie :</span>
+        <button @click="filtreCategorie = ''; charger()"
+                class="px-3 py-1 text-xs font-medium rounded-full transition-all"
+                :class="!filtreCategorie ? 'bg-secondary/20 text-secondary' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'">Tous</button>
+        <template x-for="cat in categories" :key="cat">
+            <button @click="filtreCategorie = cat; charger()"
+                    class="px-3 py-1 text-xs font-medium rounded-full transition-all"
+                    :class="filtreCategorie === cat ? 'bg-secondary/20 text-secondary' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'"
+                    x-text="cat"></button>
+        </template>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-3 gap-4">
+        <div class="card-md3 p-4">
+            <p class="text-2xl font-bold text-on-surface" x-text="produits.length"></p>
+            <p class="text-xs text-on-surface-variant uppercase tracking-wide">Produits</p>
+        </div>
+        <div class="card-md3 p-4">
+            <p class="text-2xl font-bold text-red-400" x-text="stats.rupture"></p>
+            <p class="text-xs text-on-surface-variant uppercase tracking-wide">Rupture</p>
+        </div>
+        <div class="card-md3 p-4">
+            <p class="text-2xl font-bold text-yellow-400" x-text="stats.alerte"></p>
+            <p class="text-xs text-on-surface-variant uppercase tracking-wide">Stock bas</p>
+        </div>
+    </div>
+
+    <!-- Search -->
+    <div class="relative">
+        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm"></i>
+        <input type="text" x-model="search" @input.debounce.300ms="charger()" class="input-md3 rounded-lg pl-9 text-sm" placeholder="Rechercher un produit...">
+    </div>
+
+    <!-- Tableau -->
+    <div class="card-md3 overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead>
+                    <tr class="border-b border-outline/10 bg-surface-container-high/50">
+                        <th class="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Code</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Produit</th>
+                        <th class="px-4 py-3 text-left text-xs font-medium text-on-surface-variant uppercase tracking-wider">Domaine</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">Stock</th>
+                        <th class="px-4 py-3 text-right text-xs font-medium text-on-surface-variant uppercase tracking-wider">Prix vente</th>
+                        <th class="px-4 py-3 text-center text-xs font-medium text-on-surface-variant uppercase tracking-wider">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/5">
+                    <template x-for="p in produits" :key="p.id">
+                    <tr class="hover:bg-surface-container-low/50 transition">
+                        <td class="px-4 py-3"><code class="text-xs text-on-surface-variant" x-text="p.code"></code></td>
+                        <td class="px-4 py-3"><span class="text-sm font-medium text-on-surface" x-text="p.nom"></span></td>
+                        <td class="px-4 py-3"><span class="text-xs text-on-surface-variant" x-text="p.domaine"></span></td>
+                        <td class="px-4 py-3 text-right">
+                            <span class="text-sm font-mono" :class="p.est_en_rupture ? 'text-red-500 font-bold' : p.est_en_alerte ? 'text-yellow-500' : 'text-on-surface'"
+                                  x-text="p.quantite_stock + ' ' + p.unite_base"></span>
+                        </td>
+                        <td class="px-4 py-3 text-right font-mono text-secondary text-sm" x-text="formatMoney(p.prix_vente) + ' F'"></td>
+                        <td class="px-4 py-3 text-center">
+                            <button @click="supprimerProduit(p.id, p.nom)" class="text-red-500 hover:text-red-400 transition" title="Supprimer">
+                                <i class="fas fa-trash-alt"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    </template>
+                    <tr x-show="!produits.length">
+                        <td colspan="5" class="px-4 py-12 text-center text-on-surface-variant text-sm">
+                            <i class="fas fa-box-open text-3xl mb-3 block"></i>Aucun produit trouvé
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- MODAL AJOUT PRODUIT -->
+    <div x-show="openAdd" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="openAdd = false">
+        <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div class="sticky top-0 bg-surface-container-low px-6 py-4 border-b border-outline/10 flex justify-between items-center">
+                <h2 class="text-xl font-bold">Ajouter un produit</h2>
+                <button @click="openAdd = false" class="text-on-surface-variant hover:text-on-surface">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            <form @submit.prevent="saveProduit" class="p-6 space-y-4">
+                {% csrf_token %}
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Nom *</label>
+                        <input type="text" x-model="addForm.nom" required class="w-full px-3 py-2 input-md3 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Code</label>
+                        <input type="text" x-model="addForm.code" class="w-full px-3 py-2 input-md3 rounded-lg" placeholder="Auto si vide">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Type</label>
+                        <select x-model="addForm.type_article" class="w-full px-3 py-2 input-md3 rounded-lg">
+                            <option value="MARCHANDISE">Marchandise</option>
+                            <option value="MATIERE_PREMIERE">Matière première</option>
+                            <option value="CONSOMMABLE">Consommable</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Unité</label>
+                        <select x-model="addForm.unite_base" class="w-full px-3 py-2 input-md3 rounded-lg">
+                            <option value="piece">Pièce</option>
+                            <option value="kg">Kilogramme</option>
+                            <option value="g">Gramme</option>
+                            <option value="l">Litre</option>
+                            <option value="cl">Centilitre</option>
+                            <option value="botte">Botte</option>
+                            <option value="sachet">Sachet</option>
+                            <option value="boite">Boîte</option>
+                            <option value="caisse">Caisse</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Prix d'achat</label>
+                        <input type="number" step="0.01" x-model="addForm.prix_achat" class="w-full px-3 py-2 input-md3 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Prix de vente</label>
+                        <input type="number" step="0.01" x-model="addForm.prix_vente" class="w-full px-3 py-2 input-md3 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium mb-1">Seuil d'alerte</label>
+                        <input type="number" step="0.01" x-model="addForm.seuil_alerte" class="w-full px-3 py-2 input-md3 rounded-lg">
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium mb-1">Description</label>
+                    <textarea x-model="addForm.description" rows="2" class="w-full px-3 py-2 input-md3 rounded-lg"></textarea>
+                </div>
+                <div class="flex gap-3 pt-4 border-t border-outline/10">
+                    <button type="submit" class="flex-1 bg-secondary text-white px-4 py-2 rounded-lg hover:bg-secondary/80 transition" :disabled="loading">
+                        <i class="fas fa-save mr-2"></i>
+                        <span x-text="loading ? 'Enregistrement...' : 'Ajouter le produit'"></span>
+                    </button>
+                    <button type="button" @click="openAdd = false" class="flex-1 bg-surface-container-highest text-on-surface px-4 py-2 rounded-lg hover:bg-surface-container-highest transition">
+                        Annuler
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function stockRestaurant() {
+    return {
+        produits: [],
+        stats: { rupture: 0, alerte: 0 },
+        search: '',
+        filtreType: '',
+        filtreCategorie: '',
+        filtreDomaine: '',
+        categories: [],
+        domaines: [],
+        openAdd: false,
+        loading: false,
+        addForm: {
+            nom: '', code: '', type_article: 'MARCHANDISE', unite_base: 'piece',
+            prix_achat: 0, prix_vente: 0, seuil_alerte: 5, description: ''
+        },
+        async init() { await this.charger(); },
+        openAddModal() {
+            this.addForm = { nom: '', code: '', type_article: 'MARCHANDISE', unite_base: 'piece', prix_achat: 0, prix_vente: 0, seuil_alerte: 5, description: '' };
+            this.openAdd = true;
+        },
+        async saveProduit() {
+            this.loading = true;
+            try {
+                const r = await fetch('/restaurant/api/produits/ajouter/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
+                    body: JSON.stringify(this.addForm)
+                });
+                const d = await r.json();
+                if (d.success) {
+                    this.openAdd = false;
+                    await this.charger();
+                } else {
+                    alert(d.error || 'Erreur');
+                }
+            } catch(e) { alert('Erreur réseau'); }
+            finally { this.loading = false; }
+        },
+        async charger() {
+            try {
+                const r = await fetch('/restaurant/api/produits/stock/');
+                const d = await r.json();
+                if (d.success) {
+                    let list = d.produits || [];
+                    // Extraire les catégories et domaines uniques
+                    this.categories = [...new Set(list.map(p => p.categorie).filter(Boolean))].sort();
+                    this.domaines = [...new Set(list.map(p => p.domaine).filter(Boolean))].sort();
+                    if (this.search) {
+                        const q = this.search.toLowerCase();
+                        list = list.filter(p => p.nom.toLowerCase().includes(q) || p.code.toLowerCase().includes(q));
+                    }
+                    if (this.filtreType) list = list.filter(p => p.type_article === this.filtreType);
+                    if (this.filtreCategorie) list = list.filter(p => p.categorie === this.filtreCategorie);
+                    if (this.filtreDomaine) list = list.filter(p => p.domaine === this.filtreDomaine);
+                    this.produits = list;
+                    this.stats = {
+                        rupture: list.filter(p => p.est_en_rupture).length,
+                        alerte: list.filter(p => p.est_en_alerte).length,
+                    };
+                }
+            } catch(e) {}
+        },
+        formatMoney(v) { return new Intl.NumberFormat('fr-FR').format(v || 0); },
+        async supprimerProduit(id, nom) {
+            if (!confirm(`Supprimer le produit "${nom}" ?`)) return;
+            try {
+                const r = await fetch(`/restaurant/api/produits/${id}/supprimer/`, {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value }
+                });
+                const d = await r.json();
+                if (d.success) {
+                    await this.charger();
+                } else {
+                    alert(d.error || 'Erreur');
+                }
+            } catch(e) { alert('Erreur réseau'); }
+        }
+    }
+}
+</script>
+{% endblock %}

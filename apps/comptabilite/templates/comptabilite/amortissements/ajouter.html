@@ -1,0 +1,145 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load static %}
+
+{% block title %}Nouvelle immobilisation{% endblock %}
+
+{% block header %}Ajouter une immobilisation{% endblock %}
+{% block subtitle %}Enregistrement d'un nouvel actif fixe{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <form method="post" class="bg-surface-container-low rounded-2xl shadow-md p-6 space-y-6">
+        {% csrf_token %}
+        
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+                <label class="block text-sm font-medium text-on-surface mb-1">Code *</label>
+                <input type="text" name="code" required class="w-full px-3 py-2 input-md3 rounded-lg" placeholder="Ex: MAT-001">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-on-surface mb-1">Type *</label>
+                <select name="type_immobilisation" required class="w-full px-3 py-2 input-md3 rounded-lg">
+                    {% for code, label in types %}
+                    <option value="{{ code }}">{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        
+        <div>
+            <label class="block text-sm font-medium text-on-surface mb-1">Libellé *</label>
+            <input type="text" name="libelle" required class="w-full px-3 py-2 input-md3 rounded-lg" placeholder="Description de l'immobilisation">
+        </div>
+        
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+                <label class="block text-sm font-medium text-on-surface mb-1">Date d'acquisition *</label>
+                <input type="date" name="date_acquisition" required class="w-full px-3 py-2 input-md3 rounded-lg">
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-on-surface mb-1">Durée (années) *</label>
+                <input type="number" name="duree_ans" required class="w-full px-3 py-2 input-md3 rounded-lg" placeholder="5">
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <div>
+                <label class="block text-sm font-medium text-on-surface mb-1">Valeur d'acquisition *</label>
+                <div class="relative">
+                    <input type="number" name="valeur_originale" step="1000" required class="w-full px-3 py-2 input-md3 rounded-lg" placeholder="0">
+                    <span class="absolute right-3 top-2 text-on-surface-variant">FCFA</span>
+                </div>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-on-surface mb-1">Valeur résiduelle</label>
+                <div class="relative">
+                    <input type="number" name="valeur_residuelle" step="1000" class="w-full px-3 py-2 input-md3 rounded-lg" placeholder="0">
+                    <span class="absolute right-3 top-2 text-on-surface-variant">FCFA</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div>
+                <label class="block text-sm font-medium text-on-surface mb-1">Compte immobilisation</label>
+                <select name="compte_immobilisation" required class="w-full px-3 py-2 input-md3 rounded-lg">
+                    <option value="">Sélectionner...</option>
+                    {% for compte in comptes_immobilisation %}
+                    <option value="{{ compte.id }}">{{ compte.code }} - {{ compte.libelle }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-on-surface mb-1">Compte amortissement</label>
+                <select name="compte_amortissement" required class="w-full px-3 py-2 input-md3 rounded-lg">
+                    <option value="">Sélectionner...</option>
+                    {% for compte in comptes_amortissement %}
+                    <option value="{{ compte.id }}">{{ compte.code }} - {{ compte.libelle }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-on-surface mb-1">Compte charge</label>
+                <select name="compte_charge" required class="w-full px-3 py-2 input-md3 rounded-lg">
+                    <option value="">Sélectionner...</option>
+                    {% for compte in comptes_charge %}
+                    <option value="{{ compte.id }}">{{ compte.code }} - {{ compte.libelle }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </div>
+        
+        <div>
+            <label class="block text-sm font-medium text-on-surface mb-1">Notes</label>
+            <textarea name="notes" rows="3" class="w-full px-3 py-2 input-md3 rounded-lg" placeholder="Informations complémentaires..."></textarea>
+        </div>
+        
+        <!-- Récapitulatif -->
+        <div class="bg-surface-container-high rounded-lg p-4">
+            <h4 class="font-semibold mb-3">📊 Récapitulatif</h4>
+            <div class="text-sm space-y-2">
+                <div class="flex justify-between">
+                    <span>Base amortissable :</span>
+                    <span class="font-mono" id="base_amortissable">0 F</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Amortissement annuel :</span>
+                    <span class="font-mono" id="amortissement_annuel">0 F</span>
+                </div>
+                <div class="flex justify-between">
+                    <span>Amortissement mensuel :</span>
+                    <span class="font-mono" id="amortissement_mensuel">0 F</span>
+                </div>
+            </div>
+        </div>
+        
+        <div class="flex gap-3 justify-end">
+            <a href="{% url 'comptabilite:immobilisations_liste' %}" class="px-4 py-2 border-outline/10 rounded-lg hover:bg-surface-container-low">Annuler</a>
+            <button type="submit" class="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700">
+                <i class="fas fa-save mr-2"></i>Enregistrer
+            </button>
+        </div>
+    </form>
+</div>
+
+<script>
+    function calculerAmortissements() {
+        const valeur = parseFloat(document.querySelector('[name="valeur_originale"]').value) || 0;
+        const residuelle = parseFloat(document.querySelector('[name="valeur_residuelle"]').value) || 0;
+        const duree = parseFloat(document.querySelector('[name="duree_ans"]').value) || 1;
+        
+        const base = valeur - residuelle;
+        const annuel = base / duree;
+        const mensuel = annuel / 12;
+        
+        document.getElementById('base_amortissable').innerText = base.toLocaleString() + ' F';
+        document.getElementById('amortissement_annuel').innerText = annuel.toLocaleString() + ' F';
+        document.getElementById('amortissement_mensuel').innerText = mensuel.toLocaleString() + ' F';
+    }
+    
+    document.querySelectorAll('[name="valeur_originale"], [name="valeur_residuelle"], [name="duree_ans"]').forEach(input => {
+        input.addEventListener('input', calculerAmortissements);
+    });
+    calculerAmortissements();
+</script>
+{% endblock %}

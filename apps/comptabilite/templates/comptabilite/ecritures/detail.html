@@ -1,0 +1,116 @@
+{% extends "comptabilite/base_compta.html" %}
+{% load static %}
+
+{% block title %}Écriture {{ ecriture.reference }}{% endblock %}
+
+{% block header %}Écriture {{ ecriture.reference }}{% endblock %}
+{% block subtitle %}Détail de l'écriture du {{ ecriture.date_ecriture|date:"d/m/Y" }}{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    
+    <!-- Informations générales -->
+    <div class="bg-surface-container-low rounded-2xl shadow-md">
+        <div class="px-6 py-4 border-b border-outline/10 flex justify-between items-center">
+            <h3 class="font-semibold">Informations</h3>
+            <div>
+                {% if ecriture.validee %}
+                    <span class="badge badge-success">Validée le {{ ecriture.date_validation|date:"d/m/Y H:i" }}</span>
+                {% else %}
+                    <span class="badge badge-warning">En attente de validation</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="p-6 grid grid-cols-2 gap-4">
+            <div>
+                <p class="text-sm text-on-surface-variant">Référence</p>
+                <p class="font-mono">{{ ecriture.reference }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-on-surface-variant">Date d'écriture</p>
+                <p>{{ ecriture.date_ecriture|date:"d/m/Y" }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-on-surface-variant">Journal</p>
+                <p>{{ ecriture.journal.code }} - {{ ecriture.journal.libelle }}</p>
+            </div>
+            <div>
+                <p class="text-sm text-on-surface-variant">Pièce justificative</p>
+                <p>{{ ecriture.piece|default:"-" }}</p>
+            </div>
+            <div class="col-span-2">
+                <p class="text-sm text-on-surface-variant">Libellé</p>
+                <p>{{ ecriture.libelle }}</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Lignes d'écriture -->
+    <div class="bg-surface-container-low rounded-2xl shadow-md">
+        <div class="px-6 py-4 border-b border-outline/10">
+            <h3 class="font-semibold">Lignes d'écriture</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full">
+                <thead class="bg-surface-container-high">
+                    <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">Compte</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-on-surface-variant uppercase">Libellé</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-on-surface-variant uppercase">Débit</th>
+                        <th class="px-6 py-3 text-right text-xs font-medium text-on-surface-variant uppercase">Crédit</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-outline/10">
+                    {% for ligne in lignes %}
+                    <tr class="hover:bg-surface-container-low">
+                        <td class="px-6 py-3 font-mono text-sm">{{ ligne.compte.code }} - {{ ligne.compte.libelle|truncatechars:30 }}</td>
+                        <td class="px-6 py-3 text-sm">{{ ligne.libelle|default:"-" }}</td>
+                        <td class="px-6 py-3 text-right font-mono text-sm">
+                            {% if ligne.debit > 0 %}{{ ligne.debit|floatformat:0 }} F{% else %}-{% endif %}
+                        </td>
+                        <td class="px-6 py-3 text-right font-mono text-sm">
+                            {% if ligne.credit > 0 %}{{ ligne.credit|floatformat:0 }} F{% else %}-{% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="bg-surface-container-high font-semibold">
+                    <tr>
+                        <td colspan="2" class="px-6 py-3 text-right">TOTAUX :</td>
+                        <td class="px-6 py-3 text-right font-mono">{{ total_debit|floatformat:0 }} F</td>
+                        <td class="px-6 py-3 text-right font-mono">{{ total_credit|floatformat:0 }} F</td>
+                    </tr>
+                    {% if est_equilibree %}
+                    <tr class="bg-success/10">
+                        <td colspan="4" class="px-6 py-3 text-success text-center">
+                            <i class="fas fa-check-circle"></i> Écriture équilibrée
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr class="bg-error/10">
+                        <td colspan="4" class="px-6 py-3 text-error text-center">
+                            <i class="fas fa-exclamation-triangle"></i> Écriture déséquilibrée (Différence: {{ total_debit|floatformat:0|add:"-"|add:total_credit|floatformat:0 }} F)
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tfoot>
+            </table>
+        </div>
+    </div>
+    
+    <!-- Actions -->
+    <div class="flex justify-between">
+        <a href="{% url 'comptabilite:ecritures_liste' %}" class="btn btn-ghost">
+            <i class="fas fa-arrow-left"></i> Retour à la liste
+        </a>
+        {% if not ecriture.validee %}
+        <form method="post" action="{% url 'comptabilite:ecriture_valider' ecriture.id %}" onsubmit="return confirm('Valider cette écriture ?')">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-success">
+                <i class="fas fa-check"></i> Valider l'écriture
+            </button>
+        </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

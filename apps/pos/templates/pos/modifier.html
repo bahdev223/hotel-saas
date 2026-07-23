@@ -1,0 +1,83 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Modifier - {{ point.nom }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    
+    <div class="bg-surface-container-low rounded-xl shadow-md overflow-hidden">
+        
+        <!-- En-tête -->
+        <div class="px-6 py-4 border-b border-outline/10 bg-surface-container-high">
+            <h1 class="text-xl font-bold text-on-surface">Modifier le point de vente</h1>
+            <p class="text-sm text-on-surface-variant">{{ point.code }} - {{ point.nom }}</p>
+        </div>
+        
+        <form method="post" class="p-6 space-y-5">
+            {% csrf_token %}
+            
+            <!-- Nom -->
+            <div>
+                <label class="block text-sm font-medium text-on-surface mb-1">Nom du point de vente</label>
+                <input type="text" name="nom" value="{{ point.nom }}" required
+                       class="w-full px-3 py-2 border border-outline/10 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50">
+            </div>
+            
+            <!-- Emplacement -->
+            <div>
+                <label class="block text-sm font-medium text-on-surface mb-1">Emplacement</label>
+                <select name="emplacement" class="w-full px-3 py-2 border border-outline/10 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50">
+                    {% for value, label in emplacements %}
+                    <option value="{{ value }}" {% if point.emplacement == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Actif -->
+            <div class="flex items-center">
+                <input type="checkbox" name="actif" id="actif" {% if point.actif %}checked{% endif %}
+                       class="w-4 h-4 text-blue-400 border-outline/10 rounded focus:ring-secondary/50">
+                <label for="actif" class="ml-2 text-sm text-on-surface">Point de vente actif</label>
+            </div>
+            
+            <!-- Mot de passe -->
+            <div class="pt-2">
+                <label class="block text-sm font-medium text-on-surface mb-1">Nouveau mot de passe</label>
+                <input type="password" name="password" 
+                       class="w-full px-3 py-2 border border-outline/10 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50"
+                       placeholder="Laisser vide pour ne pas changer">
+                {% if point.utilisateur %}
+                <p class="text-xs text-on-surface-variant mt-1">
+                    Utilisateur: <strong>{{ point.utilisateur.username }}</strong>
+                </p>
+                {% endif %}
+            </div>
+            
+            <!-- Caisse -->
+            <div>
+                <label class="block text-sm font-medium text-on-surface mb-1">Caisse associée</label>
+                <select name="caisse_id" class="w-full px-3 py-2 border border-outline/10 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50">
+                    <option value="">-- Aucune caisse --</option>
+                    {% for caisse in caisses_disponibles %}
+                    <option value="{{ caisse.id }}" {% if point.caisse.id == caisse.id %}selected{% endif %}>
+                        {{ caisse.code }} - {{ caisse.nom }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            
+            <!-- Boutons -->
+            <div class="flex gap-3 pt-4">
+                <button type="submit" class="flex-1 btn-md3-primary bg-blue-700 text-white py-2 rounded-lg hover:bg-blue-800 transition">
+                    Enregistrer
+                </button>
+                <a href="{% url 'pos:detail_point_vente' point.id %}" 
+                   class="px-6 py-2 border border-outline/10 text-on-surface rounded-lg hover:bg-surface-container-low transition">
+                    Annuler
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

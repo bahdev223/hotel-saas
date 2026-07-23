@@ -1,0 +1,405 @@
+{% extends 'comptabilite/base_compta.html' %}
+{% load static %}
+
+{% block title %}Plan comptable SYSCOHADA{% endblock %}
+
+{% block header %}Plan comptable{% endblock %}
+
+{% block subtitle %}SYSCOHADA - Gestion des comptes et sous-comptes personnalisés{% endblock %}
+
+{% block content %}
+<div x-data="compteManagement()" x-init="init()">
+    <div class="space-y-6">
+        
+        <!-- Statistiques comptables -->
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+            <div class="bg-surface-container-low rounded-2xl shadow-md p-5 border-l-4 border-secondary">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-on-surface-variant">Total comptes</p>
+                        <p class="text-2xl font-bold text-emerald-400">{{ stats.total }}</p>
+                    </div>
+                    <i class="text-3xl fas fa-database text-emerald-600/50"></i>
+                </div>
+            </div>
+            <div class="bg-surface-container-low rounded-2xl shadow-md p-5 border-l-4 border-secondary">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-on-surface-variant">Comptes standards</p>
+                        <p class="text-2xl font-bold text-blue-400">{{ stats.standard }}</p>
+                    </div>
+                    <i class="text-3xl fas fa-list-ul text-blue-500/50"></i>
+                </div>
+            </div>
+            <div class="bg-surface-container-low rounded-2xl shadow-md p-5 border-l-4 border-secondary">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-sm text-on-surface-variant">Sous-comptes personnalisés</p>
+                        <p class="text-2xl font-bold text-green-400">{{ stats.personnalises }}</p>
+                    </div>
+                    <i class="text-3xl fas fa-plus-circle text-green-500/50"></i>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Filtres comptables -->
+        <div class="bg-surface-container-low rounded-2xl shadow-md p-4">
+            <form method="get" class="grid grid-cols-1 gap-3 md:grid-cols-4">
+                <input type="text" name="recherche" value="{{ recherche }}" 
+                       placeholder="Code ou libellé..." 
+                       class="px-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50">
+                <select name="type_compte" class="px-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50">
+                    <option value="">Tous les types</option>
+                    {% for value, label in types_compte %}
+                    <option value="{{ value }}" {% if type_compte == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <select name="categorie" class="px-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50">
+                    <option value="">Toutes les catégories</option>
+                    {% for value, label in categories %}
+                    <option value="{{ value }}" {% if categorie == value %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <div class="flex gap-2 flex-wrap">
+                    <button type="submit" class="flex-1 bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900 transition">
+                        <i class="fas fa-search mr-2"></i>Filtrer
+                    </button>
+                    <a href="{% url 'comptabilite:comptes_liste' %}" class="px-4 py-2 border-outline/10 rounded-lg hover:bg-surface-container-low transition">
+                        <i class="fas fa-undo"></i>
+                    </a>
+                </div>
+            </form>
+        </div>
+        
+        <!-- Actions rapides -->
+        <div class="flex justify-end">
+            <button @click="openModal('compte')" :disabled="{{ est_bloque_compta|lower }}"
+                    class="bg-emerald-600 text-white px-5 py-2.5 rounded-lg hover:bg-emerald-700 transition shadow-md flex items-center gap-2">
+                <i class="fas fa-plus"></i>
+                <span>Nouveau compte</span>
+            </button>
+        </div>
+        
+        <!-- Tableau des comptes -->
+        <div class="bg-surface-container-low rounded-2xl shadow-md overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="w-full table-compta">
+                    <thead class="bg-surface-container-high">
+                        <tr class="border-b border-outline/10">
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Code</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Libellé</th>
+                            <th class="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Type</th>
+                            <th class="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Nature</th>
+                            <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Sens</th>
+                            <th class="hidden md:table-cell px-4 py-3 text-center text-xs font-semibold text-on-surface-variant uppercase">Origine</th>
+                            <th class="hidden md:table-cell px-4 py-3 text-center text-xs font-semibold text-on-surface-variant uppercase">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-outline/10">
+                        {% for compte in comptes %}
+                        <tr class="hover:bg-surface-container-low transition">
+                            <td class="px-4 py-3 font-mono text-sm font-semibold">{{ compte.code }}</td>
+                            <td class="px-4 py-3 text-sm">{{ compte.libelle }}</td>
+                            <td class="hidden md:table-cell px-4 py-3 text-sm">
+                                {% if compte.type_compte == 'sous_compte' %}
+                                    <span class="text-green-400">Sous-compte</span>
+                                {% elif compte.type_compte == 'compte' %}
+                                    <span class="text-blue-400">Compte</span>
+                                {% elif compte.type_compte == 'groupe' %}
+                                    <span class="text-purple-400">Groupe</span>
+                                {% else %}
+                                    <span class="text-on-surface-variant">{{ compte.get_type_compte_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="hidden md:table-cell px-4 py-3 text-sm">
+                                {% if compte.nature == 'ACTIF' %}
+                                    <span class="text-emerald-600">Actif</span>
+                                {% elif compte.nature == 'PASSIF' %}
+                                    <span class="text-red-400">Passif</span>
+                                {% elif compte.nature == 'CHARGE' %}
+                                    <span class="text-orange-400">Charge</span>
+                                {% else %}
+                                    <span class="text-blue-400">Produit</span>
+                                {% endif %}
+                            </td>
+                            <td class="px-4 py-3 text-sm">
+                                {% if compte.sens == 'DEBIT' %}
+                                    <span class="text-red-400">Débit</span>
+                                {% else %}
+                                    <span class="text-green-400">Crédit</span>
+                                {% endif %}
+                            </td>
+                            <td class="hidden md:table-cell px-4 py-3 text-center">
+                                {% if compte.type_compte == 'sous_compte' %}
+                                <span class="bg-green-900/30 text-green-300 px-2 py-1 rounded-full text-xs">
+                                    <i class="fas fa-user-plus mr-1"></i>Personnalisé
+                                </span>
+                                {% else %}
+                                <span class="bg-blue-900/30 text-blue-300 px-2 py-1 rounded-full text-xs">
+                                    <i class="fas fa-database mr-1"></i>Standard
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td class="hidden md:table-cell px-4 py-3 text-center">
+                                <div class="flex justify-center gap-2">
+                                    <a href="{% url 'comptabilite:detail_compte' compte.id %}" 
+                                       class="text-emerald-600 hover:text-emerald-800 transition" 
+                                       title="Détail">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if compte.type_compte == 'compte' or compte.type_compte == 'sous_compte' %}
+                                    <button @click="openModal('sous_compte', {{ compte.id }})"
+                                            :disabled="{{ est_bloque_compta|lower }}"
+                                            class="text-blue-400 hover:text-blue-300 transition"
+                                            title="Ajouter sous-compte">
+                                        <i class="fas fa-plus-circle"></i>
+                                    </button>
+                                    {% endif %}
+                                    {% if compte.type_compte == 'sous_compte' %}
+                                    <a href="{% url 'comptabilite:modifier_compte' compte.id %}"
+                                       class="text-yellow-400 hover:text-yellow-300 transition {% if est_bloque_compta %}pointer-events-none opacity-30{% endif %}"
+                                       title="Modifier" {% if est_bloque_compta %}aria-disabled="true" tabindex="-1"{% endif %}>
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="px-4 py-12 text-center text-on-surface-variant">
+                                <i class="fas fa-search text-4xl mb-2 block"></i>
+                                <p>Aucun compte trouvé</p>
+                                <p class="text-xs mt-1">Modifiez vos filtres ou créez un nouveau compte</p>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Pagination -->
+        {% if comptes.has_other_pages %}
+        <div class="flex justify-center gap-2">
+            {% if comptes.has_previous %}
+            <a href="?page={{ comptes.previous_page_number }}{% if recherche %}&recherche={{ recherche }}{% endif %}{% if type_compte %}&type_compte={{ type_compte }}{% endif %}" 
+               class="px-3 py-1 border-outline/10 rounded-lg hover:bg-surface-container-low transition">«</a>
+            {% endif %}
+            <span class="px-4 py-1 text-sm text-on-surface-variant">Page {{ comptes.number }} / {{ comptes.paginator.num_pages }}</span>
+            {% if comptes.has_next %}
+            <a href="?page={{ comptes.next_page_number }}{% if recherche %}&recherche={{ recherche }}{% endif %}{% if type_compte %}&type_compte={{ type_compte }}{% endif %}" 
+               class="px-3 py-1 border-outline/10 rounded-lg hover:bg-surface-container-low transition">»</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    
+    <!-- ========== MODAL AJOUT COMPTE ========== -->
+    <div x-show="modal === 'compte'" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="modal = null">
+        <div class="bg-surface-container-low rounded-2xl shadow-2xl w-full max-w-md mx-4" @click.stop>
+            <div class="flex justify-between items-center p-5 border-b border-outline/10">
+                <h2 class="text-lg font-semibold text-on-surface">
+                    <i class="fas fa-plus-circle text-emerald-600 mr-2"></i>Ajouter un compte
+                </h2>
+                <button @click="modal = null" class="text-on-surface-variant hover:text-on-surface transition">✕</button>
+            </div>
+            <form @submit.prevent="submitCompte" class="p-5 space-y-4">
+                {% csrf_token %}
+                <div>
+                    <label class="block text-sm font-medium text-on-surface mb-1">Code *</label>
+                    <input type="text" x-model="formCompte.code" required 
+                           class="w-full px-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50 font-mono" 
+                           placeholder="Ex: 5711">
+                    <p class="text-xs text-on-surface-variant mt-1">Format SYSCOHADA (5 chiffres maximum)</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-on-surface mb-1">Libellé *</label>
+                    <input type="text" x-model="formCompte.libelle" required 
+                           class="w-full px-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50" 
+                           placeholder="Ex: Caisse Bar">
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface mb-1">Nature</label>
+                        <select x-model="formCompte.nature" class="w-full px-3 py-2 input-md3 rounded-lg">
+                            <option value="ACTIF">Actif</option>
+                            <option value="PASSIF">Passif</option>
+                            <option value="CHARGE">Charge</option>
+                            <option value="PRODUIT">Produit</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface mb-1">Sens</label>
+                        <select x-model="formCompte.sens" class="w-full px-3 py-2 input-md3 rounded-lg">
+                            <option value="DEBIT">Débit</option>
+                            <option value="CREDIT">Crédit</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-on-surface mb-1">Catégorie</label>
+                    <select x-model="formCompte.categorie" class="w-full px-3 py-2 input-md3 rounded-lg">
+                        <option value="bilan">Bilan (Comptes de bilan)</option>
+                        <option value="resultat">Résultat (Charges & Produits)</option>
+                    </select>
+                </div>
+                <div class="flex gap-3 pt-3 flex-wrap">
+                    <button type="submit" :disabled="{{ est_bloque_compta|lower }}" class="flex-1 bg-emerald-600 text-white py-2 rounded-lg hover:bg-emerald-700 transition">
+                        <i class="fas fa-save mr-2"></i>Créer
+                    </button>
+                    <button type="button" @click="modal = null" class="flex-1 border-outline/10 py-2 rounded-lg hover:bg-surface-container-low transition text-on-surface">
+                        Annuler
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <!-- ========== MODAL AJOUT SOUS-COMPTE ========== -->
+    <div x-show="modal === 'sous_compte'" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="modal = null">
+        <div class="bg-surface-container-low rounded-2xl shadow-2xl w-full max-w-md mx-4" @click.stop>
+            <div class="flex justify-between items-center p-5 border-b border-outline/10">
+                <h2 class="text-lg font-semibold text-on-surface">
+                    <i class="fas fa-sitemap text-green-400 mr-2"></i>Ajouter un sous-compte
+                </h2>
+                <button @click="modal = null" class="text-on-surface-variant hover:text-on-surface transition">✕</button>
+            </div>
+            <form @submit.prevent="submitSousCompte" class="p-5 space-y-4">
+                {% csrf_token %}
+                <input type="hidden" x-model="formSousCompte.parent_id">
+                <div>
+                    <label class="block text-sm font-medium text-on-surface mb-1">Code *</label>
+                    <input type="text" x-model="formSousCompte.code" required 
+                           class="w-full px-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50 font-mono" 
+                           placeholder="Ex: 57111">
+                    <p class="text-xs text-on-surface-variant mt-1">Doit commencer par le code du compte parent</p>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-on-surface mb-1">Libellé *</label>
+                    <input type="text" x-model="formSousCompte.libelle" required 
+                           class="w-full px-3 py-2 input-md3 rounded-lg focus:outline-none focus:ring-2 focus:ring-secondary/50" 
+                           placeholder="Ex: Caisse Bar Principal">
+                </div>
+                <div class="bg-green-900/20 rounded-lg p-3 text-sm text-green-300">
+                    <i class="fas fa-info-circle mr-2"></i>
+                    Le sous-compte héritera de la nature et du sens du compte parent
+                </div>
+                <div class="flex gap-3 pt-3 flex-wrap">
+                    <button type="submit" :disabled="{{ est_bloque_compta|lower }}" class="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700 transition">
+                        <i class="fas fa-save mr-2"></i>Créer
+                    </button>
+                    <button type="button" @click="modal = null" class="flex-1 border-outline/10 py-2 rounded-lg hover:bg-surface-container-low transition">
+                        Annuler
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('alpine:init', () => {
+    Alpine.data('compteManagement', compteManagement);
+});
+</script>
+
+<script>
+function compteManagement() {
+    return {
+        modal: null,
+        formCompte: {
+            code: '',
+            libelle: '',
+            nature: 'ACTIF',
+            sens: 'DEBIT',
+            categorie: 'bilan'
+        },
+        formSousCompte: {
+            parent_id: '',
+            code: '',
+            libelle: ''
+        },
+        
+        openModal(type, parentId = null) {
+            this.modal = type;
+            if (type === 'sous_compte' && parentId) {
+                this.formSousCompte.parent_id = parentId;
+                this.formSousCompte.code = '';
+                this.formSousCompte.libelle = '';
+            } else {
+                this.formCompte = { code: '', libelle: '', nature: 'ACTIF', sens: 'DEBIT', categorie: 'bilan' };
+            }
+        },
+        
+        async submitCompte() {
+            if (!this.formCompte.code || !this.formCompte.libelle) {
+                alert('⚠️ Code et libellé sont obligatoires');
+                return;
+            }
+            try {
+                const res = await fetch("{% url 'comptabilite:api_ajouter_compte' %}", {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        code: this.formCompte.code,
+                        libelle: this.formCompte.libelle,
+                        nature: this.formCompte.nature,
+                        sens: this.formCompte.sens,
+                        categorie: this.formCompte.categorie
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('✅ Compte créé avec succès');
+                    window.location.reload();
+                } else {
+                    alert('❌ ' + data.error);
+                }
+            } catch(e) {
+                alert('❌ Erreur réseau');
+            }
+        },
+        
+        async submitSousCompte() {
+            if (!this.formSousCompte.code || !this.formSousCompte.libelle) {
+                alert('⚠️ Code et libellé sont obligatoires');
+                return;
+            }
+            try {
+                const res = await fetch("{% url 'comptabilite:api_ajouter_sous_compte' %}", {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({
+                        parent_id: this.formSousCompte.parent_id,
+                        code: this.formSousCompte.code,
+                        libelle: this.formSousCompte.libelle
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('✅ Sous-compte créé avec succès');
+                    window.location.reload();
+                } else {
+                    alert('❌ ' + data.error);
+                }
+            } catch(e) {
+                alert('❌ Erreur réseau');
+            }
+        },
+        
+        getCookie(name) {
+            let value = `; ${document.cookie}`;
+            let parts = value.split(`; ${name}=`);
+            return parts.length === 2 ? parts.pop().split(';').shift() : null;
+        }
+    }
+}
+</script>
+{% endblock %}
