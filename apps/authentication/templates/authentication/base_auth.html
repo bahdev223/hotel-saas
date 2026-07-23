@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}HotelERP - Login{% endblock %}</title>
+    <title>{% block title %}{{ entreprise_courante.nom_commercial|default:entreprise_courante.nom|default:'ERP' }} - Login{% endblock %}</title>
     
     <!-- Tailwind + daisyUI -->
     <link href="{% static 'css/dist/styles.css' %}" rel="stylesheet">

@@ -69,6 +69,7 @@ INSTALLED_APPS = [
     "tailwind",
     "theme",
     
+    'apps.entreprises',
     'apps.comptabilite',
     'apps.authentication',
     'apps.clients',
@@ -80,6 +81,7 @@ INSTALLED_APPS = [
     'apps.dashboard',
     'apps.paie',
     'apps.stock',
+    'apps.stocks',
     'apps.catalogue',
     'apps.tresorerie', 'apps.pos',
     'apps.fournisseurs',
@@ -152,6 +154,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'hotel_project.context_processors.promoteur_context',
+                'apps.entreprises.context_processors.entreprise_context',
             ],
         },
     },

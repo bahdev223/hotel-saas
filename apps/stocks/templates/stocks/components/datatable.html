@@ -1,0 +1,16 @@
+<div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+        {% if thead %}
+        <thead class="table-light">
+            <tr>
+                {% for th in thead %}
+                <th>{{ th }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        {% endif %}
+        <tbody>
+            {{ rows }}
+        </tbody>
+    </table>
+</div>

@@ -1,0 +1,88 @@
+{% extends base_template %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-tags me-2"></i>Lots</h4>
+    <a href="{% url 'stocks:lot_create' %}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Nouveau lot</a>
+</div>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col">
+        <input type="text" name="q" class="form-control form-control-sm" placeholder="Rechercher par n° de lot ou article..." value="{{ q }}">
+    </div>
+    <div class="col-auto">
+        <select name="article" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Tous articles</option>
+            {% for a in articles %}
+            <option value="{{ a.pk }}" {% if request.GET.article == a.pk|stringformat:'s' %}selected{% endif %}>{{ a.code }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <select name="peremption" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Toutes dates</option>
+            <option value="30j" {% if request.GET.peremption == '30j' %}selected{% endif %}>Expire dans 30j</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <select name="actif" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Tous</option>
+            <option value="oui" {% if request.GET.actif == 'oui' %}selected{% endif %}>Actifs</option>
+            <option value="non" {% if request.GET.actif == 'non' %}selected{% endif %}>Inactifs</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-sm btn-outline-primary"><i class="bi bi-search"></i></button>
+        <a href="{% url 'stocks:lot_list' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-circle"></i></a>
+    </div>
+</form>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>N° Lot</th>
+                    <th>Article</th>
+                    <th class="text-end">Initiale</th>
+                    <th class="text-end">Restante</th>
+                    <th>Fab.</th>
+                    <th>Exp.</th>
+                    <th class="text-center">Actif</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for l in object_list %}
+                <tr>
+                    <td><strong>{{ l.numero_lot }}</strong></td>
+                    <td><a href="{% url 'stocks:article_detail' l.article.pk %}">{{ l.article.code }}</a></td>
+                    <td class="text-end">{{ l.quantite_initiale|floatformat:2 }}</td>
+                    <td class="text-end">{{ l.quantite_restante|floatformat:2 }}</td>
+                    <td>{{ l.date_fabrication|date:"d/m/Y"|default:"-" }}</td>
+                    <td>
+                        {% if l.date_peremption %}
+                        <span class="{% if l.date_peremption < today %}text-danger fw-bold{% endif %}">{{ l.date_peremption|date:"d/m/Y" }}</span>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if l.actif %}
+                        <span class="badge bg-success">Oui</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Non</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">Aucun lot trouvé</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% include "stocks/components/pagination.html" %}
+{% endblock %}

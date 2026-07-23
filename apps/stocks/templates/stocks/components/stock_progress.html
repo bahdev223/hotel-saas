@@ -1,0 +1,11 @@
+{% with max_stock=article.stock_max|default:100 %}
+<div class="progress" style="height: 6px;">
+    <div class="progress-bar {% if stock <= 0 %}bg-danger{% elif article.seuil_alerte and stock <= article.seuil_alerte %}bg-warning{% else %}bg-success{% endif %}"
+         role="progressbar"
+         style="width: {% widthratio stock max_stock 100 %}%;"
+         aria-valuenow="{{ stock }}"
+         aria-valuemin="0"
+         aria-valuemax="{{ max_stock }}">
+    </div>
+</div>
+{% endwith %}

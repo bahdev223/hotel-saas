@@ -1,0 +1,77 @@
+{% extends 'hotel/base_hotel.html' %}
+{% load static %}
+
+{% block title %}Réservations{% endblock %}
+{% block header %}<i class="fas fa-calendar-check text-secondary mr-2"></i>Réservations{% endblock %}
+{% block subtitle %}Gestion des réservations{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+    <div class="flex justify-between items-center">
+        <div class="flex gap-2">
+            {% for key, label in statuts %}
+            <a href="{% url 'hotel:liste_reservations' %}?statut={{ key }}"
+               class="px-3 py-1.5 text-xs rounded-lg {% if filtre_statut == key %}bg-secondary text-on-secondary{% else %}bg-surface-container-high text-on-surface-variant hover:bg-surface-container{% endif %} transition-smooth">
+                {{ label }}
+            </a>
+            {% endfor %}
+            {% if filtre_statut %}
+            <a href="{% url 'hotel:liste_reservations' %}" class="px-3 py-1.5 text-xs rounded-lg bg-surface-container-high text-on-surface-variant hover:bg-surface-container transition-smooth">
+                <i class="fas fa-times"></i>
+            </a>
+            {% endif %}
+        </div>
+        <a href="{% url 'hotel:ajouter_reservation' %}" class="btn-md3-primary py-2 px-4 rounded-lg text-sm">
+            <i class="fas fa-plus mr-1"></i>Nouvelle réservation
+        </a>
+    </div>
+
+    <div class="card-md3 overflow-hidden">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-surface-container border-b border-outline/10">
+                    <th class="text-left py-3 px-4 font-medium">Code</th>
+                    <th class="text-left py-3 px-4 font-medium">Client</th>
+                    <th class="text-left py-3 px-4 font-medium">Arrivée</th>
+                    <th class="text-left py-3 px-4 font-medium">Départ</th>
+                    <th class="text-center py-3 px-4 font-medium">Nuits</th>
+                    <th class="text-right py-3 px-4 font-medium">Total estimé</th>
+                    <th class="text-center py-3 px-4 font-medium">Statut</th>
+                    <th class="text-center py-3 px-4 font-medium">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in reservations %}
+                <tr class="border-b border-outline/5 hover:bg-surface-container-high transition-smooth">
+                    <td class="py-3 px-4 font-mono">{{ r.code }}</td>
+                    <td class="py-3 px-4">{{ r.client.nom_complet }}</td>
+                    <td class="py-3 px-4">{{ r.date_arrivee_prevue|date:"d/m/Y H:i" }}</td>
+                    <td class="py-3 px-4">{{ r.date_depart_prevue|date:"d/m/Y H:i" }}</td>
+                    <td class="py-3 px-4 text-center">{{ r.duree_nuits }}</td>
+                    <td class="py-3 px-4 text-right font-mono">{{ r.montant_total_estime }}</td>
+                    <td class="py-3 px-4 text-center">
+                        <span class="px-2 py-0.5 rounded-full text-xs
+                            {% if r.statut == 'CONFIRMEE' %}bg-green-900/30 text-green-300
+                            {% elif r.statut == 'ANNULEE' or r.statut == 'NO_SHOW' %}bg-red-900/30 text-red-300
+                            {% elif r.statut == 'TRANSFORMEE' %}bg-blue-900/30 text-blue-300
+                            {% elif r.statut == 'PARTIELLEMENT_PAYEE' %}bg-amber-900/30 text-amber-300
+                            {% else %}bg-surface-container-high text-on-surface-variant{% endif %}">
+                            {{ r.get_statut_display }}
+                        </span>
+                    </td>
+                    <td class="py-3 px-4 text-center">
+                        <a href="{% url 'hotel:detail_reservation' r.id %}" class="text-secondary hover:underline text-xs">
+                            <i class="fas fa-eye"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="8" class="text-center text-on-surface-variant py-8">Aucune réservation.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

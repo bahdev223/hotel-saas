@@ -1,7 +1,7 @@
 {% extends "admin/base_site.html" %}
 {% load i18n static %}
 
-{% block title %}Dashboard Admin | HotelERP{% endblock %}
+{% block title %}Dashboard Admin | {{ entreprise_courante.nom_commercial|default:entreprise_courante.nom|default:'ERP' }}{% endblock %}
 
 {% block extrastyle %}
 {{ block.super }}

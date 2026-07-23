@@ -1,0 +1,114 @@
+{% extends 'hotel/base_hotel.html' %}
+{% load static %}
+
+{% block title %}Nouvelle réservation{% endblock %}
+{% block header %}<i class="fas fa-plus-circle text-secondary mr-2"></i>Nouvelle réservation{% endblock %}
+{% block subtitle %}Créer une réservation{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <form method="post" class="card-md3 p-6 space-y-5">
+        {% csrf_token %}
+
+        <div class="grid grid-cols-2 gap-4">
+            <div class="col-span-2">
+                <label class="label-md3">Client</label>
+                <select name="client" class="input-md3 rounded-lg w-full" required>
+                    <option value="">---</option>
+                    {% for c in clients %}
+                    <option value="{{ c.id }}">{{ c.nom_complet }} - {{ c.telephone }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="label-md3">Date d'arrivée</label>
+                <input type="datetime-local" name="date_arrivee_prevue" class="input-md3 rounded-lg w-full" required>
+            </div>
+            <div>
+                <label class="label-md3">Date de départ</label>
+                <input type="datetime-local" name="date_depart_prevue" class="input-md3 rounded-lg w-full" required>
+            </div>
+            <div>
+                <label class="label-md3">Type de chambre</label>
+                <select name="type_chambre" id="type_chambre" class="input-md3 rounded-lg w-full">
+                    <option value="">---</option>
+                    {% for tc in types_chambres %}
+                    <option value="{{ tc.id }}">{{ tc.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="label-md3">Chambre</label>
+                <select name="chambre" id="chambre" class="input-md3 rounded-lg w-full" required>
+                    <option value="">Sélectionnez d'abord un type</option>
+                </select>
+            </div>
+            <div>
+                <label class="label-md3">Tarif</label>
+                <select name="tarif" id="tarif" class="input-md3 rounded-lg w-full" required>
+                    <option value="">Sélectionnez d'abord une chambre</option>
+                </select>
+            </div>
+            <div>
+                <label class="label-md3">Adultes</label>
+                <input type="number" name="nombre_adultes" value="1" min="1" class="input-md3 rounded-lg w-full">
+            </div>
+            <div>
+                <label class="label-md3">Enfants</label>
+                <input type="number" name="nombre_enfants" value="0" min="0" class="input-md3 rounded-lg w-full">
+            </div>
+        </div>
+
+        <div>
+            <label class="label-md3">Notes</label>
+            <textarea name="notes" rows="3" class="input-md3 rounded-lg w-full text-sm" placeholder="Optionnel..."></textarea>
+        </div>
+
+        <div class="flex gap-3 pt-2">
+            <button type="submit" class="flex-1 btn-md3-primary py-2 rounded-lg"><i class="fas fa-save mr-1"></i>Créer la réservation</button>
+            <a href="{% url 'hotel:liste_reservations' %}" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm text-center hover:bg-surface-container transition-smooth">Annuler</a>
+        </div>
+    </form>
+</div>
+
+<script>
+document.getElementById('type_chambre').addEventListener('change', function() {
+    const typeId = this.value;
+    const chambreSelect = document.getElementById('chambre');
+    const tarifSelect = document.getElementById('tarif');
+    chambreSelect.innerHTML = '<option value="">Chargement...</option>';
+    tarifSelect.innerHTML = '<option value="">Sélectionnez d\'abord une chambre</option>';
+
+    if (typeId) {
+        fetch('/hotel/api/unites/?type_chambre=' + typeId)
+            .then(r => r.json())
+            .then(data => {
+                chambreSelect.innerHTML = '<option value="">---</option>';
+                data.forEach(u => {
+                    chambreSelect.innerHTML += `<option value="${u.id}">${u.code} - ${u.nom}</option>`;
+                });
+            });
+    } else {
+        chambreSelect.innerHTML = '<option value="">---</option>';
+    }
+});
+
+document.getElementById('chambre').addEventListener('change', function() {
+    const chambreId = this.value;
+    const tarifSelect = document.getElementById('tarif');
+
+    if (chambreId) {
+        fetch('/hotel/api/tarifs/?chambre=' + chambreId)
+            .then(r => r.json())
+            .then(data => {
+                tarifSelect.innerHTML = '<option value="">---</option>';
+                data.forEach(t => {
+                    tarifSelect.innerHTML += `<option value="${t.id}">${t.plan} - ${t.type_tarif} : ${t.montant}</option>`;
+                });
+            });
+    } else {
+        tarifSelect.innerHTML = '<option value="">---</option>';
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,19 @@
+<div class="card border-0 shadow-sm h-100">
+    <div class="card-header bg-white fw-semibold">
+        <i class="bi bi-exclamation-triangle me-2 text-warning"></i>Articles en alerte
+    </div>
+    <div class="card-body p-0">
+        {% if articles_alerte %}
+        <div class="list-group list-group-flush">
+            {% for a in articles_alerte %}
+            <a href="{% url 'stocks:article_detail' a.pk %}" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                <span><strong>{{ a.code }}</strong></span>
+                <span class="badge bg-warning text-dark rounded-pill">{{ a.stock_actuel|floatformat:0 }} / {{ a.seuil_alerte|floatformat:0 }}</span>
+            </a>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="p-3 text-muted"><i class="bi bi-check-circle me-1 text-success"></i>Aucun article en alerte</div>
+        {% endif %}
+    </div>
+</div>

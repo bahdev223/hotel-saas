@@ -1,0 +1,53 @@
+{% extends 'entreprises/base_entreprises.html' %}
+{% load static %}
+
+{% block title %}{{ titre }}{% endblock %}
+{% block header %}<i class="fas fa-cog text-secondary mr-2"></i>{{ titre }}{% endblock %}
+{% block subtitle %}Paramètres de l'établissement{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <form method="post" enctype="multipart/form-data" class="card-md3 p-6 space-y-5">
+        {% csrf_token %}
+
+        {% if messages %}
+        <div class="space-y-2">
+            {% for message in messages %}
+            <div class="rounded-lg p-4 text-sm {% if message.tags == 'success' %}bg-green-900/30 text-green-300{% elif message.tags == 'error' %}bg-red-900/30 text-red-300{% else %}bg-secondary-container/20 text-on-surface{% endif %}">
+                <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %} mr-2"></i>{{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {{ form.non_field_errors }}
+
+        {% for field in form %}
+        <div>
+            <label class="label-md3" for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {% if field.field.widget.input_type == 'file' and field.value %}
+            <div class="mb-3">
+                {% if field.name == 'logo' or field.name == 'cachet' or field.name == 'signature' %}
+                <div class="w-32 h-32 rounded-lg overflow-hidden bg-surface-container-high">
+                    <img src="{{ field.value.url }}" class="w-full h-full object-cover">
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+            {{ field }}
+            {% if field.help_text %}
+            <p class="text-[10px] text-on-surface-variant mt-1">{{ field.help_text }}</p>
+            {% endif %}
+            {% if field.errors %}
+            <p class="text-xs text-red-400 mt-1">{{ field.errors|striptags }}</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <div class="flex gap-3 pt-2">
+            <button type="submit" class="flex-1 btn-md3-primary py-2 rounded-lg"><i class="fas fa-save mr-1"></i>Enregistrer</button>
+            <a href="{% url 'entreprises:dashboard' %}" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm text-center hover:bg-surface-container transition-smooth">Annuler</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
