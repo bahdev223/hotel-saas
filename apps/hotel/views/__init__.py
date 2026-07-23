@@ -22,6 +22,28 @@ from .locations import (
     annuler_location,
     # enregistrer_paiement,  # ❌ SUPPRIMER
 )
+from .tarifs import (
+    grille_tarifs,
+    ajouter_tarif,
+    modifier_tarif,
+    desactiver_tarif,
+    liste_plans,
+    liste_types_tarif,
+    liste_creneaux,
+)
+from .reservations import (
+    liste_reservations,
+    detail_reservation,
+    ajouter_reservation,
+    annuler_reservation,
+)
+from .sejours import (
+    liste_sejours,
+    detail_sejour,
+    check_in,
+    check_out,
+    cloturer_sejour,
+)
 from .api import (
     api_annuler_location,
     api_ca_evolution,
@@ -34,6 +56,7 @@ from .api import (
     api_save_unite,
     api_stats,
     api_supprimer_unite,
+    api_tarifs,
     api_unites,
 )
 
@@ -65,6 +88,23 @@ __all__ = [
     'api_save_unite',
     'api_stats',
     'api_supprimer_unite',
+    'api_tarifs',
     'api_unites',
+    'grille_tarifs',
+    'ajouter_tarif',
+    'modifier_tarif',
+    'desactiver_tarif',
+    'liste_plans',
+    'liste_types_tarif',
+    'liste_creneaux',
+    'liste_reservations',
+    'detail_reservation',
+    'ajouter_reservation',
+    'annuler_reservation',
+    'liste_sejours',
+    'detail_sejour',
+    'check_in',
+    'check_out',
+    'cloturer_sejour',
 ]
 

@@ -1,0 +1,102 @@
+{% extends base_template %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-arrow-left-right me-2"></i>Mouvements de stock</h4>
+    <a href="{% url 'stocks:mouvement_create' %}" class="btn btn-primary btn-sm"><i class="bi bi-plus-lg"></i> Nouveau mouvement</a>
+</div>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col">
+        <input type="text" name="q" class="form-control form-control-sm" placeholder="Rechercher..." value="{{ q }}">
+    </div>
+    <div class="col-auto">
+        <select name="nature" class="form-select form-select-sm" onchange="this.form.submit()">
+                <option value="">Toute nature</option>
+                {% for code, label in natures %}
+                <option value="{{ code }}" {% if request.GET.nature == code %}selected{% endif %}>{{ label }}</option>
+                {% endfor %}
+            </select>
+    </div>
+    <div class="col-auto">
+        <select name="depot" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Tout dépôt</option>
+            {% for d in depots %}
+            <option value="{{ d.pk }}" {% if request.GET.depot == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.code }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <select name="source" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Toute source</option>
+            {% for s in sources %}
+            <option value="{{ s.pk }}" {% if request.GET.source == s.pk|stringformat:'s' %}selected{% endif %}>{{ s.code }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <select name="valide" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Tous</option>
+            <option value="oui" {% if request.GET.valide == 'oui' %}selected{% endif %}>Validés</option>
+            <option value="non" {% if request.GET.valide == 'non' %}selected{% endif %}>Non validés</option>
+        </select>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-sm btn-outline-primary"><i class="bi bi-search"></i></button>
+        <a href="{% url 'stocks:mouvement_list' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-circle"></i></a>
+    </div>
+</form>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Réf.</th>
+                    <th>Date</th>
+                    <th>Nature</th>
+                    <th>Article</th>
+                    <th>Dépôt</th>
+                    <th class="text-end">Qté</th>
+                    <th class="text-end">Prix unit.</th>
+                    <th>Source</th>
+                    <th>Validé</th>
+                    <th>Libellé</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for m in object_list %}
+                <tr>
+                    <td><small>{{ m.reference|truncatechars:15 }}</small></td>
+                    <td><small>{{ m.date_mouvement|date:"d/m/Y" }}</small></td>
+                    <td>
+                        <span class="badge {% if m.nature == 'ENTREE' %}bg-success{% elif m.nature == 'SORTIE' %}bg-danger{% elif m.nature == 'TRANSFERT' %}bg-info{% else %}bg-warning text-dark{% endif %}">
+                            {{ m.get_nature_display }}
+                        </span>
+                    </td>
+                    <td><a href="{% url 'stocks:article_detail' m.article.pk %}">{{ m.article.code }}</a></td>
+                    <td>{{ m.depot.code }}</td>
+                    <td class="text-end {% if m.quantite < 0 %}text-danger{% else %}text-success{% endif %}">{{ m.quantite|floatformat:2 }}</td>
+                    <td class="text-end">{{ m.prix_unitaire|floatformat:2|default:"-" }}</td>
+                    <td><small>{{ m.source_operation.code|default:"-" }}</small></td>
+                    <td>
+                        {% if m.valide %}
+                        <span class="badge bg-success">Oui</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Non</span>
+                        {% endif %}
+                    </td>
+                    <td><small class="text-muted">{{ m.libelle|truncatechars:20 }}</small></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="10" class="text-center text-muted py-4">Aucun mouvement trouvé</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% include "stocks/components/pagination.html" %}
+{% endblock %}

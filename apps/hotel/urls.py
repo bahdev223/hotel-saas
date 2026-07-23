@@ -16,6 +16,7 @@ urlpatterns = [
     path('api/unites/', views.api_unites, name='api_unites'),
     path('api/unites/save/', views.api_save_unite, name='api_save_unite'),
     path('api/unites/<str:unite_id>/supprimer/', views.api_supprimer_unite, name='api_supprimer_unite'),
+    path('api/tarifs/', views.api_tarifs, name='api_tarifs'),
     path('api/locations/', views.api_locations, name='api_locations'),
     path('api/locations/save/', views.api_save_location, name='api_save_location'),
     path('api/locations/<str:location_id>/paiement/', views.api_paiement_location, name='api_paiement_location'),
@@ -47,9 +48,32 @@ urlpatterns = [
     # ❌ SUPPRIMER cette ligne
     # path('locations/<str:location_id>/paiement/', views.enregistrer_paiement, name='enregistrer_paiement'),
     
+    # ========== TARIFS ==========
+    path('tarifs/', views.grille_tarifs, name='grille_tarifs'),
+    path('tarifs/ajouter/', views.ajouter_tarif, name='ajouter_tarif'),
+    path('tarifs/<int:tarif_id>/modifier/', views.modifier_tarif, name='modifier_tarif'),
+    path('tarifs/<int:tarif_id>/desactiver/', views.desactiver_tarif, name='desactiver_tarif'),
+    path('tarifs/plans/', views.liste_plans, name='liste_plans'),
+    path('tarifs/types/', views.liste_types_tarif, name='liste_types_tarif'),
+    path('tarifs/creneaux/', views.liste_creneaux, name='liste_creneaux'),
+
+    # ========== TYPES DE CHAMBRES ==========
+
+    # ========== RÉSERVATIONS ==========
+    path('reservations/', views.liste_reservations, name='liste_reservations'),
+    path('reservations/ajouter/', views.ajouter_reservation, name='ajouter_reservation'),
+    path('reservations/<str:reservation_id>/', views.detail_reservation, name='detail_reservation'),
+    path('reservations/<str:reservation_id>/annuler/', views.annuler_reservation, name='annuler_reservation'),
+
+    # ========== SÉJOURS ==========
+    path('sejours/', views.liste_sejours, name='liste_sejours'),
+    path('sejours/<str:sejour_id>/', views.detail_sejour, name='detail_sejour'),
+    path('sejours/<str:sejour_id>/check-out/', views.check_out, name='check_out'),
+    path('sejours/<str:sejour_id>/cloturer/', views.cloturer_sejour, name='cloturer_sejour'),
+    path('check-in/', views.check_in, name='check_in'),
+
     # Aliases
-    path('sejours/', views.liste_locations, name='liste_sejours'),
-    path('reservations/chambres/', views.liste_locations, name='liste_reservations_chambres'),
+    path('reservations/chambres/', views.liste_reservations, name='liste_reservations_chambres'),
 ]
 
 

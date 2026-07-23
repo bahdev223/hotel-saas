@@ -1,0 +1,159 @@
+{% extends base_template %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-box me-2"></i>{{ object.code }} — {{ object.designation }}</h4>
+    <div>
+        <a href="{% url 'stocks:article_update' object.pk %}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-pencil"></i> Modifier</a>
+        <a href="{% url 'stocks:article_list' %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-left"></i> Retour</a>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-info-circle me-2"></i>Informations</div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Code</dt>
+                    <dd class="col-sm-8">{{ object.code }}</dd>
+                    <dt class="col-sm-4">Désignation</dt>
+                    <dd class="col-sm-8">{{ object.designation }}</dd>
+                    <dt class="col-sm-4">Type</dt>
+                    <dd class="col-sm-8">{{ object.type_article.libelle }}</dd>
+                    <dt class="col-sm-4">Catégorie</dt>
+                    <dd class="col-sm-8">{{ object.categorie.nom|default:"-" }}</dd>
+                    <dt class="col-sm-4">Unité</dt>
+                    <dd class="col-sm-8">{{ object.unite_defaut.code }}</dd>
+                    <dt class="col-sm-4">Valorisation</dt>
+                    <dd class="col-sm-8"><span class="badge bg-info">{{ object.methode_valorisation }}</span></dd>
+                    <dt class="col-sm-4">Seuil alerte</dt>
+                    <dd class="col-sm-8">{{ object.seuil_alerte|default:"-" }}</dd>
+                    <dt class="col-sm-4">Stock min/max</dt>
+                    <dd class="col-sm-8">{{ object.stock_min|default:"-" }} / {{ object.stock_max|default:"-" }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-building me-2"></i>Stock par dépôt</div>
+            <div class="card-body p-0">
+                {% if stock_par_depot %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Dépôt</th>
+                                <th class="text-end">Quantité</th>
+                                <th class="text-end">Valeur</th>
+                                <th class="text-center">Statut</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for v in stock_par_depot %}
+                            <tr>
+                                <td><strong>{{ v.depot.code }}</strong></td>
+                                <td class="text-end">{{ v.quantite_totale|floatformat:2 }}</td>
+                                <td class="text-end">{{ v.valeur_totale|floatformat:0 }} F</td>
+                                <td class="text-center">
+                                    {% include "stocks/components/badge_stock.html" with article=object stock=v.quantite_totale %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-3 text-muted">Aucun stock enregistré</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-arrow-left-right me-2"></i>Derniers mouvements</div>
+            <div class="card-body p-0">
+                {% if mouvements %}
+                <div class="list-group list-group-flush">
+                    {% for m in mouvements %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between">
+                            <span>
+                                <span class="badge {% if m.nature == 'ENTREE' %}bg-success{% elif m.nature == 'SORTIE' %}bg-danger{% else %}bg-info{% endif %}">{{ m.get_nature_display }}</span>
+                                {{ m.quantite|floatformat:2 }} @ {{ m.depot.code }}
+                            </span>
+                            <small class="text-muted">{{ m.date_mouvement|date:"d/m/Y H:i" }}</small>
+                        </div>
+                        {% if m.libelle %}<small class="text-muted">{{ m.libelle }}</small>{% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="p-3 text-muted">Aucun mouvement</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-tags me-2"></i>Lots</div>
+            <div class="card-body p-0">
+                {% if lots %}
+                <div class="list-group list-group-flush">
+                    {% for l in lots %}
+                    <div class="list-group-item d-flex justify-content-between align-items-center">
+                        <span><strong>{{ l.numero_lot }}</strong></span>
+                        <span class="text-muted">{{ l.quantite_restante|floatformat:0 }} restant{% if l.date_peremption %} — Exp: {{ l.date_peremption|date:"d/m/Y" }}{% endif %}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="p-3 text-muted">Aucun lot</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white fw-semibold"><i class="bi bi-journal-text me-2"></i>Journal de stock</div>
+    <div class="card-body p-0">
+        {% if journal %}
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Date</th>
+                        <th>Nature</th>
+                        <th>Dépôt</th>
+                        <th class="text-end">Qté</th>
+                        <th class="text-end">Avant</th>
+                        <th class="text-end">Après</th>
+                        <th>Libellé</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for j in journal %}
+                    <tr>
+                        <td>{{ j.date|date:"d/m/Y H:i" }}</td>
+                        <td><span class="badge {% if j.nature == 'ENTREE' %}bg-success{% elif j.nature == 'SORTIE' %}bg-danger{% else %}bg-info{% endif %}">{{ j.get_nature_display }}</span></td>
+                        <td>{{ j.depot.code }}</td>
+                        <td class="text-end">{{ j.quantite|floatformat:2 }}</td>
+                        <td class="text-end">{{ j.stock_avant|floatformat:2 }}</td>
+                        <td class="text-end">{{ j.stock_apres|floatformat:2 }}</td>
+                        <td>{{ j.libelle|truncatechars:30 }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="p-3 text-muted">Aucune écriture</div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

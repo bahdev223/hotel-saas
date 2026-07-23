@@ -1,0 +1,110 @@
+{% extends 'entreprises/base_entreprises.html' %}
+{% load static %}
+
+{% block title %}Entreprise{% endblock %}
+{% block header %}<i class="fas fa-building text-secondary mr-2"></i>Mon entreprise{% endblock %}
+{% block subtitle %}Informations générales de l'établissement{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+
+    {% if messages %}
+    <div class="space-y-2">
+        {% for message in messages %}
+        <div class="rounded-lg p-4 text-sm {% if message.tags == 'success' %}bg-green-900/30 text-green-300{% elif message.tags == 'error' %}bg-red-900/30 text-red-300{% else %}bg-secondary-container/20 text-on-surface{% endif %}">
+            <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %} mr-2"></i>{{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if not entreprise %}
+    <div class="card-md3 p-8 text-center">
+        <i class="fas fa-building text-4xl text-on-surface-variant mb-4"></i>
+        <p class="text-on-surface-variant mb-4">Aucune entreprise configurée.</p>
+        <a href="{% url 'entreprises:editer' %}" class="btn-md3-primary inline-block py-2 px-6 rounded-lg">
+            <i class="fas fa-plus mr-1"></i>Créer mon entreprise
+        </a>
+    </div>
+    {% else %}
+    <div class="card-md3 p-6">
+        <div class="flex items-start gap-6">
+            {% if entreprise.logo %}
+            <div class="w-24 h-24 rounded-xl overflow-hidden bg-surface-container-high shrink-0">
+                <img src="{{ entreprise.logo.url }}" alt="{{ entreprise.nom }}" class="w-full h-full object-cover">
+            </div>
+            {% endif %}
+            <div class="flex-1 min-w-0">
+                <h2 class="text-xl font-semibold">{{ entreprise.nom_commercial|default:entreprise.nom }}</h2>
+                {% if entreprise.nom_commercial %}
+                <p class="text-sm text-on-surface-variant">{{ entreprise.nom }}</p>
+                {% endif %}
+                <div class="mt-3 grid grid-cols-2 gap-3 text-sm">
+                    <div><span class="text-on-surface-variant">NIF :</span> {{ entreprise.nif|default:"-" }}</div>
+                    <div><span class="text-on-surface-variant">RCCM :</span> {{ entreprise.rccm|default:"-" }}</div>
+                    <div><span class="text-on-surface-variant">Tél :</span> {{ entreprise.telephone|default:"-" }}</div>
+                    <div><span class="text-on-surface-variant">Email :</span> {{ entreprise.email|default:"-" }}</div>
+                    <div><span class="text-on-surface-variant">Ville :</span> {{ entreprise.ville|default:"-" }}</div>
+                    <div><span class="text-on-surface-variant">Pays :</span> {{ entreprise.pays|default:"-" }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if etablissement %}
+    <div class="card-md3 p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-medium">
+                <i class="fas fa-hotel text-secondary mr-2"></i>{{ etablissement.nom }}
+            </h3>
+            <a href="{% url 'entreprises:editer_etablissement' %}" class="text-sm text-secondary hover:underline">
+                <i class="fas fa-pen mr-1"></i>Modifier
+            </a>
+        </div>
+        <div class="grid grid-cols-2 gap-3 text-sm">
+            <div><span class="text-on-surface-variant">Type :</span> {{ etablissement.get_type_etablissement_display }}</div>
+            <div><span class="text-on-surface-variant">Tél :</span> {{ etablissement.telephone|default:"-" }}</div>
+            <div><span class="text-on-surface-variant">Adresse :</span> {{ etablissement.adresse|default:"-" }}</div>
+            <div><span class="text-on-surface-variant">Étoiles :</span> {{ etablissement.nombre_etoiles|default:"-" }}</div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if config %}
+    <div class="card-md3 p-6">
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-lg font-medium">
+                <i class="fas fa-sliders-h text-secondary mr-2"></i>Configuration
+            </h3>
+            <a href="{% url 'entreprises:configuration' %}" class="text-sm text-secondary hover:underline">
+                <i class="fas fa-pen mr-1"></i>Modifier
+            </a>
+        </div>
+        <div class="grid grid-cols-2 gap-3 text-sm">
+            <div><span class="text-on-surface-variant">Devise :</span> {{ config.devise }} ({{ config.symbole_devise }})</div>
+            <div><span class="text-on-surface-variant">Langue :</span> {{ config.langue }}</div>
+            <div><span class="text-on-surface-variant">Fuseau :</span> {{ config.fuseau_horaire }}</div>
+            <div><span class="text-on-surface-variant">Configuration :</span>
+                {% if config.configuration_terminee %}
+                <span class="text-green-400">Terminée</span>
+                {% else %}
+                <span class="text-amber-400">À compléter</span>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="grid grid-cols-2 gap-4">
+        <a href="{% url 'entreprises:editer' %}" class="card-md3 p-4 text-center hover:bg-surface-container-high transition-smooth">
+            <i class="fas fa-pen text-2xl text-secondary mb-2"></i>
+            <div class="text-sm font-medium">Modifier l'entreprise</div>
+        </a>
+        <a href="{% url 'entreprises:modules' %}" class="card-md3 p-4 text-center hover:bg-surface-container-high transition-smooth">
+            <i class="fas fa-puzzle-piece text-2xl text-secondary mb-2"></i>
+            <div class="text-sm font-medium">Gérer les modules</div>
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

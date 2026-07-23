@@ -1,0 +1,79 @@
+{% extends base_template %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-currency-euro me-2"></i>Valorisation des stocks</h4>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        {% include "stocks/components/card.html" with icon="boxes" color="primary" label="Quantité totale" value=total_quantite|floatformat:2 %}
+    </div>
+    <div class="col-md-3">
+        {% include "stocks/components/card.html" with icon="cash-stack" color="success" label="Valeur totale" value=total_valeur|floatformat:0 footer="F CFA" %}
+    </div>
+</div>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col">
+        <input type="text" name="q" class="form-control form-control-sm" placeholder="Rechercher par article..." value="{{ request.GET.q }}">
+    </div>
+    <div class="col-auto">
+        <select name="depot" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Tout dépôt</option>
+            {% for d in depots %}
+            <option value="{{ d.pk }}" {% if request.GET.depot == d.pk|stringformat:'s' %}selected{% endif %}>{{ d.code }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <select name="methode" class="form-select form-select-sm" onchange="this.form.submit()">
+            <option value="">Toute méthode</option>
+            {% for code, label in view.model.methode.field.choices %}
+            <option value="{{ code }}" {% if request.GET.methode == code %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+        </select>
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-sm btn-outline-primary"><i class="bi bi-search"></i></button>
+        <a href="{% url 'stocks:valorisation' %}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x-circle"></i></a>
+    </div>
+</form>
+
+<div class="card border-0 shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Article</th>
+                    <th>Désignation</th>
+                    <th>Dépôt</th>
+                    <th>Méthode</th>
+                    <th class="text-end">C.U. Moyen</th>
+                    <th class="text-end">Quantité</th>
+                    <th class="text-end">Valeur</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for v in object_list %}
+                <tr>
+                    <td><a href="{% url 'stocks:article_detail' v.article.pk %}"><strong>{{ v.article.code }}</strong></a></td>
+                    <td>{{ v.article.designation|truncatechars:40 }}</td>
+                    <td>{{ v.depot.code }}</td>
+                    <td><span class="badge bg-info">{{ v.methode }}</span></td>
+                    <td class="text-end">{{ v.cout_unitaire_moyen|floatformat:2 }}</td>
+                    <td class="text-end">{{ v.quantite_totale|floatformat:2 }}</td>
+                    <td class="text-end fw-bold">{{ v.valeur_totale|floatformat:0 }} F</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-center text-muted py-4">Aucune valorisation trouvée</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% include "stocks/components/pagination.html" %}
+{% endblock %}

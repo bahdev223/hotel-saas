@@ -1,0 +1,43 @@
+{% extends 'entreprises/base_entreprises.html' %}
+{% load static %}
+
+{% block title %}Modules{% endblock %}
+{% block header %}<i class="fas fa-puzzle-piece text-secondary mr-2"></i>Modules actifs{% endblock %}
+{% block subtitle %}Activer ou désactiver les fonctionnalités de l'ERP{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <form method="post" class="card-md3 p-6 space-y-4">
+        {% csrf_token %}
+
+        {% if messages %}
+        <div class="space-y-2">
+            {% for message in messages %}
+            <div class="rounded-lg p-4 text-sm {% if message.tags == 'success' %}bg-green-900/30 text-green-300{% elif message.tags == 'error' %}bg-red-900/30 text-red-300{% else %}bg-secondary-container/20 text-on-surface{% endif %}">
+                <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %} mr-2"></i>{{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <p class="text-sm text-on-surface-variant">Cochez les modules que vous souhaitez utiliser dans votre établissement.</p>
+
+        {% for module in modules %}
+        <label class="flex items-center justify-between p-4 rounded-lg bg-surface-container-high cursor-pointer hover:bg-surface-container transition-smooth">
+            <div>
+                <div class="font-medium">{{ module.get_code_display }}</div>
+                <div class="text-xs text-on-surface-variant">{{ module.code }}</div>
+            </div>
+            <label class="relative inline-flex items-center cursor-pointer">
+                <input type="checkbox" name="module_{{ module.id }}" class="sr-only peer" {% if module.actif %}checked{% endif %}>
+                <div class="w-9 h-5 bg-outline rounded-full peer peer-checked:bg-secondary peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all"></div>
+            </label>
+        </label>
+        {% empty %}
+        <p class="text-center text-on-surface-variant py-8">Aucun module configuré.</p>
+        {% endfor %}
+
+        <button type="submit" class="w-full btn-md3-primary py-2 rounded-lg"><i class="fas fa-save mr-1"></i>Enregistrer</button>
+    </form>
+</div>
+{% endblock %}

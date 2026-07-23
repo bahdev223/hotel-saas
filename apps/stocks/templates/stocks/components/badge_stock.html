@@ -1,0 +1,11 @@
+{% with seuil=article.seuil_alerte|default:0 stock_min=article.stock_min|default:0 %}
+    {% if stock <= 0 %}
+        <span class="badge bg-danger">Rupture</span>
+    {% elif seuil and stock <= seuil %}
+        <span class="badge bg-warning text-dark">Alerte</span>
+    {% elif stock_min and stock <= stock_min %}
+        <span class="badge bg-warning text-dark">Stock min</span>
+    {% else %}
+        <span class="badge bg-success">OK</span>
+    {% endif %}
+{% endwith %}

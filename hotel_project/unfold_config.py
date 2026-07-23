@@ -5,8 +5,8 @@ Configuration Unfold pour l'ERP Hôtelier
 
 UNFOLD = {
     # ========== SITE ==========
-    "SITE_TITLE": "HotelERP",
-    "SITE_HEADER": "HotelERP - Gestion Hôtelière",
+    "SITE_TITLE": "ERP Hôtelier",
+    "SITE_HEADER": "ERP Hôtelier - Gestion Hôtelière",
     "SITE_URL": "/",
     "SITE_ICON": "hotel",
     
