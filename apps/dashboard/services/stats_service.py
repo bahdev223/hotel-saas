@@ -20,14 +20,15 @@ def get_commandes_en_cours():
     statuts = ['EN_ATTENTE', 'EN_PREPARATION', 'PRETE']
     qs = Commande.objects.filter(statut__in=statuts)
 
-    restaurant = qs.filter(point_vente__emplacement='RESTAURANT').count()
-    bar = qs.filter(point_vente__emplacement='BAR').count()
-    room_service = qs.filter(point_vente__emplacement='ROOM_SERVICE').count()
+    restaurant = qs.filter(point_vente__type='RESTAURATION').count()
+    bar = qs.filter(point_vente__type='BAR').count()
+    room_service = qs.filter(point_vente__type='ROOM_SERVICE').count()
 
     entrepot = Entrepot.objects.filter(type_entrepot='BRASSERIE', actif=True).first()
     brasserie = 0
     if entrepot:
-        pv_ids = list(PointVente.objects.filter(entrepot=entrepot, actif=True).values_list('id', flat=True))
+        from apps.pos.models import PointVenteEntrepot
+        pv_ids = list(PointVenteEntrepot.objects.filter(entrepot=entrepot).values_list('point_vente_id', flat=True))
         if pv_ids:
             brasserie = qs.filter(point_vente_id__in=pv_ids).count()
         else:
