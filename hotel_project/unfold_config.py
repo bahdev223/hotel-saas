@@ -353,6 +353,10 @@ UNFOLD = {
         },
     ],
     
+    # ========== STYLES & SCRIPTS ==========
+    "STYLES": [],
+    "SCRIPTS": ["/static/js/force-light.js"],
+
     # ========== EXTENSIONS ==========
     "EXTENSIONS": {
         "modeltranslation": {
