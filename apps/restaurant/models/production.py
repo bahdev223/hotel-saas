@@ -90,32 +90,44 @@ class Production(models.Model):
         """Vérifie si tous les ingrédients sont disponibles"""
         manques = []
         
-        for ligne in self.lignes.select_related('menu__recette').all():
-            if not ligne.menu.recette:
-                manques.append(f"{ligne.menu.nom}: Aucune recette définie")
+        # Un menu n'a pas de recette directe : sa composition est portee par
+        # ses lignes (LigneMenuModel). On ne consomme que les lignes FIXE
+        # (toujours incluses) ; CHOIX/SUPPLEMENT dependent du choix client.
+        for ligne in self.lignes.select_related('menu').all():
+            lignes_menu = ligne.menu.lignes.filter(
+                type_ligne='FIXE'
+            ).select_related('recette')
+
+            if not lignes_menu.exists():
+                manques.append(f"{ligne.menu.nom}: aucune recette fixe definie")
                 continue
-            
-            for ingredient in ligne.menu.recette.ingredients.filter(
-                type_ingredient='DEDUIRE',
-                produit__isnull=False
-            ):
-                if not ingredient.quantite:
-                    continue
-                
-                quantite_necessaire = float(ingredient.quantite) * float(ligne.quantite)
-                stock = StockEntrepot.objects.filter(
-                    entrepot=self.entrepot_source,
-                    produit=ingredient.produit
-                ).first()
-                
-                stock_qte = float(stock.quantite) if stock else 0
-                
-                if stock_qte < quantite_necessaire:
-                    manques.append(
-                        f"{ingredient.produit.nom}: besoin {quantite_necessaire} {ingredient.unite}, "
-                        f"disponible {stock_qte}"
+
+            for ligne_menu in lignes_menu:
+                for ingredient in ligne_menu.recette.ingredients.filter(
+                    type_ingredient='DEDUIRE',
+                    produit__isnull=False
+                ):
+                    if not ingredient.quantite:
+                        continue
+
+                    quantite_necessaire = (
+                        float(ingredient.quantite)
+                        * float(ligne_menu.quantite)
+                        * float(ligne.quantite)
                     )
-        
+                    stock = StockEntrepot.objects.filter(
+                        entrepot=self.entrepot_source,
+                        produit=ingredient.produit
+                    ).first()
+
+                    stock_qte = float(stock.quantite) if stock else 0
+
+                    if stock_qte < quantite_necessaire:
+                        manques.append(
+                            f"{ingredient.produit.nom}: besoin {quantite_necessaire} {ingredient.unite}, "
+                            f"disponible {stock_qte}"
+                        )
+
         return {'disponible': len(manques) == 0, 'manques': manques}
     
     @transaction.atomic
@@ -130,32 +142,39 @@ class Production(models.Model):
         if not verification['disponible']:
             raise ValueError(f"Stock insuffisant: {', '.join(verification['manques'])}")
         
-        # Appliquer les modifications
-        for ligne in self.lignes.select_related('menu__recette').all():
-            for ingredient in ligne.menu.recette.ingredients.filter(
-                type_ingredient='DEDUIRE',
-                produit__isnull=False
-            ):
-                if not ingredient.quantite:
-                    continue
-                
-                quantite_necessaire = float(ingredient.quantite) * float(ligne.quantite)
-                
-                # Déduire du stock source
-                stock = StockEntrepot.objects.select_for_update().get(
-                    entrepot=self.entrepot_source,
-                    produit=ingredient.produit
-                )
-                stock.quantite -= Decimal(str(quantite_necessaire))
-                stock.save()
-                
-                # Enregistrer la consommation
-                ProductionIngredient.objects.create(
-                    production=self,
-                    produit=ingredient.produit,
-                    quantite=quantite_necessaire,
-                    unite=ingredient.unite
-                )
+        # Appliquer les modifications (composition via les lignes FIXE du menu)
+        for ligne in self.lignes.select_related('menu').all():
+            for ligne_menu in ligne.menu.lignes.filter(
+                type_ligne='FIXE'
+            ).select_related('recette'):
+                for ingredient in ligne_menu.recette.ingredients.filter(
+                    type_ingredient='DEDUIRE',
+                    produit__isnull=False
+                ):
+                    if not ingredient.quantite:
+                        continue
+
+                    quantite_necessaire = (
+                        float(ingredient.quantite)
+                        * float(ligne_menu.quantite)
+                        * float(ligne.quantite)
+                    )
+
+                    # Déduire du stock source
+                    stock = StockEntrepot.objects.select_for_update().get(
+                        entrepot=self.entrepot_source,
+                        produit=ingredient.produit
+                    )
+                    stock.quantite -= Decimal(str(quantite_necessaire))
+                    stock.save()
+
+                    # Enregistrer la consommation
+                    ProductionIngredient.objects.create(
+                        production=self,
+                        produit=ingredient.produit,
+                        quantite=quantite_necessaire,
+                        unite=ingredient.unite
+                    )
         
         self.statut = 'VALIDE'
         self.valide_par = employe
