@@ -1,0 +1,26 @@
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white fw-semibold">
+        <i class="bi bi-clock-history me-2"></i>Derniers mouvements
+    </div>
+    <div class="card-body p-0">
+        {% if derniers_mouvements %}
+        <div class="list-group list-group-flush">
+            {% for m in derniers_mouvements %}
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between">
+                    <span>
+                        <span class="badge {% if m.nature == 'ENTREE' %}bg-success{% elif m.nature == 'SORTIE' %}bg-danger{% else %}bg-info{% endif %} me-1">{{ m.get_nature_display }}</span>
+                        <strong>{{ m.article.code }}</strong> — {{ m.quantite|floatformat:0 }}
+                        <small class="text-muted">@ {{ m.depot.code }}</small>
+                    </span>
+                    <small class="text-muted">{{ m.date_mouvement|date:"d/m/Y H:i" }}</small>
+                </div>
+                {% if m.libelle %}<small class="text-muted">{{ m.libelle|truncatechars:60 }}</small>{% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="p-3 text-muted">Aucun mouvement</div>
+        {% endif %}
+    </div>
+</div>

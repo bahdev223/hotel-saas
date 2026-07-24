@@ -1,0 +1,17 @@
+<div class="modal fade" id="{{ modal_id|default:'modal' }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">{{ modal_title|default:'Confirmation' }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {{ modal_body|default:'Êtes-vous sûr ?' }}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-sm btn-{{ modal_button_color|default:'danger' }}" id="{{ modal_confirm_id|default:'modalConfirm' }}">{{ modal_confirm_text|default:'Confirmer' }}</button>
+            </div>
+        </div>
+    </div>
+</div>

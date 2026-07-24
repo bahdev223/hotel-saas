@@ -1,0 +1,84 @@
+{% extends 'hotel/base_hotel.html' %}
+{% load static %}
+
+{% block title %}Grille tarifaire{% endblock %}
+{% block header %}<i class="fas fa-dollar-sign text-secondary mr-2"></i>Grille tarifaire{% endblock %}
+{% block subtitle %}Tarifs par type de chambre, plan et unité de facturation{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-6">
+
+    <div class="flex justify-between items-center">
+        <div class="text-sm text-on-surface-variant">
+            {{ tarifs|length }} tarif(s) actif(s)
+        </div>
+        <a href="{% url 'hotel:ajouter_tarif' %}" class="btn-md3-primary py-2 px-4 rounded-lg text-sm">
+            <i class="fas fa-plus mr-1"></i>Nouveau tarif
+        </a>
+    </div>
+
+    {% for type_nom, ligne in grille.items %}
+    <div class="card-md3 overflow-hidden">
+        <div class="px-4 py-3 bg-surface-container-high border-b border-outline/10">
+            <h3 class="font-medium">{{ type_nom }}</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="bg-surface-container border-b border-outline/10">
+                        <th class="text-left py-3 px-4 text-on-surface-variant font-medium">Plan</th>
+                        <th class="text-left py-3 px-4 text-on-surface-variant font-medium">Type</th>
+                        <th class="text-right py-3 px-4 text-on-surface-variant font-medium">Montant</th>
+                        <th class="text-center py-3 px-4 text-on-surface-variant font-medium">Personnes</th>
+                        <th class="text-center py-3 px-4 text-on-surface-variant font-medium">Période</th>
+                        <th class="text-center py-3 px-4 text-on-surface-variant font-medium">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for t in ligne %}
+                    <tr class="border-b border-outline/5 hover:bg-surface-container-high transition-smooth">
+                        <td class="py-3 px-4">{{ t.plan_tarifaire.nom }}</td>
+                        <td class="py-3 px-4">{{ t.type_tarif.nom }}</td>
+                        <td class="py-3 px-4 text-right font-mono">{{ t.montant }} {{ configuration_entreprise.symbole_devise|default:"FCFA" }}</td>
+                        <td class="py-3 px-4 text-center">{{ t.nombre_personnes_incluses }}</td>
+                        <td class="py-3 px-4 text-center text-xs">
+                            {% if t.date_debut or t.date_fin %}
+                                {% if t.date_debut %}{{ t.date_debut|date:"d/m" }}{% endif %}
+                                {% if t.date_fin %} - {{ t.date_fin|date:"d/m" }}{% endif %}
+                            {% else %}
+                                <span class="text-on-surface-variant">Permanent</span>
+                            {% endif %}
+                        </td>
+                        <td class="py-3 px-4 text-center">
+                            <div class="flex justify-center gap-2">
+                                <a href="{% url 'hotel:modifier_tarif' t.id %}" class="text-secondary hover:underline text-xs">
+                                    <i class="fas fa-pen"></i>
+                                </a>
+                                <a href="{% url 'hotel:desactiver_tarif' t.id %}" class="{% if t.actif %}text-error{% else %}text-green-400{% endif %} hover:underline text-xs">
+                                    <i class="fas {% if t.actif %}fa-toggle-on{% else %}fa-toggle-off{% endif %}"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-on-surface-variant py-8">
+                            Aucun tarif défini pour ce type de chambre.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% empty %}
+    <div class="card-md3 p-8 text-center">
+        <i class="fas fa-tag text-4xl text-on-surface-variant mb-4"></i>
+        <p class="text-on-surface-variant">Aucune grille tarifaire configurée.</p>
+        <a href="{% url 'hotel:ajouter_tarif' %}" class="btn-md3-primary inline-block mt-4 py-2 px-6 rounded-lg">
+            <i class="fas fa-plus mr-1"></i>Créer un tarif
+        </a>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

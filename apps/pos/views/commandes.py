@@ -21,7 +21,7 @@ from datetime import timedelta
 from apps.restaurant.models import MenuModel
 from apps.rh.models import Employe
 from .pos import a_vue_globale_commandes, get_pv_courant_id
-from ..services.caisse_session_service import get_session_ouverte_pv
+from ..services.caisse_session_service import get_session_active_pv
 
 
 def deduire_stock_commande(commande, entrepot_id=None):
@@ -324,7 +324,7 @@ def changer_statut_commande(request, commande_id):
         nouveau_statut = data.get('statut')
 
         # Verrou : servir/livrer sort le stock et facture — session obligatoire
-        if nouveau_statut in ('SERVIE', 'LIVREE') and not get_session_ouverte_pv(commande.point_vente):
+        if nouveau_statut in ('SERVIE', 'LIVREE') and not get_session_active_pv(commande.point_vente):
             return JsonResponse({
                 'success': False,
                 'error_code': 'SESSION_REQUISE',
@@ -396,7 +396,7 @@ def api_payer_commande(request, commande_id):
         if not employe:
             return JsonResponse({'success': False, 'error': 'Employe non trouve'})
 
-        session = get_session_ouverte_pv(commande.point_vente)
+        session = get_session_active_pv(commande.point_vente)
         if not session:
             return JsonResponse({
                 'success': False,
@@ -410,7 +410,7 @@ def api_payer_commande(request, commande_id):
             point_vente=commande.point_vente, caisse=caisse, session_caisse=session,
             numero=numero, client_nom=commande.client_nom, table=commande.table,
             mode_paiement=mode_paiement,
-            caissier=session.caissier_ouverture if session else employe,
+            caissier=session.ouverte_par if session else employe,
             encaisse_par=employe, montant_total=commande.montant_total, statut='PAYEE'
         )
 
@@ -479,7 +479,7 @@ def api_creer_commande(request):
         point_vente = get_object_or_404(PointVente, code__iexact=data.get('point_vente_slug'))
 
         # Verrou : aucune commande sans session de caisse ouverte sur ce PV
-        if not get_session_ouverte_pv(point_vente):
+        if not get_session_active_pv(point_vente):
             return JsonResponse({
                 'success': False,
                 'error_code': 'SESSION_REQUISE',

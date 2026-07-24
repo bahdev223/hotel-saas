@@ -1,0 +1,39 @@
+{% extends 'entreprises/base_entreprises.html' %}
+{% load static %}
+
+{% block title %}Séquences de documents{% endblock %}
+{% block header %}<i class="fas fa-sort-numeric-down text-secondary mr-2"></i>Séquences de documents{% endblock %}
+{% block subtitle %}Numérotation automatique des documents{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <div class="card-md3 p-6">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="border-b border-outline/10">
+                        <th class="text-left py-3 px-2 text-on-surface-variant font-medium">Document</th>
+                        <th class="text-left py-3 px-2 text-on-surface-variant font-medium">Préfixe</th>
+                        <th class="text-right py-3 px-2 text-on-surface-variant font-medium">Prochain numéro</th>
+                        <th class="text-center py-3 px-2 text-on-surface-variant font-medium">Année</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for seq in sequences %}
+                    <tr class="border-b border-outline/5 hover:bg-surface-container-high transition-smooth">
+                        <td class="py-3 px-2">{{ seq.get_type_document_display }}</td>
+                        <td class="py-3 px-2 font-mono">{{ seq.prefixe }}</td>
+                        <td class="py-3 px-2 text-right font-mono">{{ seq.prochain|default:seq.prochain_numero }}</td>
+                        <td class="py-3 px-2 text-center">{{ seq.annee }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="4" class="text-center text-on-surface-variant py-8">Aucune séquence configurée.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends 'hotel/base_hotel.html' %}
+{% load static %}
+
+{% block title %}Créneaux tarifaires{% endblock %}
+{% block header %}<i class="fas fa-calendar-day text-secondary mr-2"></i>Créneaux tarifaires{% endblock %}
+{% block subtitle %}Créneaux horaires pour demi-journées et journées{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="card-md3 overflow-hidden">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-surface-container border-b border-outline/10">
+                    <th class="text-left py-3 px-4 font-medium">Nom</th>
+                    <th class="text-left py-3 px-4 font-medium">Type de tarif</th>
+                    <th class="text-center py-3 px-4 font-medium">Début</th>
+                    <th class="text-center py-3 px-4 font-medium">Fin</th>
+                    <th class="text-center py-3 px-4 font-medium">Actif</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in creneaux %}
+                <tr class="border-b border-outline/5 hover:bg-surface-container-high">
+                    <td class="py-3 px-4">{{ c.nom }}</td>
+                    <td class="py-3 px-4">{{ c.type_tarif.nom }}</td>
+                    <td class="py-3 px-4 text-center font-mono">{{ c.heure_debut|time:"H:i" }}</td>
+                    <td class="py-3 px-4 text-center font-mono">{{ c.heure_fin|time:"H:i" }}</td>
+                    <td class="py-3 px-4 text-center">{% if c.actif %}<i class="fas fa-check text-green-400"></i>{% else %}<i class="fas fa-times text-error"></i>{% endif %}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center text-on-surface-variant py-8">Aucun créneau configuré.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

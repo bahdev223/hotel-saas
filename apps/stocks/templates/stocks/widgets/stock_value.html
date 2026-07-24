@@ -1,0 +1,13 @@
+<div class="card border-0 shadow-sm h-100">
+    <div class="card-header bg-white fw-semibold">
+        <i class="bi bi-currency-euro me-2"></i>Valorisation
+    </div>
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-6">Quantité totale</dt>
+            <dd class="col-sm-6 text-end">{{ total_quantite|floatformat:2 }}</dd>
+            <dt class="col-sm-6">Valeur totale</dt>
+            <dd class="col-sm-6 text-end fw-bold">{{ total_valeur|floatformat:0 }} F</dd>
+        </dl>
+    </div>
+</div>

@@ -1,4 +1,3 @@
-# apps/pos/views/api.py
 from django.shortcuts import get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
@@ -7,7 +6,7 @@ from django.views.decorators.http import require_GET, require_http_methods
 from django.db import transaction
 import json
 
-from ..models import PointVente
+from ..models import PointVente, CaissePointVente
 from ..services.pos_service import PointVenteService
 from apps.tresorerie.models import Caisse
 from apps.stock.models import Produit
@@ -40,7 +39,6 @@ def api_produits(request):
 
 @login_required
 @csrf_exempt
-@login_required
 def api_ajouter_caisse(request):
     if request.method == 'POST':
         try:
@@ -48,7 +46,7 @@ def api_ajouter_caisse(request):
             caisse = Caisse.objects.create(
                 code=data.get('code'), nom=data.get('nom'),
                 type_caisse=data.get('type_caisse', 'PRINCIPALE'),
-                solde=data.get('solde_initial', 0), actif=True, responsable=request.user
+                solde=data.get('solde_initial', 0), actif=True, responsable=request.user,
             )
             return JsonResponse({'success': True, 'caisse_id': caisse.id})
         except Exception as e:
@@ -59,9 +57,8 @@ def api_ajouter_caisse(request):
 @csrf_exempt
 @login_required
 def api_ajouter_point_vente(request):
-    """API: Ajouter un point de vente (modal) — admin only"""
     if not request.user.is_superuser and not request.user.groups.filter(name__in=[PATRON, MANAGER, COMPTABLE, RAF]).exists():
-        return JsonResponse({'success': False, 'error': 'Action non autorisée'}, status=403)
+        return JsonResponse({'success': False, 'error': 'Action non autoris\u00e9e'}, status=403)
     if request.method != 'POST':
         return JsonResponse({'success': False, 'error': 'POST required'})
     try:
@@ -69,7 +66,6 @@ def api_ajouter_point_vente(request):
         data = json.loads(request.body)
         nom = data.get('nom', '').strip()
         caisse_id = data.get('caisse_id')
-        password = data.get('password', 'pos123456')
 
         if not nom or not caisse_id:
             return JsonResponse({'success': False, 'error': 'Le nom et le compte sont obligatoires'})
@@ -80,7 +76,6 @@ def api_ajouter_point_vente(request):
 
         caisse = get_object_or_404(Caisse, id=caisse_id, actif=True)
 
-        # Générer un code automatique (PV-XXX)
         prefixe = 'PV'
         dernier = PointVente.objects.filter(code__startswith=prefixe).order_by('code').last()
         if dernier:
@@ -94,21 +89,15 @@ def api_ajouter_point_vente(request):
 
         with db_transaction.atomic():
             point = PointVente.objects.create(
-                code=code, nom=nom, emplacement='GUICHET',
-                actif=True, caisse=caisse,
+                code=code, nom=nom, type='AUTRE', actif=True,
             )
-            from .point_vente import creer_utilisateur_pour_point_vente
-            point = creer_utilisateur_pour_point_vente(point, password, 'GUICHET')
+            CaissePointVente.objects.create(point_vente=point, caisse=caisse, principale=True)
 
         return JsonResponse({
             'success': True,
             'point': {
-                'id': point.id,
-                'code': point.code,
-                'nom': point.nom,
-                'caisse_nom': point.caisse.nom if point.caisse else None,
-                'username': point.utilisateur.username if point.utilisateur else None,
-                'password': password,
+                'id': point.id, 'code': point.code, 'nom': point.nom,
+                'caisse_nom': caisse.nom,
             }
         })
     except Exception as e:
@@ -117,7 +106,6 @@ def api_ajouter_point_vente(request):
 
 @login_required
 def api_liste_ventes(request):
-    """API liste des ventes + commandes servies (historique unifié)"""
     from ..models import Vente
     from ..models.commande import Commande
     from django.db.models import Q
@@ -132,19 +120,17 @@ def api_liste_ventes(request):
     session_id = request.GET.get('session_id')
     produit_id = request.GET.get('produit_id')
 
-    # Mapping domaine → emplacements du point de vente
     DOMAINE_MAP = {
-        'brasserie': ['BAR', 'VIP', 'TERRASSE', 'GUICHET'],
-        'restaurant': ['RESTAURANT', 'ROOM_SERVICE'],
+        'brasserie': ['BAR', 'AUTRE'],
+        'restaurant': ['RESTAURATION', 'ROOM_SERVICE'],
         'hotel': ['RECEPTION'],
     }
 
-    # Ventes (toutes les ventes payées / en cours)
     ventes_qs = Vente.objects.all().order_by('-created_at')
     if pv:
         ventes_qs = ventes_qs.filter(point_vente_id=pv)
     if domaine and domaine in DOMAINE_MAP:
-        ventes_qs = ventes_qs.filter(point_vente__emplacement__in=DOMAINE_MAP[domaine])
+        ventes_qs = ventes_qs.filter(point_vente__type__in=DOMAINE_MAP[domaine])
     if dd:
         ventes_qs = ventes_qs.filter(created_at__date__gte=dd)
     if df:
@@ -154,18 +140,14 @@ def api_liste_ventes(request):
     if heure_fin:
         ventes_qs = ventes_qs.filter(created_at__time__lte=heure_fin)
     if employe_id:
-        ventes_qs = ventes_qs.filter(
-            Q(caissier_id=employe_id) | Q(encaisse_par_id=employe_id)
-        )
+        ventes_qs = ventes_qs.filter(Q(caissier_id=employe_id) | Q(encaisse_par_id=employe_id))
     if session_id:
         ventes_qs = ventes_qs.filter(session_caisse_id=session_id)
     if produit_id:
         ventes_qs = ventes_qs.filter(lignes__produit_id=produit_id).distinct()
 
-    # Commandes servies/livrées non encore liées à une vente (= validées sans paiement)
     cmd_qs = Commande.objects.filter(
-        Q(statut='SERVIE') | Q(statut='LIVREE'),
-        vente__isnull=True
+        Q(statut='SERVIE') | Q(statut='LIVREE'), vente__isnull=True
     ).select_related('point_vente', 'created_by').order_by('-date_commande')
     if pv:
         cmd_qs = cmd_qs.filter(point_vente_id=pv)
@@ -176,25 +158,24 @@ def api_liste_ventes(request):
     if employe_id:
         cmd_qs = cmd_qs.filter(created_by_id=employe_id)
     if domaine and domaine in DOMAINE_MAP:
-        cmd_qs = cmd_qs.filter(point_vente__emplacement__in=DOMAINE_MAP[domaine])
+        cmd_qs = cmd_qs.filter(point_vente__type__in=DOMAINE_MAP[domaine])
     if session_id:
-        # Les commandes non payées n'appartiennent à aucune session
         cmd_qs = cmd_qs.none()
     if produit_id:
         cmd_qs = cmd_qs.filter(lignes__produit_id=produit_id).distinct()
 
-    # Fusionner : ventes d'abord, puis commandes
     data = []
 
     for v in ventes_qs[:200]:
         lignes = []
         for l in v.lignes.select_related('produit', 'menu').all()[:5]:
             lignes.append({
-                'nom': l.article_nom,
-                'quantite': float(l.quantite),
-                'prix': float(l.prix_unitaire),
-                'total': float(l.total_ligne),
+                'nom': l.article_nom, 'quantite': float(l.quantite),
+                'prix': float(l.prix_unitaire), 'total': float(l.total_ligne),
             })
+        domain = ''
+        if v.point_vente:
+            domain = next((d for d, emps in DOMAINE_MAP.items() if v.point_vente.type in emps), '')
         data.append({
             'id': v.id, 'numero': v.numero, 'type': 'vente',
             'date': v.created_at.strftime('%d/%m/%Y %H:%M'),
@@ -205,14 +186,12 @@ def api_liste_ventes(request):
             'montant': float(v.montant_total),
             'mode_paiement': v.get_mode_paiement_display() if v.mode_paiement else '',
             'mode_paiement_code': v.mode_paiement or '',
-            'statut': v.get_statut_display() if v.statut else 'Payée',
+            'statut': v.get_statut_display() if v.statut else 'Pay\u00e9e',
             'statut_code': 'PAYEE' if v.statut == 'PAYEE' else v.statut,
             'caissier': v.caissier.nom_complet if v.caissier else (v.encaisse_par.nom_complet if v.encaisse_par else ''),
             'caissier_id': v.caissier_id or v.encaisse_par_id,
-            'session_id': v.session_caisse_id,
-            'lignes': lignes,
-            'lignes_count': v.lignes.count(),
-            'domaine': next((d for d, emps in DOMAINE_MAP.items() if v.point_vente and v.point_vente.emplacement in emps), ''),
+            'session_id': v.session_caisse_id, 'lignes': lignes,
+            'lignes_count': v.lignes.count(), 'domaine': domain,
         })
 
     for c in cmd_qs:
@@ -222,28 +201,21 @@ def api_liste_ventes(request):
                    ligne.produit.nom if ligne.produit else
                    ligne.menu.nom if ligne.menu else 'Article')
             lignes.append({
-                'nom': nom,
-                'quantite': float(ligne.quantite or 1),
-                'prix': float(ligne.prix_unitaire),
-                'total': float(ligne.total_ligne),
+                'nom': nom, 'quantite': float(ligne.quantite or 1),
+                'prix': float(ligne.prix_unitaire), 'total': float(ligne.total_ligne),
             })
         data.append({
             'id': c.id, 'numero': c.numero, 'type': 'vente',
             'date': c.date_commande.strftime('%d/%m/%Y %H:%M'),
             'dateOrig': c.date_commande.isoformat(),
             'point_vente': c.point_vente.nom if c.point_vente else '',
-            'point_vente_id': c.point_vente_id,
-            'client': c.client_nom or 'Anonyme',
-            'montant': float(c.montant_total),
-            'mode_paiement': '-',
-            'mode_paiement_code': '',
-            'statut': c.get_statut_display(),
+            'point_vente_id': c.point_vente_id, 'client': c.client_nom or 'Anonyme',
+            'montant': float(c.montant_total), 'mode_paiement': '-',
+            'mode_paiement_code': '', 'statut': c.get_statut_display(),
             'statut_code': c.statut,
             'caissier': c.created_by.nom_complet if c.created_by else '',
-            'caissier_id': c.created_by_id,
-            'lignes': lignes,
-            'lignes_count': c.lignes.count(),
-            'is_commande': True,
+            'caissier_id': c.created_by_id, 'lignes': lignes,
+            'lignes_count': c.lignes.count(), 'is_commande': True,
         })
 
     return JsonResponse({'success': True, 'ventes': data})
@@ -268,7 +240,6 @@ def api_recherche_clients(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def api_creer_client(request):
-    """Crée un client depuis le POS et retourne ses infos."""
     try:
         data = json.loads(request.body)
         nom = data.get('nom', '').strip()
@@ -278,7 +249,7 @@ def api_creer_client(request):
         if not nom:
             return JsonResponse({'success': False, 'error': 'Le nom est obligatoire'})
         if not telephone:
-            return JsonResponse({'success': False, 'error': 'Le téléphone est obligatoire'})
+            return JsonResponse({'success': False, 'error': 'Le t\u00e9l\u00e9phone est obligatoire'})
 
         existing = Client.objects.filter(telephone=telephone).first()
         if existing:
@@ -288,12 +259,7 @@ def api_creer_client(request):
                 'existant': True,
             })
 
-        client = Client.objects.create(
-            nom=nom,
-            telephone=telephone,
-            adresse=adresse,
-            statut='ACTIF',
-        )
+        client = Client.objects.create(nom=nom, telephone=telephone, adresse=adresse, statut='ACTIF')
 
         return JsonResponse({
             'success': True,

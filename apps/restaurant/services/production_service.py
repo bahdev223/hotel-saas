@@ -79,41 +79,6 @@ class ProductionService:
         
         return mouvements
     
-    @staticmethod
-    def lancer_production(recette_id, quantite=1, request=None):
-        """Lance une production de recette"""
-        recette = RecetteModel.objects.get(id=recette_id)
-        
-        # Vérifier le stock
-        manques = ProductionService.verifier_stock_ingredients(recette, quantite)
-        if manques:
-            return {'success': False, 'errors': manques}
-        
-        # Créer la production
-        production = Production.objects.create(
-            recette=recette,
-            quantite_produite=quantite,
-            statut='EN_COURS',
-            lance_par=request.user if request else None
-        )
-        
-        # Déstocker les ingrédients
-        ProductionService.destocker_ingredients(recette, quantite)
-        
-        # Créer les lignes de production
-        for ingredient in recette.ingredients.all():
-            ProductionIngredient.objects.create(
-                production=production,
-                ingredient=ingredient,
-                quantite_utilisee=ingredient.quantite * Decimal(str(quantite))
-            )
-        
-        production.statut = 'TERMINE'
-        production.date_fin = timezone.now()
-        production.save()
-        
-        return {'success': True, 'production_id': production.id}
-
 
 def destocker_commande(commande):
     """Déstocke les ingrédients d'une commande"""

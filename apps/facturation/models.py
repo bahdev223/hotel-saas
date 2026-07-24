@@ -45,6 +45,13 @@ class FactureModel(models.Model):
         blank=True,
         related_name='facture'
     )
+    sejour = models.OneToOneField(
+        'hotel.Sejour',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='facture'
+    )
     commande = models.OneToOneField(
         'pos.Commande',
         on_delete=models.SET_NULL,
@@ -94,6 +101,7 @@ class FactureModel(models.Model):
             models.Index(fields=['statut']),
             models.Index(fields=['type']),
             models.Index(fields=['location']),
+            models.Index(fields=['sejour']),
             models.Index(fields=['commande']),
         ]
     
@@ -102,9 +110,11 @@ class FactureModel(models.Model):
     
     @property
     def type_facture(self):
-        """Type de facture: COMMANDE, LOCATION, ou MANUELLE"""
+        """Type de facture: COMMANDE, SEJOUR, LOCATION, ou MANUELLE"""
         if self.commande_id:
             return 'COMMANDE'
+        if self.sejour_id:
+            return 'SEJOUR'
         if self.location_id:
             return 'LOCATION'
         return 'MANUELLE'

@@ -17,8 +17,6 @@ URLS_AUTORISEES_EMPLOYE = [
 
 
 class EmployeeAccessMiddleware:
-    """Restreint l'accès des employés aux seules pages autorisées"""
-
     def __init__(self, get_response):
         self.get_response = get_response
 
@@ -35,28 +33,26 @@ class EmployeeAccessMiddleware:
 
         path = request.path
 
-        # Pages autorisées pour tous les employés
         for url in URLS_AUTORISEES_EMPLOYE:
             if path.startswith(url):
                 return self.get_response(request)
 
-        # POS : accès si employé a un planning (sauf ANNULE) ou un point_vente direct
         if path.startswith('/pos/'):
             try:
                 employe = request.user.employe
             except:
                 employe = None
-            if employe and (path == '/pos/mon-espace/' or employe.point_vente):
-                return self.get_response(request)
             if employe:
-                from apps.pos.models import SessionPlanning
-                if SessionPlanning.objects.filter(
-                    employe=employe
+                from apps.pos.models import AffectationPointVente
+                if AffectationPointVente.objects.filter(employe=employe, actif=True).exists():
+                    return self.get_response(request)
+                from apps.pos.models import ShiftEmploye
+                if ShiftEmploye.objects.filter(
+                    affectation__employe=employe
                 ).exclude(statut='ANNULE').exists():
                     return self.get_response(request)
 
-        # Redirection vers accueil employé
-        messages.warning(request, "Accès non autorisé")
+        messages.warning(request, "Acc\u00e8s non autoris\u00e9")
         return redirect('authentication:employe_accueil')
 
 
@@ -64,14 +60,12 @@ PROMOTEUR_BLOCKED_PREFIXES = ["/stock/", "/comptabilite/", "/tresorerie/", "/res
 
 
 class LectureSeuleMiddleware:
-    """Bloque les requêtes POST/PUT/PATCH/DELETE de PROMOTEUR sur les zones sensibles"""
-
     def __init__(self, get_response):
         self.get_response = get_response
 
     def __call__(self, request):
         if est_lecture_seule(request.user) and request.method in ("POST", "PUT", "PATCH", "DELETE"):
             if any(request.path.startswith(p) for p in PROMOTEUR_BLOCKED_PREFIXES):
-                messages.error(request, "Action non autorisée (lecture seule).")
+                messages.error(request, "Action non autoris\u00e9e (lecture seule).")
                 return redirect(request.META.get('HTTP_REFERER', '/dashboard/'))
         return self.get_response(request)

@@ -1,0 +1,124 @@
+{% extends base_template %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-clipboard-data me-2"></i>{{ title }}</h4>
+    <a href="{% url 'stocks:inventaire_list' %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-left"></i> Retour</a>
+</div>
+
+{% if object %}
+<div class="row g-3 mb-4">
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold">
+                <i class="bi bi-info-circle me-2"></i>Détail inventaire {{ object.reference }}
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-3">Dépôt</dt>
+                    <dd class="col-sm-9">{{ object.depot.code }} — {{ object.depot.libelle }}</dd>
+                    <dt class="col-sm-3">Date</dt>
+                    <dd class="col-sm-9">{{ object.date_inventaire|date:"d/m/Y" }}</dd>
+                    <dt class="col-sm-3">Statut</dt>
+                    <dd class="col-sm-9"><span class="badge {% if object.statut == 'VALIDE' %}bg-success{% elif object.statut == 'ANNULE' %}bg-secondary{% elif object.statut == 'EN_COURS' %}bg-warning text-dark{% else %}bg-info{% endif %}">{{ object.get_statut_display }}</span></dd>
+                    <dt class="col-sm-3">Réalisé par</dt>
+                    <dd class="col-sm-9">{{ object.realise_par|default:"-" }}</dd>
+                    <dt class="col-sm-3">Notes</dt>
+                    <dd class="col-sm-9">{{ object.notes|default:"-"|linebreaks }}</dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-white fw-semibold"><i class="bi bi-bar-chart me-2"></i>Résumé</div>
+            <div class="card-body text-center">
+                <h2>{{ lignes|length }}</h2>
+                <small class="text-muted">lignes d'inventaire</small>
+                {% if lignes %}
+                {% with ecarts_positifs=lignes|dictsortreversed:"ecart" %}
+                <hr>
+                <div class="d-flex justify-content-between">
+                    <span class="text-success">+ {% for l in lignes %}{% if l.ecart > 0 %}{{ l.ecart|floatformat:0 }}{% endif %}{% endfor %}</span>
+                    <span class="text-danger">- {% for l in lignes %}{% if l.ecart < 0 %}{{ l.ecart|floatformat:0|cut:"-" }}{% endif %}{% endfor %}</span>
+                </div>
+                {% endwith %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-white fw-semibold"><i class="bi bi-list-check me-2"></i>Lignes d'inventaire</div>
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Article</th>
+                    <th>Lot</th>
+                    <th class="text-end">Théorique</th>
+                    <th class="text-end">Réelle</th>
+                    <th class="text-end">Écart</th>
+                    <th class="text-center">Statut</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for ligne in lignes %}
+                <tr class="{% if ligne.ecart > 0 %}table-success{% elif ligne.ecart < 0 %}table-danger{% endif %}">
+                    <td><a href="{% url 'stocks:article_detail' ligne.article.pk %}">{{ ligne.article.code }}</a></td>
+                    <td>{{ ligne.lot.numero_lot|default:"-" }}</td>
+                    <td class="text-end">{{ ligne.quantite_theorique|floatformat:2 }}</td>
+                    <td class="text-end">{{ ligne.quantite_reelle|floatformat:2 }}</td>
+                    <td class="text-end fw-bold {% if ligne.ecart > 0 %}text-success{% elif ligne.ecart < 0 %}text-danger{% endif %}">
+                        {{ ligne.ecart|floatformat:2 }}
+                    </td>
+                    <td class="text-center">
+                        {% if ligne.ecart == 0 %}
+                        <span class="badge bg-success"><i class="bi bi-check"></i></span>
+                        {% else %}
+                        <span class="badge bg-warning text-dark"><i class="bi bi-exclamation"></i></span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">Aucune ligne</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% else %}
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <form method="post" novalidate>
+            {% csrf_token %}
+            <div class="row g-3">
+                {% for field in form %}
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}<div class="text-danger small">{{ field.errors|join:", " }}</div>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Créer l'inventaire</button>
+                <a href="{% url 'stocks:inventaire_list' %}" class="btn btn-outline-secondary">Annuler</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.querySelectorAll('form input, form select, form textarea').forEach(el => {
+        el.classList.add('form-control', 'form-control-sm');
+        if (el.tagName === 'SELECT') { el.classList.remove('form-control'); el.classList.add('form-select', 'form-select-sm'); }
+    });
+</script>
+{% endblock %}

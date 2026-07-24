@@ -79,7 +79,7 @@ class Employe(models.Model):
     date_embauche = models.DateField(null=True, blank=True)
     departement = models.ForeignKey(Departement, on_delete=models.SET_NULL, null=True, blank=True, related_name='employes')
     poste = models.ForeignKey(Poste, on_delete=models.SET_NULL, null=True, blank=True, related_name='employes')
-    point_vente = models.ForeignKey('pos.PointVente', on_delete=models.SET_NULL, null=True, blank=True, related_name='employes')
+    # point_vente supprimé — déplacé vers AffectationPointVente + ShiftEmploye
     
     # Situation familiale
     situation_familiale = models.CharField(max_length=20, choices=SITUATION_CHOICES, default='Celibataire')

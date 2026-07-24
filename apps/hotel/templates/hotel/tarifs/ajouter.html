@@ -1,0 +1,65 @@
+{% extends 'hotel/base_hotel.html' %}
+{% load static %}
+
+{% block title %}Nouveau tarif{% endblock %}
+{% block header %}<i class="fas fa-plus-circle text-secondary mr-2"></i>Nouveau tarif{% endblock %}
+{% block subtitle %}Ajouter un tarif à la grille{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <form method="post" class="card-md3 p-6 space-y-5">
+        {% csrf_token %}
+
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="label-md3">Type de chambre</label>
+                <select name="type_chambre" class="input-md3 rounded-lg w-full" required>
+                    <option value="">---</option>
+                    {% for tc in types_chambres %}
+                    <option value="{{ tc.id }}">{{ tc.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="label-md3">Plan tarifaire</label>
+                <select name="plan_tarifaire" class="input-md3 rounded-lg w-full" required>
+                    <option value="">---</option>
+                    {% for p in plans %}
+                    <option value="{{ p.id }}">{{ p.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="label-md3">Type de tarif</label>
+                <select name="type_tarif" class="input-md3 rounded-lg w-full" required>
+                    <option value="">---</option>
+                    {% for tt in types_tarif %}
+                    <option value="{{ tt.id }}">{{ tt.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="label-md3">Montant</label>
+                <input type="number" name="montant" step="100" min="0" class="input-md3 rounded-lg w-full" required>
+            </div>
+            <div>
+                <label class="label-md3">Personnes incluses</label>
+                <input type="number" name="nombre_personnes_incluses" value="1" min="1" class="input-md3 rounded-lg w-full">
+            </div>
+            <div>
+                <label class="label-md3">Supplément adulte</label>
+                <input type="number" name="supplement_adulte" value="0" step="100" min="0" class="input-md3 rounded-lg w-full">
+            </div>
+            <div>
+                <label class="label-md3">Supplément enfant</label>
+                <input type="number" name="supplement_enfant" value="0" step="100" min="0" class="input-md3 rounded-lg w-full">
+            </div>
+        </div>
+
+        <div class="flex gap-3 pt-2">
+            <button type="submit" class="flex-1 btn-md3-primary py-2 rounded-lg"><i class="fas fa-save mr-1"></i>Créer</button>
+            <a href="{% url 'hotel:grille_tarifs' %}" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm text-center hover:bg-surface-container transition-smooth">Annuler</a>
+        </div>
+    </form>
+</div>
+{% endblock %}
