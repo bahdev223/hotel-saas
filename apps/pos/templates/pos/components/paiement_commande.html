@@ -382,11 +382,11 @@ function posPaiement() {
                     const d1 = await r1.json();
                     if (!d1.success) {
                         if (d1.error_code === 'SESSION_REQUISE') {
-                            alert(d1.error);
+                            notifyError(d1.error);
                             window.location.reload();
                             return;
                         }
-                        alert('Erreur déduction solde: ' + (d1.error || 'Échec'));
+                        notifyError('Erreur déduction solde: ' + (d1.error || 'Échec'));
                         this.processing = false;
                         return;
                     }
@@ -418,11 +418,11 @@ function posPaiement() {
                         setTimeout(() => this.imprimerRecu(), 300);
                         setTimeout(() => { this.fermer(); window.dispatchEvent(new CustomEvent('paiement-effectue')); }, 800);
                     } else if (d.error_code === 'SESSION_REQUISE') {
-                        alert(d.error);
+                        notifyError(d.error);
                         window.location.reload();
                         return;
                     } else {
-                        alert('Erreur: ' + (d.error || 'Échec du paiement'));
+                        notifyError('Erreur: ' + (d.error || 'Échec du paiement'));
                     }
                 } else if (montantRestant <= 0 && this.utiliserSolde) {
                     // Solde a tout couvert
@@ -432,7 +432,7 @@ function posPaiement() {
                     setTimeout(() => { this.fermer(); window.dispatchEvent(new CustomEvent('paiement-effectue')); }, 800);
                 }
             } catch(e) {
-                alert('Erreur réseau: ' + e.message);
+                notifyError('Erreur réseau: ' + e.message);
             } finally {
                 this.processing = false;
             }

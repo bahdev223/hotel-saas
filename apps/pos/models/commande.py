@@ -58,7 +58,10 @@ class Commande(models.Model):
     # ❌ LIGNE SUPPRIMÉE : plus de JSONField lignes
     
     # Montants
-    montant_total = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    sous_total = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Somme des prix catalogue")
+    montant_remise = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    montant_taxe = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    montant_total = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Montant net à payer (sous_total - remise + taxe + livraison)")
     frais_livraison = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     
     # Timing

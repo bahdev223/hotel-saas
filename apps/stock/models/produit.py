@@ -72,7 +72,8 @@ class Produit(models.Model):
 
     @property
     def valeur_stock(self):
-        return float(self.quantite_stock) * float(self.prix_achat)
+        from decimal import Decimal
+        return Decimal(str(self.quantite_stock)) * Decimal(str(self.prix_achat))
     
     @property
     def est_en_rupture(self):

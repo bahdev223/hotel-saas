@@ -166,7 +166,21 @@ function paiementClients() {
         dialogOuvert: false, typeOperation: 'dette', montant: '', mode: 'ESPECES',
         chargement: false, erreur: '', succes: false, messageSucces: '',
 
-        init() { this.$watch('search', () => { if (!this.search) this.clients = []; }); },
+        init() {
+            this.$watch('search', () => { if (!this.search) this.clients = []; });
+            window.addEventListener('pos:ouvrir-dialog-client', (e) => {
+                this.clientSelectionne = e.detail;
+                this.clientSolde = 0;
+                this.typeOperation = e.detail.type;
+                this.montant = '';
+                this.mode = 'ESPECES';
+                this.erreur = '';
+                this.dialogOuvert = true;
+                fetch('/paiements/api/clients/' + e.detail.id + '/solde/').then(r => r.json()).then(d => {
+                    if (d.success) this.clientSolde = d.solde.solde;
+                }).catch(() => {});
+            });
+        },
 
         async rechercher() {
             if (this.search.length < 2) { this.clients = []; return; }
@@ -221,20 +235,9 @@ function paiementClients() {
 }
 
 function ouvrirDialogClient(id, type, nom, telephone) {
-    const app = document.querySelector('[x-data="paiementClients()"]');
-    if (app && app.__x) {
-        const data = app.__x.$data;
-        data.clientSelectionne = { id, nom, telephone };
-        data.clientSolde = 0;
-        data.typeOperation = type;
-        data.montant = '';
-        data.mode = 'ESPECES';
-        data.erreur = '';
-        data.dialogOuvert = true;
-        fetch('/paiements/api/clients/' + id + '/solde/').then(r => r.json()).then(d => {
-            if (d.success) data.clientSolde = d.solde.solde;
-        }).catch(() => {});
-    }
+    window.dispatchEvent(new CustomEvent('pos:ouvrir-dialog-client', {
+        detail: { id, type, nom, telephone }
+    }));
 }
 </script>
 {% endblock %}

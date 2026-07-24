@@ -146,7 +146,7 @@ class Migration(migrations.Migration):
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('quantite', models.DecimalField(decimal_places=2, default=1, max_digits=10)),
-                ('menu', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='restaurant.menumodel')),
+                ('recette', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='productions', to='restaurant.recettemodel')),
                 ('production', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='lignes', to='restaurant.production')),
             ],
             options={

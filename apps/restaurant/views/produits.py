@@ -10,6 +10,7 @@ import json
 import uuid
 
 from apps.stock.models import Produit, StockEntrepot, Entrepot
+from apps.stock.services.mouvement_service import MouvementStockService
 
 
 UNITE_CHOICES = [
@@ -33,66 +34,56 @@ RAISON_CHOICES = [
 ]
 
 
-def get_restaurant_entrepot():
-    """Récupère ou crée l'entrepôt RESTAURANT"""
-    entrepot = Entrepot.objects.filter(type_entrepot='RESTAURANT').first()
-    if not entrepot:
-        entrepot = Entrepot.objects.create(
-            code='RESTAURANT',
-            nom='RESTAURANT',
-            type_entrepot='RESTAURANT',
-            actif=True
-        )
-    return entrepot
+def _get_entrepot(request):
+    entrepot_id = request.GET.get('entrepot_id') or request.POST.get('entrepot_id')
+    if entrepot_id:
+        return get_object_or_404(Entrepot, id=entrepot_id)
+    return None
 
 
 @login_required
 def produits_stock(request):
-    """Page de consultation du stock de l'entrepôt RESTAURANT"""
-    restaurant_entrepot = get_restaurant_entrepot()
-    context = { 'entrepot_nom': restaurant_entrepot.nom }
-    return render(request, 'restaurant/produits/liste.html', context)
+    entrepot = _get_entrepot(request)
+    if not entrepot:
+        return render(request, 'restaurant/produits/choisir_entrepot.html')
+    return render(request, 'restaurant/produits/liste.html', {
+        'entrepot_id': entrepot.id,
+        'entrepot_nom': entrepot.nom,
+    })
 
 
 @login_required
 def entree_stock(request, produit_id):
-    """Ajouter du stock dans l'entrepôt RESTAURANT"""
     produit = get_object_or_404(Produit, id=produit_id)
-    restaurant_entrepot = get_restaurant_entrepot()
-    
+    entrepot = _get_entrepot(request)
+    if not entrepot:
+        messages.error(request, 'Entrepôt non spécifié')
+        return redirect('restaurant:produits_stock')
+
     if request.method == 'POST':
         try:
             quantite = Decimal(request.POST.get('quantite', 0))
             raison = request.POST.get('raison', '')
             reference = request.POST.get('reference', '')
-            
-            # Mettre à jour le stock dans l'entrepôt RESTAURANT
-            stock, created = StockEntrepot.objects.get_or_create(
-                entrepot=restaurant_entrepot,
+
+            MouvementStockService.entree_stock(
                 produit=produit,
-                defaults={'quantite': 0}
-            )
-            stock.quantite += quantite
-            stock.save()
-            
-            # Créer le mouvement
-            MouvementStock.objects.create(
-                produit=produit,
-                type_mouvement='ENTREE',
+                entrepot=entrepot,
                 quantite=quantite,
-                entrepot_dest=restaurant_entrepot,
-                reference=reference,
                 utilisateur=request.user.username,
-                raison=f"Entrée stock restaurant: {raison}"
+                motif='achat',
+                reference=reference,
+                raison=f"Entrée stock: {raison}",
             )
-            
-            messages.success(request, f'{quantite} {produit.unite_base} ajoutés au stock du restaurant')
-            return redirect('restaurant:produits_stock')
+
+            messages.success(request, f'{quantite} {produit.unite_base} ajoutés au stock')
+            return redirect(f'{request.path}?entrepot_id={entrepot.id}')
         except Exception as e:
             messages.error(request, str(e))
-    
+
     context = {
         'produit': produit,
+        'entrepot_id': entrepot.id,
         'raisons': RAISON_CHOICES,
     }
     return render(request, 'restaurant/produits/entree.html', context)
@@ -100,25 +91,19 @@ def entree_stock(request, produit_id):
 
 @login_required
 def mouvement_stock(request, produit_id):
-    """Historique des mouvements de stock pour un produit"""
     produit = get_object_or_404(Produit, id=produit_id)
-    
     mouvements = MouvementStock.objects.filter(produit=produit).order_by('-date_mouvement')[:50]
-    
-    context = {
+    return render(request, 'restaurant/produits/mouvements.html', {
         'produit': produit,
         'mouvements': mouvements,
-    }
-    return render(request, 'restaurant/produits/mouvements.html', context)
+    })
 
 
 @login_required
 def ajouter_produit(request):
-    """Ajouter un nouveau produit"""
     if request.method == 'POST':
         try:
             code = request.POST.get('code') or f"PRD-{uuid.uuid4().hex[:6].upper()}"
-            
             produit = Produit.objects.create(
                 code=code,
                 nom=request.POST.get('nom'),
@@ -129,23 +114,17 @@ def ajouter_produit(request):
                 description=request.POST.get('description', ''),
                 actif=True
             )
-            
             messages.success(request, f'Produit {produit.nom} ajouté')
             return redirect('restaurant:produits_stock')
         except Exception as e:
             messages.error(request, str(e))
-    
-    context = {
-        'unites': UNITE_CHOICES,
-    }
-    return render(request, 'restaurant/produits/ajouter.html', context)
+
+    return render(request, 'restaurant/produits/ajouter.html', {'unites': UNITE_CHOICES})
 
 
 @login_required
 def modifier_produit(request, produit_id):
-    """Modifier un produit"""
     produit = get_object_or_404(Produit, id=produit_id)
-    
     if request.method == 'POST':
         try:
             produit.nom = request.POST.get('nom')
@@ -155,61 +134,53 @@ def modifier_produit(request, produit_id):
             produit.seuil_alerte = Decimal(request.POST.get('seuil_alerte', 5))
             produit.description = request.POST.get('description', '')
             produit.save()
-            
             messages.success(request, f'Produit {produit.nom} modifié')
             return redirect('restaurant:produits_stock')
         except Exception as e:
             messages.error(request, str(e))
-    
-    context = {
+
+    return render(request, 'restaurant/produits/modifier.html', {
         'produit': produit,
         'unites': UNITE_CHOICES,
-    }
-    return render(request, 'restaurant/produits/modifier.html', context)
+    })
 
 
 @login_required
 def transfert_central_restaurant(request, produit_id):
-    """Transférer un produit du stock CENTRAL vers RESTAURANT"""
     from apps.stock.services.transfert_service import TransfertService
-    
+
     produit = get_object_or_404(Produit, id=produit_id)
-    
     if request.method == 'POST':
         try:
             quantite = Decimal(request.POST.get('quantite', 0))
-            
-            mouvement = TransfertService.transfert_central_vers_restaurant(
+            TransfertService.transfert_central_vers_restaurant(
                 produit_id=produit_id,
                 quantite=quantite,
                 utilisateur=request.user.username,
                 reference=request.POST.get('reference', ''),
                 notes=request.POST.get('notes', '')
             )
-            
             messages.success(request, f'{quantite} {produit.unite_base} transférés vers le restaurant')
             return redirect('restaurant:produits_stock')
         except Exception as e:
             messages.error(request, str(e))
-    
-    context = {
-        'produit': produit,
-    }
-    return render(request, 'restaurant/produits/transfert.html', context)
+
+    return render(request, 'restaurant/produits/transfert.html', {'produit': produit})
 
 
 @login_required
 @require_http_methods(["GET"])
 def api_liste_produits_stock(request):
-    """Liste des produits du stock restaurant uniquement"""
-    restaurant_entrepot = Entrepot.objects.filter(type_entrepot='RESTAURANT').first()
-    if not restaurant_entrepot:
+    entrepot_id = request.GET.get('entrepot_id')
+    if not entrepot_id:
         return JsonResponse({'success': True, 'produits': []})
+
+    entrepot = get_object_or_404(Entrepot, id=entrepot_id)
     stocks = StockEntrepot.objects.filter(
-        entrepot=restaurant_entrepot,
+        entrepot=entrepot,
         produit__actif=True,
-        produit__domaine__nom='RESTAURANT'
     ).select_related('produit', 'produit__categorie', 'produit__domaine')
+
     data = []
     for s in stocks:
         p = s.produit
@@ -229,16 +200,14 @@ def api_liste_produits_stock(request):
     return JsonResponse({'success': True, 'produits': data})
 
 
-# ─── API JSON ───────────────────────────────────────────────────────────────
-
-
 @login_required
 @require_http_methods(["GET"])
 def api_produit_infos(request, produit_id):
-    """Détail d'un produit avec son stock restaurant"""
     produit = get_object_or_404(Produit, id=produit_id)
-    entrepot = get_restaurant_entrepot()
-    stock = StockEntrepot.objects.filter(entrepot=entrepot, produit=produit).first()
+    entrepot_id = request.GET.get('entrepot_id')
+    stock = None
+    if entrepot_id:
+        stock = StockEntrepot.objects.filter(entrepot_id=entrepot_id, produit=produit).first()
     qte = float(stock.quantite) if stock else 0
     return JsonResponse({
         'success': True,
@@ -259,7 +228,6 @@ def api_produit_infos(request, produit_id):
 @csrf_exempt
 @require_http_methods(["POST"])
 def api_ajouter_produit(request):
-    """Ajouter un produit via JSON"""
     try:
         data = json.loads(request.body) if request.body else request.POST.dict()
         nom = data.get('nom', '').strip()
@@ -285,7 +253,6 @@ def api_ajouter_produit(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def api_modifier_produit(request, produit_id):
-    """Modifier un produit via JSON"""
     try:
         data = json.loads(request.body) if request.body else request.POST.dict()
         produit = get_object_or_404(Produit, id=produit_id)
@@ -306,24 +273,30 @@ def api_modifier_produit(request, produit_id):
 @csrf_exempt
 @require_http_methods(["POST"])
 def api_entree_stock(request, produit_id):
-    """Entrée de stock via JSON"""
     try:
         data = json.loads(request.body) if request.body else request.POST.dict()
         produit = get_object_or_404(Produit, id=produit_id)
+        entrepot_id = data.get('entrepot_id')
+        if not entrepot_id:
+            return JsonResponse({'success': False, 'error': 'entrepot_id requis'})
+        entrepot = get_object_or_404(Entrepot, id=entrepot_id)
         quantite = Decimal(str(data.get('quantite', 0)))
         if quantite <= 0:
             return JsonResponse({'success': False, 'error': 'Quantité invalide'})
         raison = data.get('raison', 'ACHAT')
         reference = data.get('reference', '')
-        restaurant_entrepot = get_restaurant_entrepot()
-        stock, _ = StockEntrepot.objects.get_or_create(entrepot=restaurant_entrepot, produit=produit, defaults={'quantite': 0})
-        stock.quantite += quantite
-        stock.save()
-        MouvementStock.objects.create(
-            produit=produit, type_mouvement='ENTREE', quantite=quantite,
-            entrepot_dest=restaurant_entrepot, reference=reference,
-            utilisateur=request.user.username, raison=f"Entrée stock restaurant: {raison}"
+
+        MouvementStockService.entree_stock(
+            produit=produit,
+            entrepot=entrepot,
+            quantite=quantite,
+            utilisateur=request.user.username,
+            motif='achat',
+            reference=reference,
+            raison=f"Entrée stock: {raison}",
         )
+
+        stock = StockEntrepot.objects.get(entrepot=entrepot, produit=produit)
         return JsonResponse({'success': True, 'nouveau_stock': float(stock.quantite)})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=400)
@@ -331,13 +304,11 @@ def api_entree_stock(request, produit_id):
 
 @login_required
 def supprimer_produit(request, produit_id):
-    """Supprimer un produit (soft delete)"""
     produit = get_object_or_404(Produit, id=produit_id)
     if request.method == 'POST':
         produit.actif = False
         produit.save()
         messages.success(request, f'Produit {produit.nom} supprimé')
-        return redirect('restaurant:produits_stock')
     return redirect('restaurant:produits_stock')
 
 
@@ -345,7 +316,6 @@ def supprimer_produit(request, produit_id):
 @csrf_exempt
 @require_http_methods(["POST"])
 def api_supprimer_produit(request, produit_id):
-    """Supprimer un produit via JSON (soft delete)"""
     try:
         produit = get_object_or_404(Produit, id=produit_id)
         produit.actif = False
@@ -353,4 +323,3 @@ def api_supprimer_produit(request, produit_id):
         return JsonResponse({'success': True})
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=400)
-

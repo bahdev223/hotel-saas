@@ -63,7 +63,7 @@ urlpatterns = [
     path('api/production/<int:production_id>/annuler/', views.api_annuler_production, name='api_annuler_production'),
     path('api/production/historique/', views.api_historique_production, name='api_historique_production'),
     path('api/production/<int:production_id>/', views.api_production_detail, name='api_production_detail'),
-    path('api/verifier-stock/<int:menu_id>/', views.api_verifier_stock, name='api_verifier_stock'),
+    path('api/verifier-stock/<str:recette_id>/', views.api_verifier_stock, name='api_verifier_stock'),
     path('api/stock/menu/<int:menu_id>/', views.api_stock_menu, name='api_stock_menu'),
     
     # ========== API RECETTES ==========

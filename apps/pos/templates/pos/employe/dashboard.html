@@ -132,6 +132,7 @@
     <div class="stat-card p-4 text-center" style="border-color: rgba(227, 194, 130, 0.3);">
         <i class="fas fa-money-bill-wave text-yellow-400 text-xl mb-1"></i>
         <p class="text-xl font-bold">{{ ca_aujourdhui|floatformat:0 }} F</p>
+        <p class="text-sm font-medium {% if marge_aujourdhui > 0 %}text-green-400{% else %}text-red-400{% endif %}">Marge: {{ marge_aujourdhui|floatformat:0 }} F</p>
         <p class="text-[10px] text-on-surface-variant">CA ajd ({{ nb_ventes_aujourdhui }})</p>
     </div>
     <div class="stat-card p-4 text-center">

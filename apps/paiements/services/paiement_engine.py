@@ -211,10 +211,25 @@ class PaiementEngine:
                     statut='PAYEE',
                 )
                 for ligne in objet.lignes.all():
+                    cout_unitaire = Decimal('0')
+                    if ligne.produit:
+                        cout_unitaire = ligne.produit.prix_achat
+                    elif ligne.menu:
+                        cout_unitaire = Decimal(str(ligne.menu.cout_revient_total))
+                    
+                    marge_ligne = (ligne.prix_unitaire - cout_unitaire) * ligne.quantite
+                    
                     LigneVente.objects.create(
                         vente=vente, produit=ligne.produit, menu=ligne.menu,
-                        quantite=ligne.quantite, prix_unitaire=ligne.prix_unitaire, notes=ligne.notes
+                        quantite=ligne.quantite, prix_unitaire=ligne.prix_unitaire, 
+                        cout_revient=cout_unitaire, marge=marge_ligne, notes=ligne.notes
                     )
+                
+                # Update total cost and margin for the Vente
+                vente.cout_revient_total = sum(l.cout_revient * l.quantite for l in vente.lignes.all())
+                vente.marge_totale = sum(l.marge for l in vente.lignes.all())
+                vente.save()
+                
                 objet.vente = vente
                 objet.statut = 'PAYEE'
                 objet.save()

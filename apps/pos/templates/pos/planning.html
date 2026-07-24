@@ -650,8 +650,8 @@ function planningPvApp() {
                 });
                 const d = await r.json();
                 if (d.success) { this.closeModal(); this.charger(); }
-                else { alert('❌ ' + d.error); }
-            } catch(e) { alert('❌ Erreur réseau'); }
+                else { notifyError('❌ ' + d.error); }
+            } catch(e) { notifyError('❌ Erreur réseau'); }
             finally { this.saving = false; }
         },
 
@@ -665,8 +665,8 @@ function planningPvApp() {
                 });
                 const d = await r.json();
                 if (d.success) { this.closeModal(); this.charger(); }
-                else { alert('❌ ' + d.error); }
-            } catch(e) { alert('Erreur réseau'); }
+                else { notifyError('❌ ' + d.error); }
+            } catch(e) { notifyError('Erreur réseau'); }
         },
 
         getCookie(n) { let v = `; ${document.cookie}`, p = v.split(`; ${n}=`); return p.length === 2 ? p.pop().split(';').shift() : ''; }

@@ -30,6 +30,8 @@
 
 <body class="bg-background text-on-surface font-body-md">
 
+{% include "partials/alpine_toast.html" %}
+
 <div class="min-h-screen flex flex-col">
 
     <!-- Top Navbar -->
@@ -156,6 +158,8 @@
     }
 </style>
 {% endif %}
+
+{% block extra_js %}{% endblock %}
 
 </body>
 </html>

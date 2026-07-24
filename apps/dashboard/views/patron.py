@@ -100,28 +100,26 @@ def patron_dashboard(request):
     # ========== 5. ALERTES ==========
     alertes = []
     
-    # Stock faible (entrepôt RESTAURANT)
-    entrepot_restaurant = Entrepot.objects.filter(type_entrepot='RESTAURANT').first()
-    if entrepot_restaurant:
-        stocks_faibles = StockEntrepot.objects.filter(
-            entrepot=entrepot_restaurant,
-            quantite__lte=5,
-            quantite__gt=0
-        ).select_related('produit')[:5]
-        
-        for stock in stocks_faibles:
-            alertes.append({
-                'type': 'stock_faible',
-                'niveau': 'warning',
-                'message': f"⚠️ Stock faible: {stock.produit.nom} ({stock.quantite} {stock.produit.unite_base})",
-                'lien': f"/stock/produits/{stock.produit.id}/"
-            })
-    
+    # Stock faible (tous entrepôts)
+    stocks_faibles = StockEntrepot.objects.filter(
+        quantite__lte=5,
+        quantite__gt=0,
+        produit__actif=True,
+    ).select_related('produit', 'entrepot')[:5]
+
+    for stock in stocks_faibles:
+        alertes.append({
+            'type': 'stock_faible',
+            'niveau': 'warning',
+            'message': f"⚠️ Stock faible: {stock.produit.nom} ({stock.quantite} {stock.produit.unite_base})",
+            'lien': f"/stock/produits/{stock.produit.id}/"
+        })
+
     # Stock rupture
     stocks_rupture = StockEntrepot.objects.filter(
-        entrepot=entrepot_restaurant,
-        quantite__lte=0
-    ).select_related('produit')[:3]
+        quantite__lte=0,
+        produit__actif=True,
+    ).select_related('produit', 'entrepot')[:3]
     
     for stock in stocks_rupture:
         alertes.append({

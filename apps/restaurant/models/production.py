@@ -2,13 +2,12 @@
 from django.db import models
 from django.utils import timezone
 from decimal import Decimal
-from .menu import MenuModel
 from .recette import RecetteModel
 from apps.stock.models import Produit, StockEntrepot, Entrepot
 from django.db import models, transaction
 
 class Production(models.Model):
-    """Production en cuisine - préparation de menus"""
+    """Production en cuisine - préparation de recettes"""
     
     STATUT_CHOICES = [
         ('BROUILLON', 'Brouillon'),
@@ -77,109 +76,111 @@ class Production(models.Model):
         return f"Production #{self.numero} - {self.date.strftime('%d/%m/%Y')}"
     
     @property
-    def total_menus(self):
-        """Total des menus produits"""
-        return sum(float(l.quantite) for l in self.lignes.all())
-    
-    @property
-    def total_ingredients(self):
-        """Total des ingrédients consommés"""
-        return sum(float(i.quantite) for i in self.ingredients.all())
+    def total_unites(self):
+        """Total des unités produites"""
+        return sum(l.quantite for l in self.lignes.all())
     
     def verifier_stock(self):
         """Vérifie si tous les ingrédients sont disponibles"""
+        from decimal import Decimal
         manques = []
-        
-        # Un menu n'a pas de recette directe : sa composition est portee par
-        # ses lignes (LigneMenuModel). On ne consomme que les lignes FIXE
-        # (toujours incluses) ; CHOIX/SUPPLEMENT dependent du choix client.
-        for ligne in self.lignes.select_related('menu').all():
-            lignes_menu = ligne.menu.lignes.filter(
-                type_ligne='FIXE'
-            ).select_related('recette')
 
-            if not lignes_menu.exists():
-                manques.append(f"{ligne.menu.nom}: aucune recette fixe definie")
+        for ligne in self.lignes.select_related('recette').all():
+            if not ligne.recette:
+                manques.append(f"Ligne #{ligne.id}: aucune recette associée")
                 continue
 
-            for ligne_menu in lignes_menu:
-                for ingredient in ligne_menu.recette.ingredients.filter(
-                    type_ingredient='DEDUIRE',
-                    produit__isnull=False
-                ):
-                    if not ingredient.quantite:
-                        continue
+            for ingredient in ligne.recette.ingredients.filter(
+                type_ingredient='DEDUIRE',
+                produit__isnull=False
+            ):
+                if not ingredient.quantite:
+                    continue
 
-                    quantite_necessaire = (
-                        float(ingredient.quantite)
-                        * float(ligne_menu.quantite)
-                        * float(ligne.quantite)
+                quantite_necessaire = ingredient.quantite * ligne.quantite
+                stock = StockEntrepot.objects.filter(
+                    entrepot=self.entrepot_source,
+                    produit=ingredient.produit
+                ).first()
+
+                stock_qte = stock.quantite if stock else Decimal('0')
+
+                if stock_qte < quantite_necessaire:
+                    manques.append(
+                        f"{ingredient.produit.nom}: besoin {quantite_necessaire} {ingredient.unite}, "
+                        f"disponible {stock_qte}"
                     )
-                    stock = StockEntrepot.objects.filter(
-                        entrepot=self.entrepot_source,
-                        produit=ingredient.produit
-                    ).first()
-
-                    stock_qte = float(stock.quantite) if stock else 0
-
-                    if stock_qte < quantite_necessaire:
-                        manques.append(
-                            f"{ingredient.produit.nom}: besoin {quantite_necessaire} {ingredient.unite}, "
-                            f"disponible {stock_qte}"
-                        )
 
         return {'disponible': len(manques) == 0, 'manques': manques}
     
     @transaction.atomic
     def valider(self, employe):
-        """Valide la production et applique les modifications de stock"""
-        
+        """Valide la production : sortie ingrédients + entrée produit fini"""
+        from apps.stock.services.mouvement_service import MouvementStockService
+
         if self.statut == 'VALIDE':
             raise ValueError("Cette production a déjà été validée")
-        
+
+        if not self.entrepot_source:
+            raise ValueError("Entrepôt source non défini")
+        if not self.entrepot_dest:
+            raise ValueError("Entrepôt destination non défini")
+
         # Vérifier le stock
         verification = self.verifier_stock()
         if not verification['disponible']:
             raise ValueError(f"Stock insuffisant: {', '.join(verification['manques'])}")
-        
-        # Appliquer les modifications (composition via les lignes FIXE du menu)
-        for ligne in self.lignes.select_related('menu').all():
-            for ligne_menu in ligne.menu.lignes.filter(
-                type_ligne='FIXE'
-            ).select_related('recette'):
-                for ingredient in ligne_menu.recette.ingredients.filter(
-                    type_ingredient='DEDUIRE',
-                    produit__isnull=False
-                ):
-                    if not ingredient.quantite:
-                        continue
 
-                    quantite_necessaire = (
-                        float(ingredient.quantite)
-                        * float(ligne_menu.quantite)
-                        * float(ligne.quantite)
-                    )
+        # Appliquer les modifications
+        for ligne in self.lignes.select_related('recette', 'recette__produit_fini').all():
+            if not ligne.recette:
+                continue
 
-                    # Déduire du stock source
-                    stock = StockEntrepot.objects.select_for_update().get(
-                        entrepot=self.entrepot_source,
-                        produit=ingredient.produit
-                    )
-                    stock.quantite -= Decimal(str(quantite_necessaire))
-                    stock.save()
+            # Sortie des ingrédients
+            for ingredient in ligne.recette.ingredients.filter(
+                type_ingredient='DEDUIRE',
+                produit__isnull=False
+            ):
+                if not ingredient.quantite:
+                    continue
 
-                    # Enregistrer la consommation
-                    ProductionIngredient.objects.create(
-                        production=self,
-                        produit=ingredient.produit,
-                        quantite=quantite_necessaire,
-                        unite=ingredient.unite
-                    )
-        
+                quantite_necessaire = ingredient.quantite * ligne.quantite
+
+                MouvementStockService.sortie_stock(
+                    produit=ingredient.produit,
+                    entrepot=self.entrepot_source,
+                    quantite=quantite_necessaire,
+                    utilisateur=str(employe) if employe else "Cuisine",
+                    motif='consommation',
+                    raison=f"Production #{self.numero}: {ligne.recette.nom}",
+                )
+
+                ProductionIngredient.objects.create(
+                    production=self,
+                    produit=ingredient.produit,
+                    quantite=quantite_necessaire,
+                    unite=ingredient.unite
+                )
+
+            # Entrée du produit fini dans l'entrepôt destination
+            if ligne.recette.produit_fini:
+                quantite_produite = ligne.quantite
+                if ligne.recette.rendement_quantite:
+                    quantite_produite = quantite_produite * ligne.recette.rendement_quantite
+
+                MouvementStockService.entree_stock(
+                    produit=ligne.recette.produit_fini,
+                    entrepot=self.entrepot_dest,
+                    quantite=quantite_produite,
+                    utilisateur=str(employe) if employe else "Cuisine",
+                    motif='production',
+                    raison=f"Production #{self.numero}: {ligne.recette.nom}",
+                )
+
         self.statut = 'VALIDE'
         self.valide_par = employe
         self.save()
-        
+
         return True
     
     @transaction.atomic
@@ -193,16 +194,17 @@ class Production(models.Model):
 
 
 class ProductionLigne(models.Model):
-    """Ligne de production - un menu produit"""
+    """Ligne de production - une recette produite"""
     
     production = models.ForeignKey(
         Production,
         on_delete=models.CASCADE,
         related_name='lignes'
     )
-    menu = models.ForeignKey(
-        MenuModel,
-        on_delete=models.CASCADE
+    recette = models.ForeignKey(
+        RecetteModel,
+        on_delete=models.CASCADE,
+        related_name='productions'
     )
     quantite = models.DecimalField(
         max_digits=10,
@@ -216,7 +218,7 @@ class ProductionLigne(models.Model):
         verbose_name_plural = 'Lignes de production'
     
     def __str__(self):
-        return f"{self.quantite} x {self.menu.nom}"
+        return f"{self.quantite} x {self.recette.nom}"
 
 
 class ProductionIngredient(models.Model):

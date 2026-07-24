@@ -56,6 +56,10 @@ class RecetteModel(models.Model):
     prix_vente = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     temps_preparation_minutes = models.IntegerField(default=0)
     
+    rendement_quantite = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Quantité produite par la recette (ex: 50 litres de sauce)")
+    rendement_unite = models.CharField(max_length=20, choices=UNITE_CHOICES, null=True, blank=True)
+    produit_fini = models.ForeignKey(Produit, on_delete=models.SET_NULL, null=True, blank=True, related_name='produit_par_recettes', help_text="Produit fini obtenu après exécution de la recette")
+
     visible_dans_pos = models.BooleanField(default=True)
     ordre_affichage = models.IntegerField(default=0)
     image = models.ImageField(upload_to='recettes/', blank=True, null=True)
@@ -95,47 +99,43 @@ class RecetteModel(models.Model):
             total += quantite * float(prix)
         return total
     
-    def consommer_ingredients(self, quantite=1):
-        from apps.stock.models import StockEntrepot, Entrepot
-        
-        restaurant_entrepot = Entrepot.objects.filter(type_entrepot='RESTAURANT').first()
-        if not restaurant_entrepot:
-            raise Exception("Entrepôt RESTAURANT non configuré")
-        
+    def consommer_ingredients(self, quantite=1, entrepot=None):
+        from apps.stock.services.mouvement_service import MouvementStockService
+
+        if not entrepot:
+            return
+
         for ingredient in self.ingredients.filter(type_ingredient='DEDUIRE'):
-            if not ingredient.quantite or ingredient.quantite <= 0:
+            if not ingredient.quantite or ingredient.quantite <= 0 or not ingredient.produit:
                 continue
-            
-            stock = StockEntrepot.objects.filter(
-                entrepot=restaurant_entrepot,
-                produit=ingredient.produit
-            ).first()
-            
-            if stock:
-                quantite_necessaire = float(ingredient.quantite) * quantite
-                if float(stock.quantite) < quantite_necessaire:
-                    raise Exception(f"Stock insuffisant pour {ingredient.produit.nom}")
-                stock.quantite -= quantite_necessaire
-                stock.save()
-    
-    def verifier_disponibilite(self, quantite=1):
-        from apps.stock.models import StockEntrepot, Entrepot
-        
-        restaurant_entrepot = Entrepot.objects.filter(type_entrepot='RESTAURANT').first()
+
+            quantite_necessaire = ingredient.quantite * Decimal(str(quantite))
+            MouvementStockService.sortie_stock(
+                produit=ingredient.produit,
+                entrepot=entrepot,
+                quantite=quantite_necessaire,
+                utilisateur="Cuisine",
+                motif='consommation',
+                raison=f"Consommation recette: {self.nom}",
+            )
+
+    def verifier_disponibilite(self, quantite=1, entrepot=None):
+        from apps.stock.models import StockEntrepot
+
         manques = []
-        
+
         for ingredient in self.ingredients.filter(type_ingredient='DEDUIRE'):
-            if not ingredient.quantite or ingredient.quantite <= 0:
+            if not ingredient.quantite or ingredient.quantite <= 0 or not ingredient.produit:
                 continue
-            
+
             stock = StockEntrepot.objects.filter(
-                entrepot=restaurant_entrepot,
+                entrepot=entrepot,
                 produit=ingredient.produit
-            ).first()
-            
+            ).first() if entrepot else None
+
             stock_qte = float(stock.quantite) if stock else 0
             besoin = float(ingredient.quantite) * quantite
-            
+
             if stock_qte < besoin:
                 manques.append({
                     'produit': ingredient.produit.nom,
@@ -143,7 +143,7 @@ class RecetteModel(models.Model):
                     'besoin': besoin,
                     'unite': ingredient.unite
                 })
-        
+
         return {
             'disponible': len(manques) == 0,
             'manques': manques

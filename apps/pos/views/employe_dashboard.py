@@ -114,6 +114,7 @@ def employe_dashboard(request):
     ventes_ajd = Vente.objects.filter(caissier=employe, created_at__date=aujourdhui)
     ventes_ajd_payee = ventes_ajd.filter(statut='PAYEE')
     ca_aujourdhui = ventes_ajd_payee.aggregate(total=Sum('montant_total'))['total'] or 0
+    marge_aujourdhui = ventes_ajd_payee.aggregate(total=Sum('marge_totale'))['total'] or 0
     nb_ventes_aujourdhui = ventes_ajd_payee.count()
     nb_annulations_ajd = ventes_ajd.filter(statut='ANNULEE').count()
 
@@ -167,6 +168,7 @@ def employe_dashboard(request):
         'plannings': shifts,
         'toutes_ventes': toutes_ventes, 'dernieres_commandes': dernieres_commandes,
         'ca_aujourdhui': ca_aujourdhui,
+        'marge_aujourdhui': marge_aujourdhui,
         'nb_ventes_aujourdhui': nb_ventes_aujourdhui,
         'nb_annulations_ajd': nb_annulations_ajd,
         'nb_commandes_ajd': nb_commandes_ajd,

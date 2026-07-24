@@ -81,10 +81,12 @@ INSTALLED_APPS = [
     'apps.dashboard',
     'apps.paie',
     'apps.stock',
-    'apps.stocks',
+    # 'apps.stocks',  # Bootstrap — désactivé
     'apps.catalogue',
     'apps.tresorerie', 'apps.pos',
     'apps.fournisseurs',
+    'apps.core',
+    'apps.reporting',
 
 ]
 

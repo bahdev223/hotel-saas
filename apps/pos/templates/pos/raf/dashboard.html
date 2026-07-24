@@ -57,7 +57,12 @@
       <p class="text-[10px] text-on-surface-variant mt-0.5">Transféré (F)</p>
     </div>
     <div class="bg-surface-container-low rounded-xl border border-pink-500/30 p-3 text-center">
-      <p class="text-xl font-bold text-pink-400"><span x-text="formatNumber(data.stats.ca_aujourdhui) || '{{ stats.ca_aujourdhui|floatformat:0 }}'"></span> <span class="text-xs">F</span></p>
+      <p class="text-xl font-bold text-pink-400">
+        <span x-text="formatNumber(data.stats.ca_aujourdhui) || '{{ stats.ca_aujourdhui|floatformat:0 }}'"></span> <span class="text-xs">F</span>
+      </p>
+      <p class="text-sm font-medium" :class="(data.stats.marge_aujourdhui || {{ stats.marge_aujourdhui|default:0|floatformat:0 }}) > 0 ? 'text-green-400' : 'text-red-400'">
+        Marge: <span x-text="formatNumber(data.stats.marge_aujourdhui) || '{{ stats.marge_aujourdhui|default:0|floatformat:0 }}'"></span> <span class="text-xs">F</span>
+      </p>
       <p class="text-[10px] text-on-surface-variant mt-0.5">CA aujourd'hui</p>
     </div>
     <div class="bg-surface-container-low rounded-xl border border-blue-500/30 p-3 text-center">
@@ -438,10 +443,10 @@ function rafDashboard360() {
           this.notification = `✓ Commande ${numero} annulée`;
           this.commandesPayees = this.commandesPayees.filter(c => c.id !== id);
         } else {
-          alert('Erreur: ' + (d.error || 'Échec'));
+          notifyError('Erreur: ' + (d.error || 'Échec'));
         }
       } catch(e) {
-        alert('Erreur réseau: ' + e.message);
+        notifyError('Erreur réseau: ' + e.message);
       } finally {
         this.annulationLoading = null;
         setTimeout(() => this.notification = '', 3000);

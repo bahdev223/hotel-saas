@@ -42,6 +42,7 @@ def _get_context_data():
         'nb_pv_actifs': PointVente.objects.filter(actif=True).count(),
         'total_a_traiter': sessions_ouvertes.count() + sessions_attente.count(),
         'ca_aujourdhui': float(Vente.objects.filter(created_at__date=today, statut='PAYEE').aggregate(total=Sum('montant_total'))['total'] or 0),
+        'marge_aujourdhui': float(Vente.objects.filter(created_at__date=today, statut='PAYEE').aggregate(total=Sum('marge_totale'))['total'] or 0),
     }
 
     return {
@@ -87,6 +88,7 @@ def raf_dashboard_data_api(request):
         'nb_pv_actifs': PointVente.objects.filter(actif=True).count(),
         'total_a_traiter': sessions_ouvertes.count() + sessions_attente.count(),
         'ca_aujourdhui': float(Vente.objects.filter(created_at__date=today, statut='PAYEE').aggregate(total=Sum('montant_total'))['total'] or 0),
+        'marge_aujourdhui': float(Vente.objects.filter(created_at__date=today, statut='PAYEE').aggregate(total=Sum('marge_totale'))['total'] or 0),
     }
 
     ouvertes_data = []

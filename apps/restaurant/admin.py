@@ -96,8 +96,8 @@ class ProductionAdmin(ModelAdmin):
 
 @admin.register(ProductionLigne)
 class ProductionLigneAdmin(ModelAdmin):
-    list_display = ['production', 'menu', 'quantite']
-    autocomplete_fields = ['production', 'menu']
+    list_display = ['production', 'recette', 'quantite']
+    autocomplete_fields = ['production', 'recette']
 
 
 @admin.register(ProductionIngredient)

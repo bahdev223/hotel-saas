@@ -268,8 +268,8 @@ function centreCommandes() {
                 });
                 const data = await res.json();
                 if (data.success) this.chargerCommandes();
-                else alert('Erreur: ' + data.error);
-            } catch(e) { alert('Erreur réseau'); }
+                else notifyError('Erreur: ' + data.error);
+            } catch(e) { notifyError('Erreur réseau'); }
         },
 
         async payerCommande(id) {

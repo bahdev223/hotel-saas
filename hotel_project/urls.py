@@ -56,7 +56,7 @@ urlpatterns = [
     path('rh/', include('apps.rh.urls')),
     path('paie/', include('apps.paie.urls')),
     path('stock/', include('apps.stock.urls')),
-    path('stocks/', include('apps.stocks.urls')),
+    # path('stocks/', include('apps.stocks.urls')),  # Bootstrap — désactivé
     path('fournisseurs/', include('apps.fournisseurs.urls')),
     path('catalogue/', include('apps.catalogue.urls')),
     path('tresorerie/', include('apps.tresorerie.urls')),

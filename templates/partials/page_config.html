@@ -1,0 +1,6 @@
+<script>
+window.PAGE_CONFIG = window.PAGE_CONFIG || {};
+{% if page_config %}
+window.PAGE_CONFIG = Object.assign(window.PAGE_CONFIG, {{ page_config|safe }});
+{% endif %}
+</script>

@@ -213,19 +213,33 @@ def brasserie_modifier_api(request, produit_id):
                 produit.image = request.FILES['image']
             produit.save()
 
-            # Mise à jour du stock si fourni
+            # Mise à jour du stock si fourni (set exact)
             if 'quantite' in request.POST:
+                from apps.stock.services.mouvement_service import MouvementStockService
                 quantite = Decimal(request.POST.get('quantite', 0))
                 entrepot_brasserie = Entrepot.objects.filter(type_entrepot='BRASSERIE', actif=True).first()
                 if entrepot_brasserie:
-                    stock, _ = StockEntrepot.objects.get_or_create(
+                    stock, created = StockEntrepot.objects.get_or_create(
                         entrepot=entrepot_brasserie,
                         produit=produit,
                         defaults={'quantite': quantite}
                     )
-                    if not _:
-                        stock.quantite = quantite
-                        stock.save()
+                    if created:
+                        pass  # quantite already set by defaults
+                    else:
+                        delta = quantite - stock.quantite
+                        if delta > 0:
+                            MouvementStockService.entree_stock(
+                                produit=produit, entrepot=entrepot_brasserie,
+                                quantite=delta, utilisateur=request.user.username,
+                                motif='ajustement', raison="Ajustement stock brasserie",
+                            )
+                        elif delta < 0:
+                            MouvementStockService.sortie_stock(
+                                produit=produit, entrepot=entrepot_brasserie,
+                                quantite=abs(delta), utilisateur=request.user.username,
+                                motif='ajustement', raison="Ajustement stock brasserie",
+                            )
 
             return JsonResponse({'success': True, 'produit_id': produit.id})
         except Exception as e:
@@ -245,17 +259,29 @@ def brasserie_modifier_stock_api(request, produit_id):
 
     if request.method == 'POST':
         try:
+            from apps.stock.services.mouvement_service import MouvementStockService
             quantite = Decimal(request.POST.get('quantite', 0))
             entrepot = Entrepot.objects.filter(type_entrepot='BRASSERIE', actif=True).first()
             if not entrepot:
                 return JsonResponse({'success': False, 'error': 'Entrepot Brasserie introuvable'})
-            stock, _ = StockEntrepot.objects.get_or_create(
+            stock, created = StockEntrepot.objects.get_or_create(
                 entrepot=entrepot, produit_id=produit_id,
                 defaults={'quantite': quantite}
             )
-            if not _:
-                stock.quantite = quantite
-                stock.save()
+            if not created:
+                delta = quantite - stock.quantite
+                if delta > 0:
+                    MouvementStockService.entree_stock(
+                        produit_id=produit_id, entrepot=entrepot,
+                        quantite=delta, utilisateur=request.user.username,
+                        motif='ajustement', raison="Ajustement stock brasserie",
+                    )
+                elif delta < 0:
+                    MouvementStockService.sortie_stock(
+                        produit_id=produit_id, entrepot=entrepot,
+                        quantite=abs(delta), utilisateur=request.user.username,
+                        motif='ajustement', raison="Ajustement stock brasserie",
+                    )
             return JsonResponse({'success': True, 'quantite': float(quantite)})
         except Exception as e:
             return JsonResponse({'success': False, 'error': str(e)})

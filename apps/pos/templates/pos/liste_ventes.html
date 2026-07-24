@@ -323,13 +323,13 @@ function historique() {
         imprimer(item) {
             const venteId = item.id;
             if (item.is_commande) {
-                alert('Réimpression non disponible pour les commandes non payées.');
+                notifyError('Réimpression non disponible pour les commandes non payées.');
                 return;
             }
             fetch(`/pos/api/ventes/${venteId}/recu/`)
                 .then(r => r.json())
                 .then(d => {
-                    if (!d.success) return alert('Reçu introuvable');
+                    if (!d.success) return notifyError('Reçu introuvable');
                     const recu = d.recu;
                     const now = new Date(recu.date);
                     const dateStr = now.toLocaleDateString('fr-FR') + ' ' + now.toLocaleTimeString('fr-FR', {hour:'2-digit', minute:'2-digit'});
@@ -363,7 +363,7 @@ function historique() {
                     const w = window.open('', '_blank', 'width=400,height=600');
                     if (w) { w.document.write(html); w.document.close(); }
                 })
-                .catch(e => alert('Erreur: ' + e.message));
+                .catch(e => notifyError('Erreur: ' + e.message));
         },
 
         formatMoney(v) { return new Intl.NumberFormat('fr-FR').format(v || 0); }

@@ -46,9 +46,38 @@ class LigneVente(models.Model):
         default=1
     )
 
+    prix_catalogue = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text="Prix sans remise"
+    )
+
+    montant_remise = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text="Montant de la remise accordée sur cette ligne"
+    )
+
     prix_unitaire = models.DecimalField(
         max_digits=10,
-        decimal_places=2
+        decimal_places=2,
+        help_text="Prix net après remise"
+    )
+
+    cout_revient = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text="Coût unitaire figé au moment de la vente"
+    )
+
+    marge = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text="Bénéfice généré par cette ligne (Prix de vente - Coût de revient) * Quantité"
     )
 
     notes = models.TextField(blank=True, null=True)

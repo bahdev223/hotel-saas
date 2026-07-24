@@ -93,7 +93,7 @@ def api_cuisine_changer_statut(request, commande_id):
             # 🔥 Optionnel : Déstocker les ingrédients quand commande en préparation
             if nouveau_statut == 'EN_PREPARATION':
                 from ..services.production_service import destocker_commande
-                destocker_commande(commande)
+                destocker_commande(commande, entrepot=commande.entrepot)
 
         return JsonResponse({'success': True, 'statut': commande.statut})
 
@@ -160,60 +160,83 @@ def api_cuisine_commande_detail(request, commande_id):
         }
     })
 
-# apps/restaurant/views/cuisine.py - AJOUTER CES FONCTIONS
-
 @login_required
 def api_commande_ingredients(request, commande_id):
     """Récupère les ingrédients nécessaires pour une commande"""
     commande = get_object_or_404(Commande, id=commande_id)
-    
+    entrepot = commande.entrepot
+
     ingredients = []
     stock_manquant = []
-    
-    from apps.stock.models import Entrepot, StockEntrepot
-    entrepot = Entrepot.objects.filter(type_entrepot='RESTAURANT').first()
-    
+
     for ligne in commande.lignes.all():
-        if ligne.menu:
-            # C'est un menu → chercher les recettes du menu
-            for ligne_menu in ligne.menu.lignes.all():
-                if ligne_menu.recette:
-                    for ingredient in ligne_menu.recette.ingredients.all():
-                        quantite = ingredient.quantite * ligne.quantite
-                        
-                        # Vérifier le stock
-                        stock = StockEntrepot.objects.filter(
-                            entrepot=entrepot, 
-                            produit=ingredient.produit
-                        ).first()
-                        stock_qte = stock.quantite if stock else Decimal('0')
-                        
-                        ingredients.append({
-                            'id': ingredient.produit.id,
-                            'nom': ingredient.produit.nom,
-                            'quantite': float(quantite),
-                            'unite': ingredient.produit.unite_base,
-                            'stock': float(stock_qte),
-                            'disponible': stock_qte >= quantite
+        if ligne.recette:
+            for ingredient in ligne.recette.ingredients.filter(produit__isnull=False):
+                if not ingredient.quantite:
+                    continue
+                quantite = ingredient.quantite * ligne.quantite
+                stock = StockEntrepot.objects.filter(
+                    entrepot=entrepot,
+                    produit=ingredient.produit
+                ).first() if entrepot else None
+                stock_qte = stock.quantite if stock else Decimal('0')
+
+                ingredients.append({
+                    'id': ingredient.produit.id,
+                    'nom': ingredient.produit.nom,
+                    'quantite': float(quantite),
+                    'unite': ingredient.produit.unite_base,
+                    'stock': float(stock_qte),
+                    'disponible': stock_qte >= quantite
+                })
+
+                if stock_qte < quantite:
+                    stock_manquant.append({
+                        'produit': ingredient.produit.nom,
+                        'requis': float(quantite),
+                        'disponible': float(stock_qte),
+                        'unite': ingredient.produit.unite_base
+                    })
+
+        elif ligne.menu:
+            for ligne_menu in ligne.menu.lignes.filter(type_ligne='FIXE'):
+                if not ligne_menu.recette:
+                    continue
+                for ingredient in ligne_menu.recette.ingredients.filter(produit__isnull=False):
+                    if not ingredient.quantite:
+                        continue
+                    quantite = ingredient.quantite * ligne.quantite * ligne_menu.quantite
+                    stock = StockEntrepot.objects.filter(
+                        entrepot=entrepot,
+                        produit=ingredient.produit
+                    ).first() if entrepot else None
+                    stock_qte = stock.quantite if stock else Decimal('0')
+
+                    ingredients.append({
+                        'id': ingredient.produit.id,
+                        'nom': ingredient.produit.nom,
+                        'quantite': float(quantite),
+                        'unite': ingredient.produit.unite_base,
+                        'stock': float(stock_qte),
+                        'disponible': stock_qte >= quantite
+                    })
+
+                    if stock_qte < quantite:
+                        stock_manquant.append({
+                            'produit': ingredient.produit.nom,
+                            'requis': float(quantite),
+                            'disponible': float(stock_qte),
+                            'unite': ingredient.produit.unite_base
                         })
-                        
-                        if stock_qte < quantite:
-                            stock_manquant.append({
-                                'produit': ingredient.produit.nom,
-                                'requis': float(quantite),
-                                'disponible': float(stock_qte),
-                                'unite': ingredient.produit.unite_base
-                            })
-        
+
         elif ligne.produit:
-            # C'est un produit direct
             quantite = ligne.quantite
             stock = StockEntrepot.objects.filter(
-                entrepot=entrepot, 
+                entrepot=entrepot,
                 produit=ligne.produit
-            ).first()
+            ).first() if entrepot else None
             stock_qte = stock.quantite if stock else Decimal('0')
-            
+
             ingredients.append({
                 'id': ligne.produit.id,
                 'nom': ligne.produit.nom,
@@ -222,7 +245,7 @@ def api_commande_ingredients(request, commande_id):
                 'stock': float(stock_qte),
                 'disponible': stock_qte >= quantite
             })
-            
+
             if stock_qte < quantite:
                 stock_manquant.append({
                     'produit': ligne.produit.nom,
@@ -230,7 +253,7 @@ def api_commande_ingredients(request, commande_id):
                     'disponible': float(stock_qte),
                     'unite': ligne.produit.unite_base
                 })
-    
+
     return JsonResponse({
         'success': True,
         'ingredients': ingredients,
@@ -241,24 +264,23 @@ def api_commande_ingredients(request, commande_id):
 @login_required
 @csrf_exempt
 def api_lancer_cuisson(request, commande_id):
-    """Lance la cuisson - déstockage selon mode choisi"""
+    """Lance la cuisson - déstockage via MouvementStockService"""
+    from apps.stock.services.mouvement_service import MouvementStockService
+
     try:
         commande = get_object_or_404(Commande, id=commande_id)
+        entrepot = commande.entrepot
+        if not entrepot:
+            return JsonResponse({'success': False, 'error': 'Commande sans entrepôt associé'})
+
         data = json.loads(request.body)
         mode = data.get('mode', 'auto')
         ingredients_manuels = data.get('ingredients', [])
-        
-        from apps.stock.models import Entrepot, StockEntrepot, MouvementStock
-        
-        entrepot = Entrepot.objects.filter(type_entrepot='RESTAURANT').first()
-        if not entrepot:
-            return JsonResponse({'success': False, 'error': 'Entrepôt restaurant non trouvé'})
-        
+
         # Récupérer les ingrédients à déstocker
         ingredients_a_destock = []
-        
+
         if mode == 'manuel':
-            # Mode manuel : utiliser les ingrédients sélectionnés
             for ing in ingredients_manuels:
                 produit = get_object_or_404(Produit, id=ing['id'])
                 ingredients_a_destock.append({
@@ -267,32 +289,45 @@ def api_lancer_cuisson(request, commande_id):
                     'nom': produit.nom
                 })
         else:
-            # Mode auto ou semi : utiliser les recettes
             for ligne in commande.lignes.all():
-                if ligne.menu:
-                    for ligne_menu in ligne.menu.lignes.all():
-                        if ligne_menu.recette:
-                            for ingredient in ligne_menu.recette.ingredients.all():
-                                ingredients_a_destock.append({
-                                    'produit': ingredient.produit,
-                                    'quantite': ingredient.quantite * ligne.quantite,
-                                    'nom': ingredient.produit.nom
-                                })
+                if ligne.recette:
+                    for ingredient in ligne.recette.ingredients.filter(produit__isnull=False):
+                        if not ingredient.quantite:
+                            continue
+                        ingredients_a_destock.append({
+                            'produit': ingredient.produit,
+                            'quantite': ingredient.quantite * ligne.quantite,
+                            'nom': ingredient.produit.nom
+                        })
+
+                elif ligne.menu:
+                    for ligne_menu in ligne.menu.lignes.filter(type_ligne='FIXE'):
+                        if not ligne_menu.recette:
+                            continue
+                        for ingredient in ligne_menu.recette.ingredients.filter(produit__isnull=False):
+                            if not ingredient.quantite:
+                                continue
+                            ingredients_a_destock.append({
+                                'produit': ingredient.produit,
+                                'quantite': ingredient.quantite * ligne.quantite * ligne_menu.quantite,
+                                'nom': ingredient.produit.nom
+                            })
+
                 elif ligne.produit:
                     ingredients_a_destock.append({
                         'produit': ligne.produit,
                         'quantite': ligne.quantite,
                         'nom': ligne.produit.nom
                     })
-        
-        # Grouper par produit (fusionner les quantités)
+
+        # Grouper par produit
         grouped = {}
         for ing in ingredients_a_destock:
             key = ing['produit'].id
             if key not in grouped:
                 grouped[key] = {'produit': ing['produit'], 'quantite': Decimal('0'), 'nom': ing['nom']}
             grouped[key]['quantite'] += ing['quantite']
-        
+
         # Vérifier le stock
         stock_insuffisant = []
         for ing in grouped.values():
@@ -304,46 +339,36 @@ def api_lancer_cuisson(request, commande_id):
                     'requis': float(ing['quantite']),
                     'disponible': float(stock_qte)
                 })
-        
+
         if stock_insuffisant:
             return JsonResponse({
                 'success': False,
                 'error': 'Stock insuffisant',
                 'details': stock_insuffisant
             })
-        
-        # Déstocker
-        mouvements = []
+
+        # Déstocker via MouvementStockService
         for ing in grouped.values():
-            stock = StockEntrepot.objects.get(entrepot=entrepot, produit=ing['produit'])
-            
-            MouvementStock.objects.create(
+            MouvementStockService.sortie_stock(
                 produit=ing['produit'],
-                type_mouvement='SORTIE',
+                entrepot=entrepot,
                 quantite=ing['quantite'],
-                entrepot_source=entrepot,
-                reference=f"CUISSON-{commande.numero}",
+                utilisateur=request.user.username,
+                motif='consommation',
                 raison=f"Préparation commande #{commande.numero}",
-                utilisateur=request.user.username
             )
-            
-            stock.quantite -= ing['quantite']
-            stock.save()
-            
-            mouvements.append({
-                'produit': ing['nom'],
-                'quantite': float(ing['quantite'])
-            })
-        
-        # Marquer la commande comme en préparation
+
         commande.passer_en_preparation()
-        
+
         return JsonResponse({
             'success': True,
             'message': f'Cuisson lancée pour commande #{commande.numero}',
-            'mouvements': mouvements
+            'mouvements': [
+                {'produit': ing['nom'], 'quantite': float(ing['quantite'])}
+                for ing in grouped.values()
+            ]
         })
-        
+
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)})
     

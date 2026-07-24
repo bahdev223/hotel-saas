@@ -166,9 +166,10 @@ def recette_detail(request, recette_id):
     
     # Récupérer les produits avec leurs prix
     produits_dict = {p.id: p for p in produits_list}
-    
-    # Récupérer l'entrepôt RESTAURANT pour le stock
-    restaurant_entrepot = Entrepot.objects.filter(type_entrepot='RESTAURANT').first()
+
+    # Récupérer l'entrepôt pour le stock
+    entrepot_id = request.GET.get('entrepot_id')
+    restaurant_entrepot = get_object_or_404(Entrepot, id=entrepot_id) if entrepot_id else None
     
     cout_total = 0
     production_possible = []
@@ -387,7 +388,8 @@ def calcul_cout(request, recette_id):
 def production_possible_api(request, recette_id):
     """API production possible avec stock réel (uniquement ingrédients mesurables)"""
     recette = get_object_or_404(RecetteModel, id=recette_id)
-    restaurant_entrepot = Entrepot.objects.filter(type_entrepot='RESTAURANT').first()
+    entrepot_id = request.GET.get('entrepot_id')
+    restaurant_entrepot = get_object_or_404(Entrepot, id=entrepot_id) if entrepot_id else None
     
     possible_min = None
     details = []

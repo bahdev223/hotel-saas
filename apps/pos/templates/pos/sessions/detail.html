@@ -372,8 +372,8 @@ document.getElementById('fermetureForm').addEventListener('submit', async functi
         });
         const d = await r.json();
         if (d.success) { window.location.reload(); }
-        else { alert('❌ ' + d.error); btn.disabled = false; btn.textContent = 'Fermer'; }
-    } catch(e) { alert('Erreur réseau'); btn.disabled = false; btn.textContent = 'Fermer'; }
+        else { notifyError('❌ ' + d.error); btn.disabled = false; btn.textContent = 'Fermer'; }
+    } catch(e) { notifyError('Erreur réseau'); btn.disabled = false; btn.textContent = 'Fermer'; }
 });
 </script>
 {% endif %}

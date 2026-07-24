@@ -71,7 +71,8 @@ def api_dashboard(request):
 
     today = date.today()
     now = datetime.now()
-    restaurant_entrepot = Entrepot.objects.filter(type_entrepot='RESTAURANT').first()
+    entrepot_id = request.GET.get('entrepot_id')
+    restaurant_entrepot = get_object_or_404(Entrepot, id=entrepot_id) if entrepot_id else None
 
     # ── Ventes du jour (payées) ──
     ventes_jour = Vente.objects.filter(created_at__date=today, statut='PAYEE')
@@ -346,10 +347,9 @@ def api_recette_cout(request, recette_id):
 @login_required
 def api_recette_production(request, recette_id):
     """API pour vérifier la production possible"""
-    from apps.stock.models import StockEntrepot, Entrepot
-    
     recette = get_object_or_404(RecetteModel, id=recette_id)
-    restaurant_entrepot = Entrepot.objects.filter(type_entrepot='RESTAURANT').first()
+    entrepot_id = request.GET.get('entrepot_id')
+    restaurant_entrepot = get_object_or_404(Entrepot, id=entrepot_id) if entrepot_id else None
     
     possible_min = None
     details = []

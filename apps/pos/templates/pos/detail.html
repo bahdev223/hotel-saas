@@ -336,9 +336,9 @@ document.getElementById('entrepotAjouter').addEventListener('change', async func
             // Retirer l'option du select
             opt.remove();
         } else {
-            alert('❌ ' + d.error);
+            notifyError('❌ ' + d.error);
         }
-    } catch(e) { alert('Erreur réseau'); }
+    } catch(e) { notifyError('Erreur réseau'); }
     this.value = '';
 });
 
@@ -353,8 +353,8 @@ async function retirerEntrepot(entrepotId) {
         });
         const d = await r.json();
         if (d.success) { document.getElementById('entrepot-row-' + entrepotId)?.remove(); }
-        else { alert('❌ ' + d.error); }
-    } catch(e) { alert('Erreur réseau'); }
+        else { notifyError('❌ ' + d.error); }
+    } catch(e) { notifyError('Erreur réseau'); }
 }
 
 document.getElementById('ouvrirSessionForm').addEventListener('submit', async function(e) {
@@ -373,8 +373,8 @@ document.getElementById('ouvrirSessionForm').addEventListener('submit', async fu
         });
         const d = await r.json();
         if (d.success) { window.location.reload(); }
-        else { alert('❌ ' + d.error); btn.disabled = false; btn.textContent = 'Ouvrir'; }
-    } catch(e) { alert('Erreur réseau'); btn.disabled = false; btn.textContent = 'Ouvrir'; }
+        else { notifyError('❌ ' + d.error); btn.disabled = false; btn.textContent = 'Ouvrir'; }
+    } catch(e) { notifyError('Erreur réseau'); btn.disabled = false; btn.textContent = 'Ouvrir'; }
 });
 
 document.addEventListener('keydown', (e) => {

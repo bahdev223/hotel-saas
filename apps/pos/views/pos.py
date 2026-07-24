@@ -13,6 +13,7 @@ from apps.stock.models import Produit, StockEntrepot, Domaine, Entrepot
 from apps.restaurant.models import MenuModel
 from apps.authentication.groups import PATRON, MANAGER, BAR, RESTAURANT, CAISSIER, RAF
 from apps.pos.models import AffectationPointVente, ShiftEmploye
+from apps.entreprises.models import Entreprise
 
 def __get_planning_actif(employe, point_vente):
     from django.utils import timezone
@@ -148,6 +149,35 @@ def pos_by_slug(request, slug):
 
     entrepot_par_defaut = entrepot_ids[0] if entrepot_ids else None
 
+    nouveau_planning = {
+        'debut': planning_actif.debut_prevu.strftime('%H:%M'),
+        'fin': planning_actif.fin_prevue.strftime('%H:%M'),
+        'solde_initial': float(caisse.solde),
+        'point_vente': point_vente.nom,
+    } if planning_actif and not session_active else None
+
+    entreprise = Entreprise.objects.filter(actif=True).first()
+    entreprise_nom = entreprise.nom_commercial if entreprise and entreprise.nom_commercial else (entreprise.nom if entreprise else 'ERP Hôtelier')
+
+    page_config = {
+        'categories': categories,
+        'sous_categories': sous_categories,
+        'active_categorie': None,
+        'entrepots_disponibles': entrepots_disponibles,
+        'entrepot_par_defaut': entrepot_par_defaut,
+        'stocks_par_entrepot': stocks_par_entrepot,
+        'point_vente_slug': point_vente.code,
+        'point_vente_id': point_vente.id,
+        'caisse_id': caisse.id,
+        'employe_id': employe.id if employe else None,
+        'planning_fin_heure': planning_actif.fin_prevue.strftime('%H:%M') if planning_actif else None,
+        'raf_depot_requis': planning_actif is not None and caisse.solde == 0 and not session_active,
+        'caisse_ouverte': session_active is not None,
+        'session_a_fermer': None,
+        'nouveau_planning': nouveau_planning,
+        'entreprise_nom': entreprise_nom,
+    }
+
     context = {
         'point_vente': point_vente,
         'categories_json': json.dumps(categories, ensure_ascii=False),
@@ -156,12 +186,7 @@ def pos_by_slug(request, slug):
         'session_active': session_active,
         'planning_expire': False,
         'session_a_fermer_json': 'null',
-        'nouveau_planning_json': json.dumps({
-            'debut': planning_actif.debut_prevu.strftime('%H:%M'),
-            'fin': planning_actif.fin_prevue.strftime('%H:%M'),
-            'solde_initial': float(caisse.solde),
-            'point_vente': point_vente.nom,
-        }, ensure_ascii=False) if planning_actif and not session_active else 'null',
+        'nouveau_planning_json': json.dumps(nouveau_planning, ensure_ascii=False) if nouveau_planning else 'null',
         'tables': [],
         'entrepots_disponibles_json': json.dumps(entrepots_disponibles, ensure_ascii=False),
         'entrepot_par_defaut': entrepot_par_defaut,
@@ -170,6 +195,7 @@ def pos_by_slug(request, slug):
         'session_active_id': session_active.id if session_active else None,
         'planning_fin_heure': planning_actif.fin_prevue.strftime('%H:%M') if planning_actif else None,
         'planning_debut_heure': planning_actif.debut_prevu.strftime('%H:%M') if planning_actif else None,
+        'page_config': json.dumps(page_config, ensure_ascii=False),
     }
     return render(request, 'pos/index.html', context)
 
@@ -207,6 +233,9 @@ def pos_raf(request):
         mode = 'brasserie'
 
     from apps.hotel.models import UniteModel
+
+    entreprise = Entreprise.objects.filter(actif=True).first()
+    entreprise_nom = entreprise.nom_commercial if entreprise and entreprise.nom_commercial else (entreprise.nom if entreprise else 'ERP Hôtelier')
 
     produits = Produit.objects.filter(actif=True, est_vendable=True).select_related('categorie', 'domaine')
 
@@ -282,6 +311,32 @@ def pos_raf(request):
         if scs:
             sous_categories[cat] = scs
 
+    nouveau_planning = {
+        'debut': planning_actif.debut_prevu.strftime('%H:%M'),
+        'fin': planning_actif.fin_prevue.strftime('%H:%M'),
+        'solde_initial': float(caisse.solde),
+        'point_vente': point_vente.nom,
+    } if planning_actif and not session_active else None
+
+    page_config = {
+        'categories': categories,
+        'sous_categories': sous_categories,
+        'active_categorie': active_categorie,
+        'entrepots_disponibles': entrepots_disponibles,
+        'entrepot_par_defaut': entrepot_ids[0] if entrepot_ids else None,
+        'stocks_par_entrepot': stocks_par_entrepot,
+        'point_vente_slug': point_vente.code,
+        'point_vente_id': point_vente.id,
+        'caisse_id': caisse.id,
+        'employe_id': employe.id if employe else None,
+        'planning_fin_heure': planning_actif.fin_prevue.strftime('%H:%M') if planning_actif else None,
+        'raf_depot_requis': False,
+        'caisse_ouverte': session_active is not None,
+        'session_a_fermer': None,
+        'nouveau_planning': nouveau_planning,
+        'entreprise_nom': entreprise_nom,
+    }
+
     context = {
         'point_vente': point_vente,
         'categories_json': json.dumps(categories, ensure_ascii=False),
@@ -290,12 +345,7 @@ def pos_raf(request):
         'session_active': session_active,
         'planning_expire': False,
         'session_a_fermer_json': 'null',
-        'nouveau_planning_json': json.dumps({
-            'debut': planning_actif.debut_prevu.strftime('%H:%M'),
-            'fin': planning_actif.fin_prevue.strftime('%H:%M'),
-            'solde_initial': float(caisse.solde),
-            'point_vente': point_vente.nom,
-        }, ensure_ascii=False) if planning_actif and not session_active else 'null',
+        'nouveau_planning_json': json.dumps(nouveau_planning, ensure_ascii=False) if nouveau_planning else 'null',
         'tables': [],
         'is_raf': True, 'raf_mode': mode, 'raf_modes': RAF_MODES,
         'active_categorie': active_categorie,
@@ -305,5 +355,6 @@ def pos_raf(request):
         'session_active_id': session_active.id if session_active else None,
         'planning_fin_heure': planning_actif.fin_prevue.strftime('%H:%M') if planning_actif else None,
         'planning_debut_heure': planning_actif.debut_prevu.strftime('%H:%M') if planning_actif else None,
+        'page_config': json.dumps(page_config, ensure_ascii=False),
     }
     return render(request, 'pos/index.html', context)
