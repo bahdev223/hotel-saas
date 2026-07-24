@@ -57,8 +57,8 @@ class PaiementEngine:
             if not pv or not pv.caisse_id:
                 raise ValueError(f"Caisse non configurée sur le point de vente de la commande {objet.numero}")
             caisse_id = pv.caisse_id
-            from apps.pos.services.caisse_session_service import get_session_ouverte_pv
-            if not get_session_ouverte_pv(pv):
+            from apps.pos.services.caisse_session_service import get_session_active_pv
+            if not get_session_active_pv(pv):
                 raise SessionRequiseError(
                     f"Aucune session de caisse ouverte sur {pv.nom} — ouvrez une session pour encaisser."
                 )
@@ -195,8 +195,8 @@ class PaiementEngine:
         if isinstance(objet, Commande):
             if not objet.vente and paiement:
                 # Session du PV de la commande — garantie ouverte par le verrou dans encaisser()
-                from apps.pos.services.caisse_session_service import get_session_ouverte_pv
-                session = get_session_ouverte_pv(objet.point_vente)
+                from apps.pos.services.caisse_session_service import get_session_active_pv
+                session = get_session_active_pv(objet.point_vente)
 
                 vente = Vente.objects.create(
                     point_vente=objet.point_vente,

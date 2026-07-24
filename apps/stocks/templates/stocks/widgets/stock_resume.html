@@ -1,0 +1,14 @@
+<div class="row g-3">
+    <div class="col-md-3">
+        {% include "stocks/components/card.html" with icon="box" color="primary" label="Articles" value=total_articles %}
+    </div>
+    <div class="col-md-3">
+        {% include "stocks/components/card.html" with icon="building" color="success" label="Dépôts" value=total_depots %}
+    </div>
+    <div class="col-md-3">
+        {% include "stocks/components/card.html" with icon="cash-stack" color="info" label="Valeur du stock" value=valeur_stock|floatformat:2 %}
+    </div>
+    <div class="col-md-3">
+        {% include "stocks/components/card.html" with icon="arrow-left-right" color="secondary" label="Mouvements" value=total_mouvements %}
+    </div>
+</div>

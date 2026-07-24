@@ -1,9 +1,21 @@
-﻿# apps/hotel/models/unite.py
-from django.db import models
+﻿from django.db import models
 import uuid
+
 
 def generate_unite_id():
     return f"U{uuid.uuid4().hex[:8].upper()}"
+
+
+class StatutChambre(models.TextChoices):
+    DISPONIBLE = "DISPONIBLE", "Disponible"
+    RESERVEE = "RESERVEE", "Réservée"
+    OCCUPEE = "OCCUPEE", "Occupée"
+    A_NETTOYER = "A_NETTOYER", "À nettoyer"
+    NETTOYAGE = "NETTOYAGE", "Nettoyage en cours"
+    A_INSPECTER = "A_INSPECTER", "À inspecter"
+    MAINTENANCE = "MAINTENANCE", "En maintenance"
+    HORS_SERVICE = "HORS_SERVICE", "Hors service"
+
 
 class UniteModel(models.Model):
     TYPE_CHOICES = [
@@ -14,18 +26,22 @@ class UniteModel(models.Model):
         ('ESPACE_BAR', 'Espace + Bar'),
         ('BAR', 'Bar VIP'),
     ]
-    
-    STATUT_CHOICES = [
-        ('DISPONIBLE', 'Disponible'),
-        ('OCCUPEE', 'Occupée'),
-        ('NETTOYAGE', 'Nettoyage'),
-        ('HORS_SERVICE', 'Hors service'),
-    ]
-    
+
+    STATUT_CHOICES = [(s.value, s.label) for s in StatutChambre]
+
     id = models.CharField(max_length=50, primary_key=True, default=generate_unite_id, editable=False)
     code = models.CharField(max_length=20, unique=True)
     nom = models.CharField(max_length=100)
     type_unite = models.CharField(max_length=20, choices=TYPE_CHOICES, default='CHAMBRE')
+
+    type_chambre = models.ForeignKey(
+        "hotel.TypeChambre",
+        on_delete=models.PROTECT,
+        related_name="unites",
+        null=True,
+        blank=True,
+    )
+
     capacite = models.IntegerField(default=1)
     surface_m2 = models.FloatField(null=True, blank=True)
     equipements = models.JSONField(default=list)
@@ -48,16 +64,24 @@ class UniteModel(models.Model):
         return f"{self.code} - {self.nom}"
 
     def occuper(self):
-        self.statut = 'OCCUPEE'
-        self.save()
+        self.statut = StatutChambre.OCCUPEE
+        self.save(update_fields=["statut"])
 
     def liberer(self):
-        self.statut = 'DISPONIBLE'
-        self.save()
+        self.statut = StatutChambre.A_NETTOYER
+        self.save(update_fields=["statut"])
 
     def reserver(self):
-        self.statut = 'RESERVEE'
-        self.save()
+        self.statut = StatutChambre.RESERVEE
+        self.save(update_fields=["statut"])
+
+    def mettre_a_nettoyer(self):
+        self.statut = StatutChambre.A_NETTOYER
+        self.save(update_fields=["statut"])
+
+    def mettre_en_maintenance(self):
+        self.statut = StatutChambre.MAINTENANCE
+        self.save(update_fields=["statut"])
         
         
         

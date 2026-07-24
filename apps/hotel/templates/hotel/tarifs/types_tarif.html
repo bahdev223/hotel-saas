@@ -1,0 +1,41 @@
+{% extends 'hotel/base_hotel.html' %}
+{% load static %}
+
+{% block title %}Types de tarif{% endblock %}
+{% block header %}<i class="fas fa-clock text-secondary mr-2"></i>Types de tarif{% endblock %}
+{% block subtitle %}Unités de facturation disponibles{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <div class="card-md3 overflow-hidden">
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-surface-container border-b border-outline/10">
+                    <th class="text-left py-3 px-4 font-medium">Code</th>
+                    <th class="text-left py-3 px-4 font-medium">Nom</th>
+                    <th class="text-left py-3 px-4 font-medium">Unité</th>
+                    <th class="text-center py-3 px-4 font-medium">Durée (min)</th>
+                    <th class="text-center py-3 px-4 font-medium">Ordre</th>
+                    <th class="text-center py-3 px-4 font-medium">Actif</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in types %}
+                <tr class="border-b border-outline/5 hover:bg-surface-container-high">
+                    <td class="py-3 px-4 font-mono">{{ t.code }}</td>
+                    <td class="py-3 px-4">{{ t.nom }}</td>
+                    <td class="py-3 px-4">{{ t.get_unite_facturation_display }}</td>
+                    <td class="py-3 px-4 text-center">{{ t.duree_minutes|default:"-" }}</td>
+                    <td class="py-3 px-4 text-center">{{ t.ordre }}</td>
+                    <td class="py-3 px-4 text-center">{% if t.actif %}<i class="fas fa-check text-green-400"></i>{% else %}<i class="fas fa-times text-error"></i>{% endif %}</td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="6" class="text-center text-on-surface-variant py-8">Aucun type de tarif.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

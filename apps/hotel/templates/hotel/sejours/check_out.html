@@ -1,0 +1,35 @@
+{% extends 'hotel/base_hotel.html' %}
+{% load static %}
+
+{% block title %}Check-out {{ sejour.code }}{% endblock %}
+{% block header %}<i class="fas fa-sign-out-alt text-secondary mr-2"></i>Check-out{% endblock %}
+{% block subtitle %}{{ sejour.client.nom_complet }} - {{ sejour.chambre.code }}{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <div class="card-md3 p-6 space-y-6">
+        <dl class="grid grid-cols-2 gap-3 text-sm">
+            <div><span class="text-on-surface-variant">Client :</span> {{ sejour.client.nom_complet }}</div>
+            <div><span class="text-on-surface-variant">Chambre :</span> {{ sejour.chambre.code }} - {{ sejour.chambre.nom }}</div>
+            <div><span class="text-on-surface-variant">Arrivée :</span> {{ sejour.date_arrivee|date:"d/m/Y H:i" }}</div>
+            <div><span class="text-on-surface-variant">Nuits :</span> {{ sejour.duree_nuits }}</div>
+            <div><span class="text-on-surface-variant">Montant :</span> <strong class="text-lg">{{ sejour.montant_total }}</strong></div>
+            <div><span class="text-on-surface-variant">Suppléments :</span> {{ sejour.montant_supplements }}</div>
+        </dl>
+
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            <div>
+                <label class="label-md3">Notes de fin de séjour</label>
+                <textarea name="notes" rows="3" class="input-md3 rounded-lg w-full text-sm" placeholder="Optionnel..."></textarea>
+            </div>
+            <div class="flex gap-3">
+                <button type="submit" class="flex-1 btn-md3-primary py-2 rounded-lg">
+                    <i class="fas fa-sign-out-alt mr-1"></i>Effectuer le check-out
+                </button>
+                <a href="{% url 'hotel:detail_sejour' sejour.id %}" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm text-center hover:bg-surface-container transition-smooth">Annuler</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

@@ -14,7 +14,7 @@ from rest_framework import permissions
 # Swagger/OpenAPI configuration
 schema_view = get_schema_view(
     openapi.Info(
-        title="HotelERP API",
+        title="ERP Hôtelier API",
         default_version='v1',
         description="API complète pour la gestion hôtelière",
         terms_of_service="https://www.google.com/policies/terms/",
@@ -56,11 +56,11 @@ urlpatterns = [
     path('rh/', include('apps.rh.urls')),
     path('paie/', include('apps.paie.urls')),
     path('stock/', include('apps.stock.urls')),
+    path('stocks/', include('apps.stocks.urls')),
     path('fournisseurs/', include('apps.fournisseurs.urls')),
     path('catalogue/', include('apps.catalogue.urls')),
     path('tresorerie/', include('apps.tresorerie.urls')),
- 
-     
+    path('entreprises/', include('apps.entreprises.urls')),
 ]
 
 # Sert les fichiers media en production via FileResponse

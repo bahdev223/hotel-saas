@@ -10,6 +10,15 @@
             <a href="{% url 'hotel:liste_unites' %}" class="px-3 py-1.5 rounded-lg hover:bg-surface-container-high transition-smooth {% if 'unites' in request.resolver_match.view_name %}text-secondary bg-secondary-container/20{% else %}text-on-surface-variant{% endif %}">
                 <i class="fas fa-door-open mr-1.5"></i>Chambres
             </a>
+            <a href="{% url 'hotel:liste_reservations' %}" class="px-3 py-1.5 rounded-lg hover:bg-surface-container-high transition-smooth {% if 'reservations' in request.resolver_match.view_name %}text-secondary bg-secondary-container/20{% else %}text-on-surface-variant{% endif %}">
+                <i class="fas fa-calendar-check mr-1.5"></i>Réservations
+            </a>
+            <a href="{% url 'hotel:liste_sejours' %}" class="px-3 py-1.5 rounded-lg hover:bg-surface-container-high transition-smooth {% if 'sejours' in request.resolver_match.view_name %}text-secondary bg-secondary-container/20{% else %}text-on-surface-variant{% endif %}">
+                <i class="fas fa-bed mr-1.5"></i>Séjours
+            </a>
+            <a href="{% url 'hotel:grille_tarifs' %}" class="px-3 py-1.5 rounded-lg hover:bg-surface-container-high transition-smooth {% if 'tarifs' in request.resolver_match.view_name %}text-secondary bg-secondary-container/20{% else %}text-on-surface-variant{% endif %}">
+                <i class="fas fa-tag mr-1.5"></i>Tarifs
+            </a>
         </div>
     </div>
 </nav>

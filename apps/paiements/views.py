@@ -299,14 +299,17 @@ def recu_paiement(request, paiement_id):
                     'lignes': [],
                 }
 
+    from apps.entreprises.models import Entreprise
+    entreprise = Entreprise.objects.filter(est_active=True).first()
+
     context = {
         'paiement': paiement,
         'source_info': source_info,
         'societe': {
-            'nom': 'HotelERP',
+            'nom': entreprise.nom_commercial or entreprise.nom if entreprise else 'ERP Hôtelier',
             'slogan': '',
-            'adresse': '',
-            'telephone': '',
+            'adresse': entreprise.adresse if entreprise else '',
+            'telephone': entreprise.telephone if entreprise else '',
         }
     }
     return render(request, 'paiements/recu.html', context)

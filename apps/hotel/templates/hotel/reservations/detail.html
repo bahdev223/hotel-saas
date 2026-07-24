@@ -1,0 +1,91 @@
+{% extends 'hotel/base_hotel.html' %}
+{% load static %}
+
+{% block title %}{{ reservation.code }}{% endblock %}
+{% block header %}<i class="fas fa-calendar-check text-secondary mr-2"></i>{{ reservation.code }}{% endblock %}
+{% block subtitle %}{{ reservation.client.nom_complet }}{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto space-y-6">
+
+    <div class="card-md3 p-6">
+        <div class="flex justify-between items-start mb-4">
+            <div>
+                <h2 class="text-xl font-semibold">{{ reservation.code }}</h2>
+                <p class="text-sm text-on-surface-variant">Créée le {{ reservation.cree_le|date:"d/m/Y H:i" }}</p>
+            </div>
+            <div class="flex gap-2">
+                {% if reservation.est_annulable %}
+                <a href="{% url 'hotel:annuler_reservation' reservation.id %}" class="btn-md3-primary py-1.5 px-3 rounded-lg text-xs bg-red-900/30 text-red-300 hover:bg-red-900/50">
+                    <i class="fas fa-times mr-1"></i>Annuler
+                </a>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-4 text-sm mb-6">
+            <div>
+                <span class="text-on-surface-variant">Client :</span>
+                <strong>{{ reservation.client.nom_complet }}</strong>
+                {% if reservation.client.telephone %}
+                <span class="block text-on-surface-variant">{{ reservation.client.telephone }}</span>
+                {% endif %}
+            </div>
+            <div>
+                <span class="text-on-surface-variant">Statut :</span>
+                <span class="px-2 py-0.5 rounded-full text-xs
+                    {% if reservation.statut == 'CONFIRMEE' %}bg-green-900/30 text-green-300
+                    {% elif reservation.statut == 'ANNULEE' %}bg-red-900/30 text-red-300
+                    {% elif reservation.statut == 'TRANSFORMEE' %}bg-blue-900/30 text-blue-300
+                    {% else %}bg-surface-container-high{% endif %}">
+                    {{ reservation.get_statut_display }}
+                </span>
+            </div>
+            <div><span class="text-on-surface-variant">Arrivée :</span> {{ reservation.date_arrivee_prevue|date:"d/m/Y H:i" }}</div>
+            <div><span class="text-on-surface-variant">Départ :</span> {{ reservation.date_depart_prevue|date:"d/m/Y H:i" }}</div>
+            <div><span class="text-on-surface-variant">Adultes :</span> {{ reservation.nombre_adultes }}</div>
+            <div><span class="text-on-surface-variant">Enfants :</span> {{ reservation.nombre_enfants }}</div>
+            <div><span class="text-on-surface-variant">Total estimé :</span> <strong>{{ reservation.montant_total_estime }}</strong></div>
+            <div><span class="text-on-surface-variant">Créée par :</span> {{ reservation.cree_par.get_full_name|default:reservation.cree_par.username }}</div>
+        </div>
+
+        {% if reservation.motif_annulation %}
+        <div class="p-3 rounded-lg bg-red-900/20 text-red-300 text-sm">
+            <i class="fas fa-info-circle mr-1"></i>Annulation : {{ reservation.motif_annulation }}
+        </div>
+        {% endif %}
+    </div>
+
+    {% if chambres %}
+    <div class="card-md3">
+        <div class="px-4 py-3 bg-surface-container-high border-b border-outline/10">
+            <h3 class="font-medium">Chambres réservées</h3>
+        </div>
+        <table class="w-full text-sm">
+            <thead>
+                <tr class="bg-surface-container border-b border-outline/10">
+                    <th class="text-left py-3 px-4">Chambre</th>
+                    <th class="text-left py-3 px-4">Plan</th>
+                    <th class="text-left py-3 px-4">Type</th>
+                    <th class="text-right py-3 px-4">Prix unitaire</th>
+                    <th class="text-center py-3 px-4">Qté</th>
+                    <th class="text-right py-3 px-4">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for rc in chambres %}
+                <tr class="border-b border-outline/5">
+                    <td class="py-3 px-4">{{ rc.chambre.code }} - {{ rc.chambre.nom }}</td>
+                    <td class="py-3 px-4">{{ rc.plan_tarifaire_nom }}</td>
+                    <td class="py-3 px-4">{{ rc.type_tarif_nom }}</td>
+                    <td class="py-3 px-4 text-right font-mono">{{ rc.montant_unitaire }}</td>
+                    <td class="py-3 px-4 text-center">{{ rc.quantite }}</td>
+                    <td class="py-3 px-4 text-right font-mono">{{ rc.montant_total }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

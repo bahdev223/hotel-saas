@@ -4,7 +4,7 @@ from django.contrib.contenttypes.models import ContentType
 
 from apps.comptabilite.models import CompteModel
 from apps.tresorerie.models import Caisse
-from apps.pos.models import PointVente, PointVenteEntrepot
+from apps.pos.models import PointVente, PointVenteEntrepot, CaissePointVente
 from apps.stock.models import Entrepot
 
 
@@ -48,11 +48,13 @@ class Command(BaseCommand):
             code='RAF',
             defaults={
                 'nom': 'Guichet RAF',
-                'emplacement': 'GUICHET',
+                'type': 'AUTRE',
                 'actif': True,
-                'caisse': caisse_raf,
-                'entrepot': None,
             }
+        )
+        CaissePointVente.objects.get_or_create(
+            point_vente=point_vente, caisse=caisse_raf,
+            defaults={'principale': True, 'actif': True},
         )
 
         for type_ep in ['BRASSERIE', 'RESTAURANT']:

@@ -109,6 +109,11 @@ def api_clients(request):
 @require_GET
 def api_unites(request):
     unites = UniteModel.objects.filter(actif=True).order_by("type_unite", "code")
+
+    type_chambre = request.GET.get("type_chambre")
+    if type_chambre:
+        unites = unites.filter(type_chambre_id=type_chambre)
+
     return JsonResponse({
         "success": True,
         "unites": [
@@ -124,6 +129,41 @@ def api_unites(request):
                 "image": unite.image.url if unite.image else None,
             }
             for unite in unites
+        ],
+    })
+
+
+@login_required
+@require_GET
+def api_tarifs(request):
+    from ..models.tarifs import TarifChambre as TarifChambreModel
+
+    chambre_id = request.GET.get("chambre")
+    if not chambre_id:
+        return JsonResponse({"success": False, "error": "Chambre requise"}, status=400)
+
+    from ..models import UniteModel as Unite
+    chambre = get_object_or_404(Unite, id=chambre_id)
+    if not chambre.type_chambre_id:
+        return JsonResponse({"success": True, "tarifs": []})
+
+    tarifs = TarifChambreModel.objects.filter(
+        type_chambre_id=chambre.type_chambre_id,
+        actif=True,
+        plan_tarifaire__actif=True,
+        type_tarif__actif=True,
+    ).select_related("plan_tarifaire", "type_tarif")
+
+    return JsonResponse({
+        "success": True,
+        "tarifs": [
+            {
+                "id": t.id,
+                "plan": t.plan_tarifaire.nom,
+                "type_tarif": t.type_tarif.nom,
+                "montant": float(t.montant),
+            }
+            for t in tarifs
         ],
     })
 

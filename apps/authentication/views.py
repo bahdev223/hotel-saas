@@ -192,7 +192,7 @@ def employe_accueil(request):
     if not employe:
         return redirect('dashboard:index')
 
-    from apps.pos.models import PointVente
+    from apps.pos.models import PointVente, AffectationPointVente
     from apps.pos.services.caisse_session_service import get_planning_actif
 
     groupe = request.user.groups.first()
@@ -200,22 +200,21 @@ def employe_accueil(request):
     a_un_acces_pos = False
     pv_unique = None
 
-    if employe.point_vente:
+    affectations = AffectationPointVente.objects.filter(employe=employe, actif=True).select_related('point_vente')
+    if affectations.exists():
         a_un_acces_pos = True
-        pv_unique = employe.point_vente
+        pv_unique = affectations.first().point_vente if affectations.count() == 1 else None
 
-    # Vérifier planning actif en temps réel
-    pvs_accessibles = []
-    for pv in PointVente.objects.filter(actif=True):
-        if pv == employe.point_vente or get_planning_actif(employe, pv):
+    pvs_accessibles = list(PointVente.objects.filter(
+        id__in=affectations.values_list('point_vente_id', flat=True), actif=True
+    ))
+    for pv in PointVente.objects.filter(actif=True).exclude(id__in=[p.id for p in pvs_accessibles]):
+        if get_planning_actif(employe, pv):
             pvs_accessibles.append(pv)
 
     if pvs_accessibles:
         a_un_acces_pos = True
-        if len(pvs_accessibles) == 1:
-            pv_unique = pvs_accessibles[0]
-        else:
-            pv_unique = None
+        pv_unique = pvs_accessibles[0] if len(pvs_accessibles) == 1 else None
 
     context = {
         'employe': employe,

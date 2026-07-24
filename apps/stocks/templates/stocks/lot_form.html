@@ -1,0 +1,38 @@
+{% extends base_template %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0"><i class="bi bi-tags me-2"></i>{{ title }}</h4>
+    <a href="{% url 'stocks:lot_list' %}" class="btn btn-outline-primary btn-sm"><i class="bi bi-arrow-left"></i> Retour</a>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <form method="post" novalidate>
+            {% csrf_token %}
+            <div class="row g-3">
+                {% for field in form %}
+                <div class="col-md-4">
+                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.errors %}<div class="text-danger small">{{ field.errors|join:", " }}</div>{% endif %}
+                </div>
+                {% endfor %}
+            </div>
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-check-lg"></i> Enregistrer</button>
+                <a href="{% url 'stocks:lot_list' %}" class="btn btn-outline-secondary">Annuler</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    document.querySelectorAll('form input, form select, form textarea').forEach(el => {
+        el.classList.add('form-control', 'form-control-sm');
+        if (el.tagName === 'SELECT') { el.classList.remove('form-control'); el.classList.add('form-select', 'form-select-sm'); }
+    });
+</script>
+{% endblock %}

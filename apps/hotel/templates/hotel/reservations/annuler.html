@@ -1,0 +1,50 @@
+{% extends 'hotel/base_hotel.html' %}
+{% load static %}
+
+{% block title %}Annuler {{ reservation.code }}{% endblock %}
+{% block header %}<i class="fas fa-times-circle text-error mr-2"></i>Annuler la réservation{% endblock %}
+{% block subtitle %}{{ reservation.code }} - {{ reservation.client.nom_complet }}{% endblock %}
+
+{% block content %}
+<div class="max-w-lg mx-auto">
+    <div class="card-md3 p-6 space-y-4">
+        <div class="p-4 rounded-lg bg-red-900/20 text-red-300 text-sm">
+            <i class="fas fa-exclamation-triangle mr-2"></i>
+            Êtes-vous sûr de vouloir annuler cette réservation ?
+        </div>
+
+        <dl class="text-sm space-y-2">
+            <div class="flex justify-between">
+                <dt class="text-on-surface-variant">Code</dt>
+                <dd class="font-mono">{{ reservation.code }}</dd>
+            </div>
+            <div class="flex justify-between">
+                <dt class="text-on-surface-variant">Client</dt>
+                <dd>{{ reservation.client.nom_complet }}</dd>
+            </div>
+            <div class="flex justify-between">
+                <dt class="text-on-surface-variant">Arrivée</dt>
+                <dd>{{ reservation.date_arrivee_prevue|date:"d/m/Y H:i" }}</dd>
+            </div>
+            <div class="flex justify-between">
+                <dt class="text-on-surface-variant">Départ</dt>
+                <dd>{{ reservation.date_depart_prevue|date:"d/m/Y H:i" }}</dd>
+            </div>
+        </dl>
+
+        <form method="post" class="space-y-4">
+            {% csrf_token %}
+            <div>
+                <label class="label-md3">Motif d'annulation</label>
+                <textarea name="motif" rows="3" class="input-md3 rounded-lg w-full" required placeholder="Raison de l'annulation..."></textarea>
+            </div>
+            <div class="flex gap-3">
+                <button type="submit" class="flex-1 btn-md3-primary py-2 rounded-lg bg-red-900/30 text-red-300 hover:bg-red-900/50">
+                    <i class="fas fa-times mr-1"></i>Confirmer l'annulation
+                </button>
+                <a href="{% url 'hotel:detail_reservation' reservation.id %}" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm text-center hover:bg-surface-container transition-smooth">Retour</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
