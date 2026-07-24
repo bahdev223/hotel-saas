@@ -20,53 +20,53 @@
             theme: {
                 extend: {
                     "colors": {
-                        "on-tertiary-fixed": "#1b1c1c",
-                        "primary-fixed-dim": "#c9c6c5",
-                        "on-secondary": "#402d00",
-                        "outline-variant": "#444748",
-                        "secondary-fixed": "#ffdea0",
-                        "surface-container": "#20201f",
-                        "surface-dim": "#131313",
-                        "on-primary-container": "#797777",
-                        "surface-container-highest": "#353535",
-                        "tertiary": "#c7c6c6",
-                        "inverse-primary": "#5f5e5e",
-                        "surface-variant": "#353535",
-                        "on-background": "#e5e2e1",
-                        "error": "#ffb4ab",
-                        "outline": "#8e9192",
-                        "on-tertiary-fixed-variant": "#464747",
-                        "on-error-container": "#ffdad6",
-                        "primary-fixed": "#e5e2e1",
-                        "inverse-on-surface": "#313030",
-                        "on-primary-fixed": "#1c1b1b",
-                        "surface": "#131313",
-                        "surface-container-high": "#2a2a2a",
-                        "tertiary-fixed-dim": "#c7c6c6",
-                        "on-surface": "#e5e2e1",
-                        "primary": "#c9c6c5",
-                        "on-tertiary": "#303031",
-                        "on-primary-fixed-variant": "#474646",
-                        "on-secondary-container": "#d4b475",
-                        "secondary": "#e3c282",
-                        "secondary-container": "#5c4611",
-                        "surface-container-lowest": "#0e0e0e",
-                        "surface-tint": "#c9c6c5",
-                        "surface-container-low": "#1c1b1b",
-                        "inverse-surface": "#e5e2e1",
+                        "on-tertiary-fixed": "#1f2937",
+                        "primary-fixed-dim": "#e3c282",
+                        "on-secondary": "#ffffff",
+                        "outline-variant": "#ece7dd",
+                        "secondary-fixed": "#f7ecd3",
+                        "surface-container": "#f6f2ea",
+                        "surface-dim": "#f0ece3",
+                        "on-primary-container": "#5a430f",
+                        "surface-container-highest": "#e9e3d8",
+                        "tertiary": "#6b7280",
+                        "inverse-primary": "#e3c282",
+                        "surface-variant": "#e9e3d8",
+                        "on-background": "#1f2937",
+                        "error": "#dc2626",
+                        "outline": "#9ca3af",
+                        "on-tertiary-fixed-variant": "#4b5563",
+                        "on-error-container": "#7f1d1d",
+                        "primary-fixed": "#f7ecd3",
+                        "inverse-on-surface": "#faf8f4",
+                        "on-primary-fixed": "#402d00",
+                        "surface": "#faf8f4",
+                        "surface-container-high": "#f0ece3",
+                        "tertiary-fixed-dim": "#d1d5db",
+                        "on-surface": "#1f2937",
+                        "primary": "#c8962c",
+                        "on-tertiary": "#ffffff",
+                        "on-primary-fixed-variant": "#5a430f",
+                        "on-secondary-container": "#5a430f",
+                        "secondary": "#c8962c",
+                        "secondary-container": "#f7ecd3",
+                        "surface-container-lowest": "#ffffff",
+                        "surface-tint": "#c8962c",
+                        "surface-container-low": "#ffffff",
+                        "inverse-surface": "#1f2937",
                         "secondary-fixed-dim": "#e3c282",
-                        "background": "#131313",
-                        "primary-container": "#050505",
-                        "error-container": "#93000a",
-                        "tertiary-container": "#040505",
+                        "background": "#faf8f4",
+                        "primary-container": "#f7ecd3",
+                        "error-container": "#fee2e2",
+                        "tertiary-container": "#eef0f2",
                         "on-secondary-fixed-variant": "#5a430f",
-                        "on-tertiary-container": "#777777",
-                        "on-secondary-fixed": "#261a00",
-                        "on-error": "#690005",
-                        "on-primary": "#313030",
-                        "on-surface-variant": "#c4c7c7",
-                        "surface-bright": "#393939",
-                        "tertiary-fixed": "#e4e2e2"
+                        "on-tertiary-container": "#374151",
+                        "on-secondary-fixed": "#402d00",
+                        "on-error": "#ffffff",
+                        "on-primary": "#ffffff",
+                        "on-surface-variant": "#6b7280",
+                        "surface-bright": "#ffffff",
+                        "tertiary-fixed": "#eef0f2"
                     },
                     "borderRadius": {
                         "DEFAULT": "0.25rem",
@@ -112,15 +112,15 @@
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
         .glass-card {
-            background: rgba(26, 26, 26, 0.6);
+            background: rgba(255, 255, 255, 0.72);
             backdrop-filter: blur(40px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(200, 150, 44, 0.18);
+            box-shadow: 0 24px 60px -20px rgba(89, 67, 15, 0.18);
         }
         .luxury-gradient {
-            background: radial-gradient(circle at 50% 50%, rgba(200, 169, 107, 0.05) 0%, transparent 70%);
+            background: radial-gradient(circle at 50% 50%, rgba(200, 150, 44, 0.08) 0%, transparent 70%);
         }
-        /* Pour Ã©viter le flash blanc */
-        body { background-color: #131313; }
+        body { background-color: #faf8f4; }
     </style>
 </head>
 <body class="bg-background text-on-surface min-h-screen flex flex-col selection:bg-secondary selection:text-on-secondary">
@@ -224,7 +224,7 @@
 {% if messages %}
 <div class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-3">
     {% for message in messages %}
-    <div class="glass-card px-6 py-3 rounded-full border-red-500/50 text-red-400 text-[11px] tracking-widest uppercase flex items-center gap-3">
+    <div class="glass-card px-6 py-3 rounded-full border-red-500/50 text-red-600 text-[11px] tracking-widest uppercase flex items-center gap-3">
         <span class="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
         {{ message }}
     </div>
