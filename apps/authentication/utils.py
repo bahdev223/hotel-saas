@@ -24,9 +24,10 @@ def redirect_by_group(user):
     except:
         employe = None
     if employe:
-        from apps.pos.models import SessionPlanning, PointVente
-        planning_qs = SessionPlanning.objects.filter(employe=employe).exclude(statut='ANNULE')
-        if planning_qs.exists():
+        from apps.pos.models import AffectationPointVente, ShiftEmploye
+        has_affectation = AffectationPointVente.objects.filter(employe=employe, actif=True).exists()
+        has_shift = ShiftEmploye.objects.filter(affectation__employe=employe).exclude(statut='ANNULE').exists()
+        if has_affectation or has_shift:
             return 'authentication:employe_accueil'
 
     ROUTES = {

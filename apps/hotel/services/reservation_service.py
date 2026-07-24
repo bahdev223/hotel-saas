@@ -6,6 +6,7 @@ from ..models import Reservation, ReservationChambre, UniteModel
 from .tarification_service import TarificationService
 from ..models.unite import StatutChambre
 from ..models.tarifs import TarifChambre
+from django.db.models import Q
 
 
 class ReservationService:
@@ -27,6 +28,8 @@ class ReservationService:
     ):
         if date_arrivee_prevue >= date_depart_prevue:
             raise ValidationError("La date d'arrivée doit être antérieure à la date de départ.")
+
+        chambre = UniteModel.objects.select_for_update().get(id=chambre.id)
 
         if not cls._chambre_disponible(chambre, date_arrivee_prevue, date_depart_prevue):
             raise ValidationError("La chambre n'est pas disponible pour cette période.")

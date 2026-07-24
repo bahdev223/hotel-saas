@@ -18,9 +18,7 @@ from .locations import (
     detail_location,
     ajouter_sejour,
     ajouter_evenement,
-    check_out,
     annuler_location,
-    # enregistrer_paiement,  # ❌ SUPPRIMER
 )
 from .tarifs import (
     grille_tarifs,

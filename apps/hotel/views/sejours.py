@@ -2,6 +2,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
+from django.utils import timezone
+from datetime import timedelta
 
 from ..models import Sejour, UniteModel, Client, TarifChambre, TypeChambre
 from ..services.checkin_service import CheckInService
@@ -85,6 +87,10 @@ def check_in(request):
             messages.error(request, f"Erreur : {e}")
 
     from ..models import Reservation
+    aujourd_hui = timezone.now().date()
+    date_arrivee = request.GET.get("date_arrivee", aujourd_hui.isoformat())
+    date_depart = request.GET.get("date_depart", (aujourd_hui + timedelta(days=1)).isoformat())
+
     reservations_confirmees = Reservation.objects.filter(
         etablissement=etablissement,
         statut=Reservation.StatutReservation.CONFIRMEE,
@@ -92,8 +98,8 @@ def check_in(request):
 
     chambres_disponibles = DisponibiliteService.chambres_disponibles(
         etablissement=etablissement,
-        date_arrivee="2026-07-23",
-        date_depart="2026-07-24",
+        date_arrivee=date_arrivee,
+        date_depart=date_depart,
     )
 
     context = {

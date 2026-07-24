@@ -43,7 +43,6 @@ urlpatterns = [
     path('locations/<str:location_id>/', views.detail_location, name='detail_location'),
     path('locations/ajouter/sejour/', views.ajouter_sejour, name='ajouter_sejour'),
     path('locations/ajouter/evenement/', views.ajouter_evenement, name='ajouter_evenement'),
-    path('locations/<str:location_id>/check-out/', views.check_out, name='check_out'),
     path('locations/<str:location_id>/annuler/', views.annuler_location, name='annuler_location'),
     # ❌ SUPPRIMER cette ligne
     # path('locations/<str:location_id>/paiement/', views.enregistrer_paiement, name='enregistrer_paiement'),
