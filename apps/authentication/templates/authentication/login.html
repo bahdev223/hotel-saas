@@ -1,10 +1,10 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="fr" class="dark">
+<html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ entreprise_courante.nom_commercial|default:entreprise_courante.nom|default:'ERP' }} | Executive Login</title>
+    <title>{% if entreprise_courante %}{{ entreprise_courante.nom_commercial|default:entreprise_courante.nom }}{% else %}ERP{% endif %} | Executive Login</title>
     
     <!-- Tailwind CDN (mÃªme que l'original) -->
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
@@ -136,10 +136,10 @@
         <header class="mb-gutter text-center">
             <span class="font-label-caps text-label-caps text-secondary mb-4 block tracking-[0.4em]">EXECUTIVE HOTEL MANAGEMENT</span>
             {% if request.resolver_match.url_name == 'login' %}
-            <h1 class="font-display-lg-mobile md:font-display-lg text-secondary uppercase tracking-[0.2em]">{{ entreprise_courante.nom_commercial|default:entreprise_courante.nom|default:'ERP' }}</h1>
+            <h1 class="font-display-lg-mobile md:font-display-lg text-secondary uppercase tracking-[0.2em]">{% if entreprise_courante %}{{ entreprise_courante.nom_commercial|default:entreprise_courante.nom }}{% else %}ERP{% endif %}</h1>
             {% else %}
             <div class="relative inline-block">
-                <img src="{% if entreprise_courante.logo %}{{ entreprise_courante.logo.url }}{% else %}{% static 'logo.jpg' %}{% endif %}" alt="{{ entreprise_courante.nom|default:'ERP' }}" class="w-48 md:w-64 h-auto drop-shadow-[0_0_30px_rgba(200,169,107,0.15)]">
+                <img src="{% if entreprise_courante and entreprise_courante.logo %}{{ entreprise_courante.logo.url }}{% else %}{% static 'logo.jpg' %}{% endif %}" alt="{% if entreprise_courante %}{{ entreprise_courante.nom }}{% else %}ERP{% endif %}" class="w-48 md:w-64 h-auto drop-shadow-[0_0_30px_rgba(200,169,107,0.15)]">
             </div>
             {% endif %}
         </header>
@@ -209,7 +209,7 @@
         
         <!-- Contextual Footer -->
         <div class="mt-gutter flex flex-col items-center gap-unit opacity-40">
-            <p class="font-label-caps text-[10px] text-on-surface uppercase tracking-widest">Â© {% now "Y" %} {{ entreprise_courante.nom_commercial|default:entreprise_courante.nom|default:'ERP' }}. GESTION HÔTELIÈRE.</p>
+            <p class="font-label-caps text-[10px] text-on-surface uppercase tracking-widest">Â© {% now "Y" %} {% if entreprise_courante %}{{ entreprise_courante.nom_commercial|default:entreprise_courante.nom }}{% else %}ERP{% endif %}. GESTION HÔTELIÈRE.</p>
         </div>
     </div>
 </main>
