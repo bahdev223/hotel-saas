@@ -14,7 +14,7 @@ def _ca_ventes_emplacement(jour, emplacements):
     total = Vente.objects.filter(
         statut='PAYEE',
         created_at__date=jour,
-        point_vente__emplacement__in=emplacements
+        point_vente__type__in=emplacements
     ).aggregate(total=Sum('montant_total'))['total'] or 0
     return float(total)
 
@@ -26,7 +26,7 @@ def _ca_ventes_brasserie(jour):
     from apps.pos.models import LigneVente
     entrepot = Entrepot.objects.filter(type_entrepot='BRASSERIE', actif=True).first()
     if not entrepot:
-        return _ca_ventes_emplacement(jour, ['BAR', 'TERRASSE', 'VIP'])
+        return _ca_ventes_emplacement(jour, ['BAR'])
 
     # Produits dans l'entrepôt BRASSERIE
     produit_ids = list(StockEntrepot.objects.filter(
@@ -34,7 +34,7 @@ def _ca_ventes_brasserie(jour):
     ).values_list('produit_id', flat=True))
 
     if not produit_ids:
-        return _ca_ventes_emplacement(jour, ['BAR', 'TERRASSE', 'VIP'])
+        return _ca_ventes_emplacement(jour, ['BAR'])
 
     # Somme des lignes de vente pour ces produits, ventes PAYÉES du jour
     from django.db.models import Sum, F
@@ -64,7 +64,7 @@ def _ca_locations(jour):
 def get_ca_restaurant(jour=None):
     """CA Restaurant pour un jour donné (aujourd'hui par défaut)."""
     jour = jour or date.today()
-    return _ca_ventes_emplacement(jour, ['RESTAURANT'])
+    return _ca_ventes_emplacement(jour, ['RESTAURATION'])
 
 
 def get_ca_brasserie(jour=None):
@@ -180,8 +180,8 @@ def get_charges_par_domaine():
     first_this_month = today.replace(day=1)
 
     DOMAINE_MAP = {
-        'brasserie': ['BAR', 'VIP', 'TERRASSE', 'GUICHET'],
-        'restaurant': ['RESTAURANT', 'ROOM_SERVICE'],
+        'brasserie': ['BAR'],
+        'restaurant': ['RESTAURATION', 'ROOM_SERVICE'],
         'hotel': ['RECEPTION'],
     }
 
@@ -189,7 +189,7 @@ def get_charges_par_domaine():
     for domaine, emplacements in DOMAINE_MAP.items():
         total = Paiement.objects.filter(
             sens='SORTIE', statut='VALIDE',
-            caisse__point_vente__emplacement__in=emplacements,
+            caisse__point_vente__type__in=emplacements,
             date__date__gte=first_this_month,
             date__date__lte=today,
         ).exclude(type_paiement__in=['TRANSFERT']).aggregate(
