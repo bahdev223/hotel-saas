@@ -19,7 +19,7 @@ class CheckInService:
 
         sejours = []
         for rc in reservation.chambres_reservees.all():
-            chambre = rc.chambre
+            chambre = UniteModel.objects.select_for_update().get(id=rc.chambre.id)
             if chambre.statut not in (StatutChambre.DISPONIBLE, StatutChambre.RESERVEE):
                 raise ValidationError(f"La chambre {chambre.code} n'est pas disponible.")
 
@@ -67,6 +67,8 @@ class CheckInService:
         if date_arrivee is None:
             date_arrivee = timezone.now()
         date_depart = date_arrivee + timezone.timedelta(days=1)
+
+        chambre = UniteModel.objects.select_for_update().get(id=chambre.id)
 
         if chambre.statut not in (StatutChambre.DISPONIBLE, StatutChambre.RESERVEE):
             raise ValidationError("La chambre n'est pas disponible.")
