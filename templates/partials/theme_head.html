@@ -1,0 +1,100 @@
+{% comment %}
+  Thème central unique — ERP Hôtelier (clair chaleureux)
+  Source de vérité du design. Inclus par toutes les bases de module.
+  Les templates utilisent des tokens sémantiques (bg-background, text-on-surface,
+  bg-surface-container-*, text-secondary...) : redéfinir la palette ici bascule
+  toute l'application sans toucher aux pages.
+{% endcomment %}
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                colors: {
+                    // Surfaces (clair chaleureux)
+                    "surface-dim": "#f0ece3",
+                    "surface": "#faf8f4",
+                    "surface-bright": "#ffffff",
+                    "surface-container-lowest": "#ffffff",
+                    "surface-container-low": "#ffffff",
+                    "surface-container": "#f6f2ea",
+                    "surface-container-high": "#f0ece3",
+                    "surface-container-highest": "#e9e3d8",
+                    // Texte
+                    "on-surface": "#1f2937",
+                    "on-surface-variant": "#6b7280",
+                    // Accent doré (identité hôtelière), lisible sur fond clair
+                    "secondary": "#c8962c",
+                    "secondary-container": "#f7ecd3",
+                    "on-secondary": "#ffffff",
+                    // États
+                    "error": "#dc2626",
+                    "error-container": "#fee2e2",
+                    "outline": "#d6d3cd",
+                    "background": "#faf8f4",
+                },
+                fontFamily: { "body-md": ["Hanken Grotesk", "sans-serif"] },
+            },
+        },
+    }
+</script>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+    [x-cloak] { display: none !important; }
+    .line-clamp-1 {
+        display: -webkit-box;
+        -webkit-line-clamp: 1;
+        line-clamp: 1;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .scrollbar-md::-webkit-scrollbar { width: 6px; }
+    .scrollbar-md::-webkit-scrollbar-track { background: #ece7dd; border-radius: 10px; }
+    .scrollbar-md::-webkit-scrollbar-thumb { background: #d6d3cd; border-radius: 10px; }
+    .scrollbar-md::-webkit-scrollbar-thumb:hover { background: #c8962c; }
+    .transition-smooth { transition: all 0.2s ease-in-out; }
+
+    /* Carte statistique uniforme */
+    .stat-card {
+        background: #ffffff;
+        border: 1px solid #ece7dd;
+        border-radius: 16px;
+        transition: all 0.2s ease;
+    }
+    .stat-card:hover { background: #faf8f4; border-color: #c8962c; transform: translateY(-2px); box-shadow: 0 12px 24px -8px rgba(0,0,0,0.08); }
+    .stat-icon {
+        width: 48px; height: 48px; border-radius: 16px;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(200, 150, 44, 0.12);
+    }
+    .stat-icon i { color: #c8962c; font-size: 22px; }
+    @layer components {
+        .input-md3 {
+            @apply w-full border-b-2 border-transparent rounded-t-lg px-4 py-3
+                   focus:border-secondary focus:ring-0 outline-none transition-all duration-200;
+            background-color: #f6f2ea !important; color: #1f2937 !important;
+        }
+        .input-md3::placeholder { color: rgba(107, 114, 128, 0.6) !important; }
+        select.input-md3 option { background-color: #ffffff !important; color: #1f2937 !important; }
+        input:-webkit-autofill,
+        input:-webkit-autofill:hover,
+        input:-webkit-autofill:focus {
+            -webkit-text-fill-color: #1f2937 !important;
+            -webkit-box-shadow: 0 0 0px 1000px #f6f2ea inset !important;
+        }
+        .label-md3 {
+            @apply text-[11px] font-bold text-secondary uppercase tracking-wider mb-1 block pl-1;
+        }
+        .btn-md3-primary {
+            @apply bg-secondary text-on-secondary px-6 py-3 rounded-full font-bold
+                   hover:shadow-lg hover:shadow-secondary/20 active:scale-95 transition-all disabled:opacity-30;
+        }
+        .card-md3 {
+            @apply bg-surface-container-low border border-outline/40 rounded-xl;
+        }
+    }
+</style>
