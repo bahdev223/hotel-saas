@@ -69,7 +69,8 @@ def production_detail(request, production_id):
     production = get_object_or_404(Production, id=production_id)
     lignes = production.lignes.all()
     ingredients = production.ingredients.all()
-    verification = production.verifier_stock()
+    from apps.restaurant.services.production_service import ProductionService
+    verification = ProductionService.verifier_stock_production(production)
 
     context = {
         'production': production,
@@ -119,7 +120,8 @@ def api_produire(request):
             )
 
             if data.get('valider', True):
-                production.valider(employe if employe else request.user)
+                from apps.restaurant.services.production_service import ProductionService
+                ProductionService.valider_production(production, employe if employe else request.user)
 
         return JsonResponse({
             'success': True,
@@ -140,7 +142,8 @@ def api_produire(request):
 def api_annuler_production(request, production_id):
     try:
         production = get_object_or_404(Production, id=production_id)
-        production.annuler()
+        from apps.restaurant.services.production_service import ProductionService
+        ProductionService.annuler_production(production)
         return JsonResponse({
             'success': True,
             'message': f'Production #{production.numero} annulée'

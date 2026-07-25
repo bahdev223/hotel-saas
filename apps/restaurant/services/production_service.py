@@ -18,7 +18,18 @@ class ProductionService:
 
         for ingredient in recette.ingredients.filter(produit__isnull=False):
             produit = ingredient.produit
-            quantite_requise = ingredient.quantite * Decimal(str(quantite)) if ingredient.quantite else Decimal('0')
+            try:
+                from apps.stock.services.conversion_unite_service import ConversionUniteService
+                qte_base = ConversionUniteService.convertir(
+                    quantite=ingredient.quantite,
+                    unite_source=ingredient.unite_mesure,
+                    unite_dest=ingredient.produit.unite_mesure,
+                    produit=ingredient.produit
+                )
+            except Exception:
+                qte_base = ingredient.quantite
+
+            quantite_requise = qte_base * Decimal(str(quantite)) if qte_base else Decimal('0')
 
             stock = StockEntrepot.objects.filter(
                 entrepot=entrepot,
@@ -49,7 +60,18 @@ class ProductionService:
             if not ingredient.quantite:
                 continue
 
-            quantite_sortie = ingredient.quantite * Decimal(str(quantite))
+            try:
+                from apps.stock.services.conversion_unite_service import ConversionUniteService
+                qte_base = ConversionUniteService.convertir(
+                    quantite=ingredient.quantite,
+                    unite_source=ingredient.unite_mesure,
+                    unite_dest=ingredient.produit.unite_mesure,
+                    produit=ingredient.produit
+                )
+            except Exception:
+                qte_base = ingredient.quantite
+
+            quantite_sortie = qte_base * Decimal(str(quantite))
 
             MouvementStockService.sortie_stock(
                 produit=ingredient.produit,
@@ -59,6 +81,122 @@ class ProductionService:
                 motif='consommation',
                 raison=f"Production: {recette.nom}",
             )
+
+
+    @staticmethod
+    def verifier_stock_production(production):
+        """Vérifie si tous les ingrédients sont disponibles pour une production."""
+        manques = []
+
+        for ligne in production.lignes.select_related('recette').all():
+            if not ligne.recette:
+                manques.append(f"Ligne #{ligne.id}: aucune recette associée")
+                continue
+
+            for ingredient in ligne.recette.ingredients.filter(
+                type_ingredient='DEDUIRE',
+                produit__isnull=False
+            ):
+                if not ingredient.quantite:
+                    continue
+
+                quantite_necessaire = ingredient.quantite * ligne.quantite
+                stock = StockEntrepot.objects.filter(
+                    entrepot=production.entrepot_source,
+                    produit=ingredient.produit
+                ).first()
+
+                stock_qte = stock.quantite if stock else Decimal('0')
+
+                if stock_qte < quantite_necessaire:
+                    manques.append(
+                        f"{ingredient.produit.nom}: besoin {quantite_necessaire} {ingredient.unite}, "
+                        f"disponible {stock_qte}"
+                    )
+
+        return {'disponible': len(manques) == 0, 'manques': manques}
+
+    @staticmethod
+    @transaction.atomic
+    def valider_production(production, employe):
+        """Valide la production : sortie ingrédients + entrée produit fini."""
+        from apps.stock.services.mouvement_service import MouvementStockService
+        from apps.stock.enums.sources import SourceOperationType
+
+        if production.statut == 'VALIDE':
+            raise ValueError("Cette production a déjà été validée")
+
+        if not production.entrepot_source:
+            raise ValueError("Entrepôt source non défini")
+        if not production.entrepot_dest:
+            raise ValueError("Entrepôt destination non défini")
+
+        # Vérifier le stock
+        verification = ProductionService.verifier_stock_production(production)
+        if not verification['disponible']:
+            raise ValueError(f"Stock insuffisant: {', '.join(verification['manques'])}")
+
+        # Appliquer les modifications
+        for ligne in production.lignes.select_related('recette', 'recette__produit_fini').all():
+            if not ligne.recette:
+                continue
+
+            # Sortie des ingrédients
+            for ingredient in ligne.recette.ingredients.filter(
+                type_ingredient='DEDUIRE',
+                produit__isnull=False
+            ):
+                if not ingredient.quantite:
+                    continue
+
+                quantite_necessaire = ingredient.quantite * ligne.quantite
+
+                MouvementStockService.sortie_stock(
+                    produit=ingredient.produit,
+                    entrepot=production.entrepot_source,
+                    quantite=quantite_necessaire,
+                    utilisateur=str(employe) if employe else "Cuisine",
+                    motif=SourceOperationType.PRODUCTION,
+                    raison=f"Production #{production.numero}: {ligne.recette.nom}",
+                )
+
+                ProductionIngredient.objects.create(
+                    production=production,
+                    produit=ingredient.produit,
+                    quantite=quantite_necessaire,
+                    unite=ingredient.unite
+                )
+
+            # Entrée du produit fini dans l'entrepôt destination
+            if ligne.recette.produit_fini:
+                quantite_produite = ligne.quantite
+                if ligne.recette.rendement_quantite:
+                    quantite_produite = quantite_produite * ligne.recette.rendement_quantite
+
+                MouvementStockService.entree_stock(
+                    produit=ligne.recette.produit_fini,
+                    entrepot=production.entrepot_dest,
+                    quantite=quantite_produite,
+                    utilisateur=str(employe) if employe else "Cuisine",
+                    motif=SourceOperationType.PRODUCTION,
+                    raison=f"Production #{production.numero}: {ligne.recette.nom}",
+                )
+
+        production.statut = 'VALIDE'
+        production.valide_par = employe
+        production.save()
+
+        return True
+
+    @staticmethod
+    @transaction.atomic
+    def annuler_production(production):
+        """Annule la production (si non validée)"""
+        if production.statut == 'VALIDE':
+            raise ValueError("Impossible d'annuler une production validée")
+        
+        production.statut = 'ANNULE'
+        production.save()
 
 
 def destocker_commande(commande, entrepot=None):

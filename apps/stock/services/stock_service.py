@@ -1,7 +1,7 @@
-﻿# apps/stock/services/stock_service.py
+# apps/stock/services/stock_service.py
 from decimal import Decimal
 from django.db import transaction
-from ..models import Produit, Lot, Entrepot
+from ..models import Produit, LotProduit, Entrepot
 from .mouvement_service import MouvementStockService
 
 

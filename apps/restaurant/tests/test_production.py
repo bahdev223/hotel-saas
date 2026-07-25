@@ -59,18 +59,20 @@ class TestRecetteConversionUnite(TestCase):
         self.assertEqual(stock_initial, Decimal('2.00'))
 
         # On consomme la recette (1 fois)
-        self.recette.consommer_ingredients(quantite=1, entrepot=self.entrepot)
+        from apps.restaurant.services.production_service import ProductionService
+        ProductionService.destocker_ingredients(self.recette, 1, self.entrepot)
 
         # Le stock devrait avoir diminué de 0.25 Kg (il reste 1.75 Kg)
         stock_final = StockEntrepot.objects.get(produit=self.farine, entrepot=self.entrepot).quantite
         self.assertEqual(stock_final, Decimal('1.75'))
 
     def test_verifier_disponibilite(self):
-        dispo = self.recette.verifier_disponibilite(quantite=1, entrepot=self.entrepot)
-        self.assertTrue(dispo['disponible'])
+        from apps.restaurant.services.production_service import ProductionService
+        manques = ProductionService.verifier_stock_ingredients(self.recette, 1, self.entrepot)
+        self.assertEqual(len(manques), 0)
         
         # Si on veut produire 10 gâteaux, on aura besoin de 2.5 Kg.
         # Mais on a que 2 Kg en stock.
-        dispo_echec = self.recette.verifier_disponibilite(quantite=10, entrepot=self.entrepot)
-        self.assertFalse(dispo_echec['disponible'])
-        self.assertEqual(dispo_echec['manques'][0]['besoin'], Decimal('2.50'))
+        manques_echec = ProductionService.verifier_stock_ingredients(self.recette, 10, self.entrepot)
+        self.assertEqual(len(manques_echec), 1)
+        self.assertEqual(manques_echec[0]['requis'], float(Decimal('2.50')))

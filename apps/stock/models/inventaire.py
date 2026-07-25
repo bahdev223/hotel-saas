@@ -46,7 +46,7 @@ class LigneInventaire(models.Model):
     """Ligne d'inventaire pour un produit"""
     
     inventaire = models.ForeignKey(Inventaire, on_delete=models.CASCADE, related_name='lignes')
-    produit = models.ForeignKey('Produit', on_delete=models.CASCADE)
+    produit = models.ForeignKey('Produit', on_delete=models.PROTECT)
     quantite_theorique = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     quantite_reelle = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     prix_unitaire = models.DecimalField(max_digits=15, decimal_places=2, default=0, verbose_name="Prix d'achat unitaire")

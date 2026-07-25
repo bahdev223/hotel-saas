@@ -10,7 +10,7 @@ from ..enums.sources import SourceOperationType
 class MouvementStock(models.Model):
     """Mouvement de stock"""
 
-    produit = models.ForeignKey(Produit, on_delete=models.CASCADE, related_name='mouvements')
+    produit = models.ForeignKey(Produit, on_delete=models.PROTECT, related_name='mouvements')
     type_mouvement = models.CharField(max_length=20, choices=TypeMouvement.choices, default=TypeMouvement.ENTREE)
     motif = models.CharField(max_length=30, choices=SourceOperationType.choices, default=SourceOperationType.ACHAT)
     quantite = models.DecimalField(max_digits=10, decimal_places=2)

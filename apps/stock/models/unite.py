@@ -47,7 +47,7 @@ class ConversionUnite(models.Model):
     unite_dest = models.ForeignKey(UniteMesure, on_delete=models.CASCADE, related_name='conversions_dest')
     facteur = models.DecimalField(
         max_digits=18, decimal_places=6,
-        help_text="Combien d'unités source faut-il pour 1 unité de destination ? (ex: Source=Kg, Dest=g, Facteur=1000)"
+        help_text="Quantité de destination obtenue pour 1 unité source. (ex: Source=Kg, Dest=g, Facteur=1000)"
     )
     
     class Meta:

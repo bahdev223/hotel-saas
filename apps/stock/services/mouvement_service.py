@@ -21,7 +21,8 @@ class MouvementStockService:
                      motif=SourceOperationType.ACHAT, valeur_unitaire=0,
                      reference=None, raison="", unite_texte='',
                      entrepot_source=None, source_operation=None,
-                     type_mouvement_override=None):
+                     type_mouvement_override=None,
+                     lot_numero=None, date_peremption=None, fournisseur_id=None):
         quantite = Decimal(str(quantite))
         valeur_unitaire = Decimal(str(valeur_unitaire))
         
@@ -37,11 +38,14 @@ class MouvementStockService:
         stock_avant = stock.quantite
         stock.quantite += quantite
         
-        # Mettre à jour le prix d'achat du stock (ancien CUMP de StockEntrepot, à déprécier à terme)
-        if valeur_unitaire > 0 and stock.quantite > 0:
-            ancienne_valeur = Decimal(str(stock_avant)) * Decimal(str(stock.prix_achat or 0))
-            nouvelle_valeur = quantite * valeur_unitaire
-            stock.prix_achat = (ancienne_valeur + nouvelle_valeur) / stock.quantite
+        # Mettre à jour le prix d'achat du stock (nouveau CUMP)
+        if valeur_unitaire > 0:
+            stock.prix_achat = ValorisationStockService.calculer_cump_apres_entree(
+                stock=stock,
+                stock_avant=stock_avant,
+                quantite_entree=quantite,
+                cout_entree=valeur_unitaire
+            )
             
         stock.save(update_fields=['quantite', 'prix_achat'])
 
@@ -91,6 +95,17 @@ class MouvementStockService:
         except Exception:
             # Pour l'instant on ignore les erreurs de compta en V1
             pass
+            
+        # Gestion de lot
+        if lot_numero:
+            from .lot_allocation_service import LotAllocationService
+            LotAllocationService.entree_lot(
+                mouvement=mouvement,
+                lot_numero=lot_numero,
+                quantite=quantite,
+                date_peremption=date_peremption,
+                fournisseur_id=fournisseur_id
+            )
             
         return mouvement
 
@@ -175,6 +190,12 @@ class MouvementStockService:
         except Exception:
             # Pour l'instant on ignore les erreurs de compta en V1
             pass
+
+        # Gestion des lots (FEFO) si le produit a des lots dans cet entrepôt
+        from ..models import StockLotEntrepot
+        from .lot_allocation_service import LotAllocationService
+        if StockLotEntrepot.objects.filter(lot__produit=produit, entrepot=entrepot, quantite__gt=0).exists():
+            LotAllocationService.allouer_lots_fefo(mouvement, quantite)
 
         return mouvement
 

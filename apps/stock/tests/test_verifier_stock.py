@@ -1,12 +1,13 @@
 from decimal import Decimal
 from datetime import date, timedelta
 from io import StringIO
+from django.utils import timezone
 
 from django.test import TestCase
 from django.core.management import call_command
 from django.contrib.auth import get_user_model
 
-from apps.stock.models import Produit, Entrepot, StockEntrepot, Lot, MouvementStock
+from apps.stock.models import Produit, Entrepot, StockEntrepot, LotProduit, StockLotEntrepot, MouvementStock
 from apps.stock.enums.mouvements import TypeMouvement
 
 User = get_user_model()
@@ -47,27 +48,52 @@ class TestVerifierStock(TestCase):
         self.assertIn("journal absent", sortie)
         self.assertIn("source d'opération absente", sortie)
 
+    def test_lot_negatif_detecte(self):
+        lot = LotProduit.objects.create(
+            produit=self.produit,
+            numero="L123",
+            actif=True,
+            date_peremption=date.today() + timedelta(days=30)
+        )
+        StockLotEntrepot.objects.create(
+            lot=lot,
+            entrepot=self.entrepot,
+            quantite=Decimal("-1.00")
+        )
+        StockEntrepot.objects.update_or_create(entrepot=self.entrepot, produit=self.produit, defaults={"quantite": Decimal("-1.00")})
+        sortie = self._run()
+        self.assertIn("Lot négatif", sortie)
+        self.assertIn("L123", sortie)
+
     def test_lot_perime_est_un_avertissement(self):
-        Lot.objects.create(
+        lot = LotProduit.objects.create(
             produit=self.produit,
             numero="L-EXP",
-            quantite=Decimal("5"),
-            quantite_restante=Decimal("5"),
             date_peremption=date.today() - timedelta(days=1),
+            actif=True
+        )
+        StockLotEntrepot.objects.create(
+            lot=lot,
+            entrepot=self.entrepot,
+            quantite=Decimal("5")
         )
         # Aligner le stock sur le lot pour ne pas déclencher l'écart stock/lots
         StockEntrepot.objects.update_or_create(entrepot=self.entrepot, produit=self.produit, defaults={"quantite": Decimal("5")})
         sortie = self._run()
-        self.assertIn("avertissement", sortie)
-        self.assertIn("périmé", sortie)
+        self.assertIn("avertissement", sortie.lower())
+        self.assertIn("périmé", sortie.lower())
         # Un lot périmé n'est pas une anomalie d'intégrité
-        self.assertNotIn("anomalie(s) detectee", sortie)
+        self.assertNotIn("anomalie(s) detectee", sortie.lower())
 
     def test_ecart_stock_lots_detecte(self):
         StockEntrepot.objects.update_or_create(entrepot=self.entrepot, produit=self.produit, defaults={"quantite": Decimal("10")})
-        Lot.objects.create(
-            produit=self.produit, numero="L1",
-            quantite=Decimal("4"), quantite_restante=Decimal("4"),
+        lot = LotProduit.objects.create(
+            produit=self.produit, numero="L1", actif=True
+        )
+        StockLotEntrepot.objects.create(
+            lot=lot,
+            entrepot=self.entrepot,
+            quantite=Decimal("4")
         )
         sortie = self._run()
         self.assertIn("Écart stock/lots", sortie)

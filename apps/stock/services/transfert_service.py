@@ -1,17 +1,22 @@
 # apps/stock/services/transfert_service.py
 from decimal import Decimal
 from django.db import transaction
+from django.utils import timezone
 from ..models import Produit, Entrepot
 from .mouvement_service import MouvementStockService
-
+from .conversion_unite_service import ConversionUniteService
+from ..enums.mouvements import TypeMouvement
+from ..enums.sources import SourceOperationType
+from django.core.exceptions import ValidationError
 
 class TransfertService:
-    """Service de gestion des transferts entre entrepôts — délègue les mutations à MouvementStockService"""
+    """Service de gestion des transferts entre entrepôts"""
     
     @classmethod
     @transaction.atomic
     def transfert_entre_entrepots(cls, produit_id, quantite, entrepot_source_id, entrepot_dest_id, 
-                                    utilisateur, reference=None, notes=None, sous_unite_id=None):
+                                    utilisateur, reference=None, notes=None, unite_mesure_id=None):
+        from ..models import TransfertStock, LigneTransfertStock, SourceOperation, UniteMesure
         
         produit = Produit.objects.get(id=produit_id)
         source = Entrepot.objects.get(id=entrepot_source_id)
@@ -21,50 +26,86 @@ class TransfertService:
             raise ValueError("L'entrepôt source et destination sont identiques")
 
         quantite_saisie = Decimal(str(quantite))
+        unite_source_obj = None
         
-        quantite_reelle = quantite_saisie
-        unite_texte = produit.unite_base
-        conversion_texte = ""
-        
-        if sous_unite_id:
+        if unite_mesure_id:
+            unite_source_obj = UniteMesure.objects.get(id=unite_mesure_id)
             try:
-                sous_unite = produit.sous_unites.get(id=sous_unite_id, actif=True)
-                quantite_reelle = quantite_saisie * Decimal(str(sous_unite.facteur))
-                unite_texte = f"{quantite_saisie} {sous_unite.nom}"
-                conversion_texte = f"{quantite_saisie} {sous_unite.nom} = {quantite_reelle} {produit.unite_base}"
-            except Exception as e:
-                raise Exception(f"Erreur conversion sous-unité: {e}")
+                quantite_reelle = ConversionUniteService.convertir(
+                    quantite=quantite_saisie,
+                    unite_source=unite_source_obj,
+                    unite_dest=produit.unite_mesure,
+                    produit=produit
+                )
+            except ValidationError as e:
+                raise ValueError(str(e))
+        else:
+            quantite_reelle = quantite_saisie
+            
+        # Création de la Source Operation
+        source_op = SourceOperation.objects.create(
+            type_source=SourceOperationType.TRANSFERT,
+            reference=reference or "TR",
+            notes=notes
+        )
+
+        # Création du transfert
+        transfert = TransfertStock.objects.create(
+            entrepot_source=source,
+            entrepot_dest=dest,
+            statut='VALIDE',
+            source_operation=source_op,
+            cree_par=utilisateur if not isinstance(utilisateur, str) else None,
+            valide_par=utilisateur if not isinstance(utilisateur, str) else None,
+            date_validation=timezone.now(),
+            notes=notes
+        )
         
-        # Sortie de la source via le moteur unique
-        MouvementStockService.sortie_stock(
+        if not reference:
+            source_op.reference = transfert.numero
+            source_op.save(update_fields=['reference'])
+            
+        LigneTransfertStock.objects.create(
+            transfert=transfert,
+            produit=produit,
+            quantite=quantite_saisie,
+            unite_mesure=unite_source_obj
+        )
+        
+        unite_texte = unite_source_obj.symbole if unite_source_obj else produit.unite_base
+        
+        # Sortie
+        sortie = MouvementStockService.sortie_stock(
             produit=produit, entrepot=source,
             quantite=quantite_reelle, utilisateur=utilisateur,
-            motif='reapprovisionnement', valeur_unitaire=produit.prix_achat or Decimal('0'),
-            reference=reference,
+            motif=SourceOperationType.TRANSFERT, valeur_unitaire=produit.prix_achat or Decimal('0'),
+            reference=transfert.numero,
             raison=f"Transfert vers {dest.nom}",
             entrepot_dest=dest,
+            source_operation=source_op,
+            type_mouvement_override=TypeMouvement.TRANSFERT_SORTIE
         )
         
-        # Entrée dans la destination via le moteur unique
-        raison_complete = f"Transfert depuis {source.nom}: {conversion_texte}" if conversion_texte else f"Transfert depuis {source.nom}"
-        
-        mouvement = MouvementStockService.entree_stock(
+        # Entrée
+        entree = MouvementStockService.entree_stock(
             produit=produit, entrepot=dest,
             quantite=quantite_reelle, utilisateur=utilisateur,
-            motif='reapprovisionnement', valeur_unitaire=produit.prix_achat or Decimal('0'),
-            reference=reference,
-            raison=raison_complete,
+            motif=SourceOperationType.TRANSFERT, valeur_unitaire=produit.prix_achat or Decimal('0'),
+            reference=transfert.numero,
+            raison=f"Transfert depuis {source.nom}",
             unite_texte=unite_texte,
             entrepot_source=source,
+            source_operation=source_op,
+            type_mouvement_override=TypeMouvement.TRANSFERT_ENTREE
         )
         
-        return mouvement
+        return entree
     
 
-    
     @classmethod
     def get_stock_entrepot(cls, code_entrepot, produit_id=None):
         """Récupère le stock d'un entrepôt"""
+        from ..models import StockEntrepot
         try:
             entrepot = Entrepot.objects.get(code=code_entrepot)
         except Entrepot.DoesNotExist:
@@ -81,42 +122,68 @@ class TransfertService:
 
     @classmethod
     @transaction.atomic
-    def annuler_transfert(cls, mouvement, user):
-        """Annule un transfert (SORTIE + ENTREE inversées) — réservé RAF."""
-        from ..models.mouvement_stock import MouvementStock
-        from django.contrib.contenttypes.models import ContentType
-
-        if mouvement.type_mouvement != 'ENTREE' or mouvement.motif != 'reapprovisionnement':
-            raise ValueError("Seul un transfert (ENTREE + réappro) peut être annulé")
-
-        # Trouver la SORTIE correspondante
-        sortie = MouvementStock.objects.filter(
-            produit=mouvement.produit,
-            quantite=mouvement.quantite,
-            type_mouvement='SORTIE',
-            motif='reapprovisionnement',
-            reference=mouvement.reference,
-        ).first()
-        if not sortie:
-            raise ValueError("Mouvement de sortie correspondant introuvable")
-
-        # Inverser : entrée dans la source, sortie de la destination
-        MouvementStockService.entree_stock(
-            produit=mouvement.produit, entrepot=sortie.entrepot,
-            quantite=mouvement.quantite, utilisateur=user,
-            motif='reprise', valeur_unitaire=mouvement.valeur_unitaire or Decimal('0'),
-            reference=f"ANNUL-{mouvement.reference}" if mouvement.reference else None,
-            raison=f"Annulation transfert depuis {mouvement.entrepot.nom}",
+    def annuler_transfert(cls, transfert_ou_numero, user):
+        """Annule un transfert (SORTIE + ENTREE inversées)."""
+        from ..models import TransfertStock, MouvementStock, SourceOperation
+        
+        if isinstance(transfert_ou_numero, str):
+            transfert = TransfertStock.objects.get(numero=transfert_ou_numero)
+        else:
+            transfert = transfert_ou_numero
+            
+        if transfert.statut == 'ANNULE':
+            raise ValueError("Ce transfert est déjà annulé.")
+            
+        source_op = transfert.source_operation
+        
+        # Trouver les mouvements liés à ce transfert
+        sorties = MouvementStock.objects.filter(
+            source_operation=source_op,
+            type_mouvement=TypeMouvement.TRANSFERT_SORTIE
         )
-        MouvementStockService.sortie_stock(
-            produit=mouvement.produit, entrepot=mouvement.entrepot,
-            quantite=mouvement.quantite, utilisateur=user,
-            motif='reprise', valeur_unitaire=mouvement.valeur_unitaire or Decimal('0'),
-            reference=f"ANNUL-{mouvement.reference}" if mouvement.reference else None,
-            raison=f"Annulation transfert vers {sortie.entrepot.nom}",
+        entrees = MouvementStock.objects.filter(
+            source_operation=source_op,
+            type_mouvement=TypeMouvement.TRANSFERT_ENTREE
         )
-
-        return mouvement
-    
-    
-
+        
+        # On va créer une nouvelle source pour l'annulation
+        source_annulation = SourceOperation.objects.create(
+            type_source=SourceOperationType.ANNULATION,
+            reference=f"ANNUL-{transfert.numero}",
+            notes=f"Annulation du transfert {transfert.numero}"
+        )
+        
+        # Inverser l'entrée (faire une sortie de la destination)
+        for entree in entrees:
+            MouvementStockService.sortie_stock(
+                produit=entree.produit,
+                entrepot=entree.entrepot_dest,
+                quantite=entree.quantite,
+                utilisateur=user,
+                motif=SourceOperationType.ANNULATION,
+                valeur_unitaire=entree.valeur_unitaire,
+                reference=source_annulation.reference,
+                raison=f"Annulation transfert {transfert.numero} - Sortie dest",
+                source_operation=source_annulation,
+                type_mouvement_override=TypeMouvement.SORTIE
+            )
+            
+        # Inverser la sortie (faire une entrée dans la source)
+        for sortie in sorties:
+            MouvementStockService.entree_stock(
+                produit=sortie.produit,
+                entrepot=sortie.entrepot_source,
+                quantite=sortie.quantite,
+                utilisateur=user,
+                motif=SourceOperationType.ANNULATION,
+                valeur_unitaire=sortie.valeur_unitaire,
+                reference=source_annulation.reference,
+                raison=f"Annulation transfert {transfert.numero} - Retour source",
+                source_operation=source_annulation,
+                type_mouvement_override=TypeMouvement.ENTREE
+            )
+            
+        transfert.statut = 'ANNULE'
+        transfert.save(update_fields=['statut'])
+        
+        return transfert

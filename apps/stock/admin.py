@@ -1,7 +1,7 @@
-﻿from django.contrib import admin
+from django.contrib import admin
 from unfold.admin import ModelAdmin, TabularInline
 
-from .models import CategorieProduit, Produit, Entrepot, StockEntrepot, MouvementStock, Lot, SousUnite, Inventaire, LigneInventaire, BonEntree, LigneBonEntree, Domaine
+from .models import CategorieProduit, Produit, Entrepot, StockEntrepot, MouvementStock, LotProduit, StockLotEntrepot, SousUnite, Inventaire, LigneInventaire, BonEntree, LigneBonEntree, Domaine
 
 
 class SousUniteInline(TabularInline):
@@ -10,10 +10,10 @@ class SousUniteInline(TabularInline):
     fields = ['nom', 'facteur', 'prix', 'actif']
 
 
-class LotInline(TabularInline):
-    model = Lot
+class LotProduitInline(TabularInline):
+    model = LotProduit
     extra = 0
-    fields = ['numero', 'quantite', 'quantite_restante', 'date_peremption', 'prix_achat', 'actif']
+    fields = ['numero', 'date_peremption', 'actif']
 
 
 class StockEntrepotInline(TabularInline):
@@ -49,7 +49,7 @@ class ProduitAdmin(ModelAdmin):
     list_filter = ['type_article', 'actif', 'categorie', 'est_vendable']
     search_fields = ['code', 'nom', 'code_barre']
     autocomplete_fields = ['categorie']
-    inlines = [SousUniteInline, LotInline]
+    inlines = [SousUniteInline, LotProduitInline]
 
 
 @admin.register(Entrepot)
@@ -75,9 +75,9 @@ class MouvementStockAdmin(ModelAdmin):
     autocomplete_fields = ['produit', 'entrepot_source', 'entrepot_dest']
 
 
-@admin.register(Lot)
-class LotAdmin(ModelAdmin):
-    list_display = ['numero', 'produit', 'quantite', 'quantite_restante', 'date_peremption', 'fournisseur', 'actif']
+@admin.register(LotProduit)
+class LotProduitAdmin(ModelAdmin):
+    list_display = ['numero', 'produit', 'date_peremption', 'fournisseur', 'actif']
     list_filter = ['actif', 'date_peremption']
     search_fields = ['numero', 'produit__nom', 'fournisseur__nom']
     autocomplete_fields = ['produit', 'fournisseur']

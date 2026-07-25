@@ -1,10 +1,10 @@
-﻿# apps/stock/views/rapports.py
+# apps/stock/views/rapports.py
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Count, Q
 from django.http import JsonResponse
 from datetime import date, timedelta
-from ..models import Produit, MouvementStock, Lot, Debiteur, StockDebiteur
+from ..models import Produit, MouvementStock, StockLotEntrepot, Debiteur, StockDebiteur
 
 
 @login_required
@@ -111,19 +111,19 @@ def alerte_stock(request):
     
     # Lots expirant bientÃ´t
     date_limite = date.today() + timedelta(days=30)
-    lots_expirant = Lot.objects.filter(
-        actif=True,
-        date_peremption__lte=date_limite,
-        date_peremption__gte=date.today(),
-        quantite_restante__gt=0
-    ).order_by('date_peremption')[:20]
+    lots_expirant = StockLotEntrepot.objects.filter(
+        lot__actif=True,
+        lot__date_peremption__lte=date_limite,
+        lot__date_peremption__gte=date.today(),
+        quantite__gt=0
+    ).select_related('lot', 'lot__produit').order_by('lot__date_peremption')[:20]
     
     # Lots pÃ©rimÃ©s
-    lots_perimes = Lot.objects.filter(
-        actif=True,
-        date_peremption__lt=date.today(),
-        quantite_restante__gt=0
-    ).order_by('date_peremption')[:20]
+    lots_perimes = StockLotEntrepot.objects.filter(
+        lot__actif=True,
+        lot__date_peremption__lt=date.today(),
+        quantite__gt=0
+    ).select_related('lot', 'lot__produit').order_by('lot__date_peremption')[:20]
     
     context = {
         'produits_rupture': produits_rupture,

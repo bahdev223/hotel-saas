@@ -8,14 +8,14 @@ from datetime import date
 import uuid
 from decimal import Decimal
 
-from ..models import Lot, Produit, Fournisseur
+from ..models import LotProduit, Produit, Fournisseur, StockLotEntrepot
 from ..constants import ALLOWED_STOCK_GROUPS
 
 
 @login_required
 def liste_lots(request):
     """Liste des lots"""
-    lots = Lot.objects.filter(actif=True).order_by('-date_entree')
+    lots = LotProduit.objects.filter(actif=True).order_by('-date_creation')
     
     # Filtres
     produit_id = request.GET.get('produit')
@@ -34,6 +34,11 @@ def liste_lots(request):
     if search:
         lots = lots.filter(numero__icontains=search)
     
+    # Annotate total stock for each lot
+    # Actually, we can fetch the lots with a sum of StockLotEntrepot
+    # But for a paginated list, we can just do it in python or leave it simple
+    # We will just pass the lots for now
+    
     paginator = Paginator(lots, 20)
     page = request.GET.get('page')
     lots_page = paginator.get_page(page)
@@ -41,7 +46,7 @@ def liste_lots(request):
     context = {
         'lots': lots_page,
         'produits': Produit.objects.filter(actif=True),
-        'total_quantite': lots.aggregate(total=Sum('quantite_restante'))['total'] or 0,
+        'total_quantite': StockLotEntrepot.objects.aggregate(total=Sum('quantite'))['total'] or 0,
     }
     return render(request, 'stock/lots/liste.html', context)
 
@@ -49,10 +54,10 @@ def liste_lots(request):
 @login_required
 def detail_lot(request, lot_id):
     """Détail d'un lot"""
-    lot = get_object_or_404(Lot, id=lot_id)
+    lot = get_object_or_404(LotProduit, id=lot_id)
     
     # Mouvements liés à ce lot
-    mouvements = lot.mouvements.all().order_by('-date_mouvement')[:20]
+    mouvements = lot.mouvements.all().order_by('-mouvement__date_mouvement')[:20]
     
     context = {
         'lot': lot,
@@ -71,23 +76,18 @@ def ajouter_lot(request):
     if request.method == 'POST':
         try:
             produit_id = request.POST.get('produit')
-            quantite = Decimal(request.POST.get('quantite', 0))
             numero = request.POST.get('numero')
             date_peremption = request.POST.get('date_peremption')
             fournisseur_id = request.POST.get('fournisseur')
-            prix_achat = Decimal(request.POST.get('prix_achat', 0))
             
             if not numero:
                 numero = f"LOT-{uuid.uuid4().hex[:8].upper()}"
             
-            lot = Lot.objects.create(
+            lot = LotProduit.objects.create(
                 produit_id=produit_id,
                 numero=numero,
-                quantite=quantite,
-                quantite_restante=quantite,
                 date_peremption=date_peremption or None,
                 fournisseur_id=fournisseur_id or None,
-                prix_achat=prix_achat,
                 actif=True
             )
             
@@ -111,7 +111,7 @@ def modifier_lot(request, lot_id):
     if not any(g in ALLOWED_STOCK_GROUPS for g in user_groups):
         messages.error(request, "Accès refusé. Vous n'êtes pas autorisé à accéder à cette page.")
         return redirect('admin:index')
-    lot = get_object_or_404(Lot, id=lot_id)
+    lot = get_object_or_404(LotProduit, id=lot_id)
     
     if request.method == 'POST':
         try:
@@ -119,7 +119,6 @@ def modifier_lot(request, lot_id):
             lot.numero = request.POST.get('numero')
             lot.date_peremption = request.POST.get('date_peremption') or None
             lot.fournisseur_id = request.POST.get('fournisseur') or None
-            lot.prix_achat = Decimal(request.POST.get('prix_achat', 0))
             lot.save()
             
             messages.success(request, f'Lot {lot.numero} modifié')
@@ -143,7 +142,7 @@ def supprimer_lot(request, lot_id):
     if not any(g in ALLOWED_STOCK_GROUPS for g in user_groups):
         messages.error(request, "Accès refusé. Vous n'êtes pas autorisé à accéder à cette page.")
         return redirect('admin:index')
-    lot = get_object_or_404(Lot, id=lot_id)
+    lot = get_object_or_404(LotProduit, id=lot_id)
     
     if request.method == 'POST':
         lot.actif = False
@@ -153,5 +152,3 @@ def supprimer_lot(request, lot_id):
     
     context = {'lot': lot}
     return render(request, 'stock/lots/supprimer.html', context)
-
-

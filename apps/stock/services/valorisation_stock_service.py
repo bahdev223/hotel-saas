@@ -14,10 +14,10 @@ class ValorisationStockService:
         quantite: Decimal,
     ) -> Decimal:
         if produit.methode_valorisation == "FIFO":
-            return cls._cout_fifo(produit=produit, entrepot=entrepot, quantite=quantite)
+            raise NotImplementedError("La valorisation FIFO n'est pas encore disponible.")
         
         if produit.methode_valorisation == "STANDARD":
-            return Decimal(str(produit.prix_achat)) # Simulé comme coût standard
+            raise NotImplementedError("La valorisation STANDARD n'est pas encore disponible.")
 
         return cls._cout_cump(produit=produit, entrepot=entrepot)
 
@@ -37,6 +37,18 @@ class ValorisationStockService:
         return Decimal(str(produit.prix_achat))
 
     @classmethod
-    def _cout_fifo(cls, *, produit: Produit, entrepot: Entrepot, quantite: Decimal) -> Decimal:
-        # A implémenter plus tard (nécessite les lots)
-        return Decimal(str(produit.prix_achat))
+    def calculer_cump_apres_entree(cls, stock, stock_avant: Decimal, quantite_entree: Decimal, cout_entree: Decimal) -> Decimal:
+        """
+        Calcule le nouveau CUMP après une entrée en stock.
+        """
+        cump_actuel = stock.prix_achat or Decimal('0')
+        
+        valeur_stock_actuel = stock_avant * cump_actuel
+        valeur_entree = quantite_entree * cout_entree
+        
+        nouvelle_quantite_totale = stock_avant + quantite_entree
+        if nouvelle_quantite_totale > 0:
+            nouveau_cump = (valeur_stock_actuel + valeur_entree) / nouvelle_quantite_totale
+            # On arrondit à 4 décimales (selon la nouvelle norme)
+            return round(nouveau_cump, 4)
+        return cout_entree

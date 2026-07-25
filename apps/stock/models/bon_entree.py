@@ -148,7 +148,7 @@ class LigneBonEntree(models.Model):
     
     # Lot (optionnel)
     lot = models.ForeignKey(
-        'Lot', 
+        'LotProduit', 
         on_delete=models.SET_NULL, 
         null=True, 
         blank=True,

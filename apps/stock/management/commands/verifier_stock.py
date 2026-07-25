@@ -22,7 +22,7 @@ from decimal import Decimal
 from django.core.management.base import BaseCommand
 from django.db.models import Sum
 
-from apps.stock.models import StockEntrepot, Lot, MouvementStock
+from apps.stock.models import StockEntrepot, StockLotEntrepot, MouvementStock
 from apps.stock.enums.mouvements import TypeMouvement
 
 TOLERANCE = Decimal("0.01")
@@ -67,10 +67,10 @@ class Command(BaseCommand):
         ]
 
     def _lots_negatifs(self):
-        qs = Lot.objects.filter(quantite_restante__lt=0).select_related("produit")
+        qs = StockLotEntrepot.objects.filter(quantite__lt=0).select_related("lot__produit")
         return [
-            f"Lot négatif : lot {lot.numero} / {lot.produit.nom} = {lot.quantite_restante}"
-            for lot in qs
+            f"Lot négatif : lot {stock_lot.lot.numero} / {stock_lot.lot.produit.nom} = {stock_lot.quantite}"
+            for stock_lot in qs
         ]
 
     def _mouvements_sans_journal(self):
@@ -103,21 +103,23 @@ class Command(BaseCommand):
     def _stock_vs_lots(self):
         """Pour les produits gérés en lots : stock total (tous entrepôts) vs somme des lots restants."""
         anomalies = []
-        produit_ids = Lot.objects.values_list("produit_id", flat=True).distinct()
+        produit_ids = StockLotEntrepot.objects.values_list("lot__produit_id", flat=True).distinct()
         for produit_id in produit_ids:
+            # 1. somme des quantites de tous les lots pour ce produit dans tous les entrepots
+            somme_lots = (
+                StockLotEntrepot.objects.filter(lot__produit_id=produit_id, lot__actif=True)
+                .aggregate(s=Sum("quantite"))["s"]
+                or Decimal("0")
+            )
             total_stock = (
                 StockEntrepot.objects.filter(produit_id=produit_id)
                 .aggregate(t=Sum("quantite"))["t"] or Decimal("0")
             )
-            total_lots = (
-                Lot.objects.filter(produit_id=produit_id, actif=True)
-                .aggregate(t=Sum("quantite_restante"))["t"] or Decimal("0")
-            )
-            if abs(total_stock - total_lots) > TOLERANCE:
+            if abs(somme_lots - total_stock) > TOLERANCE:
                 from apps.stock.models import Produit
                 nom = Produit.objects.filter(pk=produit_id).values_list("nom", flat=True).first() or produit_id
                 anomalies.append(
-                    f"Écart stock/lots : {nom} -stock {total_stock} != somme lots {total_lots}"
+                    f"Écart stock/lots : {nom} -stock {total_stock} != somme lots {somme_lots}"
                 )
         return anomalies
 
@@ -144,15 +146,16 @@ class Command(BaseCommand):
 
     def _lots_perimes(self):
         from datetime import date
-        qs = Lot.objects.filter(
-            actif=True,
-            quantite_restante__gt=0,
-            date_peremption__lt=date.today(),
-        ).select_related("produit")
+        from apps.stock.models import StockLotEntrepot
+        qs = StockLotEntrepot.objects.filter(
+            lot__actif=True,
+            quantite__gt=0,
+            lot__date_peremption__lt=date.today(),
+        ).select_related("lot", "lot__produit")
         return [
-            f"Lot périmé avec stock : {lot.numero} / {lot.produit.nom} "
-            f"= {lot.quantite_restante} (péremption {lot.date_peremption})"
-            for lot in qs
+            f"Lot périmé avec stock : {stock.lot.numero} / {stock.lot.produit.nom} "
+            f"= {stock.quantite} (péremption {stock.lot.date_peremption})"
+            for stock in qs
         ]
 
     # ------------------------------------------------------------------ output

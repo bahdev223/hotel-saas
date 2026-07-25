@@ -3,8 +3,9 @@ from .fournisseur import Fournisseur
 from .produit import Produit
 from .entrepot import Entrepot
 from .stock_entrepot import StockEntrepot
+from .lot import LotProduit, StockLotEntrepot
 from .mouvement import MouvementStock
-from .lot import Lot
+from .mouvement_lot import MouvementLot
 from .sous_unite import SousUnite
 from .inventaire import Inventaire, LigneInventaire
 from .bon_entree import BonEntree, LigneBonEntree, StatutBonEntree
@@ -13,6 +14,7 @@ from .source_operation import SourceOperation
 from .journal_stock import JournalStock
 from .unite import UniteMesure, ConversionUnite
 from .conditionnement import Conditionnement
+from .transfert import TransfertStock, LigneTransfertStock
 
 
 __all__ = [
@@ -21,8 +23,10 @@ __all__ = [
     'Produit',
     'Entrepot',
     'StockEntrepot',
+    'LotProduit',
+    'StockLotEntrepot',
     'MouvementStock',
-    'Lot',
+    'MouvementLot',
     'SousUnite',
     'Inventaire',
     'LigneInventaire',
@@ -35,4 +39,6 @@ __all__ = [
     'UniteMesure',
     'ConversionUnite',
     'Conditionnement',
+    'TransfertStock',
+    'LigneTransfertStock',
 ]
