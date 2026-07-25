@@ -74,7 +74,7 @@ class TransfertService:
         
         unite_texte = unite_source_obj.symbole if unite_source_obj else produit.unite_base
         
-        # Sortie
+        # Sortie (lots alloués via FEFO à l'intérieur)
         sortie = MouvementStockService.sortie_stock(
             produit=produit, entrepot=source,
             quantite=quantite_reelle, utilisateur=utilisateur,
@@ -86,7 +86,7 @@ class TransfertService:
             type_mouvement_override=TypeMouvement.TRANSFERT_SORTIE
         )
         
-        # Entrée
+        # Entrée (ne génère pas de lots — on les transfère depuis la sortie)
         entree = MouvementStockService.entree_stock(
             produit=produit, entrepot=dest,
             quantite=quantite_reelle, utilisateur=utilisateur,
@@ -99,7 +99,27 @@ class TransfertService:
             type_mouvement_override=TypeMouvement.TRANSFERT_ENTREE
         )
         
-        return entree
+        # Transférer les allocations de lots de la sortie vers la destination
+        from ..models import MouvementLot, StockLotEntrepot
+        allocations_sortie = sortie.mouvements_lots.all()
+        for alloc in allocations_sortie:
+            lot = alloc.lot
+            qte = abs(alloc.quantite)
+            stock_lot_dest, _ = StockLotEntrepot.objects.select_for_update().get_or_create(
+                lot=lot,
+                entrepot=dest,
+                defaults={'quantite': Decimal('0')}
+            )
+            stock_lot_dest.quantite += qte
+            stock_lot_dest.save(update_fields=['quantite'])
+            
+            MouvementLot.objects.create(
+                mouvement=entree,
+                lot=lot,
+                quantite=qte
+            )
+        
+        return transfert
     
 
     @classmethod
@@ -153,9 +173,11 @@ class TransfertService:
             notes=f"Annulation du transfert {transfert.numero}"
         )
         
-        # Inverser l'entrée (faire une sortie de la destination)
+        from .lot_allocation_service import LotAllocationService
+        
+        # Inverser l'entrée (faire une sortie de la destination avec restitution exacte des lots)
         for entree in entrees:
-            MouvementStockService.sortie_stock(
+            sortie_annul = MouvementStockService.sortie_stock(
                 produit=entree.produit,
                 entrepot=entree.entrepot_dest,
                 quantite=entree.quantite,
@@ -167,10 +189,15 @@ class TransfertService:
                 source_operation=source_annulation,
                 type_mouvement_override=TypeMouvement.SORTIE
             )
+            # Restaurer les lots exacts dans l'entrepôt source
+            LotAllocationService.inverser_allocations(
+                mouvement_original=entree,
+                mouvement_inverse=sortie_annul
+            )
             
         # Inverser la sortie (faire une entrée dans la source)
         for sortie in sorties:
-            MouvementStockService.entree_stock(
+            entree_annul = MouvementStockService.entree_stock(
                 produit=sortie.produit,
                 entrepot=sortie.entrepot_source,
                 quantite=sortie.quantite,
@@ -181,6 +208,11 @@ class TransfertService:
                 raison=f"Annulation transfert {transfert.numero} - Retour source",
                 source_operation=source_annulation,
                 type_mouvement_override=TypeMouvement.ENTREE
+            )
+            # Restaurer les lots exacts dans l'entrepôt source
+            LotAllocationService.inverser_allocations(
+                mouvement_original=sortie,
+                mouvement_inverse=entree_annul
             )
             
         transfert.statut = 'ANNULE'

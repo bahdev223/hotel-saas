@@ -41,7 +41,7 @@ class TransfertStock(models.Model):
 
 class LigneTransfertStock(models.Model):
     """Ligne de transfert"""
-    transfert = models.ForeignKey(TransfertStock, on_delete=models.CASCADE, related_name='lignes')
+    transfert = models.ForeignKey(TransfertStock, on_delete=models.PROTECT, related_name='lignes')
     produit = models.ForeignKey('stock.Produit', on_delete=models.PROTECT)
     quantite = models.DecimalField(max_digits=18, decimal_places=4)
     unite_mesure = models.ForeignKey('stock.UniteMesure', on_delete=models.PROTECT, null=True, blank=True)

@@ -1,4 +1,5 @@
 # apps/stock/services/mouvement_service.py
+import logging
 from decimal import Decimal
 from django.db import transaction
 from django.core.exceptions import ValidationError
@@ -9,6 +10,7 @@ from .stock_compta_service import StockComptaService
 from .valorisation_stock_service import ValorisationStockService
 from django.contrib.auth import get_user_model
 
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
 class MouvementStockService:
@@ -92,9 +94,11 @@ class MouvementStockService:
         # Appel au module compta
         try:
             ecriture = StockComptaService.enregistrer_ecriture(mouvement)
-        except Exception:
-            # Pour l'instant on ignore les erreurs de compta en V1
-            pass
+        except Exception as e:
+            logger.exception(
+                "Échec de comptabilisation du mouvement %s (entrée): %s",
+                mouvement.pk, e
+            )
             
         # Gestion de lot
         if lot_numero:
@@ -187,9 +191,11 @@ class MouvementStockService:
         # Appel au module compta
         try:
             ecriture = StockComptaService.enregistrer_ecriture(mouvement)
-        except Exception:
-            # Pour l'instant on ignore les erreurs de compta en V1
-            pass
+        except Exception as e:
+            logger.exception(
+                "Échec de comptabilisation du mouvement %s (sortie): %s",
+                mouvement.pk, e
+            )
 
         # Gestion des lots (FEFO) si le produit a des lots dans cet entrepôt
         from ..models import StockLotEntrepot

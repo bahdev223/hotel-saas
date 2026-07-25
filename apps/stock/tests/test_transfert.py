@@ -2,7 +2,7 @@ from decimal import Decimal
 from django.test import TestCase
 from django.contrib.auth import get_user_model
 from apps.stock.models import (
-    Produit, Entrepot, StockEntrepot, TransfertStock, LigneTransfertStock, SourceOperation, MouvementStock
+    Produit, Entrepot, StockEntrepot, TransfertStock, LigneTransfertStock, SourceOperation, MouvementStock, UniteMesure
 )
 from apps.stock.services.mouvement_service import MouvementStockService
 from apps.stock.services.transfert_service import TransfertService
@@ -19,7 +19,8 @@ class TransfertServiceTest(TestCase):
         self.entrepot_source = Entrepot.objects.create(nom="Cuisine A", code="CA", type_entrepot="DEPOT")
         self.entrepot_dest = Entrepot.objects.create(nom="Cuisine B", code="CB", type_entrepot="DEPOT")
         
-        self.produit = Produit.objects.create(nom="Farine", unite_base="kg", prix_achat=Decimal("1.50"))
+        kg, _ = UniteMesure.objects.get_or_create(symbole="kg", defaults={"nom": "Kilogramme", "type_unite": "MASSE"})
+        self.produit = Produit.objects.create(nom="Farine", code="FARINE", unite_mesure=kg, prix_achat=Decimal("1.50"))
         
         # Initialize stock
         MouvementStockService.entree_stock(
@@ -33,13 +34,12 @@ class TransfertServiceTest(TestCase):
         )
         
     def test_transfert_reussi(self):
-        entree = TransfertService.transfert_entre_entrepots(
+        transfert = TransfertService.transfert_entre_entrepots(
             produit_id=self.produit.id,
             quantite=Decimal("20"),
             entrepot_source_id=self.entrepot_source.id,
             entrepot_dest_id=self.entrepot_dest.id,
             utilisateur=self.user,
-            reference="TR-001"
         )
         
         # Verify stocks
@@ -63,7 +63,7 @@ class TransfertServiceTest(TestCase):
         # Verify SourceOperation
         source_op = transfert.source_operation
         self.assertEqual(source_op.type_source, SourceOperationType.TRANSFERT)
-        self.assertEqual(source_op.reference, "TR-001")
+        self.assertEqual(source_op.reference, transfert.numero)
         
         # Verify MouvementStock
         sorties = MouvementStock.objects.filter(source_operation=source_op, type_mouvement=TypeMouvement.TRANSFERT_SORTIE)

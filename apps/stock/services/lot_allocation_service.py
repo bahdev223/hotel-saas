@@ -1,6 +1,7 @@
 # apps/stock/services/lot_allocation_service.py
 from decimal import Decimal
 from django.db import transaction, models
+from django.db.models import Sum
 from django.utils import timezone
 from ..models import Produit, Entrepot, LotProduit, StockLotEntrepot, MouvementStock, MouvementLot
 from django.core.exceptions import ValidationError
@@ -36,8 +37,8 @@ class LotAllocationService:
             lot.actif = True
             lot.save(update_fields=['actif'])
             
-        # Gérer la quantité dans l'entrepôt
-        stock_lot, created = StockLotEntrepot.objects.get_or_create(
+        # Gérer la quantité dans l'entrepôt (with lock)
+        stock_lot, created = StockLotEntrepot.objects.select_for_update().get_or_create(
             lot=lot,
             entrepot=entrepot,
             defaults={'quantite': Decimal('0')}
@@ -69,13 +70,26 @@ class LotAllocationService:
         if not entrepot:
             raise ValidationError("Le mouvement de sortie doit avoir un entrepôt source.")
             
-        # Récupérer les lots disponibles pour ce produit dans cet entrepôt
+        # Pre-check total available before mutating
         stocks_lots_dispos = StockLotEntrepot.objects.filter(
             lot__produit=produit,
             entrepot=entrepot,
             quantite__gt=0,
             lot__actif=True
-        ).order_by(
+        )
+        
+        total_disponible = stocks_lots_dispos.aggregate(
+            total=Sum("quantite")
+        )["total"] or Decimal("0")
+        
+        if total_disponible < quantite_a_allouer:
+            raise ValidationError(
+                f"Stock lot insuffisant pour {produit.nom} dans {entrepot.nom}. "
+                f"Disponible: {total_disponible}, demandé: {quantite_a_allouer} {produit.unite_base}"
+            )
+            
+        # Lock and order FEFO
+        stocks_lots_verrouilles = stocks_lots_dispos.select_for_update().order_by(
             models.F('lot__date_peremption').asc(nulls_last=True),
             'lot__date_creation'
         )
@@ -83,7 +97,7 @@ class LotAllocationService:
         quantite_restante = quantite_a_allouer
         allocations = []
         
-        for stock_lot in stocks_lots_dispos:
+        for stock_lot in stocks_lots_verrouilles:
             if quantite_restante <= 0:
                 break
                 
@@ -95,16 +109,51 @@ class LotAllocationService:
             MouvementLot.objects.create(
                 mouvement=mouvement,
                 lot=stock_lot.lot,
-                quantite=-quantite_prise # Négatif pour indiquer une sortie de ce lot ? Ou juste quantité et on déduit du contexte ? Le MouvementStock a le type, la quantité est absolue.
+                quantite=-quantite_prise
             )
             
             allocations.append((stock_lot.lot, quantite_prise))
             quantite_restante -= quantite_prise
             
-        if quantite_restante > 0:
-            raise ValidationError(
-                f"Impossible d'allouer {quantite_a_allouer} {produit.unite_base}. "
-                f"Il manque {quantite_restante} dans les lots disponibles de l'entrepôt {entrepot.nom}."
-            )
-            
         return allocations
+    
+    @classmethod
+    @transaction.atomic
+    def inverser_allocations(cls, mouvement_original, mouvement_inverse):
+        """
+        Inverse exactement les allocations de lots d'un mouvement original.
+        Remplace les lots alloués par FEFO (potentiellement erronés) par
+        les lots exacts du mouvement original.
+        Utilisé lors de l'annulation d'un transfert pour garantir
+        que les mêmes lots sont restitués.
+        """
+        # Supprimer les allocations FEFO automatiques (peuvent être incorrectes)
+        MouvementLot.objects.filter(mouvement=mouvement_inverse).delete()
+        
+        # Restaurer les allocations exactes du mouvement original
+        originales = MouvementLot.objects.filter(
+            mouvement=mouvement_original
+        ).select_related('lot')
+        
+        for alloc in originales:
+            lot = alloc.lot
+            # Signe opposé à l'original
+            # Si original était positif (entrée), l'inverse est négatif (sortie)
+            # Si original était négatif (sortie), l'inverse est positif (entrée)
+            qte = -alloc.quantite
+            
+            entrepot = (mouvement_inverse.entrepot_source 
+                       or mouvement_inverse.entrepot_dest)
+            
+            stock_lot = StockLotEntrepot.objects.select_for_update().get(
+                lot=lot,
+                entrepot=entrepot
+            )
+            stock_lot.quantite += qte
+            stock_lot.save(update_fields=['quantite'])
+            
+            MouvementLot.objects.create(
+                mouvement=mouvement_inverse,
+                lot=lot,
+                quantite=qte
+            )
