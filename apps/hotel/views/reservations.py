@@ -47,7 +47,11 @@ def detail_reservation(request, reservation_id):
 
 @login_required
 def ajouter_reservation(request):
+    """Formulaire de reservation. Rendu en dialogue (fragment) quand ouvert
+    via htmx (hx-target="modal" depuis un lien "Nouvelle reservation"),
+    sinon en page complete (acces direct par URL)."""
     etablissement = obtenir_etablissement_actuel()
+    est_dialogue = request.headers.get("HX-Target") == "modal"
 
     if request.method == "POST":
         client_id = request.POST.get("client")
@@ -86,6 +90,12 @@ def ajouter_reservation(request):
                 notes=notes,
             )
             messages.success(request, f"Réservation {reservation.code} créée.")
+
+            if est_dialogue:
+                return render(request, "hotel/reservations/_dialog_ajouter.html", {
+                    "succes": True,
+                    "reservation": reservation,
+                })
             return redirect("hotel:detail_reservation", reservation_id=reservation.id)
         except Exception as e:
             messages.error(request, f"Erreur : {e}")
@@ -95,6 +105,8 @@ def ajouter_reservation(request):
         "types_chambres": types_chambres,
         "clients": Client.objects.filter(statut="ACTIF").order_by("nom"),
     }
+    if est_dialogue:
+        return render(request, "hotel/reservations/_dialog_ajouter.html", context)
     return render(request, "hotel/reservations/ajouter.html", context)
 
 

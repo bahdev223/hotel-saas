@@ -1,0 +1,163 @@
+{% load static %}
+<div @click.self="" class="bg-surface-container rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-outline/10 max-h-[90vh] flex flex-col">
+    <div class="px-6 py-4 border-b border-outline/10 flex justify-between items-center bg-surface-container-low shrink-0">
+        <h3 class="font-semibold text-lg">
+            {% if succes %}
+                <i class="fas fa-check-circle text-secondary mr-2"></i>Réservation créée
+            {% else %}
+                <i class="fas fa-plus-circle text-secondary mr-2"></i>Nouvelle réservation
+            {% endif %}
+        </h3>
+        <button onclick="document.getElementById('modal').innerHTML=''" class="text-on-surface-variant hover:text-on-surface transition-colors">
+            <i class="fas fa-times text-xl"></i>
+        </button>
+    </div>
+
+    <div class="p-6 overflow-y-auto">
+        {% if messages %}
+            <div class="space-y-2 mb-4">
+                {% for message in messages %}
+                    <div class="rounded-lg p-3 border-l-4 text-sm
+                        {% if message.tags == 'success' %}bg-green-50 border-green-500 text-green-800
+                        {% elif message.tags == 'error' %}bg-red-50 border-red-500 text-red-800
+                        {% else %}bg-secondary-container border-secondary text-on-surface{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if succes %}
+            <div class="text-center py-6 space-y-4">
+                <div class="w-16 h-16 rounded-full bg-secondary-container mx-auto flex items-center justify-center">
+                    <i class="fas fa-check text-2xl text-secondary"></i>
+                </div>
+                <p class="text-on-surface">Réservation <span class="font-mono font-bold">{{ reservation.code }}</span> créée pour <strong>{{ reservation.client.nom_complet }}</strong>.</p>
+                <div class="flex gap-3 justify-center pt-2">
+                    <a href="{% url 'hotel:detail_reservation' reservation.id %}"
+                       hx-get="{% url 'hotel:detail_reservation' reservation.id %}"
+                       hx-target="#page-region" hx-select="#page-region" hx-swap="outerHTML"
+                       onclick="document.getElementById('modal').innerHTML=''"
+                       class="btn-primary px-4 py-2 text-sm rounded-lg">
+                        Voir le détail
+                    </a>
+                    <button onclick="document.getElementById('modal').innerHTML=''" class="px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-on-surface transition-colors">
+                        Fermer
+                    </button>
+                </div>
+            </div>
+        {% else %}
+            <form method="post"
+                  hx-post="{% url 'hotel:ajouter_reservation' %}"
+                  hx-target="#modal" hx-swap="innerHTML"
+                  class="space-y-5">
+                {% csrf_token %}
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div class="col-span-2">
+                        <label class="block text-sm font-medium text-on-surface-variant mb-1">Client</label>
+                        <select name="client" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5" required>
+                            <option value="">---</option>
+                            {% for c in clients %}
+                            <option value="{{ c.id }}">{{ c.nom_complet }} - {{ c.telephone }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface-variant mb-1">Date d'arrivée</label>
+                        <input type="datetime-local" name="date_arrivee_prevue" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface-variant mb-1">Date de départ</label>
+                        <input type="datetime-local" name="date_depart_prevue" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5" required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface-variant mb-1">Type de chambre</label>
+                        <select name="type_chambre" id="dlg_type_chambre" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5">
+                            <option value="">---</option>
+                            {% for tc in types_chambres %}
+                            <option value="{{ tc.id }}">{{ tc.nom }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface-variant mb-1">Chambre</label>
+                        <select name="chambre" id="dlg_chambre" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5" required>
+                            <option value="">Sélectionnez d'abord un type</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface-variant mb-1">Tarif</label>
+                        <select name="tarif" id="dlg_tarif" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5" required>
+                            <option value="">Sélectionnez d'abord une chambre</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface-variant mb-1">Adultes</label>
+                        <input type="number" name="nombre_adultes" value="1" min="1" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface-variant mb-1">Enfants</label>
+                        <input type="number" name="nombre_enfants" value="0" min="0" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-on-surface-variant mb-1">Notes</label>
+                    <textarea name="notes" rows="2" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5" placeholder="Demandes spéciales..."></textarea>
+                </div>
+
+                <div class="pt-4 flex justify-end gap-3 border-t border-outline/10">
+                    <button type="button" onclick="document.getElementById('modal').innerHTML=''" class="px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-on-surface">Annuler</button>
+                    <button type="submit" class="btn-primary px-4 py-2 text-sm rounded-lg flex items-center gap-2">
+                        <i class="fas fa-check"></i> Créer la réservation
+                    </button>
+                </div>
+            </form>
+
+            <script>
+            (function() {
+                const typeSelect = document.getElementById('dlg_type_chambre');
+                const chambreSelect = document.getElementById('dlg_chambre');
+                const tarifSelect = document.getElementById('dlg_tarif');
+
+                typeSelect.addEventListener('change', function() {
+                    const typeId = this.value;
+                    chambreSelect.innerHTML = '<option value="">Chargement...</option>';
+                    tarifSelect.innerHTML = '<option value="">Sélectionnez d\'abord une chambre</option>';
+                    if (!typeId) { chambreSelect.innerHTML = '<option value="">---</option>'; return; }
+                    fetch('/hotel/api/unites/?type_chambre=' + typeId)
+                        .then(r => r.json())
+                        .then(data => {
+                            chambreSelect.innerHTML = '<option value="">---</option>';
+                            if (data.success && data.unites) {
+                                data.unites.forEach(u => {
+                                    chambreSelect.innerHTML += `<option value="${u.id}">${u.code} - ${u.nom}</option>`;
+                                });
+                            }
+                        });
+                });
+
+                chambreSelect.addEventListener('change', function() {
+                    const chambreId = this.value;
+                    if (!chambreId) { tarifSelect.innerHTML = '<option value="">---</option>'; return; }
+                    fetch('/hotel/api/tarifs/?chambre=' + chambreId)
+                        .then(r => r.json())
+                        .then(data => {
+                            tarifSelect.innerHTML = '<option value="">---</option>';
+                            if (data.success && data.tarifs) {
+                                if (data.tarifs.length === 0) {
+                                    tarifSelect.innerHTML = '<option value="">Aucun tarif pour cette chambre</option>';
+                                }
+                                data.tarifs.forEach(t => {
+                                    const montant = Number(t.montant).toLocaleString('fr-FR');
+                                    tarifSelect.innerHTML += `<option value="${t.id}">${t.nom} — ${montant} F</option>`;
+                                });
+                            }
+                        });
+                });
+            })();
+            </script>
+        {% endif %}
+    </div>
+</div>

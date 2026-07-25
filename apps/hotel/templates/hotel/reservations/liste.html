@@ -21,9 +21,11 @@
             </a>
             {% endif %}
         </div>
-        <a href="{% url 'hotel:ajouter_reservation' %}" class="btn-md3-primary py-2 px-4 rounded-lg text-sm">
+        <button hx-get="{% url 'hotel:ajouter_reservation' %}"
+                hx-target="#modal"
+                class="btn-primary py-2 px-4 rounded-lg text-sm flex items-center cursor-pointer">
             <i class="fas fa-plus mr-1"></i>Nouvelle réservation
-        </a>
+        </button>
     </div>
 
     <div class="card-md3 overflow-hidden">

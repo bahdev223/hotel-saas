@@ -45,7 +45,8 @@ def _get_entrepot(request):
 def produits_stock(request):
     entrepot = _get_entrepot(request)
     if not entrepot:
-        return render(request, 'restaurant/produits/choisir_entrepot.html')
+        entrepots = Entrepot.objects.filter(actif=True).values('id', 'nom')
+        return render(request, 'restaurant/produits/choisir_entrepot.html', {'entrepots': entrepots})
     return render(request, 'restaurant/produits/liste.html', {
         'entrepot_id': entrepot.id,
         'entrepot_nom': entrepot.nom,

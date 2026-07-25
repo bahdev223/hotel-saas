@@ -1,0 +1,115 @@
+{% load static %}
+<div @click.self="" class="bg-surface-container rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-outline/10 max-h-[90vh] flex flex-col">
+    <div class="px-6 py-4 border-b border-outline/10 flex justify-between items-center bg-surface-container-low shrink-0">
+        <h3 class="font-semibold text-lg">
+            {% if succes %}
+                <i class="fas fa-check-circle text-secondary mr-2"></i>Chambre ajoutée
+            {% else %}
+                <i class="fas fa-plus-circle text-secondary mr-2"></i>Nouvelle Chambre
+            {% endif %}
+        </h3>
+        <button onclick="document.getElementById('modal').innerHTML=''" class="text-on-surface-variant hover:text-on-surface transition-colors">
+            <i class="fas fa-times text-xl"></i>
+        </button>
+    </div>
+
+    <div class="p-6 overflow-y-auto">
+        {% if messages %}
+            <div class="space-y-2 mb-4">
+                {% for message in messages %}
+                    <div class="rounded-lg p-3 border-l-4 text-sm
+                        {% if message.tags == 'success' %}bg-green-50 border-green-500 text-green-800
+                        {% elif message.tags == 'error' %}bg-red-50 border-red-500 text-red-800
+                        {% else %}bg-secondary-container border-secondary text-on-surface{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if succes %}
+            <div class="text-center py-6 space-y-4">
+                <div class="w-16 h-16 rounded-full bg-secondary-container mx-auto flex items-center justify-center">
+                    <i class="fas fa-check text-2xl text-secondary"></i>
+                </div>
+                <p class="text-on-surface">La chambre <span class="font-mono font-bold">{{ unite.code }}</span> a été créée avec succès.</p>
+                <div class="flex gap-3 justify-center pt-2">
+                    <a href="{% url 'hotel:liste_unites' %}"
+                       hx-get="{% url 'hotel:liste_unites' %}"
+                       hx-target="#page-region" hx-select="#page-region" hx-swap="outerHTML"
+                       onclick="document.getElementById('modal').innerHTML=''"
+                       class="btn-primary px-4 py-2 rounded-full text-sm">
+                        Voir les chambres
+                    </a>
+                    <button onclick="document.getElementById('modal').innerHTML=''" class="px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-on-surface transition-colors">
+                        Fermer
+                    </button>
+                </div>
+            </div>
+        {% else %}
+            <form method="post" enctype="multipart/form-data"
+                  hx-post="{% url 'hotel:ajouter_unite' %}"
+                  hx-target="#modal" hx-swap="innerHTML"
+                  class="space-y-4">
+                {% csrf_token %}
+
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface-variant mb-1">Code/Numéro *</label>
+                        <input type="text" name="code" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5" required placeholder="Ex: 101">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface-variant mb-1">Nom *</label>
+                        <input type="text" name="nom" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5" required placeholder="Ex: Chambre Double Supérieure">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface-variant mb-1">Type *</label>
+                        <select name="type_unite" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5" required>
+                            {% for val, label in type_choices %}
+                            <option value="{{ val }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface-variant mb-1">Capacité (personnes)</label>
+                        <input type="number" name="capacite" value="1" min="1" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface-variant mb-1">Surface (m²) - Optionnel</label>
+                        <input type="number" step="0.1" name="surface_m2" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-on-surface-variant mb-1">Image</label>
+                        <input type="file" name="image" class="w-full rounded-lg border-outline/30 bg-surface text-sm p-2 file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-on-surface-variant mb-1">Équipements</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        {% for eq in equipements_list %}
+                        <label class="flex items-center space-x-2 text-sm bg-surface p-2 rounded-lg border border-outline/20">
+                            <input type="checkbox" name="equipements" value="{{ eq }}" class="rounded text-primary focus:ring-primary border-outline/30">
+                            <span>{{ eq }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-on-surface-variant mb-1">Description</label>
+                    <textarea name="description" rows="3" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5"></textarea>
+                </div>
+
+                <div class="pt-4 flex justify-end gap-3 border-t border-outline/10">
+                    <button type="button" onclick="document.getElementById('modal').innerHTML=''" class="px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-on-surface">Annuler</button>
+                    <button type="submit" class="btn-primary flex items-center gap-2">
+                        <i class="fas fa-save"></i> Enregistrer
+                    </button>
+                </div>
+            </form>
+        {% endif %}
+    </div>
+</div>

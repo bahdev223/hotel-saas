@@ -52,6 +52,8 @@ def detail_sejour(request, sejour_id):
 def check_in(request):
     etablissement = obtenir_etablissement_actuel()
 
+    est_dialogue = request.headers.get("HX-Target") == "modal"
+
     if request.method == "POST":
         client_id = request.POST.get("client")
         chambre_id = request.POST.get("chambre")
@@ -69,6 +71,8 @@ def check_in(request):
                     notes=notes,
                 )
                 messages.success(request, f"Check-in effectué pour {len(sejours)} chambre(s).")
+                if est_dialogue:
+                    return render(request, "hotel/sejours/_dialog_check_in.html", {"succes": True})
             else:
                 client = Client.objects.get(id=client_id)
                 chambre = UniteModel.objects.get(id=chambre_id)
@@ -82,6 +86,8 @@ def check_in(request):
                     notes=notes,
                 )
                 messages.success(request, f"Check-in direct pour {sejour.code}.")
+                if est_dialogue:
+                    return render(request, "hotel/sejours/_dialog_check_in.html", {"succes": True, "sejour": sejour})
             return redirect("hotel:liste_sejours")
         except Exception as e:
             messages.error(request, f"Erreur : {e}")
@@ -98,22 +104,28 @@ def check_in(request):
 
     chambres_disponibles = DisponibiliteService.chambres_disponibles(
         etablissement=etablissement,
-        date_arrivee=date_arrivee,
-        date_depart=date_depart,
+        date_debut=date_arrivee,
+        date_fin=date_depart,
     )
+    
+    types_chambres = TypeChambre.objects.filter(actif=True)
 
     context = {
-        "reservations": reservations_confirmees,
-        "chambres": chambres_disponibles,
-        "types_chambres": TypeChambre.objects.filter(actif=True),
         "clients": Client.objects.filter(statut="ACTIF").order_by("nom"),
+        "chambres_disponibles": chambres_disponibles,
+        "reservations_confirmees": reservations_confirmees,
+        "types_chambres": types_chambres,
     }
+    
+    if est_dialogue:
+        return render(request, "hotel/sejours/_dialog_check_in.html", context)
     return render(request, "hotel/sejours/check_in.html", context)
 
 
 @login_required
 def check_out(request, sejour_id):
     sejour = get_object_or_404(Sejour.objects.select_related("chambre", "client"), id=sejour_id)
+    est_dialogue = request.headers.get("HX-Target") == "modal"
 
     if request.method == "POST":
         notes = request.POST.get("notes", "")
@@ -124,6 +136,8 @@ def check_out(request, sejour_id):
                 notes=notes,
             )
             messages.success(request, f"Check-out effectué pour {sejour.code}.")
+            if est_dialogue:
+                return render(request, "hotel/sejours/_dialog_check_out.html", {"succes": True, "sejour": sejour})
             return redirect("hotel:detail_sejour", sejour_id=sejour.id)
         except Exception as e:
             messages.error(request, f"Erreur : {e}")
@@ -135,6 +149,8 @@ def check_out(request, sejour_id):
             actif=True
         ),
     }
+    if est_dialogue:
+        return render(request, "hotel/sejours/_dialog_check_out.html", context)
     return render(request, "hotel/sejours/check_out.html", context)
 
 

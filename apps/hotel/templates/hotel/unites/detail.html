@@ -27,7 +27,7 @@
             </div>
             <div class="p-4 space-y-3">
                 <div class="flex gap-2">
-                    <a href="{% url 'hotel:modifier_unite' unite.id %}" class="flex-1 btn-md3-primary text-center text-sm py-2 rounded-lg"><i class="fas fa-edit mr-1"></i>Modifier</a>
+                    <button hx-get="{% url 'hotel:modifier_unite' unite.id %}" hx-target="#modal" class="flex-1 btn-primary text-center text-sm py-2 rounded-lg cursor-pointer"><i class="fas fa-edit mr-1"></i>Modifier</button>
                 </div>
                 <form method="post" action="{% url 'hotel:changer_statut_unite' unite.id %}">
                     {% csrf_token %}

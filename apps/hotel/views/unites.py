@@ -53,6 +53,8 @@ def detail_unite(request, unite_id):
 @login_required
 def ajouter_unite(request):
     """Ajouter une unité"""
+    est_dialogue = request.headers.get("HX-Target") == "modal"
+    
     if request.method == 'POST':
         try:
             unite = UniteModel.objects.create(
@@ -69,6 +71,8 @@ def ajouter_unite(request):
                 unite.image = request.FILES['image']
                 unite.save()
             messages.success(request, f'{unite.nom} ({unite.code}) créée')
+            if est_dialogue:
+                return render(request, 'hotel/unites/_dialog_ajouter.html', {'succes': True, 'unite': unite})
             return redirect('hotel:detail_unite', unite_id=unite.id)
         except Exception as e:
             messages.error(request, f'Erreur: {str(e)}')
@@ -77,6 +81,8 @@ def ajouter_unite(request):
         'type_choices': [('CHAMBRE', 'Standard'), ('VIP', 'VIP')],
         'equipements_list': EQUIPEMENTS_LIST,
     }
+    if est_dialogue:
+        return render(request, 'hotel/unites/_dialog_ajouter.html', context)
     return render(request, 'hotel/unites/ajouter.html', context)
 
 
@@ -84,6 +90,7 @@ def ajouter_unite(request):
 def modifier_unite(request, unite_id):
     """Modifier une unité"""
     unite = get_object_or_404(UniteModel, id=unite_id)
+    est_dialogue = request.headers.get("HX-Target") == "modal"
     
     if request.method == 'POST':
         try:
@@ -100,6 +107,8 @@ def modifier_unite(request, unite_id):
                 unite.image = request.FILES['image']
             unite.save()
             messages.success(request, f'{unite.nom} modifiée')
+            if est_dialogue:
+                return render(request, 'hotel/unites/_dialog_modifier.html', {'succes': True, 'unite': unite})
             return redirect('hotel:detail_unite', unite_id=unite.id)
         except Exception as e:
             messages.error(request, f'Erreur: {str(e)}')
@@ -109,6 +118,8 @@ def modifier_unite(request, unite_id):
         'type_choices': [('CHAMBRE', 'Standard'), ('VIP', 'VIP')],
         'equipements_list': EQUIPEMENTS_LIST,
     }
+    if est_dialogue:
+        return render(request, 'hotel/unites/_dialog_modifier.html', context)
     return render(request, 'hotel/unites/modifier.html', context)
 
 

@@ -4,7 +4,8 @@
 {% block title %}Dashboard — Restaurant{% endblock %}
 
 {% block content %}
-<div x-data="dashboardApp()" x-init="init()" class="space-y-5">
+{% include "partials/page_config.html" %}
+<div x-data="dashboardApp()" class="space-y-5">
 
     <!-- KPIs -->
     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
@@ -46,13 +47,16 @@
     </div>
 
     <div class="card-md3 p-5">
-        <h3 class="text-sm font-semibold text-on-surface mb-4"><i class="fas fa-chart-bar text-secondary mr-1.5"></i>Chiffre d'affaires — 7 derniers jours</h3>
+        <div class="flex items-center justify-between mb-4">
+            <h3 class="text-sm font-semibold text-on-surface"><i class="fas fa-chart-bar text-secondary mr-1.5"></i>Chiffre d'affaires — 7 derniers jours</h3>
+            <span x-show="lastUpdate" class="text-[10px] text-on-surface-variant" x-text="'Mis à jour: ' + lastUpdateStr"></span>
+        </div>
         <div class="flex items-end gap-2 h-32">
             <template x-for="(jour, i) in d.ca_7jours" :key="i">
                 <div class="flex-1 flex flex-col items-center gap-1">
                     <div class="w-full rounded-t-md transition-all duration-500 relative group"
                          :style="'height: ' + maxBarH(jour.total) + 'px'"
-                         :class="i === d.ca_7jours?.length - 1 ? 'bg-secondary' : 'bg-secondary/40'">
+                         :class="barClass(i)">
                         <div class="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] font-mono text-secondary whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity" x-text="formatMoney(jour.total) + ' F'"></div>
                     </div>
                     <span class="text-[9px] text-on-surface-variant truncate w-full text-center" x-text="jour.date.split(' ').pop()"></span>
@@ -127,28 +131,34 @@
         </div>
     </div>
 
-    <!-- Loading -->
-    <div x-show="!d" class="text-center py-20 text-on-surface-variant">
-        <i class="fas fa-spinner fa-spin text-2xl block mb-2"></i>
-        <span class="text-sm">Chargement du tableau de bord...</span>
+    <!-- Error -->
+    <div x-show="error" class="card-md3 p-5 border border-red-900/30 bg-red-900/10">
+        <div class="flex items-center gap-3 text-sm">
+            <i class="fas fa-exclamation-circle text-red-400"></i>
+            <span class="text-red-300">Erreur de chargement. <button @click="load()" class="underline hover:no-underline font-medium">Réessayer</button></span>
+        </div>
+    </div>
+
+    <!-- Loading skeleton -->
+    <div x-show="!d && !error" class="space-y-4">
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+            <template x-for="i in 5" :key="i">
+                <div class="card-md3 p-4 animate-pulse">
+                    <div class="h-3 bg-surface-container-higher rounded w-2/3 mb-3"></div>
+                    <div class="h-5 bg-surface-container-higher rounded w-1/2"></div>
+                </div>
+            </template>
+        </div>
+        <div class="card-md3 p-5 animate-pulse">
+            <div class="h-4 bg-surface-container-higher rounded w-1/4 mb-6"></div>
+            <div class="flex items-end gap-2 h-32">
+                <template x-for="i in 7" :key="i">
+                    <div class="flex-1 bg-surface-container-higher rounded-t-md" :style="'height: ' + (30 + Math.random() * 80) + 'px'"></div>
+                </template>
+            </div>
+        </div>
     </div>
 </div>
 
-<script>
-function dashboardApp() {
-    return {
-        d: null,
-        async init() {
-            const r = await fetch('/restaurant/api/dashboard/');
-            const data = await r.json();
-            if (data) this.d = data;
-        },
-        maxBarH(total) {
-            const max = Math.max(...(this.d?.ca_7jours || []).map(j => j.total), 1);
-            return Math.max((total / max) * 110, 4);
-        },
-        formatMoney(v) { return new Intl.NumberFormat('fr-FR').format(v || 0); },
-    }
-}
-</script>
+{% include "partials/js_module.html" with module="js/restaurant/dashboard.js" %}
 {% endblock %}

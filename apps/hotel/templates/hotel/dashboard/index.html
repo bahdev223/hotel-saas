@@ -1,254 +1,566 @@
-{% extends 'hotel/base_hotel.html' %}
-{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ERP Hôtelier · Tableau de bord</title>
 
-{% block title %}Hôtel - Dashboard{% endblock %}
+  <!-- Tailwind + config -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            // Palais raffiné – tons neutres chauds + or discret
+            surface: '#faf8f4',
+            'surface-dim': '#f0ece3',
+            'surface-container': '#f6f2ea',
+            'surface-container-high': '#ece7dd',
+            'surface-container-highest': '#e3ddcf',
+            'on-surface': '#1e1b1a',
+            'on-surface-variant': '#5f5b56',
+            primary: '#b8862c',       // or élégant
+            'primary-container': '#f2ebd3',
+            'on-primary': '#ffffff',
+            secondary: '#a6792a',
+            error: '#b33c3c',
+            'error-container': '#fbe9e9',
+            outline: '#d6cfc0',
+            background: '#faf8f4',
+            'neutral-soft': '#efebe3',
+          },
+          fontFamily: {
+            sans: ['"Hanken Grotesk"', 'system-ui', 'sans-serif'],
+          },
+          borderRadius: {
+            'xl': '1rem',
+            '2xl': '1.25rem',
+          },
+          boxShadow: {
+            'soft': '0 8px 24px -6px rgba(0,0,0,0.04), 0 2px 6px rgba(0,0,0,0.02)',
+            'card': '0 4px 16px -6px rgba(0,0,0,0.05)',
+            'hover': '0 12px 28px -8px rgba(0,0,0,0.08)',
+          }
+        }
+      }
+    }
+  </script>
 
-{% block header %}🏨 Hôtel{% endblock %}
-{% block subtitle %}Vue d'ensemble et gestion des réservations{% endblock %}
+  <!-- Font Awesome 6 -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
 
-{% block content %}
-<div x-data="hotelDashboard()" x-init="init()" class="space-y-6">
+  <!-- HTMX + Alpine -->
+  <script defer src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
 
-    <!-- ========== DASHBOARD KPIs ========== -->
-    <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <div class="stat-card p-5">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400">Taux d'occupation</p>
-                    <p class="text-2xl font-bold text-secondary mt-1">{{ taux_occupation }}%</p>
-                </div>
-                <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
-            </div>
-        </div>
-        <div class="stat-card p-5">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400">Disponibles</p>
-                    <p class="text-2xl font-bold text-green-400 mt-1">{{ unites_disponibles }} / {{ total_unites }}</p>
-                </div>
-                <div class="stat-icon"><i class="fas fa-door-open"></i></div>
-            </div>
-        </div>
-        <div class="stat-card p-5">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400">CA du mois</p>
-                    <p class="text-2xl font-bold text-green-400 mt-1" x-text="formatMoney({{ ca_mois }}) + ' F'"></p>
-                </div>
-                <div class="stat-icon"><i class="fas fa-money-bill-wave"></i></div>
-            </div>
-        </div>
-        <div class="stat-card p-5">
-            <div class="flex items-center justify-between">
-                <div>
-                    <p class="text-sm text-gray-400">Réservations en cours</p>
-                    <p class="text-2xl font-bold text-blue-400 mt-1">{{ reservations_en_cours }}</p>
-                </div>
-                <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
-            </div>
-        </div>
-    </div>
+  <!-- Google Font (Hanken Grotesk) -->
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
-    <!-- Ligne 2 : Arrivées/Départs + Navigation -->
-    <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div class="stat-card p-5">
-            <p class="text-xs uppercase tracking-wider text-gray-400 mb-3">📅 Aujourd'hui</p>
-            <div class="flex gap-6">
-                <div><p class="text-sm text-gray-400">Arrivées</p><p class="text-xl font-bold text-green-400">{{ arrivees_aujourdhui }}</p></div>
-                <div><p class="text-sm text-gray-400">Départs</p><p class="text-xl font-bold text-orange-400">{{ departs_aujourdhui }}</p></div>
-            </div>
-        </div>
-        <div class="stat-card p-5">
-            <p class="text-xs uppercase tracking-wider text-gray-400 mb-3">⚠️ Alertes</p>
-            {% if unites_disponibles < 3 %}
-            <div class="flex items-center gap-2 text-sm text-warning">
-                <i class="fas fa-exclamation-triangle"></i>
-                <span>Plus que {{ unites_disponibles }} chambre(s) dispo</span>
-            </div>
-            {% else %}
-            <div class="flex items-center gap-2 text-sm text-green-400">
-                <i class="fas fa-check-circle"></i><span>Tout est OK</span>
-            </div>
-            {% endif %}
-        </div>
-        <div class="stat-card p-5 flex items-center justify-between">
-            <div>
-                <p class="text-xs uppercase tracking-wider text-gray-400">Accès rapide</p>
-                <div class="flex gap-2 mt-3">
-                    <a href="{% url 'hotel:liste_unites' %}" class="inline-block px-3 py-2 bg-surface-container-high rounded-lg text-xs hover:bg-secondary/20 transition">
-                        <i class="fas fa-door-open mr-1"></i>Chambres
-                    </a>
-                </div>
-            </div>
-        </div>
-    </div>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
-    <!-- Graphique CA 30j -->
-    <div class="bg-surface-container-low rounded-xl shadow-md p-6">
-        <h3 class="font-semibold text-on-surface mb-4">
-            <i class="fas fa-chart-line mr-2 text-secondary"></i>Évolution du CA (30 jours)
-        </h3>
-        <canvas id="caChart" height="80"></canvas>
-    </div>
-
-    <!-- ========== RÉSERVATIONS & SÉJOURS ========== -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Réservations Récentes -->
-        <div class="bg-surface-container-low rounded-xl shadow-md overflow-hidden">
-            <div class="px-6 py-4 border-b border-outline/10 flex justify-between items-center">
-                <h3 class="font-semibold text-on-surface"><i class="fas fa-calendar-check text-secondary mr-2"></i>Dernières Réservations</h3>
-                <a href="{% url 'hotel:ajouter_reservation' %}" class="btn-md3-primary px-3 py-2 text-sm rounded-lg">
-                    <i class="fas fa-plus mr-1"></i>Nouvelle
-                </a>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bg-surface-container-high border-b border-outline/10">
-                        <tr>
-                            <th class="px-4 py-3 text-left font-medium">Code</th>
-                            <th class="px-4 py-3 text-left font-medium">Client</th>
-                            <th class="px-4 py-3 text-left font-medium">Arrivée</th>
-                            <th class="px-4 py-3 text-center font-medium">Statut</th>
-                            <th class="px-4 py-3 text-right font-medium">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-outline/10">
-                        {% for r in dernieres_reservations %}
-                        <tr class="hover:bg-surface-container-low transition-colors">
-                            <td class="px-4 py-3 font-mono text-on-surface">{{ r.code }}</td>
-                            <td class="px-4 py-3 text-on-surface">{{ r.client.nom_complet }}</td>
-                            <td class="px-4 py-3 text-on-surface">{{ r.date_arrivee_prevue|date:"d/m/Y H:i" }}</td>
-                            <td class="px-4 py-3 text-center">
-                                <span class="rounded-full px-2 py-1 text-[10px] font-medium
-                                    {% if r.statut == 'CONFIRMEE' %}bg-green-900/30 text-green-300
-                                    {% elif r.statut == 'ANNULEE' %}bg-red-900/30 text-red-300
-                                    {% else %}bg-surface-container-high text-on-surface-variant{% endif %}">
-                                    {{ r.get_statut_display }}
-                                </span>
-                            </td>
-                            <td class="px-4 py-3 text-right">
-                                <a href="{% url 'hotel:detail_reservation' r.id %}" class="text-secondary hover:underline"><i class="fas fa-eye"></i></a>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="5" class="px-4 py-8 text-center text-on-surface-variant">Aucune réservation récente</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- Séjours en cours -->
-        <div class="bg-surface-container-low rounded-xl shadow-md overflow-hidden">
-            <div class="px-6 py-4 border-b border-outline/10 flex justify-between items-center">
-                <h3 class="font-semibold text-on-surface"><i class="fas fa-bed text-secondary mr-2"></i>Séjours Actifs</h3>
-                <a href="{% url 'hotel:check_in' %}" class="btn-md3-primary px-3 py-2 text-sm rounded-lg">
-                    <i class="fas fa-sign-in-alt mr-1"></i>Check-in
-                </a>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bg-surface-container-high border-b border-outline/10">
-                        <tr>
-                            <th class="px-4 py-3 text-left font-medium">Chambre</th>
-                            <th class="px-4 py-3 text-left font-medium">Client</th>
-                            <th class="px-4 py-3 text-left font-medium">Arrivée</th>
-                            <th class="px-4 py-3 text-center font-medium">Statut</th>
-                            <th class="px-4 py-3 text-right font-medium">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-outline/10">
-                        {% for s in sejours_actifs %}
-                        <tr class="hover:bg-surface-container-low transition-colors">
-                            <td class="px-4 py-3 font-mono text-on-surface">{{ s.chambre.code }}</td>
-                            <td class="px-4 py-3 text-on-surface">{{ s.client.nom_complet }}</td>
-                            <td class="px-4 py-3 text-on-surface">{{ s.date_arrivee|date:"d/m/Y H:i" }}</td>
-                            <td class="px-4 py-3 text-center">
-                                <span class="rounded-full px-2 py-1 text-[10px] font-medium bg-blue-900/30 text-blue-300">
-                                    {{ s.get_statut_display }}
-                                </span>
-                            </td>
-                            <td class="px-4 py-3 text-right">
-                                <a href="{% url 'hotel:detail_sejour' s.id %}" class="text-secondary hover:underline"><i class="fas fa-eye"></i></a>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="5" class="px-4 py-8 text-center text-on-surface-variant">Aucun séjour actif</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-</div>
-
-<style>
+  <style>
+    /* Utilitaires & transitions */
     [x-cloak] { display: none !important; }
-    .stat-card { background: var(--surface-container-low, #1c1b1b); border: 1px solid rgba(142, 145, 146, 0.1); border-radius: 16px; transition: all 0.2s ease; }
-    .stat-card:hover { background: #20201f; border-color: #e3c282; transform: translateY(-2px); box-shadow: 0 12px 24px -8px rgba(0,0,0,0.3); }
-    .stat-icon { width: 48px; height: 48px; border-radius: 16px; display: flex; align-items: center; justify-content: center; background: rgba(227, 194, 130, 0.1); }
-    .stat-icon i { color: #e3c282; font-size: 22px; }
-</style>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-<script>
-function hotelDashboard() {
-    return {
+    .stat-card {
+      background: #ffffff;
+      border: 1px solid #e7e0d4;
+      border-radius: 1.25rem;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+    }
+    .stat-card:hover {
+      border-color: #b8862c;
+      transform: translateY(-3px);
+      box-shadow: 0 16px 32px -12px rgba(0,0,0,0.08);
+      background: #fdfcfa;
+    }
+
+    .stat-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(184, 134, 44, 0.08);
+    }
+    .stat-icon i {
+      color: #b8862c;
+      font-size: 20px;
+    }
+
+    .btn-primary {
+      background: #b8862c;
+      color: white;
+      padding: 0.5rem 1rem;
+      border-radius: 9999px;
+      font-weight: 600;
+      transition: all 0.15s ease;
+      box-shadow: 0 2px 6px rgba(184, 134, 44, 0.15);
+    }
+    .btn-primary:hover {
+      background: #a07024;
+      box-shadow: 0 8px 16px -6px rgba(184, 134, 44, 0.25);
+      transform: scale(0.97);
+    }
+    .btn-primary:active { transform: scale(0.95); }
+
+    .badge-arrivee { background: #e6f4ea; color: #1e7b4a; }
+    .badge-depart { background: #fef3e6; color: #b45a1c; }
+    .badge-actif { background: #e8edf9; color: #1f4e8c; }
+
+    /* barre de progression htmx */
+    .htmx-indicator {
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+    .htmx-request.htmx-indicator,
+    .htmx-request .htmx-indicator {
+      opacity: 1;
+    }
+    #htmx-progress-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      width: 100%;
+      z-index: 9999;
+      background: linear-gradient(90deg, #b8862c, #e3b45a, #b8862c);
+      background-size: 200% 100%;
+      animation: progressSlide 1.2s linear infinite;
+    }
+    @keyframes progressSlide {
+      0% { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    .table-modern thead th {
+      font-weight: 600;
+      font-size: 0.7rem;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      color: #5f5b56;
+      padding: 0.75rem 1rem;
+      background: #f4f0e9;
+      border-bottom: 1px solid #e3ddcf;
+    }
+    .table-modern tbody td {
+      padding: 0.75rem 1rem;
+      border-bottom: 1px solid #eee9e0;
+      color: #1e1b1a;
+      font-size: 0.9rem;
+    }
+    .table-modern tbody tr:hover {
+      background: #faf8f4;
+    }
+
+    .scrollable-tab {
+      scrollbar-width: thin;
+      scrollbar-color: #d6cfc0 #f0ece3;
+    }
+    .scrollable-tab::-webkit-scrollbar { height: 4px; }
+    .scrollable-tab::-webkit-scrollbar-track { background: #f0ece3; border-radius: 12px; }
+    .scrollable-tab::-webkit-scrollbar-thumb { background: #d6cfc0; border-radius: 12px; }
+  </style>
+</head>
+
+<body class="bg-background text-on-surface font-sans antialiased">
+
+  <!-- ========== TOASTS ========== -->
+  <div x-data
+       class="fixed top-4 right-4 z-[100] flex flex-col gap-2 max-w-sm pointer-events-none">
+    <template x-for="(t, i) in $store.toast.items" :key="i">
+      <div x-show="t.show"
+           x-transition:enter="transition ease-out duration-300"
+           x-transition:enter-start="translate-x-full opacity-0"
+           x-transition:leave="transition ease-in duration-200"
+           x-transition:leave-start="translate-x-0 opacity-100"
+           x-transition:leave-end="translate-x-full opacity-0"
+           class="pointer-events-auto flex items-center gap-3 rounded-xl p-4 border-l-4 shadow-lg text-sm backdrop-blur-sm bg-white/95"
+           :class="t.color">
+        <i class="fas" :class="t.icon"></i>
+        <span x-text="t.message"></span>
+      </div>
+    </template>
+  </div>
+
+  <script>
+    document.addEventListener('alpine:init', () => {
+      Alpine.store('toast', { items: [] });
+    });
+    window.notify = function(message, type = 'success', duration = 4000) {
+      const map = {
+        success: { icon: 'fa-check-circle', color: 'border-green-500 text-green-800' },
+        error:   { icon: 'fa-exclamation-circle', color: 'border-red-500 text-red-800' },
+        warning: { icon: 'fa-exclamation-triangle', color: 'border-orange-500 text-orange-800' },
+        info:    { icon: 'fa-info-circle', color: 'border-blue-500 text-blue-800' },
+      };
+      const c = map[type] || map.info;
+      const store = Alpine.store('toast');
+      const toast = { ...c, message, show: true };
+      store.items.push(toast);
+      setTimeout(() => {
+        toast.show = false;
+        setTimeout(() => { store.items = store.items.filter(t => t !== toast); }, 300);
+      }, duration);
+    };
+  </script>
+
+  <!-- ========== TOP NAV ========== -->
+  <nav class="bg-white/90 backdrop-blur-sm border-b border-outline/30 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <!-- Logo -->
+        <a href="/" class="flex items-center gap-3 hover:opacity-80 transition">
+          <div class="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+            <span class="text-primary font-bold text-lg">H</span>
+          </div>
+          <span class="text-lg font-bold tracking-tight text-on-surface">ERP·Hôtel</span>
+        </a>
+
+        <!-- Actions droite -->
+        <div class="flex items-center gap-2">
+          <a href="/pos/planning/" class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-primary/10 text-on-surface-variant hover:text-primary transition" title="Planning">
+            <i class="far fa-calendar-alt text-sm"></i>
+          </a>
+
+          <!-- Cloche notifications -->
+          <div x-data="notificationBell()" x-init="init()" class="relative">
+            <button @click="toggle()" class="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-primary/10 text-on-surface-variant hover:text-primary transition" title="Alertes stock">
+              <i class="far fa-bell text-sm"></i>
+              <span x-show="count > 0" x-text="count" class="absolute -top-0.5 -right-0.5 bg-error text-white text-[9px] font-bold rounded-full min-w-[16px] h-4 flex items-center justify-center px-1">0</span>
+            </button>
+            <div x-show="open" @click.outside="open = false" x-cloak class="absolute right-0 mt-2 w-72 bg-white border border-outline/30 rounded-2xl shadow-xl z-50 max-h-96 overflow-y-auto">
+              <div class="p-3 border-b border-outline/20 sticky top-0 bg-white/90 backdrop-blur-sm">
+                <span class="text-sm font-semibold text-on-surface">Alertes stock</span>
+              </div>
+              <template x-if="items.length === 0">
+                <div class="p-6 text-sm text-on-surface-variant text-center">✅ Tout est en ordre</div>
+              </template>
+              <template x-for="item in items" :key="item.produit_id">
+                <a :href="'/stock/produits/' + item.produit_id + '/'" class="flex items-center gap-3 p-3 hover:bg-neutral-50 transition border-b border-outline/10">
+                  <div class="w-8 h-8 rounded-full flex items-center justify-center" :class="item.type === 'Rupture' ? 'bg-red-100' : 'bg-orange-100'">
+                    <i class="fas fa-exclamation-triangle text-xs" :class="item.type === 'Rupture' ? 'text-red-600' : 'text-orange-600'"></i>
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <p class="text-sm font-medium text-on-surface truncate" x-text="item.produit_nom"></p>
+                    <p class="text-xs text-on-surface-variant" x-text="'Stock: ' + item.quantite + ' / Seuil: ' + item.seuil"></p>
+                  </div>
+                  <span class="text-xs font-medium" :class="item.type === 'Rupture' ? 'text-red-600' : 'text-orange-600'" x-text="item.type"></span>
+                </a>
+              </template>
+            </div>
+          </div>
+
+          <a href="/entreprises/configuration/" class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-primary/10 text-on-surface-variant hover:text-primary transition" title="Paramètres">
+            <i class="far fa-cog text-sm"></i>
+          </a>
+          <a href="/auth/profil/" class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-primary/10 text-on-surface-variant hover:text-primary transition" title="Profil">
+            <i class="far fa-user text-sm"></i>
+          </a>
+          <a href="/auth/logout/" class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-error/10 text-on-surface-variant hover:text-error transition" title="Déconnexion">
+            <i class="fas fa-sign-out-alt text-sm"></i>
+          </a>
+        </div>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ========== BARRE HTMX ========== -->
+  <div id="htmx-progress-bar" class="htmx-indicator"></div>
+
+  <!-- ========== CONTENU PRINCIPAL (boost HTMX) ========== -->
+  <div id="page-region" hx-boost="true" hx-target="#page-region" hx-select="#page-region" hx-swap="outerHTML" hx-indicator="#htmx-progress-bar">
+
+    <!-- Navigation secondaire -->
+    <nav class="bg-white/60 backdrop-blur-sm border-b border-outline/20 overflow-x-auto scrollable-tab">
+      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div class="flex gap-0.5 py-1.5 text-sm">
+          <a href="/hotel/" class="px-4 py-2 rounded-full font-medium text-primary bg-primary/10 hover:bg-primary/15 transition">
+            <i class="fas fa-chart-pie mr-1.5"></i>Dashboard
+          </a>
+          <a href="/hotel/unites/" class="px-4 py-2 rounded-full text-on-surface-variant hover:bg-surface-container-high transition">
+            <i class="fas fa-door-open mr-1.5"></i>Chambres
+          </a>
+          <a href="/hotel/reservations/" class="px-4 py-2 rounded-full text-on-surface-variant hover:bg-surface-container-high transition">
+            <i class="fas fa-calendar-check mr-1.5"></i>Réservations
+          </a>
+          <a href="/hotel/sejours/" class="px-4 py-2 rounded-full text-on-surface-variant hover:bg-surface-container-high transition">
+            <i class="fas fa-bed mr-1.5"></i>Séjours
+          </a>
+        </div>
+      </div>
+    </nav>
+
+    <!-- En-tête -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-1">
+      <div class="flex items-center justify-between">
+        <div>
+          <h1 class="text-2xl font-bold text-on-surface tracking-tight">🏨 Vue d'ensemble</h1>
+          <p class="text-sm text-on-surface-variant">Gestion hôtelière en temps réel</p>
+        </div>
+        <div class="flex gap-2">
+          <button hx-get="/hotel/reservations/ajouter/" hx-target="#modal" class="btn-primary text-sm flex items-center gap-2 cursor-pointer">
+            <i class="fas fa-plus-circle"></i> Réservation
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ========== DASHBOARD ========== -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div x-data="hotelDashboard()" x-init="init()" class="space-y-6">
+
+        <!-- KPIs -->
+        <div class="grid grid-cols-2 gap-4 md:grid-cols-4">
+          <div class="stat-card p-5">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-xs uppercase tracking-wider text-on-surface-variant/70">Occupation</p>
+                <p class="text-2xl font-bold text-on-surface mt-0.5">{{ taux_occupation }}%</p>
+              </div>
+              <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
+            </div>
+          </div>
+          <div class="stat-card p-5">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-xs uppercase tracking-wider text-on-surface-variant/70">Disponibles</p>
+                <p class="text-2xl font-bold text-emerald-600 mt-0.5">{{ unites_disponibles }} / {{ total_unites }}</p>
+              </div>
+              <div class="stat-icon"><i class="fas fa-door-open"></i></div>
+            </div>
+          </div>
+          <div class="stat-card p-5">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-xs uppercase tracking-wider text-on-surface-variant/70">CA mois</p>
+                <p class="text-2xl font-bold text-emerald-600 mt-0.5" x-text="formatMoney('{{ ca_mois|default:0 }}') + ' F'"></p>
+              </div>
+              <div class="stat-icon"><i class="fas fa-coins"></i></div>
+            </div>
+          </div>
+          <div class="stat-card p-5">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-xs uppercase tracking-wider text-on-surface-variant/70">Réservations</p>
+                <p class="text-2xl font-bold text-blue-600 mt-0.5">{{ reservations_en_cours }}</p>
+              </div>
+              <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Ligne 2 : aujourd'hui + alertes + accès -->
+        <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <div class="stat-card p-5 flex items-center justify-between">
+            <div>
+              <p class="text-xs uppercase tracking-wider text-on-surface-variant/60">📅 Aujourd'hui</p>
+              <div class="flex gap-6 mt-2">
+                <div><span class="text-sm text-on-surface-variant">Arrivées</span><p class="text-xl font-bold text-emerald-600">{{ arrivees_aujourdhui }}</p></div>
+                <div><span class="text-sm text-on-surface-variant">Départs</span><p class="text-xl font-bold text-amber-600">{{ departs_aujourdhui }}</p></div>
+              </div>
+            </div>
+            <i class="fas fa-calendar-day text-3xl text-primary/20"></i>
+          </div>
+          <div class="stat-card p-5 flex items-center justify-between">
+            <div>
+              <p class="text-xs uppercase tracking-wider text-on-surface-variant/60">⚠️ Alerte</p>
+              <p class="text-sm mt-1"><i class="fas fa-exclamation-triangle text-amber-500 mr-2"></i> Plus que {{ unites_disponibles }} chambre(s) dispo</p>
+            </div>
+            <i class="fas fa-bell text-3xl text-primary/20"></i>
+          </div>
+          <div class="stat-card p-5 flex items-center justify-between">
+            <div>
+              <p class="text-xs uppercase tracking-wider text-on-surface-variant/60">Accès rapide</p>
+              <div class="flex gap-2 mt-1">
+                <a href="/hotel/unites/" class="px-4 py-1.5 bg-surface-container-high rounded-full text-xs hover:bg-primary/10 transition">Chambres</a>
+                <button hx-get="/hotel/check-in/" hx-target="#modal" class="px-4 py-1.5 bg-primary/10 text-primary rounded-full text-xs hover:bg-primary/20 transition cursor-pointer">Check-in</button>
+              </div>
+            </div>
+            <i class="fas fa-arrow-right text-2xl text-primary/30"></i>
+          </div>
+        </div>
+
+        <!-- Graphique CA -->
+        <div class="bg-white rounded-2xl shadow-soft border border-outline/30 p-6">
+          <div class="flex items-center gap-2 mb-3">
+            <i class="fas fa-chart-simple text-primary"></i>
+            <h3 class="font-semibold text-on-surface">Évolution du CA (30 jours)</h3>
+          </div>
+          <canvas id="caChart" height="70" class="w-full"></canvas>
+        </div>
+
+        <!-- Tableaux : Réservations récentes & Séjours actifs -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <!-- Réservations -->
+          <div class="bg-white rounded-2xl shadow-soft border border-outline/30 overflow-hidden">
+            <div class="px-5 py-4 border-b border-outline/20 flex items-center justify-between">
+              <h3 class="font-semibold"><i class="fas fa-calendar-check text-primary mr-2"></i>Dernières réservations</h3>
+              <button hx-get="/hotel/reservations/ajouter/" hx-target="#modal" class="text-xs font-medium text-primary hover:underline cursor-pointer">+ Nouvelle</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm table-modern">
+                <thead><tr><th>Code</th><th>Client</th><th>Arrivée</th><th class="text-center">Statut</th><th class="text-right">Actions</th></tr></thead>
+                <tbody>
+                  {% for res in dernieres_reservations %}
+                  <tr class="hover:bg-surface-container-low">
+                      <td class="font-medium">{{ res.code }}</td>
+                      <td>{{ res.client.nom_complet }}</td>
+                      <td class="text-xs">{{ res.date_arrivee_prevue|date:"d/m/Y" }}</td>
+                      <td class="text-center">
+                          <span class="px-2 py-0.5 rounded-full text-[10px] font-medium
+                              {% if res.statut == 'CONFIRMEE' %}bg-green-900/30 text-green-300
+                              {% elif res.statut == 'EN_ATTENTE' %}bg-orange-900/30 text-orange-300
+                              {% else %}bg-gray-900/30 text-gray-300{% endif %}">
+                              {{ res.get_statut_display }}
+                          </span>
+                      </td>
+                      <td class="text-right">
+                          <a href="{% url 'hotel:detail_reservation' res.id %}" class="text-primary hover:underline text-xs">Voir</a>
+                      </td>
+                  </tr>
+                  {% empty %}
+                  <tr><td colspan="5" class="text-center text-on-surface-variant/60 py-8">Aucune réservation récente</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Séjours actifs -->
+          <div class="bg-white rounded-2xl shadow-soft border border-outline/30 overflow-hidden">
+            <div class="px-5 py-4 border-b border-outline/20 flex items-center justify-between">
+              <h3 class="font-semibold"><i class="fas fa-bed text-primary mr-2"></i>Séjours actifs</h3>
+              <button hx-get="/hotel/check-in/" hx-target="#modal" class="text-xs font-medium text-primary hover:underline cursor-pointer">Check-in</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm table-modern">
+                <thead><tr><th>Chambre</th><th>Client</th><th>Arrivée</th><th class="text-center">Statut</th><th class="text-right">Actions</th></tr></thead>
+                <tbody>
+                  {% for sejour in sejours_actifs %}
+                  <tr class="hover:bg-surface-container-low">
+                      <td class="font-medium">{{ sejour.chambre.code }}</td>
+                      <td>{{ sejour.client.nom_complet }}</td>
+                      <td class="text-xs">{{ sejour.date_arrivee|date:"d/m/Y" }}</td>
+                      <td class="text-center">
+                          <span class="px-2 py-0.5 rounded-full text-[10px] font-medium
+                              {% if sejour.statut == 'EN_COURS' %}badge-actif
+                              {% elif sejour.statut == 'CHECK_IN' %}badge-arrivee
+                              {% else %}bg-gray-900/30 text-gray-300{% endif %}">
+                              {{ sejour.get_statut_display }}
+                          </span>
+                      </td>
+                      <td class="text-right">
+                          <a href="{% url 'hotel:detail_sejour' sejour.id %}" class="text-primary hover:underline text-xs">Voir</a>
+                      </td>
+                  </tr>
+                  {% empty %}
+                  <tr><td colspan="5" class="text-center text-on-surface-variant/60 py-8">Aucun séjour actif</td></tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="border-t border-outline/20 px-6 py-4 text-center text-xs text-on-surface-variant/50">
+      &copy; 2026 ERP Hôtelier · Solution intégrée de gestion hôtelière
+    </div>
+
+  </div><!-- /page-region -->
+
+  <!-- ========== SCRIPT DASHBOARD ========== -->
+  <script>
+    function hotelDashboard() {
+      return {
         async init() {
-            this.initCaChart();
+          this.initCaChart();
         },
 
-        async requestJson(url, opts = {}) {
-            try { const r = await fetch(url, opts); return r.ok ? await r.json() : { success: false, error: `HTTP ${r.status}` }; }
-            catch(e) { return { success: false, error: e.message }; }
+        async requestJson(url) {
+          try {
+            const r = await fetch(url);
+            return r.ok ? await r.json() : { success: false };
+          } catch { return { success: false }; }
         },
 
-        formatMoney(value) {
-            return Number(value).toLocaleString('fr-FR');
-        },
+        formatMoney(v) { return Number(v).toLocaleString('fr-FR'); },
 
         async initCaChart() {
-            const ctx = document.getElementById('caChart');
-            if (!ctx) return;
+          const canvas = document.getElementById('caChart');
+          if (!canvas) return;
+          // Nettoyer ancien graphique
+          const existing = Chart.getChart(canvas);
+          if (existing) existing.destroy();
 
-            // Detruit toute instance deja attachee a ce canvas (re-navigation,
-            // bfcache, ou re-init Alpine) avant d'en creer une nouvelle.
-            const existing = Chart.getChart(ctx);
-            if (existing) existing.destroy();
+          const res = await this.requestJson('/hotel/api/ca-evolution/');
+          if (!res.success) return;
 
-            const res = await this.requestJson('/hotel/api/ca-evolution/');
-            if (!res.success) return;
-
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: res.labels,
-                    datasets: [{
-                        label: 'CA TTC (F)',
-                        data: res.ca_data,
-                        borderColor: '#10b981',
-                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
-                        borderWidth: 2,
-                        fill: true,
-                        tension: 0.4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: {
-                        y: { beginAtZero: true, grid: { color: 'rgba(142,145,146,0.1)' }, ticks: { color: '#8e9192' } },
-                        x: { grid: { display: false }, ticks: { color: '#8e9192' } }
-                    }
-                }
-            });
+          new Chart(canvas, {
+            type: 'line',
+            data: {
+              labels: res.labels || ['Sem 1', 'Sem 2', 'Sem 3', 'Sem 4'],
+              datasets: [{
+                label: 'CA TTC (F)',
+                data: res.ca_data || [0, 0, 0, 0],
+                borderColor: '#b8862c',
+                backgroundColor: 'rgba(184,134,44,0.06)',
+                borderWidth: 2.5,
+                fill: true,
+                tension: 0.3,
+                pointBackgroundColor: '#b8862c',
+                pointRadius: 2,
+              }]
+            },
+            options: {
+              responsive: true,
+              maintainAspectRatio: false,
+              plugins: { legend: { display: false } },
+              scales: {
+                y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.03)' }, ticks: { color: '#5f5b56' } },
+                x: { grid: { display: false }, ticks: { color: '#5f5b56' } }
+              }
+            }
+          });
         }
+      }
     }
-}
-</script>
-{% endblock %}
+
+    // Notification bell (reprise)
+    function notificationBell() {
+      return {
+        count: 0, items: [], open: false,
+        async init() { await this.load(); setInterval(() => this.load(), 60000); },
+        async load() {
+          try {
+            const r = await fetch('/stock/api/notifications/');
+            if (!r.ok) return;
+            const d = await r.json();
+            if (d.success) { this.count = d.count; this.items = d.items; }
+          } catch(e) {}
+        },
+        toggle() { this.open = !this.open; if (this.open) this.load(); }
+      };
+    }
+  </script>
+    <!-- HTMX Modal Container -->
+    <div id="modal"></div>
+    <style>
+      #modal:empty { display: none; }
+      #modal:not(:empty) {
+          position: fixed; inset: 0; z-index: 60;
+          display: flex; align-items: center; justify-content: center;
+          padding: 1rem;
+          background: rgba(31, 41, 55, 0.5);
+          backdrop-filter: blur(4px);
+      }
+    </style>
+</body>
+</html>

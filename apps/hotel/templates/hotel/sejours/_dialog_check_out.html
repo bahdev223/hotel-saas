@@ -1,0 +1,90 @@
+{% load static %}
+<div @click.self="" class="bg-surface-container rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-outline/10 max-h-[90vh] flex flex-col">
+    <div class="px-6 py-4 border-b border-outline/10 flex justify-between items-center bg-surface-container-low shrink-0">
+        <h3 class="font-semibold text-lg">
+            {% if succes %}
+                <i class="fas fa-check-circle text-secondary mr-2"></i>Check-out effectué
+            {% else %}
+                <i class="fas fa-sign-out-alt text-secondary mr-2"></i>Check-out : {{ sejour.code }}
+            {% endif %}
+        </h3>
+        <button onclick="document.getElementById('modal').innerHTML=''" class="text-on-surface-variant hover:text-on-surface transition-colors">
+            <i class="fas fa-times text-xl"></i>
+        </button>
+    </div>
+
+    <div class="p-6 overflow-y-auto">
+        {% if messages %}
+            <div class="space-y-2 mb-4">
+                {% for message in messages %}
+                    <div class="rounded-lg p-3 border-l-4 text-sm
+                        {% if message.tags == 'success' %}bg-green-50 border-green-500 text-green-800
+                        {% elif message.tags == 'error' %}bg-red-50 border-red-500 text-red-800
+                        {% else %}bg-secondary-container border-secondary text-on-surface{% endif %}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+
+        {% if succes %}
+            <div class="text-center py-6 space-y-4">
+                <div class="w-16 h-16 rounded-full bg-secondary-container mx-auto flex items-center justify-center">
+                    <i class="fas fa-check text-2xl text-secondary"></i>
+                </div>
+                <p class="text-on-surface">Le check-out a été effectué avec succès.</p>
+                <div class="flex gap-3 justify-center pt-2">
+                    <a href="{% url 'hotel:detail_sejour' sejour.id %}"
+                       hx-get="{% url 'hotel:detail_sejour' sejour.id %}"
+                       hx-target="#page-region" hx-select="#page-region" hx-swap="outerHTML"
+                       onclick="document.getElementById('modal').innerHTML=''"
+                       class="btn-primary px-4 py-2 rounded-full text-sm">
+                        Voir les détails du séjour
+                    </a>
+                    <button onclick="document.getElementById('modal').innerHTML=''" class="px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-on-surface transition-colors">
+                        Fermer
+                    </button>
+                </div>
+            </div>
+        {% else %}
+            <form method="post"
+                  hx-post="{% url 'hotel:check_out' sejour.id %}"
+                  hx-target="#modal" hx-swap="innerHTML"
+                  class="space-y-4">
+                {% csrf_token %}
+                <div class="bg-surface-container-high rounded-xl p-4 mb-4 border border-outline/10 text-sm">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <span class="text-on-surface-variant block mb-1">Client</span>
+                            <span class="font-medium">{{ sejour.client.nom_complet }}</span>
+                        </div>
+                        <div>
+                            <span class="text-on-surface-variant block mb-1">Chambre</span>
+                            <span class="font-medium">{{ sejour.chambre.nom }} ({{ sejour.chambre.code }})</span>
+                        </div>
+                        <div>
+                            <span class="text-on-surface-variant block mb-1">Arrivée</span>
+                            <span>{{ sejour.date_arrivee|date:"d M Y H:i" }}</span>
+                        </div>
+                        <div>
+                            <span class="text-on-surface-variant block mb-1">Montant total</span>
+                            <span class="font-medium font-mono text-secondary">{{ sejour.montant_total }} F</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-sm font-medium text-on-surface-variant mb-1">Notes / Raison de départ</label>
+                    <textarea name="notes" rows="2" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5" placeholder="Tout s'est bien passé..."></textarea>
+                </div>
+
+                <div class="pt-4 flex justify-end gap-3 border-t border-outline/10">
+                    <button type="button" onclick="document.getElementById('modal').innerHTML=''" class="px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-on-surface">Annuler</button>
+                    <button type="submit" class="btn-primary flex items-center gap-2">
+                        <i class="fas fa-sign-out-alt"></i> Confirmer Check-out
+                    </button>
+                </div>
+            </form>
+        {% endif %}
+    </div>
+</div>

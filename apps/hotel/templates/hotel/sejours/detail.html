@@ -15,9 +15,9 @@
             </div>
             <div class="flex gap-2">
                 {% if sejour.est_actif %}
-                <a href="{% url 'hotel:check_out' sejour.id %}" class="btn-md3-primary py-1.5 px-3 rounded-lg text-sm">
+                <button hx-get="{% url 'hotel:check_out' sejour.id %}" hx-target="#modal" class="btn-primary py-1.5 px-3 rounded-lg text-sm flex items-center cursor-pointer">
                     <i class="fas fa-sign-out-alt mr-1"></i>Check-out
-                </a>
+                </button>
                 {% endif %}
                 {% if sejour.statut == 'CHECK_OUT' %}
                 <a href="{% url 'hotel:cloturer_sejour' sejour.id %}" class="btn-md3-primary py-1.5 px-3 rounded-lg text-sm bg-green-900/30 text-green-300">

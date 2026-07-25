@@ -32,6 +32,20 @@
 
 {% include "partials/alpine_toast.html" %}
 
+<!-- Conteneur de dialogue generique : rempli via htmx (hx-target="#modal"), -->
+<!-- se referme automatiquement quand il est vide (voir CSS ci-dessous). -->
+<div id="modal"></div>
+<style>
+    #modal:empty { display: none; }
+    #modal:not(:empty) {
+        position: fixed; inset: 0; z-index: 60;
+        display: flex; align-items: center; justify-content: center;
+        padding: 1rem;
+        background: rgba(31, 41, 55, 0.5);
+        backdrop-filter: blur(4px);
+    }
+</style>
+
 <div class="min-h-screen flex flex-col">
 
     <!-- Top Navbar -->
