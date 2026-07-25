@@ -1,5 +1,6 @@
 # apps/restaurant/models/recette.py
 import uuid
+from decimal import Decimal
 from django.db import models
 from apps.stock.models import Produit
 
@@ -57,7 +58,15 @@ class RecetteModel(models.Model):
     temps_preparation_minutes = models.IntegerField(default=0)
     
     rendement_quantite = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, help_text="Quantité produite par la recette (ex: 50 litres de sauce)")
-    rendement_unite = models.CharField(max_length=20, choices=UNITE_CHOICES, null=True, blank=True)
+    
+    rendement_unite_mesure = models.ForeignKey(
+        'stock.UniteMesure',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='recettes_rendement',
+        help_text="Unité de rendement (remplace rendement_unite)"
+    )
     produit_fini = models.ForeignKey(Produit, on_delete=models.SET_NULL, null=True, blank=True, related_name='produit_par_recettes', help_text="Produit fini obtenu après exécution de la recette")
 
     visible_dans_pos = models.BooleanField(default=True)
@@ -76,31 +85,42 @@ class RecetteModel(models.Model):
         ordering = ['ordre_affichage', 'nom']
     
     def __str__(self):
-        return f"{self.nom} ({self.get_type_recette_display()})"
+        return f"{self.code} - {self.nom}"
+
+    @property
+    def rendement_unite(self):
+        return self.rendement_unite_mesure.symbole if self.rendement_unite_mesure else ''
     
+    @property
+    def cout_ingredients(self):
+        return self.cout_revient({})
+
     def cout_revient(self, produits: dict) -> Decimal:
+        from apps.stock.services.conversion_unite_service import ConversionUniteService
+        from django.core.exceptions import ValidationError
+        
         total = Decimal('0')
         for ingredient in self.ingredients.all():
-            if ingredient.type_ingredient == 'DEDUIRE':
-                produit = produits.get(ingredient.produit_id)
-                if not produit:
-                    continue
-                prix = ingredient.cout_unitaire or produit.prix_achat
-            else:
-                if not ingredient.cout_unitaire:
-                    continue
-                prix = ingredient.cout_unitaire
-            
-            if ingredient.quantite and ingredient.quantite > 0:
-                quantite = Decimal(str(ingredient.quantite))
-            else:
-                continue
-            
-            total += quantite * Decimal(str(prix))
+            if ingredient.type_ingredient == 'DEDUIRE' and ingredient.produit:
+                cout_unitaire_base = produits.get(ingredient.produit.code, ingredient.produit.prix_achat)
+                try:
+                    qte_en_base = ConversionUniteService.convertir(
+                        quantite=ingredient.quantite,
+                        unite_source=ingredient.unite_mesure,
+                        unite_dest=ingredient.produit.unite_mesure,
+                        produit=ingredient.produit
+                    )
+                    total += qte_en_base * Decimal(str(cout_unitaire_base))
+                except ValidationError:
+                    total += Decimal(str(ingredient.quantite)) * Decimal(str(cout_unitaire_base))
+            elif ingredient.cout_unitaire:
+                total += Decimal(str(ingredient.quantite)) * ingredient.cout_unitaire
         return total
     
     def consommer_ingredients(self, quantite=1, entrepot=None):
         from apps.stock.services.mouvement_service import MouvementStockService
+        from apps.stock.services.conversion_unite_service import ConversionUniteService
+        from django.core.exceptions import ValidationError
 
         if not entrepot:
             return
@@ -109,7 +129,19 @@ class RecetteModel(models.Model):
             if not ingredient.quantite or ingredient.quantite <= 0 or not ingredient.produit:
                 continue
 
-            quantite_necessaire = ingredient.quantite * Decimal(str(quantite))
+            # On convertit la quantité demandée vers l'unité de base du produit
+            try:
+                qte_ingredient_unite_base = ConversionUniteService.convertir(
+                    quantite=ingredient.quantite,
+                    unite_source=ingredient.unite_mesure,
+                    unite_dest=ingredient.produit.unite_mesure,
+                    produit=ingredient.produit
+                )
+            except ValidationError:
+                qte_ingredient_unite_base = Decimal(str(ingredient.quantite))
+
+            quantite_necessaire = qte_ingredient_unite_base * Decimal(str(quantite))
+            
             MouvementStockService.sortie_stock(
                 produit=ingredient.produit,
                 entrepot=entrepot,
@@ -121,6 +153,8 @@ class RecetteModel(models.Model):
 
     def verifier_disponibilite(self, quantite=1, entrepot=None):
         from apps.stock.models import StockEntrepot
+        from apps.stock.services.conversion_unite_service import ConversionUniteService
+        from django.core.exceptions import ValidationError
 
         manques = []
 
@@ -134,14 +168,25 @@ class RecetteModel(models.Model):
             ).first() if entrepot else None
 
             stock_qte = stock.quantite if stock else Decimal('0')
-            besoin = ingredient.quantite * Decimal(str(quantite))
+            
+            try:
+                qte_ingredient_unite_base = ConversionUniteService.convertir(
+                    quantite=ingredient.quantite,
+                    unite_source=ingredient.unite_mesure,
+                    unite_dest=ingredient.produit.unite_mesure,
+                    produit=ingredient.produit
+                )
+            except ValidationError:
+                qte_ingredient_unite_base = Decimal(str(ingredient.quantite))
+                
+            besoin = qte_ingredient_unite_base * Decimal(str(quantite))
 
             if stock_qte < besoin:
                 manques.append({
                     'produit': ingredient.produit.nom,
                     'disponible': stock_qte,
                     'besoin': besoin,
-                    'unite': ingredient.unite
+                    'unite': ingredient.produit.unite_base
                 })
 
         return {
@@ -167,7 +212,15 @@ class IngredientModel(models.Model):
     nom = models.CharField(max_length=100, blank=True, null=True)
     
     quantite = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, default=0)
-    unite = models.CharField(max_length=20, choices=RecetteModel.UNITE_CHOICES, default='piece')
+    
+    unite_mesure = models.ForeignKey(
+        'stock.UniteMesure',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='ingredients_recette',
+        help_text="Unité de mesure (remplace unite)"
+    )
     cout_unitaire = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     
     class Meta:
@@ -181,6 +234,10 @@ class IngredientModel(models.Model):
                 return f"{self.produit.nom} - {self.quantite} {self.unite}"
             return f"{self.produit.nom} (quantité approximative)"
         return f"{self.nom or 'Ingrédient'} - {self.quantite} {self.unite}"
+
+    @property
+    def unite(self):
+        return self.unite_mesure.symbole if self.unite_mesure else ''
 
 
 class EtapePreparationModel(models.Model):

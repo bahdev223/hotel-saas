@@ -59,4 +59,3 @@ class TestValorisationStock(TestCase):
         )
         self.assertEqual(cout_cump, Decimal('125.00'))
 
-

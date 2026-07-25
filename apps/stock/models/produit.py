@@ -37,7 +37,15 @@ class Produit(models.Model):
         default='MARCHANDISE'
     )
     est_vendable = models.BooleanField(default=False, verbose_name="Visible dans le catalogue")
-    unite_base = models.CharField(max_length=20, choices=UNITE_CHOICES, default='piece')
+    
+    unite_mesure = models.ForeignKey(
+        'stock.UniteMesure', 
+        on_delete=models.PROTECT, 
+        null=True, 
+        blank=True,
+        related_name='produits',
+        help_text="Unité de mesure standard pour ce produit (remplace unite_base)"
+    )
     
     # Prix
     prix_achat = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -74,6 +82,20 @@ class Produit(models.Model):
     
     def __str__(self):
         return f"{self.code} - {self.nom}"
+    
+    @property
+    def unite_base(self):
+        """Compatibilité ascendante avec l'ancien champ texte"""
+        return self.unite_mesure.symbole if self.unite_mesure else ''
+
+    @unite_base.setter
+    def unite_base(self, symbole):
+        """Compatibilité ascendante : résout/crée la UniteMesure correspondante.
+        Ne couvre pas Produit.objects.create(unite_base=...) — Django n'appelle pas
+        les setters de propriété pour les kwargs de création, seule l'affectation
+        directe (produit.unite_base = ...) est couverte ici."""
+        from .unite import UniteMesure
+        self.unite_mesure = UniteMesure.get_or_create_by_symbole(symbole)
     
     @property
     def quantite_stock(self):

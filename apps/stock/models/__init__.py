@@ -11,6 +11,8 @@ from .bon_entree import BonEntree, LigneBonEntree, StatutBonEntree
 from .domaine import Domaine
 from .source_operation import SourceOperation
 from .journal_stock import JournalStock
+from .unite import UniteMesure, ConversionUnite
+from .conditionnement import Conditionnement
 
 
 __all__ = [
@@ -30,4 +32,7 @@ __all__ = [
     'Domaine',
     'SourceOperation',
     'JournalStock',
+    'UniteMesure',
+    'ConversionUnite',
+    'Conditionnement',
 ]
