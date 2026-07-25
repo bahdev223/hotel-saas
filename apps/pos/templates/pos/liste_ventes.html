@@ -1,28 +1,27 @@
-{% extends 'base.html' %}
-{% load static %}
+{% extends 'pos/base_pos.html' %}
 
 {% block title %}Historique des ventes{% endblock %}
 
 {% block content %}
-<div class="max-w-7xl mx-auto py-8 px-4" x-data="historique()" x-init="init()">
+<div x-data="historique()" x-init="init()">
 
     <!-- Header with stats cards -->
     <div class="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 gap-4">
         <div>
             <h1 class="text-2xl font-bold">Historique des ventes</h1>
-            <p class="text-sm text-on-surface-variant">Toutes les transactions validées</p>
+            <p class="text-sm text-on-surface-muted">Toutes les transactions validées</p>
         </div>
         <div class="flex items-center gap-3 text-sm">
-            <span class="bg-surface-container-high px-3 py-1.5 rounded-lg font-medium" x-text="itemsFiltres.length + ' entrée' + (itemsFiltres.length > 1 ? 's' : '')"></span>
+            <span class="bg-surface-soft px-3 py-1.5 rounded-lg font-medium" x-text="itemsFiltres.length + ' entrée' + (itemsFiltres.length > 1 ? 's' : '')"></span>
             <span class="bg-primary/20 text-primary px-3 py-1.5 rounded-lg font-bold text-base" x-text="formatMoney(total) + ' F'"></span>
         </div>
     </div>
 
     <!-- Filtres -->
-    <div class="bg-surface-container-low rounded-xl p-4 mb-6 flex flex-wrap gap-3 items-end border border-outline/10">
+    <div class="card-bro card-bro-static p-4 mb-6 flex flex-wrap gap-3 items-end">
         <div>
-            <label class="label-md3 text-xs text-on-surface-variant">Point de vente</label>
-            <select x-model="filtrePointVente" @change="filtrer()" class="input-md3 rounded-lg text-sm">
+            <label class="text-xs text-on-surface-muted">Point de vente</label>
+            <select x-model="filtrePointVente" @change="filtrer()" class="border border-border rounded-lg text-sm bg-surface-card px-3 py-2">
                 <option value="">Tous</option>
                 {% for pv in points_vente %}
                 <option value="{{ pv.id }}">{{ pv.nom }}</option>
@@ -30,8 +29,8 @@
             </select>
         </div>
         <div>
-            <label class="label-md3 text-xs text-on-surface-variant">Employé</label>
-            <select x-model="filtreEmploye" @change="filtrer()" class="input-md3 rounded-lg text-sm">
+            <label class="text-xs text-on-surface-muted">Employé</label>
+            <select x-model="filtreEmploye" @change="filtrer()" class="border border-border rounded-lg text-sm bg-surface-card px-3 py-2">
                 <option value="">Tous</option>
                 {% for emp in employes %}
                 <option value="{{ emp.id }}">{{ emp.nom_complet }}</option>
@@ -39,24 +38,24 @@
             </select>
         </div>
         <div>
-            <label class="label-md3 text-xs text-on-surface-variant">Du</label>
-            <input type="date" x-model="filtreDateDebut" @change="filtrer()" class="input-md3 rounded-lg text-sm">
+            <label class="text-xs text-on-surface-muted">Du</label>
+            <input type="date" x-model="filtreDateDebut" @change="filtrer()" class="border border-border rounded-lg text-sm bg-surface-card px-3 py-2">
         </div>
         <div>
-            <label class="label-md3 text-xs text-on-surface-variant">Au</label>
-            <input type="date" x-model="filtreDateFin" @change="filtrer()" class="input-md3 rounded-lg text-sm">
+            <label class="text-xs text-on-surface-muted">Au</label>
+            <input type="date" x-model="filtreDateFin" @change="filtrer()" class="border border-border rounded-lg text-sm bg-surface-card px-3 py-2">
         </div>
         <div>
-            <label class="label-md3 text-xs text-on-surface-variant">Heure début</label>
-            <input type="time" x-model="filtreHeureDebut" @change="filtrer()" class="input-md3 rounded-lg text-sm">
+            <label class="text-xs text-on-surface-muted">Heure début</label>
+            <input type="time" x-model="filtreHeureDebut" @change="filtrer()" class="border border-border rounded-lg text-sm bg-surface-card px-3 py-2">
         </div>
         <div>
-            <label class="label-md3 text-xs text-on-surface-variant">Heure fin</label>
-            <input type="time" x-model="filtreHeureFin" @change="filtrer()" class="input-md3 rounded-lg text-sm">
+            <label class="text-xs text-on-surface-muted">Heure fin</label>
+            <input type="time" x-model="filtreHeureFin" @change="filtrer()" class="border border-border rounded-lg text-sm bg-surface-card px-3 py-2">
         </div>
         <div>
-            <label class="label-md3 text-xs text-on-surface-variant">Domaine</label>
-            <select x-model="filtreDomaine" @change="filtrer()" class="input-md3 rounded-lg text-sm">
+            <label class="text-xs text-on-surface-muted">Domaine</label>
+            <select x-model="filtreDomaine" @change="filtrer()" class="border border-border rounded-lg text-sm bg-surface-card px-3 py-2">
                 <option value="">Tous</option>
                 <option value="brasserie">🍺 Brasserie</option>
                 <option value="restaurant">🍽️ Restaurant</option>
@@ -64,8 +63,8 @@
             </select>
         </div>
         <div>
-            <label class="label-md3 text-xs text-on-surface-variant">Session</label>
-            <select x-model="filtreSession" @change="filtrer()" class="input-md3 rounded-lg text-sm max-w-[220px]">
+            <label class="text-xs text-on-surface-muted">Session</label>
+            <select x-model="filtreSession" @change="filtrer()" class="border border-border rounded-lg text-sm bg-surface-card px-3 py-2 max-w-[220px]">
                 <option value="">Toutes</option>
                 {% for s in sessions %}
                 <option value="{{ s.id }}">#{{ s.id }} — {{ s.point_vente.nom|default:"?" }} {{ s.date_ouverture|date:"d/m H:i" }}{% if s.caissier_ouverture %} ({{ s.caissier_ouverture.nom_complet }}){% endif %}</option>
@@ -73,8 +72,8 @@
             </select>
         </div>
         <div>
-            <label class="label-md3 text-xs text-on-surface-variant">Produit</label>
-            <select x-model="filtreProduit" @change="filtrer()" class="input-md3 rounded-lg text-sm max-w-[200px]">
+            <label class="text-xs text-on-surface-muted">Produit</label>
+            <select x-model="filtreProduit" @change="filtrer()" class="border border-border rounded-lg text-sm bg-surface-card px-3 py-2 max-w-[200px]">
                 <option value="">Tous</option>
                 {% for p in produits %}
                 <option value="{{ p.id }}">{{ p.nom }}</option>
@@ -83,54 +82,54 @@
         </div>
         <div class="flex gap-1">
             <button @click="setPeriode('aujourdhui')" class="text-xs px-3 py-2 rounded-lg font-medium transition-colors"
-                    :class="periode === 'aujourdhui' ? 'bg-secondary text-black' : 'bg-surface-container-high hover:bg-surface-container text-on-surface-variant'">Aujourd'hui</button>
+                    :class="periode === 'aujourdhui' ? 'bg-primary text-white' : 'bg-surface-soft hover:bg-surface-soft text-on-surface-muted'">Aujourd'hui</button>
             <button @click="setPeriode('mois')" class="text-xs px-3 py-2 rounded-lg font-medium transition-colors"
-                    :class="periode === 'mois' ? 'bg-secondary text-black' : 'bg-surface-container-high hover:bg-surface-container text-on-surface-variant'">Ce mois</button>
+                    :class="periode === 'mois' ? 'bg-primary text-white' : 'bg-surface-soft hover:bg-surface-soft text-on-surface-muted'">Ce mois</button>
             <button @click="setPeriode('')" class="text-xs px-3 py-2 rounded-lg font-medium transition-colors"
-                    :class="!periode ? 'bg-secondary text-black' : 'bg-surface-container-high hover:bg-surface-container text-on-surface-variant'">Tout</button>
+                    :class="!periode ? 'bg-primary text-white' : 'bg-surface-soft hover:bg-surface-soft text-on-surface-muted'">Tout</button>
         </div>
     </div>
 
     <!-- Tableau -->
-    <div class="bg-surface-container-low rounded-xl shadow-md overflow-hidden border border-outline/10">
+    <div class="card-bro card-bro-static overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-surface-container-high">
-                    <tr class="border-b border-outline/10">
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase tracking-wider">N°</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Date</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Point de vente</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Client</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Caissier</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Montant</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Paiement</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase tracking-wider">Statut</th>
+            <table class="bro-table w-full">
+                <thead>
+                    <tr>
+                        <th>N°</th>
+                        <th>Date</th>
+                        <th>Point de vente</th>
+                        <th>Client</th>
+                        <th>Caissier</th>
+                        <th class="text-right">Montant</th>
+                        <th>Paiement</th>
+                        <th>Statut</th>
                     </tr>
                 </thead>
                 <tbody>
                     <template x-for="item in itemsFiltres" :key="item.id">
-                        <tr class="border-t border-outline/10 hover:bg-surface-container-high/50 transition-colors cursor-pointer" @click="detailVente = item">
-                            <td class="px-4 py-3 font-mono text-sm font-medium" x-text="item.numero"></td>
-                            <td class="px-4 py-3 text-sm whitespace-nowrap" x-text="item.date"></td>
-                            <td class="px-4 py-3 text-sm" x-text="item.point_vente"></td>
-                            <td class="px-4 py-3 text-sm max-w-[160px] truncate" x-text="item.client || '-'"></td>
-                            <td class="px-4 py-3 text-sm" x-text="item.caissier || '-'"></td>
-                            <td class="px-4 py-3 text-right font-semibold" x-text="formatMoney(item.montant) + ' F'"></td>
-                            <td class="px-4 py-3 text-sm" x-text="item.mode_paiement || '-'"></td>
-                            <td class="px-4 py-3">
-                                <span class="px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap"
+                        <tr class="cursor-pointer" @click="detailVente = item">
+                            <td class="font-mono font-medium" x-text="item.numero"></td>
+                            <td class="whitespace-nowrap" x-text="item.date"></td>
+                            <td x-text="item.point_vente"></td>
+                            <td class="max-w-[160px] truncate" x-text="item.client || '-'"></td>
+                            <td x-text="item.caissier || '-'"></td>
+                            <td class="text-right font-semibold" x-text="formatMoney(item.montant) + ' F'"></td>
+                            <td x-text="item.mode_paiement || '-'"></td>
+                            <td>
+                                <span class="badge-bro whitespace-nowrap"
                                       :class="{
-                                        'bg-green-900/30 text-green-400': item.statut_code === 'PAYEE' || item.statut_code === 'SERVIE' || item.statut_code === 'TERMINEE',
-                                        'bg-blue-900/30 text-blue-400': item.statut_code === 'LIVREE',
-                                        'bg-yellow-900/30 text-yellow-400': item.statut_code === 'EN_COURS' || item.statut_code === 'EN_ATTENTE',
-                                        'bg-red-900/30 text-red-400': item.statut_code === 'ANNULEE'
+                                        'bg-emerald-100 text-emerald-800': item.statut_code === 'PAYEE' || item.statut_code === 'SERVIE' || item.statut_code === 'TERMINEE',
+                                        'bg-blue-100 text-blue-800': item.statut_code === 'LIVREE',
+                                        'bg-yellow-100 text-yellow-800': item.statut_code === 'EN_COURS' || item.statut_code === 'EN_ATTENTE',
+                                        'bg-red-100 text-red-800': item.statut_code === 'ANNULEE'
                                       }"
                                       x-text="item.statut"></span>
                             </td>
                         </tr>
                     </template>
                     <tr x-show="!itemsFiltres.length">
-                        <td colspan="8" class="text-center py-12 text-on-surface-variant">
+                        <td colspan="8" class="text-center py-12 text-on-surface-muted">
                             <div class="flex flex-col items-center gap-2">
                                 <svg class="w-10 h-10 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
                                 <span>Aucune vente trouvée</span>
@@ -146,60 +145,60 @@
     <div x-show="detailVente" class="fixed inset-0 z-50 flex items-center justify-center p-4"
          @keydown.escape.window="detailVente = null">
         <div class="fixed inset-0 bg-black/60" @click="detailVente = null"></div>
-        <div class="relative bg-surface-container-low rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-outline/10">
+        <div class="relative bg-surface-card rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto border border-border">
             <template x-if="detailVente">
                 <div class="p-6">
                         <!-- Header modal -->
                         <div class="flex items-center justify-between mb-4">
                             <div>
                                 <h2 class="text-lg font-bold" x-text="'Vente ' + detailVente.numero"></h2>
-                                <p class="text-sm text-on-surface-variant" x-text="detailVente.date"></p>
+                                <p class="text-sm text-on-surface-muted" x-text="detailVente.date"></p>
                             </div>
-                            <button @click="detailVente = null" class="p-2 hover:bg-surface-container-high rounded-xl transition-colors">
+                            <button @click="detailVente = null" class="p-2 hover:bg-surface-soft rounded-xl transition-colors">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
                         </div>
 
                         <!-- Infos vente -->
-                        <div class="bg-surface-container-high rounded-xl p-4 mb-4 space-y-2 text-sm">
+                        <div class="bg-surface-soft rounded-xl p-4 mb-4 space-y-2 text-sm">
                             <div class="flex justify-between">
-                                <span class="text-on-surface-variant">Point de vente</span>
+                                <span class="text-on-surface-muted">Point de vente</span>
                                 <span class="font-medium" x-text="detailVente.point_vente"></span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-on-surface-variant">Client</span>
+                                <span class="text-on-surface-muted">Client</span>
                                 <span class="font-medium" x-text="detailVente.client || '-'"></span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-on-surface-variant">Caissier</span>
+                                <span class="text-on-surface-muted">Caissier</span>
                                 <span class="font-medium" x-text="detailVente.caissier || '-'"></span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-on-surface-variant">Paiement</span>
+                                <span class="text-on-surface-muted">Paiement</span>
                                 <span class="font-medium" x-text="detailVente.mode_paiement || '-'"></span>
                             </div>
                             <div class="flex justify-between">
-                                <span class="text-on-surface-variant">Statut</span>
-                                <span class="px-2 py-0.5 rounded-full text-xs font-medium"
-                                      :class="detailVente.statut_code === 'PAYEE' || detailVente.statut_code === 'SERVIE' || detailVente.statut_code === 'TERMINEE' ? 'bg-green-900/30 text-green-400' : 'bg-yellow-900/30 text-yellow-400'"
+                                <span class="text-on-surface-muted">Statut</span>
+                                <span class="badge-bro"
+                                      :class="detailVente.statut_code === 'PAYEE' || detailVente.statut_code === 'SERVIE' || detailVente.statut_code === 'TERMINEE' ? 'bg-emerald-100 text-emerald-800' : 'bg-yellow-100 text-yellow-800'"
                                       x-text="detailVente.statut"></span>
                             </div>
                         </div>
 
                         <!-- Articles -->
                         <div class="mb-4">
-                            <h3 class="text-sm font-semibold text-on-surface-variant mb-2 flex items-center gap-1.5">
+                            <h3 class="text-sm font-semibold text-on-surface-muted mb-2 flex items-center gap-1.5">
                                 Articles
-                                <span class="text-xs bg-surface-container-high px-2 py-0.5 rounded-full" x-text="detailVente.lignes_count || 0"></span>
+                                <span class="text-xs bg-surface-soft px-2 py-0.5 rounded-full" x-text="detailVente.lignes_count || 0"></span>
                             </h3>
                             <template x-if="detailVente.lignes && detailVente.lignes.length">
                                 <div class="space-y-1">
                                     <template x-for="(ligne, idx) in detailVente.lignes" :key="idx">
-                                        <div class="flex items-center justify-between text-sm py-1.5 px-3 bg-surface-container-high/50 rounded-lg">
+                                        <div class="flex items-center justify-between text-sm py-1.5 px-3 bg-surface-soft/50 rounded-lg">
                                             <div class="flex-1 min-w-0">
                                                 <span class="font-medium truncate block" x-text="ligne.nom"></span>
                                             </div>
-                                            <div class="flex items-center gap-3 text-on-surface-variant flex-shrink-0 ml-3">
+                                            <div class="flex items-center gap-3 text-on-surface-muted flex-shrink-0 ml-3">
                                                 <span x-text="formatMoney(ligne.prix) + ' F'"></span>
                                                 <span class="text-xs">×</span>
                                                 <span x-text="ligne.quantite"></span>
@@ -210,7 +209,7 @@
                                 </div>
                             </template>
                             <template x-if="!detailVente.lignes || !detailVente.lignes.length">
-                                <p class="text-sm text-on-surface-variant italic">Aucun article détaillé</p>
+                                <p class="text-sm text-on-surface-muted italic">Aucun article détaillé</p>
                             </template>
                         </div>
 
@@ -222,11 +221,11 @@
 
                         <!-- Actions -->
                         <div class="flex gap-2">
-                            <button @click="imprimer(detailVente)" class="flex-1 flex items-center justify-center gap-2 bg-surface-container-high hover:bg-surface-container rounded-xl py-3 text-sm font-medium transition-colors">
+                            <button @click="imprimer(detailVente)" class="flex-1 flex items-center justify-center gap-2 bg-surface-soft hover:bg-surface-soft rounded-xl py-3 text-sm font-medium transition-colors">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
                                 Réimprimer le reçu
                             </button>
-                            <button @click="detailVente = null" class="px-6 bg-surface-container-high hover:bg-surface-container rounded-xl py-3 text-sm font-medium transition-colors">
+                            <button @click="detailVente = null" class="px-6 bg-surface-soft hover:bg-surface-soft rounded-xl py-3 text-sm font-medium transition-colors">
                                 Fermer
                             </button>
                         </div>

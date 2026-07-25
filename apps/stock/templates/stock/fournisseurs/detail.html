@@ -1,5 +1,4 @@
 {% extends 'stock/base_stock.html' %}
-{% load static %}
 
 {% block title %}{{ fournisseur.nom }} — Fournisseur{% endblock %}
 
@@ -8,45 +7,45 @@
 
     <!-- Header with back button -->
     <div class="flex items-center gap-4">
-        <a href="{% url 'stock:liste_fournisseurs' %}" class="w-10 h-10 flex items-center justify-center rounded-xl bg-surface-container-high hover:bg-surface-container-highest transition-smooth">
-            <i class="fas fa-arrow-left text-on-surface-variant"></i>
+        <a href="{% url 'stock:liste_fournisseurs' %}" class="w-10 h-10 flex items-center justify-center rounded-xl bg-surface-soft hover:bg-border transition">
+            <i class="fas fa-arrow-left text-on-surface-muted"></i>
         </a>
         <div>
             <h1 class="text-2xl font-bold text-on-surface flex items-center gap-3">
-                <i class="fas fa-truck text-secondary"></i>{{ fournisseur.nom }}
-                <span class="text-sm px-2 py-0.5 rounded-full bg-green-900/30 text-green-300 font-normal">Actif</span>
+                <i class="fas fa-truck text-primary"></i>{{ fournisseur.nom }}
+                <span class="badge-bro bg-emerald-100 text-emerald-700 font-normal">Actif</span>
             </h1>
-            <p class="text-sm text-on-surface-variant">{{ fournisseur.code }} · Créé le {{ fournisseur.created_at|date:"d/m/Y" }}</p>
+            <p class="text-sm text-on-surface-muted">{{ fournisseur.code }} · Créé le {{ fournisseur.created_at|date:"d/m/Y" }}</p>
         </div>
     </div>
 
     <!-- Stats cards -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div class="card-md3 p-5 flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-success/20 flex items-center justify-center text-success text-xl"><i class="fas fa-shopping-cart"></i></div>
+        <div class="card-bro p-5 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 text-xl"><i class="fas fa-shopping-cart"></i></div>
             <div>
-                <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Achats</p>
+                <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">Achats</p>
                 <p class="text-xl font-bold font-mono">{{ total_achats }}</p>
             </div>
         </div>
-        <div class="card-md3 p-5 flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-info/20 flex items-center justify-center text-info text-xl"><i class="fas fa-coins"></i></div>
+        <div class="card-bro p-5 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 text-xl"><i class="fas fa-coins"></i></div>
             <div>
-                <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Montant total acheté</p>
-                <p class="text-xl font-bold font-mono text-info">{{ montant_total_achats|floatformat:0 }} F</p>
+                <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">Montant total acheté</p>
+                <p class="text-xl font-bold font-mono text-blue-600">{{ montant_total_achats|floatformat:0 }} F</p>
             </div>
         </div>
-        <div class="card-md3 p-5 flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-warning/20 flex items-center justify-center text-warning text-xl"><i class="fas fa-hand-holding-usd"></i></div>
+        <div class="card-bro p-5 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 text-xl"><i class="fas fa-hand-holding-usd"></i></div>
             <div>
-                <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Solde actuel</p>
-                <p class="text-xl font-bold font-mono text-warning">{{ solde_actuel|floatformat:0 }} F</p>
+                <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">Solde actuel</p>
+                <p class="text-xl font-bold font-mono text-amber-600">{{ solde_actuel|floatformat:0 }} F</p>
             </div>
         </div>
-        <div class="card-md3 p-5 flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-secondary/20 flex items-center justify-center text-secondary text-xl"><i class="fas fa-file-invoice"></i></div>
+        <div class="card-bro p-5 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-primary-soft flex items-center justify-center text-primary text-xl"><i class="fas fa-file-invoice"></i></div>
             <div>
-                <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">NIF</p>
+                <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">NIF</p>
                 <p class="text-xl font-bold font-mono">{{ fournisseur.identifiant_fiscal|default:"—" }}</p>
             </div>
         </div>
@@ -56,83 +55,83 @@
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
         <!-- Info fournisseur -->
-        <div class="card-md3">
-            <div class="px-5 py-4 border-b border-outline/10">
-                <h3 class="text-sm font-semibold"><i class="fas fa-info-circle text-secondary mr-1.5"></i>Informations</h3>
+        <div class="card-bro-static">
+            <div class="px-5 py-4 border-b border-border">
+                <h3 class="text-sm font-semibold"><i class="fas fa-info-circle text-primary mr-1.5"></i>Informations</h3>
             </div>
             <div class="p-5 space-y-4">
                 <div class="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                        <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Code</p>
+                        <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">Code</p>
                         <p class="font-mono font-medium">{{ fournisseur.code }}</p>
                     </div>
                     <div>
-                        <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Contact</p>
+                        <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">Contact</p>
                         <p class="font-medium">{{ fournisseur.contact|default:"—" }}</p>
                     </div>
                     <div>
-                        <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Téléphone</p>
+                        <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">Téléphone</p>
                         <p class="font-medium">{{ fournisseur.telephone|default:"—" }}</p>
                     </div>
                     <div>
-                        <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Email</p>
+                        <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">Email</p>
                         <p class="font-medium">{{ fournisseur.email|default:"—" }}</p>
                     </div>
                     <div class="col-span-2">
-                        <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Adresse</p>
+                        <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">Adresse</p>
                         <p class="font-medium">{{ fournisseur.adresse|default:"—" }}</p>
                     </div>
                     <div class="col-span-2">
-                        <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Compte comptable</p>
+                        <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">Compte comptable</p>
                         <p class="font-medium">
                             {% if fournisseur.compte_comptable %}
                             {{ fournisseur.compte_comptable.code }} — {{ fournisseur.compte_comptable.libelle }}
                             {% else %}
-                            <span class="text-on-surface-variant">Non défini</span>
+                            <span class="text-on-surface-muted">Non défini</span>
                             {% endif %}
                         </p>
                     </div>
                 </div>
                 {% if fournisseur.notes %}
                 <div>
-                    <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Notes</p>
-                    <p class="text-sm text-on-surface-variant">{{ fournisseur.notes }}</p>
+                    <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">Notes</p>
+                    <p class="text-sm text-on-surface-muted">{{ fournisseur.notes }}</p>
                 </div>
                 {% endif %}
             </div>
         </div>
 
         <!-- Compte fournisseur / Solde par exercice -->
-        <div class="card-md3">
-            <div class="px-5 py-4 border-b border-outline/10">
-                <h3 class="text-sm font-semibold"><i class="fas fa-balance-scale text-secondary mr-1.5"></i>Compte fournisseur</h3>
+        <div class="card-bro-static">
+            <div class="px-5 py-4 border-b border-border">
+                <h3 class="text-sm font-semibold"><i class="fas fa-balance-scale text-primary mr-1.5"></i>Compte fournisseur</h3>
             </div>
             <div class="p-5">
                 {% if comptes %}
                 <div class="overflow-x-auto">
-                    <table class="w-full text-sm">
+                    <table class="bro-table w-full text-sm">
                         <thead>
-                            <tr class="text-on-surface-variant border-b border-outline/10 text-[10px] uppercase tracking-wider">
-                                <th class="text-left py-2 font-medium">Exercice</th>
-                                <th class="text-right py-2 font-medium">Solde</th>
-                                <th class="text-right py-2 font-medium">Écart lettrage</th>
+                            <tr class="text-[10px] uppercase tracking-wider">
+                                <th>Exercice</th>
+                                <th class="text-right">Solde</th>
+                                <th class="text-right">Écart lettrage</th>
                             </tr>
                         </thead>
                         <tbody>
                             {% for c in comptes %}
-                            <tr class="border-b border-outline/5 hover:bg-surface-container-high transition-smooth">
+                            <tr>
                                 <td class="py-2 font-medium">{{ c.exercice.code }}</td>
-                                <td class="py-2 text-right font-mono {% if c.solde > 0 %}text-warning{% else %}text-green-400{% endif %}">
+                                <td class="py-2 text-right font-mono {% if c.solde > 0 %}text-amber-600{% else %}text-emerald-600{% endif %}">
                                     {{ c.solde|floatformat:0 }} F
                                 </td>
-                                <td class="py-2 text-right font-mono text-on-surface-variant">{{ c.ecart_lettrage|floatformat:0 }} F</td>
+                                <td class="py-2 text-right font-mono text-on-surface-muted">{{ c.ecart_lettrage|floatformat:0 }} F</td>
                             </tr>
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
                 {% else %}
-                <div class="text-center py-8 text-on-surface-variant text-sm">
+                <div class="text-center py-8 text-on-surface-muted text-sm">
                     <i class="fas fa-balance-scale text-2xl block mb-2"></i>
                     <p>Aucun compte fournisseur enregistré</p>
                     <p class="text-xs mt-1">Le solde est mis à jour lors des achats à crédit</p>
@@ -143,39 +142,39 @@
     </div>
 
     <!-- Achats récents -->
-    <div class="card-md3">
-        <div class="px-5 py-4 border-b border-outline/10 flex items-center justify-between">
-            <h3 class="text-sm font-semibold"><i class="fas fa-truck-loading text-secondary mr-1.5"></i>Achats récents</h3>
-            <a href="{% url 'stock:liste_achats' %}" class="text-xs text-secondary hover:underline">Voir tous les achats</a>
+    <div class="card-bro-static">
+        <div class="px-5 py-4 border-b border-border flex items-center justify-between">
+            <h3 class="text-sm font-semibold"><i class="fas fa-truck-loading text-primary mr-1.5"></i>Achats récents</h3>
+            <a href="{% url 'stock:liste_achats' %}" class="text-xs text-primary hover:underline">Voir tous les achats</a>
         </div>
         <div class="p-5">
             {% if achats %}
             <div class="overflow-x-auto">
-                <table class="w-full text-sm">
+                <table class="bro-table w-full text-sm">
                     <thead>
-                        <tr class="text-on-surface-variant border-b border-outline/10 text-[10px] uppercase tracking-wider">
-                            <th class="text-left py-2 font-medium">N° Bon</th>
-                            <th class="text-left py-2 font-medium">Facture</th>
-                            <th class="text-left py-2 font-medium">Entrepôt</th>
-                            <th class="text-left py-2 font-medium">Date</th>
-                            <th class="text-right py-2 font-medium">Total TTC</th>
-                            <th class="text-center py-2 font-medium">Statut</th>
+                        <tr class="text-[10px] uppercase tracking-wider">
+                            <th>N° Bon</th>
+                            <th>Facture</th>
+                            <th>Entrepôt</th>
+                            <th>Date</th>
+                            <th class="text-right">Total TTC</th>
+                            <th class="text-center">Statut</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for a in achats %}
-                        <tr class="border-b border-outline/5 hover:bg-surface-container-high transition-smooth">
+                        <tr>
                             <td class="py-2 font-mono font-medium">{{ a.numero }}</td>
-                            <td class="py-2 text-on-surface-variant">{{ a.reference_fournisseur|default:"—" }}</td>
+                            <td class="py-2 text-on-surface-muted">{{ a.reference_fournisseur|default:"—" }}</td>
                             <td class="py-2">{{ a.entrepot.nom|default:"—" }}</td>
-                            <td class="py-2 text-on-surface-variant">{{ a.date_reception|date:"d/m/Y" }}</td>
-                            <td class="py-2 text-right font-mono font-bold text-secondary">{{ a.total|floatformat:0 }} F</td>
+                            <td class="py-2 text-on-surface-muted">{{ a.date_reception|date:"d/m/Y" }}</td>
+                            <td class="py-2 text-right font-mono font-bold text-primary">{{ a.total|floatformat:0 }} F</td>
                             <td class="py-2 text-center">
-                                <span class="px-2 py-0.5 text-[10px] rounded-full font-medium
-                                    {% if a.statut == 'VALIDE' %}bg-green-900/30 text-green-300
-                                    {% elif a.statut == 'BROUILLON' %}bg-yellow-900/30 text-yellow-300
-                                    {% elif a.statut == 'PARTIEL' %}bg-blue-900/30 text-blue-300
-                                    {% else %}bg-red-900/30 text-red-300{% endif %}">
+                                <span class="badge-bro
+                                    {% if a.statut == 'VALIDE' %}bg-emerald-100 text-emerald-700
+                                    {% elif a.statut == 'BROUILLON' %}bg-amber-100 text-amber-700
+                                    {% elif a.statut == 'PARTIEL' %}bg-blue-100 text-blue-700
+                                    {% else %}bg-red-100 text-red-700{% endif %}">
                                     {{ a.get_statut_display }}
                                 </span>
                             </td>
@@ -185,10 +184,10 @@
                 </table>
             </div>
             {% else %}
-            <div class="text-center py-8 text-on-surface-variant text-sm">
+            <div class="text-center py-8 text-on-surface-muted text-sm">
                 <i class="fas fa-box-open text-2xl block mb-2"></i>
                 <p>Aucun achat effectué auprès de ce fournisseur</p>
-                <a href="{% url 'stock:liste_achats' %}" class="text-secondary text-xs mt-1 inline-block hover:underline">Créer un achat</a>
+                <a href="{% url 'stock:liste_achats' %}" class="text-primary text-xs mt-1 inline-block hover:underline">Créer un achat</a>
             </div>
             {% endif %}
         </div>

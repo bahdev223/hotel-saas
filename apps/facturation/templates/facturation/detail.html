@@ -1,74 +1,73 @@
-{% extends 'base.html' %}
-{% load static %}
+{% extends 'base_bro.html' %}
 
 {% block title %}Facture {{ facture.numero }}{% endblock %}
 
 {% block content %}
-<div x-data="factureDetail()" x-init="init({{ facture.id|safe }}, '{{ facture.statut }}')" class="max-w-4xl mx-auto py-8 px-4">
+<div x-data="factureDetail()" x-init="init({{ facture.id|safe }}, '{{ facture.statut }}')" class="max-w-4xl mx-auto">
     
     <!-- En-tête -->
     <div class="flex justify-between items-center mb-6">
         <div>
             <h1 class="text-2xl font-bold">Facture {{ facture.numero }}</h1>
-            <p class="text-on-surface-variant">Créée le {{ facture.date_emission|date:"d/m/Y" }}</p>
+            <p class="text-on-surface-muted">Créée le {{ facture.date_emission|date:"d/m/Y" }}</p>
         </div>
         <div class="flex gap-2">
             {% if facture.statut == 'BROUILLON' %}
-            <a href="{% url 'facturation:modifier' facture.id %}" class="bg-secondary text-on-secondary px-4 py-2 rounded-lg hover:bg-secondary/80">
+            <a href="{% url 'facturation:modifier' facture.id %}" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/80">
                 <i class="fas fa-edit mr-2"></i> Modifier
             </a>
             {% endif %}
-            <a href="{% url 'facturation:pdf' facture.id %}" target="_blank" class="bg-red-700 text-white px-4 py-2 rounded-lg hover:bg-red-700/80">
+            <a href="{% url 'facturation:pdf' facture.id %}" target="_blank" class="bg-error text-white px-4 py-2 rounded-lg hover:bg-error/80">
                 <i class="fas fa-file-pdf mr-2"></i> PDF
             </a>
-            <a href="{% url 'facturation:liste' %}" class="bg-surface-container-highest text-on-surface px-4 py-2 rounded-lg">
+            <a href="{% url 'facturation:liste' %}" class="border border-border bg-white text-on-surface px-4 py-2 rounded-lg hover:bg-surface-soft">
                 ← Retour
             </a>
         </div>
     </div>
     
     <!-- Info facture -->
-    <div class="bg-surface-container-low rounded-xl border-outline/10 shadow-md overflow-hidden mb-6">
-        <div class="px-6 py-4 border-b border-outline/10 bg-surface-container-high">
+    <div class="card-bro card-bro-static overflow-hidden mb-6">
+        <div class="px-6 py-4 border-b border-border bg-surface-soft">
             <h2 class="font-semibold">Informations</h2>
         </div>
         <div class="p-6 grid grid-cols-3 gap-4">
             <div>
-                <p class="text-sm text-on-surface-variant">Client</p>
+                <p class="text-sm text-on-surface-muted">Client</p>
                 <p class="font-medium">{{ facture.client_nom }}</p>
                 {% if facture.client_contact %}
-                <p class="text-xs text-on-surface-variant">{{ facture.client_contact }}</p>
+                <p class="text-xs text-on-surface-muted">{{ facture.client_contact }}</p>
                 {% endif %}
             </div>
             <div>
-                <p class="text-sm text-on-surface-variant">Statut</p>
+                <p class="text-sm text-on-surface-muted">Statut</p>
                 <p>
                     {% if facture.statut == 'PAYEE' %}
-                    <span class="px-2 py-1 bg-green-900/30 text-green-300 rounded-full text-xs">Payée</span>
+                    <span class="badge-bro bg-green-100 text-green-700">Payée</span>
                     {% elif facture.statut == 'EMISE' %}
-                    <span class="px-2 py-1 bg-blue-900/30 text-blue-300 rounded-full text-xs">Émise</span>
+                    <span class="badge-bro bg-blue-100 text-blue-700">Émise</span>
                     {% elif facture.statut == 'BROUILLON' %}
-                    <span class="px-2 py-1 bg-yellow-900/30 text-yellow-300 rounded-full text-xs">Brouillon</span>
+                    <span class="badge-bro bg-yellow-100 text-yellow-700">Brouillon</span>
                     {% else %}
-                    <span class="px-2 py-1 bg-red-900/30 text-red-300 rounded-full text-xs">Annulée</span>
+                    <span class="badge-bro bg-red-100 text-red-700">Annulée</span>
                     {% endif %}
                 </p>
             </div>
             <div>
-                <p class="text-sm text-on-surface-variant">N° Facture</p>
+                <p class="text-sm text-on-surface-muted">N° Facture</p>
                 <p class="font-medium font-mono">{{ facture.numero }}</p>
             </div>
             <div>
-                <p class="text-sm text-on-surface-variant">Type</p>
+                <p class="text-sm text-on-surface-muted">Type</p>
                 <p class="font-medium">{{ facture.type_facture }}</p>
             </div>
             <div>
-                <p class="text-sm text-on-surface-variant">Date</p>
+                <p class="text-sm text-on-surface-muted">Date</p>
                 <p class="font-medium">{{ facture.date_emission|date:"d/m/Y" }}</p>
             </div>
             {% if facture.notes %}
             <div class="col-span-3">
-                <p class="text-sm text-on-surface-variant">Notes</p>
+                <p class="text-sm text-on-surface-muted">Notes</p>
                 <p class="font-medium">{{ facture.notes }}</p>
             </div>
             {% endif %}
@@ -76,43 +75,43 @@
     </div>
     
     <!-- Lignes de facture -->
-    <div class="bg-surface-container-low rounded-xl border-outline/10 shadow-md overflow-hidden mb-6">
-        <div class="px-6 py-4 border-b border-outline/10 bg-surface-container-high flex justify-between items-center">
+    <div class="card-bro card-bro-static overflow-hidden mb-6">
+        <div class="px-6 py-4 border-b border-border bg-surface-soft flex justify-between items-center">
             <h2 class="font-semibold">Détail des prestations</h2>
             {% if facture.statut == 'BROUILLON' or facture.statut == 'EMISE' %}
-            <button @click="openLigneModal = true; resetLigneForm()" class="bg-secondary text-on-secondary px-3 py-1 rounded-lg text-sm">
+            <button @click="openLigneModal = true; resetLigneForm()" class="bg-primary text-white px-3 py-1 rounded-lg text-sm">
                 <i class="fas fa-plus mr-1"></i> Ajouter une ligne
             </button>
             {% endif %}
         </div>
         <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-surface-container-high border-b border-outline/10">
+            <table class="bro-table w-full">
+                <thead>
                     <tr>
-                        <th class="px-4 py-3 text-left">Description</th>
-                        <th class="px-4 py-3 text-right">Quantité</th>
-                        <th class="px-4 py-3 text-right">Prix unitaire</th>
-                        <th class="px-4 py-3 text-right">TVA</th>
-                        <th class="px-4 py-3 text-right">Total</th>
+                        <th class="text-left">Description</th>
+                        <th class="text-right">Quantité</th>
+                        <th class="text-right">Prix unitaire</th>
+                        <th class="text-right">TVA</th>
+                        <th class="text-right">Total</th>
                         {% if facture.statut == 'BROUILLON' or facture.statut == 'EMISE' %}
-                        <th class="px-4 py-3 text-center">Actions</th>
+                        <th class="text-center">Actions</th>
                         {% endif %}
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-outline/10">
+                <tbody>
                     {% for ligne in facture.lignes.all %}
-                    <tr class="hover:bg-surface-container-low">
-                        <td class="px-4 py-3">{{ ligne.description }}</td>
-                        <td class="px-4 py-3 text-right">{{ ligne.quantite|floatformat:2 }}</td>
-                        <td class="px-4 py-3 text-right">{{ ligne.prix_unitaire|floatformat:0 }} F</td>
-                        <td class="px-4 py-3 text-right">{{ ligne.tva|floatformat:0 }}%</td>
-                        <td class="px-4 py-3 text-right font-mono">{{ ligne.total_ttc|floatformat:0 }} F</td>
+                    <tr>
+                        <td>{{ ligne.description }}</td>
+                        <td class="text-right">{{ ligne.quantite|floatformat:2 }}</td>
+                        <td class="text-right">{{ ligne.prix_unitaire|floatformat:0 }} F</td>
+                        <td class="text-right">{{ ligne.tva|floatformat:0 }}%</td>
+                        <td class="text-right font-mono">{{ ligne.total_ttc|floatformat:0 }} F</td>
                         {% if facture.statut == 'BROUILLON' or facture.statut == 'EMISE' %}
-                        <td class="px-4 py-3 text-center">
-                            <button @click="editLigne('{{ ligne.id }}')" class="text-blue-400 hover:text-blue-400 mx-1" title="Modifier">
+                        <td class="text-center">
+                            <button @click="editLigne('{{ ligne.id }}')" class="text-primary hover:text-primary mx-1" title="Modifier">
                                 <i class="fas fa-edit"></i>
                             </button>
-                            <button @click="supprimerLigne('{{ ligne.id }}')" class="text-red-400 hover:text-red-400 mx-1" title="Supprimer">
+                            <button @click="supprimerLigne('{{ ligne.id }}')" class="text-error hover:text-error mx-1" title="Supprimer">
                                 <i class="fas fa-trash"></i>
                             </button>
                         </td>
@@ -120,25 +119,25 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="{% if facture.statut == 'BROUILLON' or facture.statut == 'EMISE' %}6{% else %}5{% endif %}" class="px-4 py-8 text-center text-on-surface-variant">
+                        <td colspan="{% if facture.statut == 'BROUILLON' or facture.statut == 'EMISE' %}6{% else %}5{% endif %}" class="text-center text-on-surface-muted py-8">
                             <i class="fas fa-receipt text-3xl mb-2 block"></i>
                             Aucune prestation
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
-                <tfoot class="bg-surface-container-high border-t border-outline/10">
+                <tfoot>
                     <tr>
-                        <td colspan="3" class="px-4 py-3 text-right font-semibold">Total HT :</td>
-                        <td colspan="2" class="px-4 py-3 text-right font-mono font-semibold">{{ facture.total_ht|floatformat:0 }} F</td>
+                        <td colspan="3" class="text-right font-semibold">Total HT :</td>
+                        <td colspan="2" class="text-right font-mono font-semibold">{{ facture.total_ht|floatformat:0 }} F</td>
                     </tr>
                     <tr>
-                        <td colspan="3" class="px-4 py-3 text-right font-semibold">TVA :</td>
-                        <td colspan="2" class="px-4 py-3 text-right font-mono font-semibold">{{ facture.total_tva|floatformat:0 }} F</td>
+                        <td colspan="3" class="text-right font-semibold">TVA :</td>
+                        <td colspan="2" class="text-right font-mono font-semibold">{{ facture.total_tva|floatformat:0 }} F</td>
                     </tr>
-                    <tr class="border-t border-outline/10">
-                        <td colspan="3" class="px-4 py-3 text-right font-bold text-secondary">Total TTC :</td>
-                        <td colspan="2" class="px-4 py-3 text-right font-bold font-mono text-secondary">{{ facture.montant_total|floatformat:0 }} F</td>
+                    <tr>
+                        <td colspan="3" class="text-right font-bold text-primary">Total TTC :</td>
+                        <td colspan="2" class="text-right font-bold font-mono text-primary">{{ facture.montant_total|floatformat:0 }} F</td>
                     </tr>
                 </tfoot>
             </table>
@@ -146,55 +145,43 @@
     </div>
     
     <!-- Paiements -->
-    <div class="bg-surface-container-low rounded-xl border-outline/10 shadow-md overflow-hidden mb-6">
-        <div class="px-6 py-4 border-b border-outline/10 bg-surface-container-high flex justify-between items-center">
+    <div class="card-bro card-bro-static overflow-hidden mb-6">
+        <div class="px-6 py-4 border-b border-border bg-surface-soft flex justify-between items-center">
             <h2 class="font-semibold">Paiements</h2>
             {% if facture.statut != 'ANNULEE' and facture.statut != 'PAYEE' %}
-            <button onclick="window.dispatchEvent(new CustomEvent('open-paiement-dialog', {detail: {facture_id: '{{ facture.id }}'}}))" class="bg-secondary text-on-secondary px-3 py-1 rounded-lg text-sm">
+            <button onclick="window.dispatchEvent(new CustomEvent('open-paiement-dialog', {detail: {facture_id: '{{ facture.id }}'}}))" class="bg-primary text-white px-3 py-1 rounded-lg text-sm">
                 <i class="fas fa-plus mr-1"></i> Paiement
             </button>
             {% endif %}
         </div>
         <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-surface-container-high border-b border-outline/10">
+            <table class="bro-table w-full">
+                <thead>
                     <tr>
-                        <th class="px-4 py-3 text-left">Date</th>
-                        <th class="px-4 py-3 text-right">Montant</th>
-                        <th class="px-4 py-3 text-left">Mode</th>
-                        <th class="px-4 py-3 text-left">Référence</th>
-                        <th class="px-4 py-3 text-left">Notes</th>
+                        <th class="text-left">Date</th>
+                        <th class="text-right">Montant</th>
+                        <th class="text-left">Mode</th>
+                        <th class="text-left">Référence</th>
+                        <th class="text-left">Notes</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-outline/10">
+                <tbody>
                     {% for paiement in paiements %}
-                    <tr class="hover:bg-surface-container-low">
-                        <td class="px-4 py-3">{{ paiement.date|date:"d/m/Y H:i" }}</td>
-                        <td class="px-4 py-3 text-right font-mono">{{ paiement.montant|floatformat:0 }} F</td>
-                        <td class="px-4 py-3">{{ paiement.get_mode_display }}</td>
-                        <td class="px-4 py-3">{{ paiement.reference|default:"-" }}</td>
-                        <td class="px-4 py-3">{{ paiement.notes|default:"-" }}</td>
+                    <tr>
+                        <td>{{ paiement.date|date:"d/m/Y H:i" }}</td>
+                        <td class="text-right font-mono">{{ paiement.montant|floatformat:0 }} F</td>
+                        <td>{{ paiement.get_mode_display }}</td>
+                        <td>{{ paiement.reference|default:"-" }}</td>
+                        <td>{{ paiement.notes|default:"-" }}</td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="px-4 py-8 text-center text-on-surface-variant">
+                        <td colspan="5" class="text-center text-on-surface-muted py-8">
                             <i class="fas fa-money-bill text-3xl mb-2 block"></i>
                             Aucun paiement enregistré
                         </td>
                     </tr>
                     {% endfor %}
-                    <tr class="bg-surface-container-high border-t border-outline/10">
-                        <td colspan="2" class="px-4 py-3 text-right font-bold">Total payé :</td>
-                        <td class="px-4 py-3 font-bold text-green-400">{{ total_paye|floatformat:0 }} F</td>
-                        <td colspan="2"></td>
-                    </tr>
-                    <tr class="bg-surface-container-high">
-                        <td colspan="2" class="px-4 py-3 text-right font-bold">Reste à payer :</td>
-                        <td class="px-4 py-3 font-bold {% if reste_a_payer > 0 %}text-red-400{% else %}text-green-400{% endif %}">
-                            {{ reste_a_payer|floatformat:0 }} F
-                        </td>
-                        <td colspan="2"></td>
-                    </tr>
                 </tbody>
             </table>
         </div>
@@ -206,14 +193,14 @@
         <form method="post" action="{% url 'facturation:modifier' facture.id %}">
             {% csrf_token %}
             <input type="hidden" name="action" value="emettre">
-            <button type="submit" class="bg-green-700 text-white px-4 py-2 rounded-lg hover:bg-green-700/80">
+            <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700">
                 <i class="fas fa-check mr-2"></i> Émettre la facture
             </button>
         </form>
         {% endif %}
         
         {% if facture.statut != 'ANNULEE' and facture.statut != 'PAYEE' %}
-        <a href="{% url 'facturation:annuler' facture.id %}" class="bg-red-700 text-white px-4 py-2 rounded-lg hover:bg-red-700/80">
+        <a href="{% url 'facturation:annuler' facture.id %}" class="bg-error text-white px-4 py-2 rounded-lg hover:bg-error/80">
             <i class="fas fa-times mr-2"></i> Annuler
         </a>
         {% endif %}
@@ -222,10 +209,10 @@
 
 <!-- Modal Ajouter/Modifier ligne -->
 <div x-show="openLigneModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="openLigneModal = false">
-    <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-lg">
-        <div class="px-6 py-4 border-b border-outline/10 flex justify-between items-center">
+    <div class="card-bro card-bro-static w-full max-w-lg">
+        <div class="px-6 py-4 border-b border-border flex justify-between items-center">
             <h3 class="font-semibold text-lg" x-text="ligneModalTitle">Ajouter une ligne</h3>
-            <button @click="openLigneModal = false" class="text-on-surface-variant hover:text-on-surface">
+            <button @click="openLigneModal = false" class="text-on-surface-muted hover:text-on-surface">
                 <i class="fas fa-times"></i>
             </button>
         </div>
@@ -233,30 +220,30 @@
             <input type="hidden" x-model="ligneForm.id">
             <div>
                 <label class="block text-sm font-medium mb-1">Description *</label>
-                <input type="text" x-model="ligneForm.description" required class="w-full px-3 py-2 input-md3 rounded-lg" placeholder="Libellé de la prestation">
+                <input type="text" x-model="ligneForm.description" required class="w-full px-3 py-2 border border-border rounded-lg bg-white" placeholder="Libellé de la prestation">
             </div>
             <div class="grid grid-cols-3 gap-4">
                 <div>
                     <label class="block text-sm font-medium mb-1">Quantité</label>
-                    <input type="number" x-model="ligneForm.quantite" min="0.01" step="0.01" class="w-full px-3 py-2 input-md3 rounded-lg">
+                    <input type="number" x-model="ligneForm.quantite" min="0.01" step="0.01" class="w-full px-3 py-2 border border-border rounded-lg bg-white">
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1">Prix unitaire</label>
-                    <input type="number" x-model="ligneForm.prix_unitaire" min="0" step="1" class="w-full px-3 py-2 input-md3 rounded-lg">
+                    <input type="number" x-model="ligneForm.prix_unitaire" min="0" step="1" class="w-full px-3 py-2 border border-border rounded-lg bg-white">
                 </div>
                 <div>
                     <label class="block text-sm font-medium mb-1">TVA %</label>
-                    <input type="number" x-model="ligneForm.tva" min="0" max="100" step="0.1" class="w-full px-3 py-2 input-md3 rounded-lg">
+                    <input type="number" x-model="ligneForm.tva" min="0" max="100" step="0.1" class="w-full px-3 py-2 border border-border rounded-lg bg-white">
                 </div>
             </div>
-            <div class="text-right text-sm text-on-surface-variant">
-                Total TTC : <span class="font-mono font-semibold text-secondary" x-text="formatMoney(ligneTotal) + ' F'"></span>
+            <div class="text-right text-sm text-on-surface-muted">
+                Total TTC : <span class="font-mono font-semibold text-primary" x-text="formatMoney(ligneTotal) + ' F'"></span>
             </div>
             <div class="flex gap-3 pt-2">
-                <button type="submit" class="flex-1 bg-secondary text-on-secondary py-2 rounded-lg font-bold" :disabled="ligneLoading">
+                <button type="submit" class="flex-1 bg-primary text-white py-2 rounded-lg font-bold" :disabled="ligneLoading">
                     <span x-text="ligneLoading ? 'Enregistrement...' : 'Enregistrer'"></span>
                 </button>
-                <button type="button" @click="openLigneModal = false" class="flex-1 bg-surface-container-highest text-on-surface py-2 rounded-lg">
+                <button type="button" @click="openLigneModal = false" class="flex-1 border border-border bg-white text-on-surface py-2 rounded-lg">
                     Annuler
                 </button>
             </div>

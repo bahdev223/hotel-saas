@@ -5,22 +5,22 @@
 {% block header %}<i class="fas fa-bed text-secondary mr-2"></i>{{ sejour.code }}{% endblock %}
 {% block subtitle %}{{ sejour.client.nom_complet }} - {{ sejour.chambre.code }}{% endblock %}
 
-{% block content %}
+{% block inner_content %}
 <div class="max-w-4xl mx-auto space-y-6">
 
-    <div class="card-md3 p-6">
+    <div class="card-bro card-bro-static p-6">
         <div class="flex justify-between items-start mb-4">
             <div>
                 <h2 class="text-xl font-semibold">{{ sejour.code }}</h2>
             </div>
             <div class="flex gap-2">
                 {% if sejour.est_actif %}
-                <button hx-get="{% url 'hotel:check_out' sejour.id %}" hx-target="#modal" class="btn-primary py-1.5 px-3 rounded-lg text-sm flex items-center cursor-pointer">
+                <button hx-get="{% url 'hotel:check_out' sejour.id %}" hx-target="#modal" class="px-3 py-1.5 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition cursor-pointer">
                     <i class="fas fa-sign-out-alt mr-1"></i>Check-out
                 </button>
                 {% endif %}
                 {% if sejour.statut == 'CHECK_OUT' %}
-                <a href="{% url 'hotel:cloturer_sejour' sejour.id %}" class="btn-md3-primary py-1.5 px-3 rounded-lg text-sm bg-green-900/30 text-green-300">
+                <a href="{% url 'hotel:cloturer_sejour' sejour.id %}" class="px-3 py-1.5 rounded-xl text-sm bg-emerald-100 text-emerald-700 hover:bg-emerald-200 transition font-medium">
                     <i class="fas fa-check mr-1"></i>Clôturer
                 </a>
                 {% endif %}
@@ -28,50 +28,50 @@
         </div>
 
         <div class="grid grid-cols-2 gap-4 text-sm">
-            <div><span class="text-on-surface-variant">Client :</span> {{ sejour.client.nom_complet }}</div>
-            <div><span class="text-on-surface-variant">Chambre :</span> {{ sejour.chambre.code }} - {{ sejour.chambre.nom }}</div>
-            <div><span class="text-on-surface-variant">Arrivée :</span> {{ sejour.date_arrivee|date:"d/m/Y H:i" }}</div>
-            <div><span class="text-on-surface-variant">Départ :</span> {{ sejour.date_depart|date:"d/m/Y H:i"|default:"En cours" }}</div>
-            <div><span class="text-on-surface-variant">Statut :</span>
-                <span class="px-2 py-0.5 rounded-full text-xs
-                    {% if sejour.statut == 'EN_COURS' or sejour.statut == 'CHECK_IN' %}bg-green-900/30 text-green-300
-                    {% elif sejour.statut == 'CLOTURE' %}bg-surface-container-high
-                    {% elif sejour.statut == 'CHECK_OUT' %}bg-amber-900/30 text-amber-300
-                    {% else %}bg-blue-900/30{% endif %}">
+            <div><span class="text-on-surface-muted">Client :</span> {{ sejour.client.nom_complet }}</div>
+            <div><span class="text-on-surface-muted">Chambre :</span> {{ sejour.chambre.code }} - {{ sejour.chambre.nom }}</div>
+            <div><span class="text-on-surface-muted">Arrivée :</span> {{ sejour.date_arrivee|date:"d/m/Y H:i" }}</div>
+            <div><span class="text-on-surface-muted">Départ :</span> {{ sejour.date_depart|date:"d/m/Y H:i"|default:"En cours" }}</div>
+            <div><span class="text-on-surface-muted">Statut :</span>
+                <span class="badge-bro
+                    {% if sejour.statut == 'EN_COURS' or sejour.statut == 'CHECK_IN' %}bg-emerald-100 text-emerald-700
+                    {% elif sejour.statut == 'CLOTURE' %}bg-surface-soft text-on-surface-muted
+                    {% elif sejour.statut == 'CHECK_OUT' %}bg-amber-100 text-amber-700
+                    {% else %}bg-blue-100 text-blue-700{% endif %}">
                     {{ sejour.get_statut_display }}
                 </span>
             </div>
-            <div><span class="text-on-surface-variant">Adultes/Enfants :</span> {{ sejour.nombre_adultes }} / {{ sejour.nombre_enfants }}</div>
-            <div><span class="text-on-surface-variant">Montant base :</span> {{ sejour.montant_base }}</div>
-            <div><span class="text-on-surface-variant">Suppléments :</span> {{ sejour.montant_supplements }}</div>
-            <div><span class="text-on-surface-variant">Total :</span> <strong>{{ sejour.montant_total }}</strong></div>
+            <div><span class="text-on-surface-muted">Adultes/Enfants :</span> {{ sejour.nombre_adultes }} / {{ sejour.nombre_enfants }}</div>
+            <div><span class="text-on-surface-muted">Montant base :</span> {{ sejour.montant_base }}</div>
+            <div><span class="text-on-surface-muted">Suppléments :</span> {{ sejour.montant_supplements }}</div>
+            <div><span class="text-on-surface-muted">Total :</span> <strong>{{ sejour.montant_total }}</strong></div>
             {% if sejour.reservation %}
-            <div><span class="text-on-surface-variant">Réservation :</span> <a href="{% url 'hotel:detail_reservation' sejour.reservation.id %}" class="text-secondary hover:underline">{{ sejour.reservation.code }}</a></div>
+            <div><span class="text-on-surface-muted">Réservation :</span> <a href="{% url 'hotel:detail_reservation' sejour.reservation.id %}" class="text-primary hover:underline">{{ sejour.reservation.code }}</a></div>
             {% endif %}
         </div>
     </div>
 
     {% if occupants %}
-    <div class="card-md3">
-        <div class="px-4 py-3 bg-surface-container-high border-b border-outline/10 flex justify-between items-center">
+    <div class="card-bro card-bro-static">
+        <div class="px-4 py-3 bg-surface-soft border-b border-border flex justify-between items-center">
             <h3 class="font-medium">Occupants</h3>
         </div>
-        <table class="w-full text-sm">
+        <table class="w-full text-sm bro-table">
             <thead>
-                <tr class="bg-surface-container border-b border-outline/10">
-                    <th class="text-left py-3 px-4">Nom</th>
-                    <th class="text-left py-3 px-4">Pièce</th>
-                    <th class="text-left py-3 px-4">N° pièce</th>
-                    <th class="text-center py-3 px-4">Principal</th>
+                <tr>
+                    <th>Nom</th>
+                    <th>Pièce</th>
+                    <th>N° pièce</th>
+                    <th class="text-center">Principal</th>
                 </tr>
             </thead>
             <tbody>
                 {% for o in occupants %}
-                <tr class="border-b border-outline/5">
-                    <td class="py-3 px-4">{{ o.nom_complet }}</td>
-                    <td class="py-3 px-4">{{ o.type_piece|default:"-" }}</td>
-                    <td class="py-3 px-4">{{ o.numero_piece|default:"-" }}</td>
-                    <td class="py-3 px-4 text-center">{% if o.est_principal %}<i class="fas fa-check text-green-400"></i>{% endif %}</td>
+                <tr>
+                    <td>{{ o.nom_complet }}</td>
+                    <td>{{ o.type_piece|default:"-" }}</td>
+                    <td>{{ o.numero_piece|default:"-" }}</td>
+                    <td class="text-center">{% if o.est_principal %}<i class="fas fa-check text-emerald-600"></i>{% endif %}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -80,24 +80,24 @@
     {% endif %}
 
     {% if services %}
-    <div class="card-md3">
-        <div class="px-4 py-3 bg-surface-container-high border-b border-outline/10">
+    <div class="card-bro card-bro-static">
+        <div class="px-4 py-3 bg-surface-soft border-b border-border">
             <h3 class="font-medium">Services</h3>
         </div>
-        <table class="w-full text-sm">
+        <table class="w-full text-sm bro-table">
             <thead>
-                <tr class="bg-surface-container border-b border-outline/10">
-                    <th class="text-left py-3 px-4">Service</th>
-                    <th class="text-center py-3 px-4">Qté</th>
-                    <th class="text-right py-3 px-4">Montant</th>
+                <tr>
+                    <th>Service</th>
+                    <th class="text-center">Qté</th>
+                    <th class="text-right">Montant</th>
                 </tr>
             </thead>
             <tbody>
                 {% for sv in services %}
-                <tr class="border-b border-outline/5">
-                    <td class="py-3 px-4">{{ sv.nom }}</td>
-                    <td class="py-3 px-4 text-center">{{ sv.quantite }}</td>
-                    <td class="py-3 px-4 text-right font-mono">{{ sv.montant_total }}</td>
+                <tr>
+                    <td>{{ sv.nom }}</td>
+                    <td class="text-center">{{ sv.quantite }}</td>
+                    <td class="text-right font-mono">{{ sv.montant_total }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

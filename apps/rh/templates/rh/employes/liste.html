@@ -1,286 +1,283 @@
 {% extends 'rh/base_rh.html' %}
-{% load static %}
 
 {% block title %}Liste des employés{% endblock %}
 
 {% block content %}
 <div x-data="employeManagement()" x-init="init()">
-    <div class="container mx-auto px-4 py-6">
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl font-bold">Liste des employés</h1>
-            <button @click="resetForm(); openModal = true" class="bg-secondary text-white px-4 py-2 rounded-lg hover:bg-secondary/80 transition">
-                <i class="fas fa-plus"></i> Nouvel employé
-            </button>
-        </div>
-        
-        <!-- Stats -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-            <div class="bg-surface-container-low rounded-xl shadow-md p-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-on-surface-variant text-sm">Total</p>
-                        <p class="text-2xl font-bold">{{ employes.paginator.count }}</p>
-                    </div>
-                    <i class="fas fa-users text-3xl text-secondary/20"></i>
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-xl font-bold">Liste des employés</h1>
+        <button @click="resetForm(); openModal = true" class="inline-flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/80 transition">
+            <i class="fas fa-plus"></i> Nouvel employé
+        </button>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+        <div class="card-bro p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-on-surface-muted text-sm">Total</p>
+                    <p class="text-2xl font-bold">{{ employes.paginator.count }}</p>
                 </div>
-            </div>
-            <div class="bg-surface-container-low rounded-xl shadow-md p-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-on-surface-variant text-sm">Actifs</p>
-                        <p class="text-2xl font-bold text-green-400">{{ total_actifs|default:0 }}</p>
-                    </div>
-                    <i class="fas fa-user-check text-3xl text-green-500/50"></i>
-                </div>
-            </div>
-            <div class="bg-surface-container-low rounded-xl shadow-md p-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-on-surface-variant text-sm">Hommes</p>
-                        <p class="text-2xl font-bold text-blue-400">{{ total_hommes|default:0 }}</p>
-                    </div>
-                    <i class="fas fa-mars text-3xl text-blue-500/50"></i>
-                </div>
-            </div>
-            <div class="bg-surface-container-low rounded-xl shadow-md p-4">
-                <div class="flex items-center justify-between">
-                    <div>
-                        <p class="text-on-surface-variant text-sm">Femmes</p>
-                        <p class="text-2xl font-bold text-pink-600">{{ total_femmes|default:0 }}</p>
-                    </div>
-                    <i class="fas fa-venus text-3xl text-pink-500/50"></i>
-                </div>
+                <i class="fas fa-users text-3xl text-primary/20"></i>
             </div>
         </div>
-        
-        <!-- Tableau -->
-        <div class="bg-surface-container-low rounded-xl shadow-md overflow-hidden">
-            <div class="overflow-x-auto">
-                <table class="w-full">
-                    <thead class="bg-surface-container-high">
-                        <tr>
-                            <th class="px-4 py-3 text-left text-sm font-semibold">Matricule</th>
-                            <th class="px-4 py-3 text-left text-sm font-semibold">Nom & Prénom</th>
-                            <th class="px-4 py-3 text-left text-sm font-semibold">Email</th>
-                            <th class="px-4 py-3 text-left text-sm font-semibold">Téléphone</th>
-                            <th class="px-4 py-3 text-left text-sm font-semibold">Compte</th>
-                            <th class="px-4 py-3 text-left text-sm font-semibold">Statut</th>
-                            <th class="px-4 py-3 text-center text-sm font-semibold">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-outline/10">
-                        {% for employe in employes %}
-                        <tr class="hover:bg-surface-container-low transition">
-                            <td class="px-4 py-3 text-sm">{{ employe.matricule }}</td>
-                            <td class="px-4 py-3">
-                                <span class="font-medium">{{ employe.nom }}</span> {{ employe.prenom }}
-                                <p class="text-xs text-on-surface-variant">{{ employe.poste.intitule|default:"-" }}</p>
-                            </td>
-                            <td class="px-4 py-3 text-sm">{{ employe.email }}</td>
-                            <td class="px-4 py-3 text-sm">{{ employe.telephone }}</td>
-                            <td class="px-4 py-3 text-center">
-                                {% if employe.user_id %}
-                                <i class="fas fa-check-circle text-green-500" title="Compte: {{ employe.user.username }}"></i>
-                                {% else %}
-                                <i class="fas fa-times-circle text-red-500" title="Aucun compte"></i>
-                                {% endif %}
-                            </td>
-                            <td class="px-4 py-3">
-                                {% if employe.actif %}
-                                <span class="badge badge-success">Actif</span>
-                                {% else %}
-                                <span class="badge badge-error">Inactif</span>
-                                {% endif %}
-                            </td>
-                            <td class="px-4 py-3 text-center whitespace-nowrap">
-                                <button @click="viewEmploye('{{ employe.matricule }}')" class="text-green-500 hover:text-green-700 mx-1" title="Détails">
-                                    <i class="fas fa-eye"></i>
-                                </button>
-                                <button @click="editEmploye('{{ employe.matricule }}')" class="text-blue-500 hover:text-blue-700 mx-1" title="Modifier">
-                                    <i class="fas fa-edit"></i>
-                                </button>
-                                {% if employe.point_vente %}
-                                <a href="{% url 'pos:liste_points_vente' %}" class="text-amber-500 hover:text-amber-700 mx-1" title="Accéder au POS">
-                                    <i class="fas fa-cash-register"></i>
-                                </a>
-                                {% elif employe.user_id %}
-                                <a href="{% url 'pos:liste_points_vente' %}" class="text-amber-500 hover:text-amber-700 mx-1" title="Accéder au POS">
-                                    <i class="fas fa-cash-register"></i>
-                                </a>
-                                {% endif %}
-                                <button @click="supprimerEmploye('{{ employe.matricule }}', '{{ employe.nom }} {{ employe.prenom }}')" class="text-red-500 hover:text-red-700 mx-1" title="Supprimer">
-                                    <i class="fas fa-trash"></i>
-                                </button>
-                            </td>
-                        </tr>
-                        {% empty %}
-                        <tr>
-                            <td colspan="7" class="px-4 py-8 text-center text-on-surface-variant">
-                                <i class="fas fa-user-slash text-4xl mb-2 block"></i>
-                                Aucun employé trouvé
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
+        <div class="card-bro p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-on-surface-muted text-sm">Actifs</p>
+                    <p class="text-2xl font-bold text-green-400">{{ total_actifs|default:0 }}</p>
+                </div>
+                <i class="fas fa-user-check text-3xl text-green-500/50"></i>
             </div>
-            
-            <!-- Pagination -->
-            {% if employes.has_other_pages %}
-            <div class="flex justify-center gap-2 px-4 py-3 border-t border-outline/10">
-                {% if employes.has_previous %}
-                <a href="?page=1" class="px-3 py-1 border border-outline/10 rounded-lg hover:bg-surface-container-low">«</a>
-                <a href="?page={{ employes.previous_page_number }}" class="px-3 py-1 border border-outline/10 rounded-lg hover:bg-surface-container-low">‹</a>
-                {% endif %}
-                <span class="px-3 py-1">Page {{ employes.number }} / {{ employes.paginator.num_pages }}</span>
-                {% if employes.has_next %}
-                <a href="?page={{ employes.next_page_number }}" class="px-3 py-1 border border-outline/10 rounded-lg hover:bg-surface-container-low">›</a>
-                <a href="?page={{ employes.paginator.num_pages }}" class="px-3 py-1 border border-outline/10 rounded-lg hover:bg-surface-container-low">»</a>
-                {% endif %}
+        </div>
+        <div class="card-bro p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-on-surface-muted text-sm">Hommes</p>
+                    <p class="text-2xl font-bold text-blue-400">{{ total_hommes|default:0 }}</p>
+                </div>
+                <i class="fas fa-mars text-3xl text-blue-500/50"></i>
             </div>
-            {% endif %}
+        </div>
+        <div class="card-bro p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-on-surface-muted text-sm">Femmes</p>
+                    <p class="text-2xl font-bold text-pink-600">{{ total_femmes|default:0 }}</p>
+                </div>
+                <i class="fas fa-venus text-3xl text-pink-500/50"></i>
+            </div>
         </div>
     </div>
-    
+
+    <!-- Tableau -->
+    <div class="card-bro">
+        <div class="overflow-x-auto">
+            <table class="bro-table w-full">
+                <thead>
+                    <tr>
+                        <th>Matricule</th>
+                        <th>Nom & Prénom</th>
+                        <th>Email</th>
+                        <th>Téléphone</th>
+                        <th>Compte</th>
+                        <th>Statut</th>
+                        <th class="text-center">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for employe in employes %}
+                    <tr>
+                        <td>{{ employe.matricule }}</td>
+                        <td>
+                            <span class="font-medium">{{ employe.nom }}</span> {{ employe.prenom }}
+                            <p class="text-xs text-on-surface-muted">{{ employe.poste.intitule|default:"-" }}</p>
+                        </td>
+                        <td>{{ employe.email }}</td>
+                        <td>{{ employe.telephone }}</td>
+                        <td class="text-center">
+                            {% if employe.user_id %}
+                            <i class="fas fa-check-circle text-green-500" title="Compte: {{ employe.user.username }}"></i>
+                            {% else %}
+                            <i class="fas fa-times-circle text-red-500" title="Aucun compte"></i>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if employe.actif %}
+                            <span class="badge-bro bg-emerald-100 text-emerald-700">Actif</span>
+                            {% else %}
+                            <span class="badge-bro bg-red-100 text-red-700">Inactif</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center whitespace-nowrap">
+                            <button @click="viewEmploye('{{ employe.matricule }}')" class="text-green-500 hover:text-green-700 mx-1" title="Détails">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                            <button @click="editEmploye('{{ employe.matricule }}')" class="text-blue-500 hover:text-blue-700 mx-1" title="Modifier">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            {% if employe.point_vente %}
+                            <a href="{% url 'pos:liste_points_vente' %}" class="text-amber-500 hover:text-amber-700 mx-1" title="Accéder au POS">
+                                <i class="fas fa-cash-register"></i>
+                            </a>
+                            {% elif employe.user_id %}
+                            <a href="{% url 'pos:liste_points_vente' %}" class="text-amber-500 hover:text-amber-700 mx-1" title="Accéder au POS">
+                                <i class="fas fa-cash-register"></i>
+                            </a>
+                            {% endif %}
+                            <button @click="supprimerEmploye('{{ employe.matricule }}', '{{ employe.nom }} {{ employe.prenom }}')" class="text-red-500 hover:text-red-700 mx-1" title="Supprimer">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-on-surface-muted py-8">
+                            <i class="fas fa-user-slash text-4xl mb-2 block"></i>
+                            Aucun employé trouvé
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if employes.has_other_pages %}
+        <div class="flex justify-center gap-2 px-4 py-3 border-t border-border">
+            {% if employes.has_previous %}
+            <a href="?page=1" class="px-3 py-1 border border-border rounded-lg hover:bg-surface-soft">«</a>
+            <a href="?page={{ employes.previous_page_number }}" class="px-3 py-1 border border-border rounded-lg hover:bg-surface-soft">‹</a>
+            {% endif %}
+            <span class="px-3 py-1">Page {{ employes.number }} / {{ employes.paginator.num_pages }}</span>
+            {% if employes.has_next %}
+            <a href="?page={{ employes.next_page_number }}" class="px-3 py-1 border border-border rounded-lg hover:bg-surface-soft">›</a>
+            <a href="?page={{ employes.paginator.num_pages }}" class="px-3 py-1 border border-border rounded-lg hover:bg-surface-soft">»</a>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+
     <!-- MODAL DÉTAILS EMPLOYÉ (lecture seule) -->
     <div x-show="detailsOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="detailsOpen = false">
-        <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div class="sticky top-0 bg-surface-container-low px-6 py-4 border-b border-outline/10 flex justify-between items-center">
+        <div class="card-bro w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="sticky top-0 bg-white px-6 py-4 border-b border-border flex justify-between items-center rounded-t-card">
                 <h2 class="text-xl font-bold">Détails employé</h2>
-                <button @click="detailsOpen = false" class="text-on-surface-variant hover:text-on-surface">
+                <button @click="detailsOpen = false" class="text-on-surface-muted hover:text-on-surface">
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
             <div class="p-6 space-y-5">
                 <!-- Photo + Nom complet -->
                 <div class="flex items-center gap-4">
-                    <div class="w-16 h-16 rounded-full bg-surface-container-high overflow-hidden flex items-center justify-center flex-shrink-0">
+                    <div class="w-16 h-16 rounded-full bg-surface-soft overflow-hidden flex items-center justify-center flex-shrink-0">
                         <template x-if="detail.photo">
                             <img :src="detail.photo" class="w-full h-full object-cover">
                         </template>
                         <template x-if="!detail.photo">
-                            <i class="fas fa-user text-2xl text-on-surface-variant"></i>
+                            <i class="fas fa-user text-2xl text-on-surface-muted"></i>
                         </template>
                     </div>
                     <div>
                         <p class="text-lg font-bold" x-text="detail.nom + ' ' + detail.prenom"></p>
-                        <p class="text-sm text-on-surface-variant">
+                        <p class="text-sm text-on-surface-muted">
                             <span x-text="detail.matricule"></span>
                             <span class="ml-2" x-show="detail.poste" x-text="'| ' + detail.poste"></span>
                         </p>
                         <p class="text-xs mt-1">
-                            <span x-show="detail.actif" class="badge badge-success">Actif</span>
-                            <span x-show="!detail.actif" class="badge badge-error">Inactif</span>
+                            <span x-show="detail.actif" class="badge-bro bg-emerald-100 text-emerald-700">Actif</span>
+                            <span x-show="!detail.actif" class="badge-bro bg-red-100 text-red-700">Inactif</span>
                         </p>
                     </div>
                 </div>
 
-                <hr class="border-outline/20">
+                <hr class="border-border/40">
 
                 <!-- Grille d'infos -->
                 <div class="grid grid-cols-2 gap-4 text-sm">
                     <div>
-                        <p class="text-xs text-on-surface-variant">Matricule</p>
+                        <p class="text-xs text-on-surface-muted">Matricule</p>
                         <p class="font-medium" x-text="detail.matricule"></p>
                     </div>
                     <div>
-                        <p class="text-xs text-on-surface-variant">Sexe</p>
+                        <p class="text-xs text-on-surface-muted">Sexe</p>
                         <p class="font-medium" x-text="detail.sexe === 'M' ? 'Masculin' : 'Féminin'"></p>
                     </div>
                     <div>
-                        <p class="text-xs text-on-surface-variant">Date de naissance</p>
+                        <p class="text-xs text-on-surface-muted">Date de naissance</p>
                         <p class="font-medium" x-text="detail.date_naissance || '-'"></p>
                     </div>
                     <div>
-                        <p class="text-xs text-on-surface-variant">Date d'embauche</p>
+                        <p class="text-xs text-on-surface-muted">Date d'embauche</p>
                         <p class="font-medium" x-text="detail.date_embauche || '-'"></p>
                     </div>
                     <div>
-                        <p class="text-xs text-on-surface-variant">Téléphone</p>
+                        <p class="text-xs text-on-surface-muted">Téléphone</p>
                         <p class="font-medium" x-text="detail.telephone || '-'"></p>
                     </div>
                     <div>
-                        <p class="text-xs text-on-surface-variant">Email</p>
+                        <p class="text-xs text-on-surface-muted">Email</p>
                         <p class="font-medium" x-text="detail.email || '-'"></p>
                     </div>
                     <div>
-                        <p class="text-xs text-on-surface-variant">Adresse</p>
+                        <p class="text-xs text-on-surface-muted">Adresse</p>
                         <p class="font-medium" x-text="detail.adresse || '-'"></p>
                     </div>
                     <div>
-                        <p class="text-xs text-on-surface-variant">Département</p>
+                        <p class="text-xs text-on-surface-muted">Département</p>
                         <p class="font-medium" x-text="detail.departement || '-'"></p>
                     </div>
                     <div>
-                        <p class="text-xs text-on-surface-variant">Poste</p>
+                        <p class="text-xs text-on-surface-muted">Poste</p>
                         <p class="font-medium" x-text="detail.poste || '-'"></p>
                     </div>
                     <div>
-                        <p class="text-xs text-on-surface-variant">Situation familiale</p>
+                        <p class="text-xs text-on-surface-muted">Situation familiale</p>
                         <p class="font-medium" x-text="detail.situation_familiale || '-'"></p>
                     </div>
                     <div>
-                        <p class="text-xs text-on-surface-variant">Nombre d'enfants</p>
+                        <p class="text-xs text-on-surface-muted">Nombre d'enfants</p>
                         <p class="font-medium" x-text="detail.nombre_enfants ?? 0"></p>
                     </div>
                     <div>
-                        <p class="text-xs text-on-surface-variant">Diplôme</p>
+                        <p class="text-xs text-on-surface-muted">Diplôme</p>
                         <p class="font-medium" x-text="detail.diplome || '-'"></p>
                     </div>
                 </div>
 
                 <!-- Conjoint -->
                 <div x-show="detail.situation_familiale && detail.situation_familiale !== 'Celibataire'">
-                    <hr class="border-outline/20 mb-3">
-                    <h3 class="font-semibold text-sm text-secondary mb-2">Conjoint(e)</h3>
+                    <hr class="border-border/40 mb-3">
+                    <h3 class="font-semibold text-sm text-primary mb-2">Conjoint(e)</h3>
                     <div class="grid grid-cols-2 gap-3 text-sm">
                         <div>
-                            <p class="text-xs text-on-surface-variant">Civilité</p>
+                            <p class="text-xs text-on-surface-muted">Civilité</p>
                             <p class="font-medium" x-text="detail.conjoint_civilite || '-'"></p>
                         </div>
                         <div>
-                            <p class="text-xs text-on-surface-variant">Nom</p>
+                            <p class="text-xs text-on-surface-muted">Nom</p>
                             <p class="font-medium" x-text="detail.conjoint_nom || '-'"></p>
                         </div>
                         <div>
-                            <p class="text-xs text-on-surface-variant">Prénom</p>
+                            <p class="text-xs text-on-surface-muted">Prénom</p>
                             <p class="font-medium" x-text="detail.conjoint_prenom || '-'"></p>
                         </div>
                         <div>
-                            <p class="text-xs text-on-surface-variant">Contact</p>
+                            <p class="text-xs text-on-surface-muted">Contact</p>
                             <p class="font-medium" x-text="detail.conjoint_contact || '-'"></p>
                         </div>
                     </div>
                 </div>
 
                 <!-- Personne de référence -->
-                <hr class="border-outline/20">
-                <h3 class="font-semibold text-sm text-secondary mb-2">Personne de référence</h3>
+                <hr class="border-border/40">
+                <h3 class="font-semibold text-sm text-primary mb-2">Personne de référence</h3>
                 <div class="grid grid-cols-3 gap-3 text-sm">
                     <div>
-                        <p class="text-xs text-on-surface-variant">Nom</p>
+                        <p class="text-xs text-on-surface-muted">Nom</p>
                         <p class="font-medium" x-text="detail.personne_reference_nom || '-'"></p>
                     </div>
                     <div>
-                        <p class="text-xs text-on-surface-variant">Prénom</p>
+                        <p class="text-xs text-on-surface-muted">Prénom</p>
                         <p class="font-medium" x-text="detail.personne_reference_prenom || '-'"></p>
                     </div>
                     <div>
-                        <p class="text-xs text-on-surface-variant">Contact</p>
+                        <p class="text-xs text-on-surface-muted">Contact</p>
                         <p class="font-medium" x-text="detail.personne_reference_contact || '-'"></p>
                     </div>
                 </div>
 
                 <!-- Description -->
                 <div x-show="detail.description">
-                    <hr class="border-outline/20 mb-3">
-                    <h3 class="font-semibold text-sm text-secondary mb-1">Description</h3>
+                    <hr class="border-border/40 mb-3">
+                    <h3 class="font-semibold text-sm text-primary mb-1">Description</h3>
                     <p class="text-sm" x-text="detail.description"></p>
                 </div>
 
                 <!-- Compte utilisateur -->
-                <hr class="border-outline/20">
-                <h3 class="font-semibold text-sm text-secondary mb-2">Compte utilisateur</h3>
+                <hr class="border-border/40">
+                <h3 class="font-semibold text-sm text-primary mb-2">Compte utilisateur</h3>
                 <template x-if="detail.has_user">
                     <div class="text-sm">
                         <p><i class="fas fa-user-circle mr-1"></i><span x-text="detail.user_username"></span></p>
@@ -291,46 +288,46 @@
                     </div>
                 </template>
                 <template x-if="!detail.has_user">
-                    <p class="text-sm text-on-surface-variant"><i class="fas fa-info-circle mr-1"></i>Aucun compte utilisateur associé</p>
+                    <p class="text-sm text-on-surface-muted"><i class="fas fa-info-circle mr-1"></i>Aucun compte utilisateur associé</p>
                 </template>
 
                 <div class="flex justify-end pt-2">
-                    <button type="button" @click="detailsOpen = false" class="bg-surface-container-highest text-on-surface px-6 py-2 rounded-lg hover:bg-surface-container-highest/80 transition">
+                    <button type="button" @click="detailsOpen = false" class="bg-surface-soft text-on-surface px-6 py-2 rounded-lg hover:bg-border transition">
                         Fermer
                     </button>
                 </div>
             </div>
         </div>
     </div>
-    
+
     <!-- MODAL AJOUT / MODIFICATION EMPLOYÉ -->
     <div x-show="openModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="openModal = false">
-        <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            <div class="sticky top-0 bg-surface-container-low px-6 py-4 border-b border-outline/10 flex justify-between items-center">
+        <div class="card-bro w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div class="sticky top-0 bg-white px-6 py-4 border-b border-border flex justify-between items-center rounded-t-card">
                 <h2 class="text-xl font-bold" x-text="modalTitle">Ajouter un employé</h2>
-                <button @click="openModal = false" class="text-on-surface-variant hover:text-on-surface">
+                <button @click="openModal = false" class="text-on-surface-muted hover:text-on-surface">
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
-            
+
             <form @submit.prevent="saveEmploye" enctype="multipart/form-data" class="p-6">
                 {% csrf_token %}
                 <input type="hidden" x-model="form.matricule_edit">
-                
-                <h3 class="font-semibold text-md mb-4 text-secondary">Informations personnelles</h3>
+
+                <h3 class="font-semibold text-md mb-4 text-primary">Informations personnelles</h3>
 
                 <!-- Photo sur sa propre ligne -->
                 <div class="flex justify-center mb-5">
                     <div class="text-center">
-                        <div class="w-20 h-20 rounded-full bg-surface-container-high overflow-hidden flex items-center justify-center mx-auto">
+                        <div class="w-20 h-20 rounded-full bg-surface-soft overflow-hidden flex items-center justify-center mx-auto">
                             <template x-if="form.photo_preview">
                                 <img :src="form.photo_preview" class="w-full h-full object-cover">
                             </template>
                             <template x-if="!form.photo_preview">
-                                <i class="fas fa-user text-2xl text-on-surface-variant"></i>
+                                <i class="fas fa-user text-2xl text-on-surface-muted"></i>
                             </template>
                         </div>
-                        <label class="block text-[10px] mt-1 text-secondary cursor-pointer">
+                        <label class="block text-[10px] mt-1 text-primary cursor-pointer">
                             <i class="fas fa-camera mr-0.5"></i>Photo
                             <input type="file" accept="image/*" class="hidden" @change="previewPhoto">
                         </label>
@@ -341,27 +338,27 @@
                 <div class="grid grid-cols-3 gap-x-4 gap-y-3 mb-5">
                     <div>
                         <label class="block text-xs font-medium mb-1">Nom *</label>
-                        <input type="text" x-model="form.nom" required class="w-full px-3 py-2 input-md3 rounded-lg text-sm">
+                        <input type="text" x-model="form.nom" required class="w-full px-3 py-2 border border-border rounded-lg text-sm bg-white focus:outline-none focus:border-primary transition">
                     </div>
                     <div>
                         <label class="block text-xs font-medium mb-1">Prénom *</label>
-                        <input type="text" x-model="form.prenom" required class="w-full px-3 py-2 input-md3 rounded-lg text-sm">
+                        <input type="text" x-model="form.prenom" required class="w-full px-3 py-2 border border-border rounded-lg text-sm bg-white focus:outline-none focus:border-primary transition">
                     </div>
                     <div>
                         <label class="block text-xs font-medium mb-1">Téléphone *</label>
-                        <input type="tel" x-model="form.telephone" required class="w-full px-3 py-2 input-md3 rounded-lg text-sm">
+                        <input type="tel" x-model="form.telephone" required class="w-full px-3 py-2 border border-border rounded-lg text-sm bg-white focus:outline-none focus:border-primary transition">
                     </div>
                     <div>
                         <label class="block text-xs font-medium mb-1">Email</label>
-                        <input type="email" x-model="form.email" class="w-full px-3 py-2 input-md3 rounded-lg text-sm">
+                        <input type="email" x-model="form.email" class="w-full px-3 py-2 border border-border rounded-lg text-sm bg-white focus:outline-none focus:border-primary transition">
                     </div>
                     <div>
                         <label class="block text-xs font-medium mb-1">Date naissance *</label>
-                        <input type="date" x-model="form.date_naissance" required class="w-full px-3 py-2 input-md3 rounded-lg text-sm">
+                        <input type="date" x-model="form.date_naissance" required class="w-full px-3 py-2 border border-border rounded-lg text-sm bg-white focus:outline-none focus:border-primary transition">
                     </div>
                     <div>
                         <label class="block text-xs font-medium mb-1">Date embauche *</label>
-                        <input type="date" x-model="form.date_embauche" required class="w-full px-3 py-2 input-md3 rounded-lg text-sm">
+                        <input type="date" x-model="form.date_embauche" required class="w-full px-3 py-2 border border-border rounded-lg text-sm bg-white focus:outline-none focus:border-primary transition">
                     </div>
                 </div>
 
@@ -369,33 +366,33 @@
                 <div class="grid grid-cols-3 gap-4 mb-4">
                     <div>
                         <label class="block text-sm font-medium mb-1">Sexe</label>
-                        <select x-model="form.sexe" class="w-full px-3 py-2 input-md3 rounded-lg">
+                        <select x-model="form.sexe" class="w-full px-3 py-2 border border-border rounded-lg bg-white focus:outline-none focus:border-primary transition">
                             <option value="M">Masculin</option>
                             <option value="F">Féminin</option>
                         </select>
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Diplôme / Niveau</label>
-                        <input type="text" x-model="form.diplome" class="w-full px-3 py-2 input-md3 rounded-lg">
+                        <input type="text" x-model="form.diplome" class="w-full px-3 py-2 border border-border rounded-lg bg-white focus:outline-none focus:border-primary transition">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Adresse</label>
-                        <textarea x-model="form.adresse" rows="2" class="w-full px-3 py-2 input-md3 rounded-lg"></textarea>
+                        <textarea x-model="form.adresse" rows="2" class="w-full px-3 py-2 border border-border rounded-lg bg-white focus:outline-none focus:border-primary transition"></textarea>
                     </div>
                 </div>
 
                 <div class="mb-4">
                     <label class="block text-sm font-medium mb-1">Description</label>
-                    <textarea x-model="form.description" rows="2" class="w-full px-3 py-2 input-md3 rounded-lg" placeholder="Notes, compétences, etc."></textarea>
+                    <textarea x-model="form.description" rows="2" class="w-full px-3 py-2 border border-border rounded-lg bg-white focus:outline-none focus:border-primary transition" placeholder="Notes, compétences, etc."></textarea>
                 </div>
-                
-                <hr class="my-5 border-outline/20">
 
-                <h3 class="font-semibold text-md mb-3 text-secondary">Informations professionnelles</h3>
+                <hr class="my-5 border-border/40">
+
+                <h3 class="font-semibold text-md mb-3 text-primary">Informations professionnelles</h3>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium mb-1">Département</label>
-                        <select x-model="form.departement" class="w-full px-3 py-2 input-md3 rounded-lg">
+                        <select x-model="form.departement" class="w-full px-3 py-2 border border-border rounded-lg bg-white focus:outline-none focus:border-primary transition">
                             <option value="">Sélectionner...</option>
                             {% for dept in departements %}
                             <option value="{{ dept.id }}">{{ dept.libelle }}</option>
@@ -404,7 +401,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Poste</label>
-                        <select x-model="form.poste" class="w-full px-3 py-2 input-md3 rounded-lg">
+                        <select x-model="form.poste" class="w-full px-3 py-2 border border-border rounded-lg bg-white focus:outline-none focus:border-primary transition">
                             <option value="">Sélectionner...</option>
                             {% for poste in postes %}
                             <option value="{{ poste.id }}">{{ poste.intitule }}</option>
@@ -413,7 +410,7 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Situation familiale</label>
-                        <select x-model="form.situation_familiale" @change="toggleConjoint" class="w-full px-3 py-2 input-md3 rounded-lg">
+                        <select x-model="form.situation_familiale" @change="toggleConjoint" class="w-full px-3 py-2 border border-border rounded-lg bg-white focus:outline-none focus:border-primary transition">
                             {% for sit in situations %}
                             <option value="{{ sit.0 }}">{{ sit.1 }}</option>
                             {% endfor %}
@@ -421,18 +418,18 @@
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Nombre d'enfants</label>
-                        <input type="number" x-model="form.nombre_enfants" min="0" class="w-full px-3 py-2 input-md3 rounded-lg">
+                        <input type="number" x-model="form.nombre_enfants" min="0" class="w-full px-3 py-2 border border-border rounded-lg bg-white focus:outline-none focus:border-primary transition">
                     </div>
                 </div>
 
                 <!-- Section Conjoint(e) -->
                 <div x-show="form.situation_familiale !== 'Celibataire'" x-cloak>
-                    <hr class="my-5 border-outline/20">
-                    <h3 class="font-semibold text-md mb-3 text-secondary">Conjoint(e)</h3>
+                    <hr class="my-5 border-border/40">
+                    <h3 class="font-semibold text-md mb-3 text-primary">Conjoint(e)</h3>
                     <div class="grid grid-cols-2 gap-4">
                         <div>
                             <label class="block text-sm font-medium mb-1">Civilité</label>
-                            <select x-model="form.conjoint_civilite" class="w-full px-3 py-2 input-md3 rounded-lg">
+                            <select x-model="form.conjoint_civilite" class="w-full px-3 py-2 border border-border rounded-lg bg-white focus:outline-none focus:border-primary transition">
                                 <option value="">Sélectionner...</option>
                                 {% for c in civilites %}
                                 <option value="{{ c.0 }}">{{ c.1 }}</option>
@@ -441,40 +438,40 @@
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Nom</label>
-                            <input type="text" x-model="form.conjoint_nom" class="w-full px-3 py-2 input-md3 rounded-lg">
+                            <input type="text" x-model="form.conjoint_nom" class="w-full px-3 py-2 border border-border rounded-lg bg-white focus:outline-none focus:border-primary transition">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Prénom</label>
-                            <input type="text" x-model="form.conjoint_prenom" class="w-full px-3 py-2 input-md3 rounded-lg">
+                            <input type="text" x-model="form.conjoint_prenom" class="w-full px-3 py-2 border border-border rounded-lg bg-white focus:outline-none focus:border-primary transition">
                         </div>
                         <div>
                             <label class="block text-sm font-medium mb-1">Contact</label>
-                            <input type="tel" x-model="form.conjoint_contact" class="w-full px-3 py-2 input-md3 rounded-lg">
+                            <input type="tel" x-model="form.conjoint_contact" class="w-full px-3 py-2 border border-border rounded-lg bg-white focus:outline-none focus:border-primary transition">
                         </div>
                     </div>
                 </div>
 
-                <hr class="my-5 border-outline/20">
+                <hr class="my-5 border-border/40">
 
-                <h3 class="font-semibold text-md mb-3 text-secondary">Personne de référence</h3>
+                <h3 class="font-semibold text-md mb-3 text-primary">Personne de référence</h3>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
                         <label class="block text-sm font-medium mb-1">Nom</label>
-                        <input type="text" x-model="form.personne_reference_nom" class="w-full px-3 py-2 input-md3 rounded-lg">
+                        <input type="text" x-model="form.personne_reference_nom" class="w-full px-3 py-2 border border-border rounded-lg bg-white focus:outline-none focus:border-primary transition">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Prénom</label>
-                        <input type="text" x-model="form.personne_reference_prenom" class="w-full px-3 py-2 input-md3 rounded-lg">
+                        <input type="text" x-model="form.personne_reference_prenom" class="w-full px-3 py-2 border border-border rounded-lg bg-white focus:outline-none focus:border-primary transition">
                     </div>
                     <div>
                         <label class="block text-sm font-medium mb-1">Contact</label>
-                        <input type="tel" x-model="form.personne_reference_contact" class="w-full px-3 py-2 input-md3 rounded-lg">
+                        <input type="tel" x-model="form.personne_reference_contact" class="w-full px-3 py-2 border border-border rounded-lg bg-white focus:outline-none focus:border-primary transition">
                     </div>
                 </div>
-                
+
                 <!-- Gestion du compte utilisateur (mode édition seulement) -->
-                <div x-show="form.matricule_edit !== ''" x-cloak class="mt-6 pt-4 border-t border-outline/10">
-                    <h3 class="font-semibold text-md mb-3 text-secondary">Compte utilisateur</h3>
+                <div x-show="form.matricule_edit !== ''" x-cloak class="mt-6 pt-4 border-t border-border">
+                    <h3 class="font-semibold text-md mb-3 text-primary">Compte utilisateur</h3>
                     <template x-if="form.has_user">
                         <div class="space-y-2">
                             <p class="text-sm">
@@ -502,19 +499,19 @@
                         </div>
                     </template>
                     <template x-if="!form.has_user">
-                        <p class="text-sm text-on-surface-variant"><i class="fas fa-info-circle mr-1"></i>Aucun compte utilisateur associé. Un compte sera créé automatiquement si l'employé a un email.</p>
+                        <p class="text-sm text-on-surface-muted"><i class="fas fa-info-circle mr-1"></i>Aucun compte utilisateur associé. Un compte sera créé automatiquement si l'employé a un email.</p>
                     </template>
                 </div>
 
-                <div class="flex gap-3 mt-6 pt-4 border-t border-outline/10">
-                    <button type="submit" class="flex-1 bg-secondary text-white px-4 py-2 rounded-lg hover:bg-secondary/80 transition" :disabled="loading">
+                <div class="flex gap-3 mt-6 pt-4 border-t border-border">
+                    <button type="submit" class="flex-1 bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/80 transition" :disabled="loading">
                         <i class="fas fa-save mr-2"></i>
                         <span x-text="loading ? 'Enregistrement...' : 'Enregistrer'"></span>
                     </button>
-                    <button type="button" @click="openModal = false" class="flex-1 bg-surface-container-highest text-on-surface px-4 py-2 rounded-lg hover:bg-surface-container-highest transition">
+                    <button type="button" @click="openModal = false" class="flex-1 bg-surface-soft text-on-surface px-4 py-2 rounded-lg text-sm font-medium hover:bg-border transition">
                         Annuler
                     </button>
-                    <button type="button" x-show="form.matricule_edit !== ''" @click="supprimerEmploye(form.matricule_edit, form.nom + ' ' + form.prenom)" class="bg-red-600/20 text-red-500 px-4 py-2 rounded-lg hover:bg-red-600/30 transition">
+                    <button type="button" x-show="form.matricule_edit !== ''" @click="supprimerEmploye(form.matricule_edit, form.nom + ' ' + form.prenom)" class="bg-red-600/20 text-red-500 px-4 py-2 rounded-lg text-sm font-medium hover:bg-red-600/30 transition">
                         <i class="fas fa-trash mr-1"></i>Supprimer
                     </button>
                 </div>

@@ -1,0 +1,278 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}ERP{% endblock %} · Hôtel·ERP</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        surface: '#f8f6f2',
+                        'surface-card': '#ffffff',
+                        'surface-soft': '#f1eee8',
+                        'on-surface': '#1e1b1a',
+                        'on-surface-muted': '#6b6560',
+                        primary: '#b8862c',
+                        'primary-soft': '#f2ebd3',
+                        'primary-light': '#e8d8b0',
+                        error: '#b33c3c',
+                        'error-soft': '#fbe9e9',
+                        border: '#e5ded2',
+                    },
+                    fontFamily: {
+                        sans: ['"Hanken Grotesk"', 'system-ui', 'sans-serif'],
+                    },
+                    borderRadius: {
+                        card: '1.25rem',
+                        pill: '9999px',
+                    },
+                    boxShadow: {
+                        soft: '0 4px 16px -6px rgba(0,0,0,0.04), 0 2px 4px rgba(0,0,0,0.02)',
+                        hover: '0 12px 28px -10px rgba(0,0,0,0.06)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+    {% block head_extra %}{% endblock %}
+
+    <style>
+        [x-cloak] { display: none !important; }
+        .card-bro {
+            background: #ffffff;
+            border: 1px solid #e5ded2;
+            border-radius: 1.25rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        }
+        .card-bro:hover {
+            border-color: #b8862c;
+            transform: translateY(-3px);
+            box-shadow: 0 12px 28px -10px rgba(0,0,0,0.06);
+        }
+        .card-bro-static:hover {
+            transform: none;
+            border-color: #e5ded2;
+        }
+        .stat-icon-bro {
+            width: 44px; height: 44px; border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(184, 134, 44, 0.08);
+        }
+        .stat-icon-bro i { color: #b8862c; font-size: 18px; }
+        .badge-bro {
+            padding: 0.15rem 0.6rem; border-radius: 9999px;
+            font-size: 0.65rem; font-weight: 600; letter-spacing: 0.02em;
+        }
+        .module-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1.25rem 0.75rem;
+            border-radius: 1rem;
+            background: #ffffff;
+            border: 1px solid #e5ded2;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            text-decoration: none;
+            color: #1e1b1a;
+        }
+        .module-btn:hover {
+            border-color: #b8862c;
+            background: #f2ebd3;
+            transform: translateY(-3px);
+            box-shadow: 0 12px 28px -10px rgba(0,0,0,0.06);
+        }
+        .module-icon {
+            width: 48px; height: 48px;
+            border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(184, 134, 44, 0.08);
+        }
+        .module-icon i { color: #b8862c; font-size: 20px; }
+        .scrollbar-bro::-webkit-scrollbar { width: 4px; }
+        .scrollbar-bro::-webkit-scrollbar-track { background: #f1eee8; border-radius: 12px; }
+        .scrollbar-bro::-webkit-scrollbar-thumb { background: #d6cfc0; border-radius: 12px; }
+        .notif-dot {
+            width: 8px; height: 8px;
+            background: #b33c3c;
+            border-radius: 9999px;
+            position: absolute;
+            top: 2px; right: 2px;
+            border: 2px solid #f8f6f2;
+        }
+        .dropdown-bro {
+            display: none;
+            position: absolute;
+            top: calc(100% + 6px);
+            right: 0;
+            z-index: 50;
+        }
+        .dropdown-bro.open { display: block; }
+        .pill-nav {
+            display: inline-flex;
+            gap: 0.25rem;
+            padding: 0.375rem;
+            background: #f1eee8;
+            border-radius: 9999px;
+            overflow-x: auto;
+            white-space: nowrap;
+        }
+        .pill-nav a {
+            padding: 0.4rem 0.9rem;
+            border-radius: 9999px;
+            font-size: 0.78rem;
+            font-weight: 500;
+            color: #6b6560;
+            text-decoration: none;
+            transition: all 0.15s ease;
+        }
+        .pill-nav a:hover { background: #e5ded2; }
+        .pill-nav a.active {
+            background: #ffffff;
+            color: #b8862c;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .bro-table th {
+            text-align: left;
+            padding-bottom: 0.625rem;
+            font-size: 0.625rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: rgba(107,101,96,0.7);
+            border-bottom: 1px solid #e5ded2;
+        }
+        .bro-table td {
+            padding: 0.75rem 0.75rem 0.75rem 0;
+            border-bottom: 1px solid rgba(229,222,210,0.4);
+        }
+        .bro-table tr:last-child td { border-bottom: none; }
+        .bro-table tr:hover td { background: #f1eee8; }
+        {% block style_extra %}{% endblock %}
+    </style>
+</head>
+<body class="bg-surface text-on-surface font-sans antialiased min-h-screen" hx-boost="true">
+
+    <div x-data="appNav()" @click.away="notifOpen=false; userMenuOpen=false" class="min-h-screen flex flex-col">
+
+        <!-- Top Bar -->
+        <header class="bg-white/80 backdrop-blur-sm border-b border-border sticky top-0 z-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex items-center justify-between h-16">
+                    <a href="{% url 'dashboard:home' %}" class="flex items-center gap-3 hover:opacity-80 transition">
+                        <div class="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                            <i class="fas fa-crown text-primary text-sm"></i>
+                        </div>
+                        <span class="text-lg font-bold tracking-tight text-on-surface">Hôtel·ERP</span>
+                    </a>
+
+                    <div class="flex items-center gap-4">
+                        <!-- Notifications -->
+                        <div class="relative">
+                            <button @click="notifOpen=!notifOpen; userMenuOpen=false" class="relative w-9 h-9 flex items-center justify-center rounded-full hover:bg-surface-soft transition">
+                                <i class="fas fa-bell text-sm text-on-surface-muted"></i>
+                                <span x-show="notifs.length" class="notif-dot"></span>
+                            </button>
+                            <div class="dropdown-bro w-72 bg-white border border-border rounded-2xl shadow-lg overflow-hidden" :class="notifOpen && 'open'">
+                                <div class="px-4 py-3 border-b border-border">
+                                    <p class="text-xs font-semibold">Notifications</p>
+                                </div>
+                                <div class="max-h-60 overflow-y-auto scrollbar-bro">
+                                    <template x-for="n in notifs" :key="n.id">
+                                        <a :href="n.url || '#'" class="block px-4 py-3 hover:bg-surface-soft transition border-b border-border/40 last:border-0">
+                                            <p class="text-xs" x-text="n.message"></p>
+                                            <p class="text-[10px] text-on-surface-muted mt-0.5" x-text="n.date"></p>
+                                        </a>
+                                    </template>
+                                    <div x-show="!notifs.length" class="px-4 py-8 text-center text-xs text-on-surface-muted/60">
+                                        <i class="fas fa-check-circle text-lg block mb-1"></i>Aucune notification
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- User -->
+                        <div class="relative">
+                            <button @click="userMenuOpen=!userMenuOpen; notifOpen=false" class="flex items-center gap-2 hover:bg-surface-soft rounded-full pl-2 pr-3 py-1 transition">
+                                <div class="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
+                                    <span class="text-[10px] font-bold text-primary">{{ user.username|first|upper }}</span>
+                                </div>
+                                <span class="hidden sm:inline text-sm font-medium text-on-surface">{{ user.username }}</span>
+                                <i class="fas fa-chevron-down text-[9px] text-on-surface-muted"></i>
+                            </button>
+                            <div class="dropdown-bro w-48 bg-white border border-border rounded-2xl shadow-lg overflow-hidden" :class="userMenuOpen && 'open'">
+                                <div class="px-4 py-2.5 border-b border-border/40">
+                                    <p class="text-xs font-medium">{{ user.username }}</p>
+                                    <p class="text-[10px] text-on-surface-muted">{{ user_role|default:"Administrateur" }}</p>
+                                </div>
+                                <a href="{% url 'authentication:logout' %}" class="block px-4 py-2.5 text-xs hover:bg-error-soft hover:text-error transition">
+                                    <i class="fas fa-sign-out-alt mr-2 text-on-surface-muted"></i>Déconnexion
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Sub Navigation -->
+        {% block subnav %}{% endblock %}
+
+        <!-- Messages -->
+        {% block messages %}
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 w-full">
+            {% if messages %}
+            <div class="space-y-2 mb-4">
+                {% for message in messages %}
+                <div class="rounded-xl p-4 text-sm border-l-4
+                    {% if message.tags == 'success' %}bg-emerald-50 border-emerald-500 text-emerald-800
+                    {% elif message.tags == 'error' %}bg-red-50 border-red-500 text-red-800
+                    {% else %}bg-primary-soft border-primary text-on-surface{% endif %}">
+                    <div class="flex items-center gap-3">
+                        <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %}"></i>
+                        <span>{{ message }}</span>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+        {% endblock %}
+
+        <!-- Content -->
+        <main class="flex-1 max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8 py-6">
+            {% block content %}{% endblock %}
+        </main>
+
+        <!-- Footer -->
+        <footer class="border-t border-border py-4 text-center text-[10px] text-on-surface-muted/40">
+            Hôtel·ERP &copy; {% now "Y" %} — Tous droits réservés
+        </footer>
+
+    </div>
+
+    <script>
+        function appNav() {
+            return {
+                notifOpen: false,
+                userMenuOpen: false,
+                notifs: [],
+            }
+        }
+    </script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

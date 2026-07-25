@@ -1,16 +1,12 @@
-{% extends 'base.html' %}
-{% load static %}
+{% extends 'pos/base_pos.html' %}
 
 {% block title %}Centre de commandes{% endblock %}
-
-{% block header %}Centre de commandes{% endblock %}
-{% block subtitle %}Gestion centralisée des commandes{% endblock %}
 
 {% block content %}
 <div x-data="centreCommandes()" x-init="init()" class="space-y-6">
 
 <div class="flex items-center gap-4">
-    <select x-model="filtrePointVente" @change="chargerCommandes()" class="input-md3 rounded-lg text-sm flex-1 max-w-xs">
+    <select x-model="filtrePointVente" @change="chargerCommandes()" class=" rounded-lg text-sm flex-1 max-w-xs">
         <option value="">Tous les points de vente</option>
         {% for pv in points_vente %}
         <option value="{{ pv.id }}">{{ pv.nom }}</option>
@@ -21,29 +17,29 @@
 <!-- Stats -->
 <div class="px-6 pt-4">
     <div class="grid grid-cols-6 gap-3">
-        <div class="bg-surface-container-low border border-outline/10 rounded-xl p-3 text-center">
-            <p class="text-lg font-bold text-yellow-400" x-text="stats.en_attente"></p>
-            <p class="text-xs text-on-surface-variant">En attente</p>
+        <div class="bg-surface-card border border-border rounded-xl p-3 text-center">
+            <p class="text-lg font-bold text-yellow-600" x-text="stats.en_attente"></p>
+            <p class="text-xs text-primary/60">En attente</p>
         </div>
-        <div class="bg-surface-container-low border border-outline/10 rounded-xl p-3 text-center">
-            <p class="text-lg font-bold text-purple-400" x-text="stats.en_cours_livraison"></p>
-            <p class="text-xs text-on-surface-variant">En livraison</p>
+        <div class="bg-surface-card border border-border rounded-xl p-3 text-center">
+            <p class="text-lg font-bold text-purple-600" x-text="stats.en_cours_livraison"></p>
+            <p class="text-xs text-primary/60">En livraison</p>
         </div>
-        <div class="bg-surface-container-low border border-outline/10 rounded-xl p-3 text-center">
-            <p class="text-lg font-bold text-blue-400" x-text="stats.en_preparation"></p>
-            <p class="text-xs text-on-surface-variant">Préparation</p>
+        <div class="bg-surface-card border border-border rounded-xl p-3 text-center">
+            <p class="text-lg font-bold text-blue-600" x-text="stats.en_preparation"></p>
+            <p class="text-xs text-primary/60">Préparation</p>
         </div>
-        <div class="bg-surface-container-low border border-outline/10 rounded-xl p-3 text-center">
-            <p class="text-lg font-bold text-green-400" x-text="stats.prete"></p>
-            <p class="text-xs text-on-surface-variant">Prêtes</p>
+        <div class="bg-surface-card border border-border rounded-xl p-3 text-center">
+            <p class="text-lg font-bold text-emerald-600" x-text="stats.prete"></p>
+            <p class="text-xs text-primary/60">Prêtes</p>
         </div>
-        <div class="bg-surface-container-low border border-outline/10 rounded-xl p-3 text-center">
-            <p class="text-lg font-bold text-secondary" x-text="stats.payees"></p>
-            <p class="text-xs text-on-surface-variant">Payées</p>
+        <div class="bg-surface-card border border-border rounded-xl p-3 text-center">
+            <p class="text-lg font-bold text-primary" x-text="stats.payees"></p>
+            <p class="text-xs text-primary/60">Payées</p>
         </div>
-        <div class="bg-surface-container-low border border-outline/10 rounded-xl p-3 text-center">
-            <p class="text-lg font-bold text-red-400" x-text="stats.ca_jour"></p>
-            <p class="text-xs text-on-surface-variant">CA aujourd'hui</p>
+        <div class="bg-surface-card border border-border rounded-xl p-3 text-center">
+            <p class="text-lg font-bold text-red-600" x-text="stats.ca_jour"></p>
+            <p class="text-xs text-primary/60">CA aujourd'hui</p>
         </div>
     </div>
 </div>
@@ -52,7 +48,7 @@
 <div class="flex gap-2 px-6 pt-4 overflow-x-auto">
     <template x-for="tab in tabs" :key="tab.key">
         <button @click="activeTab = tab.key" class="px-4 py-2 text-sm font-medium rounded-lg whitespace-nowrap transition"
-                :class="activeTab === tab.key ? 'bg-secondary text-black' : 'bg-surface-container-high text-on-surface-variant hover:bg-surface-container'">
+                :class="activeTab === tab.key ? 'bg-primary text-black' : 'bg-surface-soft text-primary/60 hover:bg-surface-soft'">
             <span x-text="tab.label"></span>
             <span class="ml-1.5 text-xs opacity-70" x-text="tab.count"></span>
         </button>
@@ -61,19 +57,19 @@
 
 <!-- Contenu -->
 <div class="p-6">
-    <div x-show="loading" class="text-center py-12 text-on-surface-variant">
+    <div x-show="loading" class="text-center py-12 text-primary/60">
         <i class="fas fa-spinner fa-spin text-2xl"></i>
         <p class="mt-2 text-sm">Chargement...</p>
     </div>
 
-    <div x-show="!loading && commandesFiltrees.length === 0" class="text-center py-12 text-on-surface-variant">
+    <div x-show="!loading && commandesFiltrees.length === 0" class="text-center py-12 text-primary/60">
         <i class="fas fa-inbox text-4xl mb-3 block"></i>
         <p class="text-sm">Aucune commande dans cette catégorie</p>
     </div>
 
     <div x-show="!loading" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         <template x-for="c in commandesFiltrees" :key="c.id">
-            <div class="bg-surface-container-low border border-outline/10 rounded-xl p-4 hover:shadow-md transition space-y-2">
+            <div class="bg-surface-card border border-border rounded-xl p-4 hover:shadow-md transition space-y-2">
                 <!-- Header commande -->
                 <div class="flex items-start justify-between">
                     <div>
@@ -81,54 +77,54 @@
                         <span class="ml-2 text-xs px-2 py-0.5 rounded-full text-white"
                               :class="statutClass(c.statut_code)" x-text="c.statut"></span>
                     </div>
-                    <span class="text-xs text-on-surface-variant" x-text="c.date"></span>
+                    <span class="text-xs text-primary/60" x-text="c.date"></span>
                 </div>
                 
                 <!-- Infos -->
-                <div class="flex items-center gap-3 text-xs text-on-surface-variant">
+                <div class="flex items-center gap-3 text-xs text-primary/60">
                     <span><i class="fas fa-store mr-1"></i><span x-text="c.point_vente"></span></span>
                     <span x-show="c.table"><i class="fas fa-chair mr-1"></i>Table <span x-text="c.table"></span></span>
                     <span x-show="c.type !== 'Sur place'"><i class="fas fa-bag-shopping mr-1"></i><span x-text="c.type"></span></span>
                 </div>
-                <div class="text-xs text-on-surface-variant"><i class="fas fa-user mr-1"></i><span x-text="c.client"></span></div>
+                <div class="text-xs text-primary/60"><i class="fas fa-user mr-1"></i><span x-text="c.client"></span></div>
                 
                 <!-- Lignes preview -->
-                <div class="text-xs text-on-surface-variant">
+                <div class="text-xs text-primary/60">
                     <span x-text="c.lignes_count + ' article(s)'"></span>
                     <span x-show="c.temps_attente > 0" class="ml-2"><i class="fas fa-clock mr-1"></i><span x-text="c.temps_attente + ' min'"></span></span>
                 </div>
 
                 <!-- Montant + Actions -->
-                <div class="flex items-center justify-between pt-2 border-t border-outline/10">
+                <div class="flex items-center justify-between pt-2 border-t border-border">
                     <div class="flex items-center gap-2">
-                        <span class="font-bold text-secondary" x-text="formatMoney(c.montant) + ' F'"></span>
-                        <span x-show="c.facture_numero" class="text-xs px-2 py-0.5 bg-secondary/20 text-secondary rounded-full" title="Facture">
+                        <span class="font-bold text-primary" x-text="formatMoney(c.montant) + ' F'"></span>
+                        <span x-show="c.facture_numero" class="text-xs px-2 py-0.5 bg-primary/20 text-primary rounded-full" title="Facture">
                             <i class="fas fa-file-invoice mr-1"></i><span x-text="c.facture_numero"></span>
                         </span>
                     </div>
                     <div class="flex gap-1.5">
-                        <button @click="detailCommande(c.id)" class="text-xs px-2 py-1 bg-surface-container-high text-on-surface-variant rounded hover:bg-surface-container transition">
+                        <button @click="detailCommande(c.id)" class="text-xs px-2 py-1 bg-surface-soft text-primary/60 rounded hover:bg-surface-soft transition">
                             <i class="fas fa-eye"></i>
                         </button>
-                        <button x-show="c.statut_code === 'EN_ATTENTE'" @click="changerStatut(c.id, 'EN_PREPARATION')" class="text-xs px-2 py-1 bg-blue-900/30 text-blue-300 rounded hover:bg-blue-900/50 transition">
+                        <button x-show="c.statut_code === 'EN_ATTENTE'" @click="changerStatut(c.id, 'EN_PREPARATION')" class="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition">
                             Préparer
                         </button>
-                        <button x-show="c.statut_code === 'EN_PREPARATION'" @click="changerStatut(c.id, 'PRETE')" class="text-xs px-2 py-1 bg-yellow-900/30 text-yellow-300 rounded hover:bg-yellow-900/50 transition">
+                        <button x-show="c.statut_code === 'EN_PREPARATION'" @click="changerStatut(c.id, 'PRETE')" class="text-xs px-2 py-1 bg-yellow-100 text-yellow-700 rounded hover:bg-yellow-200 transition">
                             Prête
                         </button>
-                        <button x-show="c.statut_code === 'PRETE' && c.type_code === 'LIVRAISON'" @click="changerStatut(c.id, 'EN_COURS_DE_LIVRAISON')" class="text-xs px-2 py-1 bg-purple-900/30 text-purple-300 rounded hover:bg-purple-900/50 transition">
+                        <button x-show="c.statut_code === 'PRETE' && c.type_code === 'LIVRAISON'" @click="changerStatut(c.id, 'EN_COURS_DE_LIVRAISON')" class="text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition">
                             En livraison
                         </button>
-                        <button x-show="c.statut_code === 'PRETE' && c.type_code !== 'LIVRAISON'" @click="changerStatut(c.id, 'SERVIE')" class="text-xs px-2 py-1 bg-green-900/30 text-green-300 rounded hover:bg-green-900/50 transition">
+                        <button x-show="c.statut_code === 'PRETE' && c.type_code !== 'LIVRAISON'" @click="changerStatut(c.id, 'SERVIE')" class="text-xs px-2 py-1 bg-emerald-100 text-emerald-700 rounded hover:bg-emerald-200 transition">
                             Servir
                         </button>
-                        <button x-show="c.statut_code === 'EN_COURS_DE_LIVRAISON'" @click="changerStatut(c.id, 'LIVREE')" class="text-xs px-2 py-1 bg-green-900/30 text-green-300 rounded hover:bg-green-900/50 transition">
+                        <button x-show="c.statut_code === 'EN_COURS_DE_LIVRAISON'" @click="changerStatut(c.id, 'LIVREE')" class="text-xs px-2 py-1 bg-emerald-100 text-emerald-700 rounded hover:bg-emerald-200 transition">
                             Livrée
                         </button>
-                        <button x-show="c.statut_code === 'SERVIE'" @click="payerCommande(c.id)" class="text-xs px-2 py-1 bg-secondary text-black rounded hover:bg-secondary/80 transition">
+                        <button x-show="c.statut_code === 'SERVIE'" @click="payerCommande(c.id)" class="text-xs px-2 py-1 bg-primary text-black rounded hover:bg-primary/80 transition">
                             Payer
                         </button>
-                        <button x-show="c.statut_code === 'EN_ATTENTE' || c.statut_code === 'EN_PREPARATION'" @click="changerStatut(c.id, 'ANNULEE')" class="text-xs px-2 py-1 bg-red-900/30 text-red-300 rounded hover:bg-red-900/50 transition">
+                        <button x-show="c.statut_code === 'EN_ATTENTE' || c.statut_code === 'EN_PREPARATION'" @click="changerStatut(c.id, 'ANNULEE')" class="text-xs px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 transition">
                             Annuler
                         </button>
                     </div>
@@ -140,44 +136,44 @@
 
 <!-- Modal détail -->
 <div x-show="detailOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm px-4" @click.self="detailOpen = false">
-    <div class="w-full max-w-lg bg-surface-container-high rounded-2xl shadow-xl overflow-hidden">
-        <div class="flex items-center justify-between px-6 py-4 border-b border-outline/10">
+    <div class="w-full max-w-lg bg-surface-soft rounded-2xl shadow-xl overflow-hidden">
+        <div class="flex items-center justify-between px-6 py-4 border-b border-border">
             <h3 class="font-bold text-on-surface">Commande <span x-text="'#' + detail.numero"></span></h3>
-            <button @click="detailOpen = false" class="text-on-surface-variant hover:text-on-surface"><i class="fas fa-times"></i></button>
+            <button @click="detailOpen = false" class="text-primary/60 hover:text-on-surface"><i class="fas fa-times"></i></button>
         </div>
         <div class="p-6 space-y-3 max-h-96 overflow-y-auto scrollbar-thin">
             <div class="grid grid-cols-2 gap-3 text-sm">
-                <div><span class="text-on-surface-variant">Client :</span> <span class="text-on-surface" x-text="detail.client_nom || 'Anonyme'"></span></div>
-                <div><span class="text-on-surface-variant">Statut :</span> <span class="text-on-surface font-medium" x-text="detail.statut"></span></div>
-                <div><span class="text-on-surface-variant">Type :</span> <span class="text-on-surface" x-text="detail.type_commande"></span></div>
-                <div x-show="detail.table_numero"><span class="text-on-surface-variant">Table :</span> <span class="text-on-surface" x-text="detail.table_numero"></span></div>
-                <div><span class="text-on-surface-variant">Date :</span> <span class="text-on-surface" x-text="detail.date_commande"></span></div>
-                <div><span class="text-on-surface-variant">Attente :</span> <span class="text-on-surface" x-text="detail.temps_attente + ' min'"></span></div>
+                <div><span class="text-primary/60">Client :</span> <span class="text-on-surface" x-text="detail.client_nom || 'Anonyme'"></span></div>
+                <div><span class="text-primary/60">Statut :</span> <span class="text-on-surface font-medium" x-text="detail.statut"></span></div>
+                <div><span class="text-primary/60">Type :</span> <span class="text-on-surface" x-text="detail.type_commande"></span></div>
+                <div x-show="detail.table_numero"><span class="text-primary/60">Table :</span> <span class="text-on-surface" x-text="detail.table_numero"></span></div>
+                <div><span class="text-primary/60">Date :</span> <span class="text-on-surface" x-text="detail.date_commande"></span></div>
+                <div><span class="text-primary/60">Attente :</span> <span class="text-on-surface" x-text="detail.temps_attente + ' min'"></span></div>
             </div>
-            <div x-show="detail.client_telephone" class="text-sm"><span class="text-on-surface-variant">Tel :</span> <span class="text-on-surface" x-text="detail.client_telephone"></span></div>
-            <div x-show="detail.adresse_livraison" class="text-sm"><span class="text-on-surface-variant">Adresse :</span> <span class="text-on-surface" x-text="detail.adresse_livraison"></span></div>
-            <div x-show="detail.notes" class="text-sm"><span class="text-on-surface-variant">Notes :</span> <span class="text-orange-400" x-text="detail.notes"></span></div>
+            <div x-show="detail.client_telephone" class="text-sm"><span class="text-primary/60">Tel :</span> <span class="text-on-surface" x-text="detail.client_telephone"></span></div>
+            <div x-show="detail.adresse_livraison" class="text-sm"><span class="text-primary/60">Adresse :</span> <span class="text-on-surface" x-text="detail.adresse_livraison"></span></div>
+            <div x-show="detail.notes" class="text-sm"><span class="text-primary/60">Notes :</span> <span class="text-orange-400" x-text="detail.notes"></span></div>
 
-            <div class="pt-3 border-t border-outline/10">
+            <div class="pt-3 border-t border-border">
                 <p class="text-sm font-semibold text-on-surface mb-2">Articles</p>
                 <template x-for="l in detail.lignes" :key="l.article + l.prix_unitaire">
                     <div class="flex justify-between text-sm py-1">
-                        <span><span class="text-on-surface-variant" x-text="l.quantite + 'x'"></span> <span class="text-on-surface" x-text="l.article"></span></span>
-                        <span class="font-mono text-secondary" x-text="formatMoney(l.total) + ' F'"></span>
+                        <span><span class="text-primary/60" x-text="l.quantite + 'x'"></span> <span class="text-on-surface" x-text="l.article"></span></span>
+                        <span class="font-mono text-primary" x-text="formatMoney(l.total) + ' F'"></span>
                     </div>
                 </template>
-                <div class="flex justify-between text-sm font-bold pt-2 mt-2 border-t border-outline/10">
+                <div class="flex justify-between text-sm font-bold pt-2 mt-2 border-t border-border">
                     <span>Total</span>
-                    <span class="text-secondary" x-text="formatMoney(detail.montant_total) + ' F'"></span>
+                    <span class="text-primary" x-text="formatMoney(detail.montant_total) + ' F'"></span>
                 </div>
                 <div x-show="detail.facture_numero" class="flex justify-between text-sm pt-1">
-                    <span class="text-on-surface-variant">Facture</span>
-                    <span class="text-secondary font-medium" x-text="detail.facture_numero"></span>
+                    <span class="text-primary/60">Facture</span>
+                    <span class="text-primary font-medium" x-text="detail.facture_numero"></span>
                 </div>
             </div>
         </div>
-        <div class="px-6 py-4 border-t border-outline/10 flex justify-end gap-2">
-            <button @click="detailOpen = false" class="px-4 py-2 text-sm rounded-lg bg-surface-container-high text-on-surface-variant hover:bg-surface-container">Fermer</button>
+        <div class="px-6 py-4 border-t border-border flex justify-end gap-2">
+            <button @click="detailOpen = false" class="px-4 py-2 text-sm rounded-lg bg-surface-soft text-primary/60 hover:bg-surface-soft">Fermer</button>
         </div>
     </div>
 </div>
@@ -280,15 +276,15 @@ function centreCommandes() {
 
         statutClass(code) {
             const map = {
-                'EN_ATTENTE': 'bg-yellow-600',
-                'EN_PREPARATION': 'bg-blue-600',
-                'PRETE': 'bg-green-600',
-                'EN_COURS_DE_LIVRAISON': 'bg-purple-600',
-                'SERVIE': 'bg-gray-600',
-                'LIVREE': 'bg-gray-600',
-                'ANNULEE': 'bg-red-700',
+                'EN_ATTENTE': 'badge-bro bg-yellow-100 text-yellow-800',
+                'EN_PREPARATION': 'badge-bro bg-blue-100 text-blue-800',
+                'PRETE': 'badge-bro bg-emerald-100 text-emerald-800',
+                'EN_COURS_DE_LIVRAISON': 'badge-bro bg-purple-100 text-purple-800',
+                'SERVIE': 'badge-bro bg-gray-100 text-gray-800',
+                'LIVREE': 'badge-bro bg-gray-100 text-gray-800',
+                'ANNULEE': 'badge-bro bg-red-100 text-red-800',
             };
-            return map[code] || 'bg-surface-container-highest';
+            return map[code] || 'badge-bro bg-gray-100 text-gray-800';
         },
 
         formatMoney(v) { return new Intl.NumberFormat('fr-FR').format(v || 0); },

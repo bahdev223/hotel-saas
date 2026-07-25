@@ -1,5 +1,4 @@
-{% extends 'base.html' %}
-{% load static %}
+{% extends 'pos/base_pos.html' %}
 
 {% block title %}Paiement Clients{% endblock %}
 
@@ -8,12 +7,12 @@
 
     <div class="flex items-center justify-between mb-6">
         <div>
-            <a href="{% url 'pos:employe_dashboard' %}" class="text-sm text-secondary hover:underline mb-1 inline-block">
+            <a href="{% url 'pos:employe_dashboard' %}" class="text-sm text-primary hover:underline mb-1 inline-block">
                 <i class="fas fa-arrow-left mr-1"></i>Mon espace
             </a>
             <h1 class="text-2xl font-bold">Paiement Clients</h1>
         </div>
-        <div class="text-right text-xs text-on-surface-variant">
+        <div class="text-right text-xs text-primary/60">
             <p><i class="fas fa-store mr-1"></i>{{ point_vente.nom }}</p>
             <p><i class="fas fa-cash-register mr-1"></i>{{ caisse.nom }}</p>
         </div>
@@ -23,69 +22,69 @@
     <div class="mb-6">
         <div class="relative max-w-md">
             <input type="text" x-model="search" @input.debounce="rechercher()" placeholder="Rechercher un client par nom ou téléphone..."
-                   class="w-full input-md3 rounded-lg text-sm pl-10 pr-4">
-            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm"></i>
+                   class="w-full  rounded-lg text-sm pl-10 pr-4">
+            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-primary/60 text-sm"></i>
         </div>
-        <div x-show="search.length > 0" class="mt-1 max-h-48 overflow-y-auto divide-y divide-outline/10 bg-surface-container-low rounded-lg border border-outline/10 shadow-lg" x-cloak>
+        <div x-show="search.length > 0" class="mt-1 max-h-48 overflow-y-auto divide-y divide-outline/10 bg-surface-card rounded-lg border border-border shadow-lg" x-cloak>
             <template x-for="c in clients" :key="c.id">
-                <div @click="selectionnerEtPayer(c)" class="flex items-center justify-between p-3 hover:bg-surface-container-high cursor-pointer text-sm">
+                <div @click="selectionnerEtPayer(c)" class="flex items-center justify-between p-3 hover:bg-surface-soft cursor-pointer text-sm">
                     <div>
                         <p class="font-medium" x-text="c.nom"></p>
-                        <p class="text-xs text-on-surface-variant" x-text="c.telephone"></p>
+                        <p class="text-xs text-primary/60" x-text="c.telephone"></p>
                     </div>
                     <div class="flex items-center gap-3">
-                        <span class="font-mono font-bold" :class="c.solde > 0 ? 'text-red-400' : 'text-green-400'" x-text="(c.solde < 0 ? '-' : '') + formatMoney(c.solde) + ' F'"></span>
-                        <i class="fas fa-chevron-right text-on-surface-variant text-xs"></i>
+                        <span class="font-mono font-bold" :class="c.solde > 0 ? 'text-red-600' : 'text-emerald-600'" x-text="(c.solde < 0 ? '-' : '') + formatMoney(c.solde) + ' F'"></span>
+                        <i class="fas fa-chevron-right text-primary/60 text-xs"></i>
                     </div>
                 </div>
             </template>
-            <div x-show="!clients.length && search.length > 0" class="p-4 text-center text-sm text-on-surface-variant">Aucun client trouvé</div>
+            <div x-show="!clients.length && search.length > 0" class="p-4 text-center text-sm text-primary/60">Aucun client trouvé</div>
         </div>
     </div>
 
     <!-- Liste clients -->
     <div class="space-y-3">
         {% for c in clients_employe %}
-        <div class="bg-surface-container-low rounded-xl border border-outline/10 overflow-hidden hover:border-secondary/30 transition">
+        <div class="bg-surface-card rounded-xl border border-border overflow-hidden hover:border-primary/30 transition">
             <div class="p-4">
                 <div class="flex items-center justify-between">
                     <div class="flex items-center gap-3 min-w-0">
-                        <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 {% if c.solde > 0 %}bg-red-900/30{% elif c.solde < 0 %}bg-emerald-900/30{% else %}bg-surface-container-high{% endif %}">
-                            <i class="fas fa-user {% if c.solde > 0 %}text-red-400{% elif c.solde < 0 %}text-emerald-400{% else %}text-on-surface-variant{% endif %}"></i>
+                        <div class="w-10 h-10 rounded-full flex items-center justify-center shrink-0 {% if c.solde > 0 %}bg-red-100{% elif c.solde < 0 %}bg-emerald-100{% else %}bg-surface-soft{% endif %}">
+                            <i class="fas fa-user {% if c.solde > 0 %}text-red-600{% elif c.solde < 0 %}text-emerald-400{% else %}text-primary/60{% endif %}"></i>
                         </div>
                         <div class="min-w-0">
                             <p class="font-bold text-on-surface truncate">{{ c.nom }}</p>
-                            <p class="text-xs text-on-surface-variant">{{ c.telephone|default:"-" }}</p>
+                            <p class="text-xs text-primary/60">{{ c.telephone|default:"-" }}</p>
                         </div>
                     </div>
                     <div class="text-right shrink-0 ml-4">
                         <div class="flex items-center gap-2 justify-end">
                             {% if c.solde > 0 %}
-                            <span class="text-xs px-2 py-0.5 rounded-full bg-red-900/30 text-red-300 font-medium">Crédit</span>
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-red-100 text-red-700 font-medium">Crédit</span>
                             {% elif c.solde < 0 %}
-                            <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-900/30 text-emerald-300 font-medium">Avance</span>
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-medium">Avance</span>
                             {% else %}
-                            <span class="text-xs px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant font-medium">Soldé</span>
+                            <span class="text-xs px-2 py-0.5 rounded-full bg-surface-soft text-primary/60 font-medium">Soldé</span>
                             {% endif %}
                         </div>
-                        <p class="text-lg font-bold font-mono mt-1 {% if c.solde > 0 %}text-red-400{% elif c.solde < 0 %}text-emerald-400{% else %}text-on-surface{% endif %}">
+                        <p class="text-lg font-bold font-mono mt-1 {% if c.solde > 0 %}text-red-600{% elif c.solde < 0 %}text-emerald-400{% else %}text-on-surface{% endif %}">
                             {{ c.solde|floatformat:0 }} F
                         </p>
                     </div>
                 </div>
-                <div class="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-outline/10 text-sm">
+                <div class="grid grid-cols-2 gap-4 mt-3 pt-3 border-t border-border text-sm">
                     <div class="text-center">
-                        <p class="text-xs text-on-surface-variant">Crédit pris</p>
-                        <p class="font-mono font-bold text-red-400">{{ c.total_credit|floatformat:0 }} F</p>
+                        <p class="text-xs text-primary/60">Crédit pris</p>
+                        <p class="font-mono font-bold text-red-600">{{ c.total_credit|floatformat:0 }} F</p>
                     </div>
                     <div class="text-center">
-                        <p class="text-xs text-on-surface-variant">Remboursé</p>
+                        <p class="text-xs text-primary/60">Remboursé</p>
                         <p class="font-mono font-bold text-emerald-400">{{ c.total_depots|floatformat:0 }} F</p>
                     </div>
                 </div>
                 <div class="flex gap-2 mt-3">
                     <button onclick="ouvrirDialogClient('{{ c.id }}', 'dette', '{{ c.nom|escapejs }}', '{{ c.telephone|escapejs }}')"
-                            class="flex-1 px-4 py-2.5 rounded-lg bg-secondary text-on-secondary text-sm font-bold hover:bg-secondary/90 transition flex items-center justify-center gap-2">
+                            class="flex-1 px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-bold hover:bg-primary/90 transition flex items-center justify-center gap-2">
                         <i class="fas fa-hand-holding-usd"></i>Payer
                     </button>
                     <button onclick="ouvrirDialogClient('{{ c.id }}', 'depot', '{{ c.nom|escapejs }}', '{{ c.telephone|escapejs }}')"
@@ -96,7 +95,7 @@
             </div>
         </div>
         {% empty %}
-        <div class="text-center py-16 text-on-surface-variant">
+        <div class="text-center py-16 text-primary/60">
             <i class="fas fa-inbox text-5xl mb-4 block"></i>
             <p class="text-lg font-medium">Aucun client</p>
             <p class="text-sm">Les clients apparaîtront ici après leurs achats</p>
@@ -107,37 +106,37 @@
     <!-- Dialog -->
     <div x-show="dialogOuvert" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm"
          @click.away="dialogOuvert = false">
-        <div class="w-full max-w-sm bg-surface-container-low rounded-2xl shadow-xl mx-4 overflow-hidden" @click.stop>
-            <div class="px-5 py-4 border-b border-outline/10 flex items-center justify-between">
+        <div class="w-full max-w-sm bg-surface-card rounded-2xl shadow-xl mx-4 overflow-hidden" @click.stop>
+            <div class="px-5 py-4 border-b border-border flex items-center justify-between">
                 <div>
                     <h3 class="font-bold" x-text="typeOperation === 'dette' ? 'Payer une dette' : 'Dépôt client'"></h3>
-                    <p class="text-xs text-on-surface-variant" x-text="clientSelectionne ? clientSelectionne.nom : ''"></p>
+                    <p class="text-xs text-primary/60" x-text="clientSelectionne ? clientSelectionne.nom : ''"></p>
                 </div>
-                <span class="text-lg font-bold font-mono" :class="clientSolde > 0 ? 'text-red-400' : 'text-green-400'">
+                <span class="text-lg font-bold font-mono" :class="clientSolde > 0 ? 'text-red-600' : 'text-emerald-600'">
                     <span x-text="clientSolde > 0 ? '+' : ''"></span><span x-text="formatMoney(clientSolde)"></span> F
                 </span>
             </div>
             <div class="p-5 space-y-4">
                 <div>
-                    <label class="label-md3">Montant (F)</label>
+                    <label class="text-sm text-primary/60">Montant (F)</label>
                     <input type="number" x-model="montant" min="1" step="100" placeholder="0"
-                           class="w-full input-md3 rounded-lg text-right text-lg font-bold font-mono">
+                           class="w-full  rounded-lg text-right text-lg font-bold font-mono">
                 </div>
                 <div>
-                    <label class="label-md3">Mode</label>
-                    <select x-model="mode" class="w-full input-md3 rounded-lg text-sm">
+                    <label class="text-sm text-primary/60">Mode</label>
+                    <select x-model="mode" class="w-full  rounded-lg text-sm">
                         <option value="ESPECES">Espèces</option>
                         <option value="CARTE">Carte bancaire</option>
                         <option value="MOBILE_MONEY">Mobile Money</option>
                         <option value="CHEQUE">Chèque</option>
                     </select>
                 </div>
-                <div x-show="erreur" class="text-red-400 text-xs" x-text="erreur"></div>
+                <div x-show="erreur" class="text-red-600 text-xs" x-text="erreur"></div>
             </div>
-            <div class="px-5 py-4 border-t border-outline/10 flex gap-3">
-                <button @click="dialogOuvert = false" class="flex-1 border border-outline/10 py-2.5 rounded-lg text-sm">Annuler</button>
+            <div class="px-5 py-4 border-t border-border flex gap-3">
+                <button @click="dialogOuvert = false" class="flex-1 border border-border py-2.5 rounded-lg text-sm">Annuler</button>
                 <button @click="confirmer()" :disabled="!montant || montant <= 0 || chargement"
-                        class="flex-1 bg-secondary text-on-secondary py-2.5 rounded-lg text-sm font-bold"
+                        class="flex-1 bg-primary text-white py-2.5 rounded-lg text-sm font-bold"
                         :class="(!montant || montant <= 0 || chargement) ? 'opacity-40' : ''">
                     <i class="fas fa-spinner fa-spin mr-1" x-show="chargement" x-cloak></i>
                     <span x-text="chargement ? 'Traitement...' : 'Confirmer'"></span>
@@ -148,13 +147,13 @@
 
     <!-- Succès -->
     <div x-show="succes" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click="succes = false; reinit()">
-        <div class="bg-surface-container-low rounded-2xl p-8 text-center mx-4 max-w-sm">
-            <div class="w-16 h-16 rounded-full bg-green-900/30 mx-auto flex items-center justify-center mb-4">
-                <i class="fas fa-check-circle text-4xl text-green-400"></i>
+        <div class="bg-surface-card rounded-2xl p-8 text-center mx-4 max-w-sm">
+            <div class="w-16 h-16 rounded-full bg-emerald-100 mx-auto flex items-center justify-center mb-4">
+                <i class="fas fa-check-circle text-4xl text-emerald-600"></i>
             </div>
             <p class="text-lg font-bold text-on-surface">Opération réussie !</p>
-            <p class="text-sm text-on-surface-variant mt-1" x-text="messageSucces"></p>
-            <button @click="succes = false; reinit()" class="mt-4 bg-secondary text-on-secondary px-6 py-2 rounded-lg font-bold">Fermer</button>
+            <p class="text-sm text-primary/60 mt-1" x-text="messageSucces"></p>
+            <button @click="succes = false; reinit()" class="mt-4 bg-primary text-white px-6 py-2 rounded-lg font-bold">Fermer</button>
         </div>
     </div>
 </div>

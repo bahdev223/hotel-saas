@@ -1,138 +1,21 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Brasserie{% endblock %} — {{ entreprise_courante.nom_commercial|default:entreprise_courante.nom|default:'ERP' }}</title>
-    {% include "partials/theme_head.html" %}
-    <script>
-        function notificationBell() {
-            return {
-                count: 0, items: [], open: false,
-                async init() { await this.load(); setInterval(() => this.load(), 60000); },
-                async load() {
-                    try {
-                        const r = await fetch('/stock/api/notifications/');
-                        if (!r.ok) return;
-                        const d = await r.json();
-                        if (d.success) { this.count = d.count; this.items = d.items; }
-                    } catch(e) {}
-                },
-                toggle() { this.open = !this.open; if (this.open) this.load(); }
-            }
-        }
-    </script>
-    <style>
-        /* Spécifique brasserie */
-        .card-module { background: #ffffff; border: 1px solid #ece7dd; border-radius: 20px; padding: 24px; transition: all 0.2s ease; }
-        .card-module:hover { border-color: #c8962c; transform: translateY(-2px); box-shadow: 0 12px 24px -8px rgba(0,0,0,0.08); }
-    </style>
-</head>
-<body class="bg-background text-on-surface font-body-md">
+{% extends 'base_bro.html' %}
 
-<div class="min-h-screen flex flex-col">
-
-    <!-- Top Navbar -->
-    <nav class="bg-surface-container border-b border-outline/10 sticky top-0 z-40">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-16">
-                <a href="/" class="flex items-center gap-3 hover:opacity-85 transition-smooth">
-                    <img src="{% if entreprise_courante.logo %}{{ entreprise_courante.logo.url }}{% else %}{% static 'img/logo.jpg' %}{% endif %}" alt="{{ entreprise_courante.nom|default:'ERP' }}" class="w-10 h-10 rounded-lg shadow-md object-cover">
-                    <div>
-                        <span class="text-lg font-bold text-on-surface">{{ entreprise_courante.nom_commercial|default:entreprise_courante.nom|default:'ERP Hôtelier' }}</span>
-                    </div>
-                </a>
-                <div class="flex items-center gap-4">
-                    <!-- Notification Bell -->
-                    <div x-data="notificationBell()" x-init="init()" class="relative" @click.outside="open = false">
-                        <button @click="toggle()" class="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container-high hover:bg-secondary-container/20 text-on-surface-variant hover:text-secondary transition-smooth relative" title="Notifications stock">
-                            <i class="fas fa-bell text-sm"></i>
-                            <span x-show="count > 0" class="absolute -top-0.5 -right-0.5 w-4 h-4 flex items-center justify-center rounded-full bg-error text-[9px] font-bold text-white" x-text="count" x-cloak></span>
-                        </button>
-                        <div x-show="open" x-transition class="absolute right-0 mt-2 w-80 bg-surface-container-high border border-outline/10 rounded-xl shadow-xl z-50 overflow-hidden" x-cloak>
-                            <div class="px-4 py-3 border-b border-outline/10 flex justify-between items-center">
-                                <span class="text-sm font-semibold">Notifications stock</span>
-                                <span class="text-xs text-on-surface-variant" x-text="'(' + count + ')'"></span>
-                            </div>
-                            <div class="max-h-64 overflow-y-auto">
-                                <template x-for="(item, idx) in items" :key="idx">
-                                    <div class="flex items-start gap-3 px-4 py-3 hover:bg-surface-container border-b border-outline/5">
-                                        <i class="fas fa-box mt-0.5" :class="item.statut === 'rupture' ? 'text-error' : 'text-warning'"></i>
-                                        <div class="flex-1 min-w-0">
-                                            <p class="text-sm font-medium truncate" x-text="item.produit"></p>
-                                            <p class="text-xs text-on-surface-variant" x-text="item.entrepot + ' — ' + item.message"></p>
-                                        </div>
-                                        <span class="text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase" :class="item.statut === 'rupture' ? 'bg-error/20 text-error' : 'bg-warning/20 text-warning'" x-text="item.statut"></span>
-                                    </div>
-                                </template>
-                            </div>
-                            <div x-show="items.length === 0" class="px-4 py-6 text-center text-sm text-on-surface-variant">
-                                <i class="fas fa-check-circle text-green-400 text-xl block mb-1"></i>
-                                Tout est en ordre
-                            </div>
-                        </div>
-                    </div>
-                    <span class="hidden sm:inline text-sm text-on-surface-variant font-medium">{{ user.username }}</span>
-                    <a href="{% url 'authentication:logout' %}" class="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container-high hover:bg-error-container/20 text-on-surface-variant hover:text-error transition-smooth" title="Déconnexion">
-                        <i class="fas fa-sign-out-alt text-sm"></i>
-                    </a>
-                </div>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Messages -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 w-full">
-        {% if messages %}
-        <div class="space-y-2 mb-4">
-            {% for message in messages %}
-            <div class="rounded-lg p-4 border-l-4 text-sm
-                {% if message.tags == 'success' %}bg-green-50 border-green-500 text-green-800
-                {% elif message.tags == 'error' %}bg-red-50 border-red-500 text-red-800
-                {% else %}bg-secondary-container border-secondary text-on-surface{% endif %}">
-                <div class="flex items-center gap-3">
-                    <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-circle{% else %}fa-info-circle{% endif %}"></i>
-                    <span>{{ message }}</span>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-        {% endif %}
+{% block subnav %}
+<nav class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+    <div class="pill-nav" role="tablist">
+        <a href="{% url 'dashboard:brasserie' %}" class="{% if request.resolver_match.view_name == 'dashboard:brasserie' %}active{% endif %}">
+            <i class="fas fa-chart-pie mr-1.5"></i>Dashboard
+        </a>
+        <a href="{% url 'dashboard:brasserie_produits' %}" class="{% if request.resolver_match.view_name == 'dashboard:brasserie_produits' %}active{% endif %}">
+            <i class="fas fa-box mr-1.5"></i>Produits
+        </a>
+        <a href="/" class="">
+            <i class="fas fa-arrow-left mr-1.5"></i>Tableau de bord
+        </a>
     </div>
-
-    <!-- Sub Navigation -->
-    <nav class="bg-surface-container border-b border-outline/10 overflow-x-auto">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex gap-1 py-1.5 text-sm whitespace-nowrap">
-                <a href="{% url 'dashboard:brasserie' %}" class="px-3 py-1.5 rounded-lg hover:bg-surface-container-high transition-smooth {% if request.resolver_match.view_name == 'dashboard:brasserie' %}text-secondary bg-secondary-container/20{% else %}text-on-surface-variant{% endif %}">
-                    <i class="fas fa-chart-pie mr-1.5"></i>Dashboard
-                </a>
-                <a href="{% url 'dashboard:brasserie_produits' %}" class="px-3 py-1.5 rounded-lg hover:bg-surface-container-high transition-smooth {% if request.resolver_match.view_name == 'dashboard:brasserie_produits' %}text-secondary bg-secondary-container/20{% else %}text-on-surface-variant{% endif %}">
-                    <i class="fas fa-box mr-1.5"></i>Produits
-                </a>
-                <a href="/" class="px-3 py-1.5 rounded-lg hover:bg-surface-container-high transition-smooth text-on-surface-variant">
-                    <i class="fas fa-arrow-left mr-1.5"></i>Tableau de bord
-                </a>
-            </div>
-        </div>
-    </nav>
-
-    <!-- Page Header -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4 w-full">
+    <div class="mt-4 mb-2">
         <h1 class="text-xl font-bold text-on-surface">{% block header %}Brasserie{% endblock %}</h1>
         {% block subtitle %}{% endblock %}
     </div>
-
-    <!-- CONTENT -->
-    <div class="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 w-full">
-        {% block content %}{% endblock %}
-    </div>
-
-    <footer class="border-t border-outline/10 py-3 text-center text-xs text-on-surface-variant/60">
-        {{ entreprise_courante.nom_commercial|default:entreprise_courante.nom|default:'ERP Hôtelier' }} &copy; {% now "Y" %}
-    </footer>
-</div>
-
-</body>
-</html>
+</nav>
+{% endblock %}

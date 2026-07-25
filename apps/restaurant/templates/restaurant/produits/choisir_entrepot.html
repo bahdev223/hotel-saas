@@ -1,25 +1,24 @@
 {% extends 'restaurant/base_restaurant.html' %}
-{% load static %}
 
 {% block title %}Produits — Restaurant{% endblock %}
 
 {% block content %}
 <div class="max-w-md mx-auto mt-12">
-    <div class="card-md3 p-8 text-center">
-        <div class="w-16 h-16 rounded-full bg-secondary/10 flex items-center justify-center mx-auto mb-4">
-            <i class="fas fa-warehouse text-2xl text-secondary"></i>
+    <div class="card-bro p-8 text-center">
+        <div class="w-16 h-16 rounded-full bg-primary-soft flex items-center justify-center mx-auto mb-4">
+            <i class="fas fa-warehouse text-2xl text-primary"></i>
         </div>
         <h2 class="text-lg font-bold mb-2">Choisissez un entrepôt</h2>
-        <p class="text-sm text-on-surface-variant mb-6">Sélectionnez l'entrepôt dont vous voulez voir le stock</p>
+        <p class="text-sm text-on-surface-muted mb-6">Sélectionnez l'entrepôt dont vous voulez voir le stock</p>
         <form method="GET" action="{% url 'restaurant:produits_stock' %}">
             <select name="entrepot_id" required
-                    class="w-full px-4 py-3 input-md3 rounded-xl bg-surface-container-high text-sm mb-4">
+                    class="w-full px-4 py-3 border border-border bg-surface-card rounded-xl text-sm mb-4">
                 <option value="">-- Sélectionner --</option>
                 {% for ep in entrepots %}
                 <option value="{{ ep.id }}">{{ ep.nom }}</option>
                 {% endfor %}
             </select>
-            <button type="submit" class="w-full bg-secondary text-black font-bold py-3 rounded-xl hover:bg-secondary/90 transition-all">
+            <button type="submit" class="w-full bg-primary text-white font-bold py-3 rounded-xl hover:bg-primary/90 transition-all">
                 <i class="fas fa-eye mr-2"></i>Voir le stock
             </button>
         </form>

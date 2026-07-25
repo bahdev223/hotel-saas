@@ -1,5 +1,4 @@
 {% extends 'stock/base_stock.html' %}
-{% load static %}
 
 {% block title %}Fournisseurs{% endblock %}
 
@@ -10,60 +9,60 @@
     <div class="flex items-center justify-between">
         <div>
             <h1 class="text-2xl font-bold text-on-surface">
-                <i class="fas fa-truck text-secondary mr-2"></i>Fournisseurs
+                <i class="fas fa-truck text-primary mr-2"></i>Fournisseurs
             </h1>
-            <p class="text-sm text-on-surface-variant mt-1">{{ total }} fournisseur(s) actif(s)</p>
+            <p class="text-sm text-on-surface-muted mt-1">{{ total }} fournisseur(s) actif(s)</p>
         </div>
-        <button @click="showForm = true" :disabled="{{ est_bloque_stock|lower }}" class="btn-md3-primary text-sm px-4 py-2 rounded-lg">
+        <button @click="showForm = true" :disabled="{{ est_bloque_stock|lower }}" class="btn-primary-bro text-sm">
             <i class="fas fa-plus mr-1"></i>Nouveau fournisseur
         </button>
     </div>
 
     <!-- Stats cards -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div class="card-md3 p-5 flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-info/20 flex items-center justify-center text-info text-xl"><i class="fas fa-users"></i></div>
+        <div class="card-bro p-5 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-blue-100 flex items-center justify-center text-blue-600 text-xl"><i class="fas fa-users"></i></div>
             <div>
-                <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Fournisseurs actifs</p>
+                <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">Fournisseurs actifs</p>
                 <p class="text-xl font-bold font-mono">{{ total }}</p>
             </div>
         </div>
-        <div class="card-md3 p-5 flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-success/20 flex items-center justify-center text-success text-xl"><i class="fas fa-truck-loading"></i></div>
+        <div class="card-bro p-5 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600 text-xl"><i class="fas fa-truck-loading"></i></div>
             <div>
-                <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Achats effectués</p>
-                <p class="text-xl font-bold font-mono text-success">{{ total_achats }}</p>
+                <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">Achats effectués</p>
+                <p class="text-xl font-bold font-mono text-emerald-600">{{ total_achats }}</p>
             </div>
         </div>
-        <div class="card-md3 p-5 flex items-center gap-4">
-            <div class="w-12 h-12 rounded-xl bg-warning/20 flex items-center justify-center text-warning text-xl"><i class="fas fa-hand-holding-usd"></i></div>
+        <div class="card-bro p-5 flex items-center gap-4">
+            <div class="w-12 h-12 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600 text-xl"><i class="fas fa-hand-holding-usd"></i></div>
             <div>
-                <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Dette totale (solde)</p>
-                <p class="text-xl font-bold font-mono text-warning">{{ total_dette|floatformat:0 }} F</p>
+                <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">Dette totale (solde)</p>
+                <p class="text-xl font-bold font-mono text-amber-600">{{ total_dette|floatformat:0 }} F</p>
             </div>
         </div>
     </div>
 
     <!-- Search -->
     <div class="relative max-w-xs">
-        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm"></i>
+        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-muted text-sm"></i>
         <input type="text" x-model="search" @input.debounce.300ms="filtrer()"
-               class="input-md3 rounded-lg pl-9 text-sm w-full" placeholder="Rechercher un fournisseur...">
+               class="input-bro rounded-lg pl-9 text-sm" placeholder="Rechercher un fournisseur...">
     </div>
 
     <!-- Card grid -->
     {% if fournisseurs %}
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {% for f in fournisseurs %}
-        <a href="{% url 'stock:detail_fournisseur' f.id %}" class="card-md3 p-5 hover:border-secondary/50 transition-smooth block">
+        <a href="{% url 'stock:detail_fournisseur' f.id %}" class="card-bro p-5 hover:border-primary/50 transition block">
             <div class="flex justify-between items-start mb-3">
                 <div>
                     <h3 class="font-semibold">{{ f.nom }}</h3>
-                    <p class="text-xs text-on-surface-variant font-mono">{{ f.code }}</p>
+                    <p class="text-xs text-on-surface-muted font-mono">{{ f.code }}</p>
                 </div>
-                <span class="text-xs px-2 py-1 rounded-full bg-green-900/30 text-green-300">Actif</span>
+                <span class="badge-bro bg-emerald-100 text-emerald-700">Actif</span>
             </div>
-            <div class="space-y-1 text-sm text-on-surface-variant">
+            <div class="space-y-1 text-sm text-on-surface-muted">
                 {% if f.telephone %}<p><i class="fas fa-phone mr-2 w-4"></i>{{ f.telephone }}</p>{% endif %}
                 {% if f.email %}<p><i class="fas fa-envelope mr-2 w-4"></i>{{ f.email }}</p>{% endif %}
                 {% if f.identifiant_fiscal %}<p><i class="fas fa-file-invoice mr-2 w-4"></i>NIF: {{ f.identifiant_fiscal }}</p>{% endif %}
@@ -72,7 +71,7 @@
         {% endfor %}
     </div>
     {% else %}
-    <div class="text-center py-16 text-on-surface-variant">
+    <div class="text-center py-16 text-on-surface-muted">
         <i class="fas fa-truck text-5xl mb-4 block"></i>
         <p class="text-sm">Aucun fournisseur actif</p>
     </div>
@@ -80,49 +79,49 @@
 
     <!-- Modal Ajout Fournisseur -->
     <div x-show="showForm" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.away="showForm = false" @keydown.escape.window="showForm = false">
-        <div class="w-full max-w-lg bg-surface-container-low rounded-2xl shadow-xl mx-4 max-h-[95vh] overflow-y-auto" @click.stop>
-            <div class="sticky top-0 bg-surface-container-low border-b border-outline/10 px-6 py-4 flex justify-between items-center z-10">
-                <h2 class="text-lg font-bold"><i class="fas fa-plus-circle text-secondary mr-2"></i>Nouveau fournisseur</h2>
-                <button @click="showForm = false" class="text-on-surface-variant hover:text-on-surface"><i class="fas fa-times"></i></button>
+        <div class="w-full max-w-lg bg-white rounded-2xl shadow-xl mx-4 max-h-[95vh] overflow-y-auto" @click.stop>
+            <div class="sticky top-0 bg-white border-b border-border px-6 py-4 flex justify-between items-center z-10">
+                <h2 class="text-lg font-bold"><i class="fas fa-plus-circle text-primary mr-2"></i>Nouveau fournisseur</h2>
+                <button @click="showForm = false" class="text-on-surface-muted hover:text-on-surface"><i class="fas fa-times"></i></button>
             </div>
             <form @submit.prevent="saveFournisseur" class="p-6 space-y-4">
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="label-md3">Nom *</label>
-                        <input type="text" x-model="form.nom" class="input-md3 rounded-lg w-full" required>
+                        <label class="label-bro">Nom *</label>
+                        <input type="text" x-model="form.nom" class="input-bro" required>
                     </div>
                     <div>
-                        <label class="label-md3">Code</label>
-                        <input type="text" x-model="form.code" class="input-md3 rounded-lg w-full" placeholder="Auto">
+                        <label class="label-bro">Code</label>
+                        <input type="text" x-model="form.code" class="input-bro" placeholder="Auto">
                     </div>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="label-md3">Téléphone</label>
-                        <input type="text" x-model="form.telephone" class="input-md3 rounded-lg w-full">
+                        <label class="label-bro">Téléphone</label>
+                        <input type="text" x-model="form.telephone" class="input-bro">
                     </div>
                     <div>
-                        <label class="label-md3">Email</label>
-                        <input type="email" x-model="form.email" class="input-md3 rounded-lg w-full">
+                        <label class="label-bro">Email</label>
+                        <input type="email" x-model="form.email" class="input-bro">
                     </div>
                 </div>
                 <div>
-                    <label class="label-md3">Adresse</label>
-                    <textarea x-model="form.adresse" class="input-md3 rounded-lg w-full text-sm" rows="2"></textarea>
+                    <label class="label-bro">Adresse</label>
+                    <textarea x-model="form.adresse" class="input-bro text-sm" rows="2"></textarea>
                 </div>
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="label-md3">Contact</label>
-                        <input type="text" x-model="form.contact" class="input-md3 rounded-lg w-full">
+                        <label class="label-bro">Contact</label>
+                        <input type="text" x-model="form.contact" class="input-bro">
                     </div>
                     <div>
-                        <label class="label-md3">NIF / Identifiant fiscal</label>
-                        <input type="text" x-model="form.identifiant_fiscal" class="input-md3 rounded-lg w-full">
+                        <label class="label-bro">NIF / Identifiant fiscal</label>
+                        <input type="text" x-model="form.identifiant_fiscal" class="input-bro">
                     </div>
                 </div>
                 <div>
-                    <label class="label-md3">Compte comptable</label>
-                    <select x-model="form.compte_comptable_id" class="input-md3 rounded-lg w-full">
+                    <label class="label-bro">Compte comptable</label>
+                    <select x-model="form.compte_comptable_id" class="input-bro">
                         <option value="">— Aucun —</option>
                         {% for cc in comptes_comptables %}
                         <option value="{{ cc.id }}">{{ cc.code }} — {{ cc.libelle }}</option>
@@ -130,15 +129,15 @@
                     </select>
                 </div>
                 <div>
-                    <label class="label-md3">Notes</label>
-                    <textarea x-model="form.notes" class="input-md3 rounded-lg w-full text-sm" rows="2"></textarea>
+                    <label class="label-bro">Notes</label>
+                    <textarea x-model="form.notes" class="input-bro text-sm" rows="2"></textarea>
                 </div>
                 <div class="flex gap-3 pt-2">
-                    <button type="submit" class="flex-1 btn-md3-primary py-2 rounded-lg" :disabled="saving || {{ est_bloque_stock|lower }}">
+                    <button type="submit" class="flex-1 btn-primary-bro justify-center py-2" :disabled="saving || {{ est_bloque_stock|lower }}">
                         <i class="fas fa-spinner fa-spin" x-show="saving" x-cloak></i>
                         <span x-text="saving ? 'Enregistrement...' : 'Ajouter'"></span>
                     </button>
-                    <button type="button" @click="showForm = false" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm hover:bg-surface-container transition-smooth">Annuler</button>
+                    <button type="button" @click="showForm = false" class="flex-1 border border-border py-2 rounded-lg text-sm hover:bg-surface-soft transition">Annuler</button>
                 </div>
             </form>
         </div>

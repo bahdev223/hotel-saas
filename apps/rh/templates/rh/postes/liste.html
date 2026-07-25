@@ -1,81 +1,76 @@
 {% extends 'rh/base_rh.html' %}
-{% load static %}
 
 {% block title %}Postes - RH{% endblock %}
 
 {% block content %}
 <div x-data="posteManagement()" x-init="init()">
-    <div class="bg-surface-container-low rounded-xl shadow-md">
-        <div class="px-6 py-4 border-b border-outline/10 flex justify-between items-center">
+    <div class="card-bro">
+        <div class="px-6 py-4 border-b border-border flex justify-between items-center">
             <div>
-                <h1 class="text-2xl font-bold">Postes de travail</h1>
-                <p class="text-sm text-on-surface-variant mt-1">Gestion des postes et classifications</p>
+                <h1 class="text-xl font-bold">Postes de travail</h1>
+                <p class="text-sm text-on-surface-muted mt-1">Gestion des postes et classifications</p>
             </div>
-            <button @click="openModal = true; resetForm()" class="btn btn-primary btn-sm">
+            <button @click="openModal = true; resetForm()" class="inline-flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/80 transition">
                 <i class="fas fa-plus"></i> Nouveau poste
             </button>
         </div>
-        
+
         <!-- Stats rapides -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-6 border-b border-outline/10 bg-surface-container-high">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4 p-6 border-b border-border bg-surface-soft">
             <div class="text-center">
-                <p class="text-2xl font-bold text-secondary">{{ postes|length }}</p>
-                <p class="text-xs text-on-surface-variant">Total postes</p>
+                <p class="text-2xl font-bold text-primary">{{ postes|length }}</p>
+                <p class="text-xs text-on-surface-muted">Total postes</p>
             </div>
             <div class="text-center">
                 <p class="text-2xl font-bold text-green-400">{{ total_employes|default:0 }}</p>
-                <p class="text-xs text-on-surface-variant">Employés</p>
+                <p class="text-xs text-on-surface-muted">Employés</p>
             </div>
             <div class="text-center">
                 <p class="text-2xl font-bold text-blue-400">{{ cadres|default:0 }}</p>
-                <p class="text-xs text-on-surface-variant">Postes cadres</p>
+                <p class="text-xs text-on-surface-muted">Postes cadres</p>
             </div>
             <div class="text-center">
                 <p class="text-2xl font-bold text-purple-600">{{ salaire_moyen|default:0|floatformat:0 }}</p>
-                <p class="text-xs text-on-surface-variant">Salaire moyen (F)</p>
+                <p class="text-xs text-on-surface-muted">Salaire moyen (F)</p>
             </div>
         </div>
-        
+
         <!-- Tableau -->
         <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-surface-container-high">
+            <table class="bro-table w-full">
+                <thead>
                     <tr>
-                        <th class="px-6 py-3 text-left text-sm font-semibold">Code</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold">Intitulé</th>
-                        <th class="px-6 py-3 text-left text-sm font-semibold">Classification</th>
-                        <th class="px-6 py-3 text-right text-sm font-semibold">Salaire base</th>
-                        <th class="px-6 py-3 text-center text-sm font-semibold">Employés</th>
-                        <th class="px-6 py-3 text-center text-sm font-semibold">Actions</th>
+                        <th>Code</th>
+                        <th>Intitulé</th>
+                        <th>Classification</th>
+                        <th class="text-right">Salaire base</th>
+                        <th class="text-center">Employés</th>
+                        <th class="text-center">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-outline/10">
+                <tbody>
                     {% for poste in postes %}
-                    <tr class="hover:bg-surface-container-low transition">
-                        <td class="px-6 py-3">
-                            <span class="font-mono text-sm">{{ poste.code }}</span>
-                        </td>
-                        <td class="px-6 py-3">
-                            <span class="font-medium">{{ poste.intitule }}</span>
-                        </td>
-                        <td class="px-6 py-3">
+                    <tr>
+                        <td><span class="font-mono text-sm">{{ poste.code }}</span></td>
+                        <td><span class="font-medium">{{ poste.intitule }}</span></td>
+                        <td>
                             {% if poste.classification == 'Cadre' %}
-                            <span class="badge badge-primary">{{ poste.get_classification_display }}</span>
+                            <span class="badge-bro bg-amber-100 text-amber-700">{{ poste.get_classification_display }}</span>
                             {% elif poste.classification == 'Technicien' %}
-                            <span class="badge badge-info">{{ poste.get_classification_display }}</span>
+                            <span class="badge-bro bg-blue-100 text-blue-700">{{ poste.get_classification_display }}</span>
                             {% elif poste.classification == 'Employe' %}
-                            <span class="badge badge-success">{{ poste.get_classification_display }}</span>
+                            <span class="badge-bro bg-emerald-100 text-emerald-700">{{ poste.get_classification_display }}</span>
                             {% else %}
-                            <span class="badge badge-warning">{{ poste.get_classification_display }}</span>
+                            <span class="badge-bro bg-amber-100 text-amber-700">{{ poste.get_classification_display }}</span>
                             {% endif %}
                         </td>
-                        <td class="px-6 py-3 text-right font-mono">
+                        <td class="text-right font-mono">
                             {{ poste.salaire_base|floatformat:0|default:"-" }} F
                         </td>
-                        <td class="px-6 py-3 text-center">
-                            <span class="badge badge-info">{{ poste.employes.count }}</span>
+                        <td class="text-center">
+                            <span class="badge-bro bg-blue-100 text-blue-700">{{ poste.employes.count }}</span>
                         </td>
-                        <td class="px-6 py-3 text-center">
+                        <td class="text-center">
                             <button @click="editPoste('{{ poste.id }}')" class="text-blue-500 hover:text-blue-700 mx-1" title="Modifier">
                                 <i class="fas fa-edit"></i>
                             </button>
@@ -86,10 +81,10 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="6" class="px-6 py-8 text-center text-on-surface-variant">
+                        <td colspan="6" class="text-center text-on-surface-muted py-8">
                             <i class="fas fa-briefcase text-4xl mb-2 block"></i>
                             Aucun poste
-                            <button @click="openModal = true" class="block mx-auto mt-2 text-secondary hover:underline">
+                            <button @click="openModal = true" class="block mx-auto mt-2 text-primary hover:underline">
                                 Créer le premier poste
                             </button>
                           </td>
@@ -99,64 +94,64 @@
             </table>
         </div>
     </div>
-    
+
     <!-- MODAL AJOUT / MODIFICATION POSTE -->
     <div x-show="openModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="openModal = false">
-        <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-md">
-            <div class="px-6 py-4 border-b border-outline/10 flex justify-between items-center">
+        <div class="card-bro w-full max-w-md">
+            <div class="px-6 py-4 border-b border-border flex justify-between items-center">
                 <h2 class="text-xl font-bold" x-text="modalTitle">Poste</h2>
-                <button @click="openModal = false" class="text-on-surface-variant hover:text-on-surface">
+                <button @click="openModal = false" class="text-on-surface-muted hover:text-on-surface">
                     <i class="fas fa-times text-xl"></i>
                 </button>
             </div>
-            
+
             <form @submit.prevent="savePoste" class="p-6">
                 {% csrf_token %}
                 <input type="hidden" x-model="form.id">
-                
+
                 <div class="mb-4">
                     <label class="block text-sm font-medium mb-1">Code *</label>
                     <div class="flex gap-2">
                         <input type="text" x-model="form.code" required :readonly="!form.id && form.code"
-                               class="w-full px-3 py-2 input-md3 rounded-lg font-mono"
+                               class="w-full px-3 py-2 border border-border rounded-lg font-mono bg-white focus:outline-none focus:border-primary transition"
                                placeholder="Auto-généré">
                     </div>
-                    <p class="text-xs text-on-surface-variant mt-1" x-show="!form.id">Généré automatiquement (P-XXX)</p>
+                    <p class="text-xs text-on-surface-muted mt-1" x-show="!form.id">Généré automatiquement (P-XXX)</p>
                 </div>
-                
+
                 <div class="mb-4">
                     <label class="block text-sm font-medium mb-1">Intitulé *</label>
-                    <input type="text" x-model="form.intitule" required 
-                           class="w-full px-3 py-2 input-md3 rounded-lg"
+                    <input type="text" x-model="form.intitule" required
+                           class="w-full px-3 py-2 border border-border rounded-lg bg-white focus:outline-none focus:border-primary transition"
                            placeholder="Ex: Développeur Full Stack">
                 </div>
-                
-                <div class="flex gap-3 mt-6 pt-4 border-t border-outline/10">
-                    <button type="submit" class="flex-1 bg-secondary text-white px-4 py-2 rounded-lg hover:bg-secondary/80 transition" :disabled="loading">
+
+                <div class="flex gap-3 mt-6 pt-4 border-t border-border">
+                    <button type="submit" class="flex-1 bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/80 transition" :disabled="loading">
                         <i class="fas fa-save mr-2"></i>
                         <span x-text="loading ? 'Enregistrement...' : 'Enregistrer'"></span>
                     </button>
-                    <button type="button" @click="openModal = false" class="flex-1 bg-surface-container-highest text-on-surface px-4 py-2 rounded-lg hover:bg-surface-container-highest transition">
+                    <button type="button" @click="openModal = false" class="flex-1 bg-surface-soft text-on-surface px-4 py-2 rounded-lg text-sm font-medium hover:bg-border transition">
                         Annuler
                     </button>
                 </div>
             </form>
         </div>
     </div>
-    
+
     <!-- MODAL CONFIRMATION SUPPRESSION -->
     <div x-show="showDeleteModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="showDeleteModal = false">
-        <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-md p-6">
+        <div class="card-bro w-full max-w-md p-6">
             <div class="text-center">
                 <i class="fas fa-exclamation-triangle text-red-400 text-5xl mb-4"></i>
                 <h3 class="text-xl font-bold mb-2">Confirmer la suppression</h3>
-                <p class="text-on-surface-variant mb-6">Supprimer le poste <span class="font-bold" x-text="deleteNom"></span> ?</p>
+                <p class="text-on-surface-muted mb-6">Supprimer le poste <span class="font-bold" x-text="deleteNom"></span> ?</p>
                 <p class="text-sm text-red-400 mb-4">⚠️ Attention: Les employés liés à ce poste perdront leur référence.</p>
                 <div class="flex gap-3">
                     <button @click="confirmDelete" class="flex-1 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600">
                         Oui, supprimer
                     </button>
-                    <button @click="showDeleteModal = false" class="flex-1 bg-surface-container-highest text-on-surface px-4 py-2 rounded-lg hover:bg-surface-container-highest">
+                    <button @click="showDeleteModal = false" class="flex-1 bg-surface-soft text-on-surface px-4 py-2 rounded-lg hover:bg-border transition">
                         Annuler
                     </button>
                 </div>

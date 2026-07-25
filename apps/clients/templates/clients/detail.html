@@ -1,19 +1,17 @@
-{% extends 'base.html' %}
-{% load static %}
+{% extends 'clients/base_clients.html' %}
 
 {% block title %}{{ client.nom_complet }}{% endblock %}
-{% block header %}{% endblock %}
 
 {% block content %}
 <div x-data="{ tab: 'apercu' }" class="max-w-6xl mx-auto space-y-5">
 
     <!-- ═══════════ EN-TÊTE FICHE ═══════════ -->
-    <div class="card-md3 p-6">
+    <div class="card-bro card-bro-static p-6">
         <div class="flex flex-wrap items-start justify-between gap-4">
             <div class="flex items-center gap-4">
-                <a href="{% url 'clients:liste' %}" class="text-on-surface-variant hover:text-on-surface" title="Retour"><i class="fas fa-arrow-left text-xl"></i></a>
-                <div class="w-14 h-14 rounded-full bg-secondary/10 flex items-center justify-center shrink-0">
-                    <i class="fas {% if client.type_client == 'ENTREPRISE' %}fa-building{% elif client.type_client == 'AGENCE' %}fa-plane{% else %}fa-user{% endif %} text-secondary text-xl"></i>
+                <a href="{% url 'clients:liste' %}" class="text-on-surface-muted hover:text-on-surface" title="Retour"><i class="fas fa-arrow-left text-xl"></i></a>
+                <div class="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <i class="fas {% if client.type_client == 'ENTREPRISE' %}fa-building{% elif client.type_client == 'AGENCE' %}fa-plane{% else %}fa-user{% endif %} text-primary text-xl"></i>
                 </div>
                 <div>
                     <div class="flex items-center gap-3 flex-wrap">
@@ -22,9 +20,9 @@
                             {% if client.statut == 'ACTIF' %}bg-green-100 text-green-700
                             {% elif client.statut == 'INACTIF' %}bg-yellow-100 text-yellow-700
                             {% else %}bg-red-100 text-red-700{% endif %}">{{ client.get_statut_display }}</span>
-                        <span class="text-xs px-2 py-0.5 rounded-full bg-surface-container-high text-on-surface-variant">{{ client.get_type_client_display }}</span>
+                        <span class="badge-bro bg-surface-soft text-on-surface-muted">{{ client.get_type_client_display }}</span>
                     </div>
-                    <p class="text-sm text-on-surface-variant mt-1">
+                    <p class="text-sm text-on-surface-muted mt-1">
                         <span class="font-mono">{{ client.id }}</span>
                         · <i class="fas fa-phone text-xs mr-1"></i>{{ client.telephone|default:'—' }}
                         {% if client.email %} · <i class="fas fa-envelope text-xs mr-1"></i>{{ client.email }}{% endif %}
@@ -34,17 +32,17 @@
             </div>
             <div class="flex gap-2 flex-wrap">
                 <button hx-get="{% url 'hotel:ajouter_reservation' %}" hx-target="#modal"
-                        class="btn-md3-primary text-sm px-4 py-2 rounded-lg cursor-pointer">
+                        class="rounded-xl bg-primary text-white text-sm px-4 py-2 cursor-pointer">
                     <i class="fas fa-calendar-plus mr-1"></i>Nouvelle réservation
                 </button>
-                <a href="{% url 'clients:modifier' client.id %}" class="border border-outline/20 text-sm px-4 py-2 rounded-lg hover:bg-surface-container-high transition">
+                <a href="{% url 'clients:modifier' client.id %}" class="border border-border text-sm px-4 py-2 rounded-xl hover:bg-surface-soft transition">
                     <i class="fas fa-edit mr-1"></i>Modifier
                 </a>
             </div>
         </div>
 
         {% if client.statut == 'BLACKLIST' %}
-        <div class="mt-4 rounded-lg p-3 border-l-4 bg-red-50 border-red-500 text-red-800 text-sm">
+        <div class="mt-4 rounded-xl p-3 border-l-4 bg-red-50 border-red-500 text-red-700 text-sm">
             <i class="fas fa-ban mr-2"></i><strong>Client blacklisté.</strong> Vérifiez auprès de la direction avant toute opération.
         </div>
         {% endif %}
@@ -52,73 +50,73 @@
 
     <!-- ═══════════ INDICATEURS ═══════════ -->
     <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
-        <div class="card-md3 p-4 text-center">
-            <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">CA cumulé</p>
-            <p class="text-lg font-bold text-secondary font-mono mt-1">{{ indicateurs.ca_total|floatformat:0 }} F</p>
+        <div class="card-bro card-bro-static p-4 text-center">
+            <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">CA cumulé</p>
+            <p class="text-lg font-bold text-primary font-mono mt-1">{{ indicateurs.ca_total|floatformat:0 }} F</p>
         </div>
-        <div class="card-md3 p-4 text-center">
-            <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Solde dû</p>
-            <p class="text-lg font-bold font-mono mt-1 {% if position.solde_du > 0 %}text-red-500{% else %}text-green-600{% endif %}">{{ position.solde_du|floatformat:0 }} F</p>
+        <div class="card-bro card-bro-static p-4 text-center">
+            <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">Solde dû</p>
+            <p class="text-lg font-bold font-mono mt-1 {% if position.solde_du > 0 %}text-red-600{% else %}text-green-600{% endif %}">{{ position.solde_du|floatformat:0 }} F</p>
         </div>
-        <div class="card-md3 p-4 text-center">
-            <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Séjours</p>
+        <div class="card-bro card-bro-static p-4 text-center">
+            <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">Séjours</p>
             <p class="text-lg font-bold text-on-surface font-mono mt-1">{{ indicateurs.nb_sejours }}</p>
         </div>
-        <div class="card-md3 p-4 text-center">
-            <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Nuits</p>
+        <div class="card-bro card-bro-static p-4 text-center">
+            <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">Nuits</p>
             <p class="text-lg font-bold text-on-surface font-mono mt-1">{{ indicateurs.nb_nuits }}</p>
         </div>
-        <div class="card-md3 p-4 text-center">
-            <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Panier moyen</p>
+        <div class="card-bro card-bro-static p-4 text-center">
+            <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">Panier moyen</p>
             <p class="text-lg font-bold text-on-surface font-mono mt-1">{{ indicateurs.panier_moyen|floatformat:0 }} F</p>
         </div>
-        <div class="card-md3 p-4 text-center">
-            <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Dernière visite</p>
+        <div class="card-bro card-bro-static p-4 text-center">
+            <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">Dernière visite</p>
             <p class="text-sm font-bold text-on-surface mt-1.5">{% if indicateurs.derniere_visite %}{{ indicateurs.derniere_visite|date:"d/m/Y" }}{% else %}—{% endif %}</p>
         </div>
-        <div class="card-md3 p-4 text-center">
-            <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Prochaine arrivée</p>
-            <p class="text-sm font-bold mt-1.5 {% if indicateurs.prochaine_reservation %}text-secondary{% else %}text-on-surface{% endif %}">
+        <div class="card-bro card-bro-static p-4 text-center">
+            <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">Prochaine arrivée</p>
+            <p class="text-sm font-bold mt-1.5 {% if indicateurs.prochaine_reservation %}text-primary{% else %}text-on-surface{% endif %}">
                 {% if indicateurs.prochaine_reservation %}{{ indicateurs.prochaine_reservation.date_arrivee_prevue|date:"d/m/Y" }}{% else %}—{% endif %}
             </p>
         </div>
     </div>
 
     <!-- ═══════════ ONGLETS ═══════════ -->
-    <div class="card-md3 overflow-hidden">
-        <div class="flex border-b border-outline/10 overflow-x-auto">
-            <button @click="tab = 'apercu'" class="px-5 py-3 text-sm font-medium whitespace-nowrap transition" :class="tab === 'apercu' ? 'text-secondary border-b-2 border-secondary' : 'text-on-surface-variant hover:text-on-surface'"><i class="fas fa-id-card mr-1"></i>Vue d'ensemble</button>
-            <button @click="tab = 'chrono'" class="px-5 py-3 text-sm font-medium whitespace-nowrap transition" :class="tab === 'chrono' ? 'text-secondary border-b-2 border-secondary' : 'text-on-surface-variant hover:text-on-surface'"><i class="fas fa-stream mr-1"></i>Chronologie <span class="ml-1 text-xs bg-secondary/15 px-1.5 py-0.5 rounded-full">{{ timeline|length }}</span></button>
-            <button @click="tab = 'sejours'" class="px-5 py-3 text-sm font-medium whitespace-nowrap transition" :class="tab === 'sejours' ? 'text-secondary border-b-2 border-secondary' : 'text-on-surface-variant hover:text-on-surface'"><i class="fas fa-bed mr-1"></i>Réservations & séjours <span class="ml-1 text-xs bg-secondary/15 px-1.5 py-0.5 rounded-full">{{ operations.locations|length }}</span></button>
-            <button @click="tab = 'finances'" class="px-5 py-3 text-sm font-medium whitespace-nowrap transition" :class="tab === 'finances' ? 'text-secondary border-b-2 border-secondary' : 'text-on-surface-variant hover:text-on-surface'"><i class="fas fa-file-invoice-dollar mr-1"></i>Factures & paiements <span class="ml-1 text-xs {% if position.nb_factures_impayees > 0 %}bg-red-100 text-red-700{% else %}bg-secondary/15{% endif %} px-1.5 py-0.5 rounded-full">{{ position.nb_factures_impayees }}</span></button>
-            <button @click="tab = 'compte'" class="px-5 py-3 text-sm font-medium whitespace-nowrap transition" :class="tab === 'compte' ? 'text-secondary border-b-2 border-secondary' : 'text-on-surface-variant hover:text-on-surface'"><i class="fas fa-wallet mr-1"></i>Compte</button>
+    <div class="card-bro card-bro-static overflow-hidden">
+        <div class="flex border-b border-border overflow-x-auto">
+            <button @click="tab = 'apercu'" class="px-5 py-3 text-sm font-medium whitespace-nowrap transition" :class="tab === 'apercu' ? 'text-primary border-b-2 border-primary' : 'text-on-surface-muted hover:text-on-surface'"><i class="fas fa-id-card mr-1"></i>Vue d'ensemble</button>
+            <button @click="tab = 'chrono'" class="px-5 py-3 text-sm font-medium whitespace-nowrap transition" :class="tab === 'chrono' ? 'text-primary border-b-2 border-primary' : 'text-on-surface-muted hover:text-on-surface'"><i class="fas fa-stream mr-1"></i>Chronologie <span class="ml-1 text-xs bg-primary/15 px-1.5 py-0.5 rounded-full">{{ timeline|length }}</span></button>
+            <button @click="tab = 'sejours'" class="px-5 py-3 text-sm font-medium whitespace-nowrap transition" :class="tab === 'sejours' ? 'text-primary border-b-2 border-primary' : 'text-on-surface-muted hover:text-on-surface'"><i class="fas fa-bed mr-1"></i>Réservations & séjours <span class="ml-1 text-xs bg-primary/15 px-1.5 py-0.5 rounded-full">{{ operations.locations|length }}</span></button>
+            <button @click="tab = 'finances'" class="px-5 py-3 text-sm font-medium whitespace-nowrap transition" :class="tab === 'finances' ? 'text-primary border-b-2 border-primary' : 'text-on-surface-muted hover:text-on-surface'"><i class="fas fa-file-invoice-dollar mr-1"></i>Factures & paiements <span class="ml-1 text-xs {% if position.nb_factures_impayees > 0 %}bg-red-100 text-red-700{% else %}bg-primary/15{% endif %} px-1.5 py-0.5 rounded-full">{{ position.nb_factures_impayees }}</span></button>
+            <button @click="tab = 'compte'" class="px-5 py-3 text-sm font-medium whitespace-nowrap transition" :class="tab === 'compte' ? 'text-primary border-b-2 border-primary' : 'text-on-surface-muted hover:text-on-surface'"><i class="fas fa-wallet mr-1"></i>Compte</button>
         </div>
 
         <!-- ── Vue d'ensemble ── -->
         <div x-show="tab === 'apercu'" class="p-6">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm">
                 <div class="space-y-4">
-                    <div><span class="text-on-surface-variant block text-xs uppercase tracking-wider mb-0.5">Téléphone</span>{{ client.telephone|default:'—' }}</div>
-                    <div><span class="text-on-surface-variant block text-xs uppercase tracking-wider mb-0.5">Email</span>{{ client.email|default:'—' }}</div>
-                    <div><span class="text-on-surface-variant block text-xs uppercase tracking-wider mb-0.5">Adresse</span>{{ client.adresse|default:'—' }}</div>
-                    <div><span class="text-on-surface-variant block text-xs uppercase tracking-wider mb-0.5">Pièce d'identité</span>{% if client.piece_identite %}{{ client.piece_identite }} — {{ client.numero_piece|default:'' }}{% else %}—{% endif %}</div>
+                    <div><span class="text-on-surface-muted block text-xs uppercase tracking-wider mb-0.5">Téléphone</span>{{ client.telephone|default:'—' }}</div>
+                    <div><span class="text-on-surface-muted block text-xs uppercase tracking-wider mb-0.5">Email</span>{{ client.email|default:'—' }}</div>
+                    <div><span class="text-on-surface-muted block text-xs uppercase tracking-wider mb-0.5">Adresse</span>{{ client.adresse|default:'—' }}</div>
+                    <div><span class="text-on-surface-muted block text-xs uppercase tracking-wider mb-0.5">Pièce d'identité</span>{% if client.piece_identite %}{{ client.piece_identite }} — {{ client.numero_piece|default:'' }}{% else %}—{% endif %}</div>
                 </div>
                 <div class="space-y-4">
-                    <div><span class="text-on-surface-variant block text-xs uppercase tracking-wider mb-0.5">Identifiant fiscal</span>{{ client.identifiant_fiscal|default:'—' }}</div>
-                    <div><span class="text-on-surface-variant block text-xs uppercase tracking-wider mb-0.5">Plafond de crédit</span>{% if client.credit_plafond %}{{ client.credit_plafond|floatformat:0 }} F{% else %}Aucune limite{% endif %}</div>
-                    <div><span class="text-on-surface-variant block text-xs uppercase tracking-wider mb-0.5">Annulations / no-show</span>{{ indicateurs.nb_annulations }}</div>
-                    {% if client.notes %}<div><span class="text-on-surface-variant block text-xs uppercase tracking-wider mb-0.5">Notes</span><span class="italic">{{ client.notes }}</span></div>{% endif %}
+                    <div><span class="text-on-surface-muted block text-xs uppercase tracking-wider mb-0.5">Identifiant fiscal</span>{{ client.identifiant_fiscal|default:'—' }}</div>
+                    <div><span class="text-on-surface-muted block text-xs uppercase tracking-wider mb-0.5">Plafond de crédit</span>{% if client.credit_plafond %}{{ client.credit_plafond|floatformat:0 }} F{% else %}Aucune limite{% endif %}</div>
+                    <div><span class="text-on-surface-muted block text-xs uppercase tracking-wider mb-0.5">Annulations / no-show</span>{{ indicateurs.nb_annulations }}</div>
+                    {% if client.notes %}<div><span class="text-on-surface-muted block text-xs uppercase tracking-wider mb-0.5">Notes</span><span class="italic">{{ client.notes }}</span></div>{% endif %}
                 </div>
             </div>
             {% if indicateurs.prochaine_reservation %}
-            <div class="mt-6 rounded-xl bg-secondary-container/60 border border-secondary/20 p-4 flex items-center justify-between">
+            <div class="mt-6 rounded-xl bg-primary-soft border border-primary/20 p-4 flex items-center justify-between">
                 <div class="text-sm">
-                    <i class="fas fa-calendar-check text-secondary mr-2"></i>
+                    <i class="fas fa-calendar-check text-primary mr-2"></i>
                     Prochaine réservation <span class="font-mono font-medium">{{ indicateurs.prochaine_reservation.code }}</span>
                     — arrivée le <strong>{{ indicateurs.prochaine_reservation.date_arrivee_prevue|date:"d/m/Y à H:i" }}</strong>
                     ({{ indicateurs.prochaine_reservation.duree_nuits }} nuit{{ indicateurs.prochaine_reservation.duree_nuits|pluralize }})
                 </div>
-                <a href="{% url 'hotel:detail_reservation' indicateurs.prochaine_reservation.id %}" class="text-secondary text-sm hover:underline whitespace-nowrap">Voir <i class="fas fa-arrow-right ml-1"></i></a>
+                <a href="{% url 'hotel:detail_reservation' indicateurs.prochaine_reservation.id %}" class="text-primary text-sm hover:underline whitespace-nowrap">Voir <i class="fas fa-arrow-right ml-1"></i></a>
             </div>
             {% endif %}
         </div>
@@ -126,54 +124,54 @@
         <!-- ── Chronologie unifiée ── -->
         <div x-show="tab === 'chrono'" class="p-4 max-h-[560px] overflow-y-auto space-y-1" x-cloak>
             {% for ev in timeline %}
-            <div class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-surface-container-high transition text-sm {% cycle '' 'bg-surface-container-high/40' %}">
+            <div class="flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-surface-soft transition text-sm {% cycle '' 'bg-surface-soft/40' %}">
                 <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-xs
                     {% if ev.type == 'PAIEMENT' %}bg-green-100 text-green-600
                     {% elif ev.type == 'FACTURE' %}bg-red-100 text-red-600
                     {% elif ev.type == 'SEJOUR' %}bg-blue-100 text-blue-600
                     {% elif ev.type == 'RESERVATION' %}bg-purple-100 text-purple-600
                     {% elif ev.type == 'COMMANDE' %}bg-orange-100 text-orange-600
-                    {% else %}bg-surface-container-high text-on-surface-variant{% endif %}">
+                    {% else %}bg-surface-soft text-on-surface-muted{% endif %}">
                     <i class="fas {% if ev.type == 'PAIEMENT' %}fa-credit-card{% elif ev.type == 'FACTURE' %}fa-file-invoice{% elif ev.type == 'SEJOUR' %}fa-bed{% elif ev.type == 'RESERVATION' %}fa-calendar-check{% elif ev.type == 'COMMANDE' %}fa-clipboard-list{% elif ev.type == 'VENTE' %}fa-receipt{% else %}fa-circle{% endif %}"></i>
                 </div>
                 <div class="flex-1 min-w-0">
                     <div class="flex items-center gap-2">
                         <span class="font-medium truncate">{{ ev.titre }}</span>
-                        <span class="text-xs text-on-surface-variant font-mono">{{ ev.reference }}</span>
+                        <span class="text-xs text-on-surface-muted font-mono">{{ ev.reference }}</span>
                     </div>
-                    <p class="text-xs text-on-surface-variant truncate">{{ ev.date|date:"d/m/Y H:i" }}{% if ev.description %} · {{ ev.description }}{% endif %}</p>
+                    <p class="text-xs text-on-surface-muted truncate">{{ ev.date|date:"d/m/Y H:i" }}{% if ev.description %} · {{ ev.description }}{% endif %}</p>
                 </div>
                 <div class="text-right shrink-0">
-                    <div class="font-mono text-sm font-medium {% if ev.type == 'PAIEMENT' and ev.montant > 0 %}text-green-600{% elif ev.montant < 0 %}text-red-500{% endif %}">{{ ev.montant|floatformat:0 }} F</div>
-                    <span class="text-[10px] px-1.5 py-0.5 rounded
+                    <div class="font-mono text-sm font-medium {% if ev.type == 'PAIEMENT' and ev.montant > 0 %}text-green-600{% elif ev.montant < 0 %}text-red-600{% endif %}">{{ ev.montant|floatformat:0 }} F</div>
+                    <span class="badge-bro
                         {% if ev.statut_code == 'PAYEE' or ev.statut_code == 'VALIDE' or ev.statut_code == 'CONFIRMEE' %}bg-green-100 text-green-700
                         {% elif ev.statut_code == 'ANNULEE' or ev.statut_code == 'ANNULE' or ev.statut_code == 'NO_SHOW' %}bg-red-100 text-red-700
-                        {% else %}bg-surface-container-high text-on-surface-variant{% endif %}">{{ ev.statut }}</span>
+                        {% else %}bg-surface-soft text-on-surface-muted{% endif %}">{{ ev.statut }}</span>
                 </div>
             </div>
             {% empty %}
-            <div class="text-center py-12 text-on-surface-variant"><i class="fas fa-stream text-3xl mb-2 block"></i><p class="text-sm">Aucune opération enregistrée</p></div>
+            <div class="text-center py-12 text-on-surface-muted"><i class="fas fa-stream text-3xl mb-2 block"></i><p class="text-sm">Aucune opération enregistrée</p></div>
             {% endfor %}
         </div>
 
         <!-- ── Réservations & séjours ── -->
         <div x-show="tab === 'sejours'" class="p-4 max-h-[560px] overflow-y-auto" x-cloak>
-            <table class="w-full text-sm">
-                <thead class="text-on-surface-variant text-xs uppercase tracking-wider border-b border-outline/10">
-                    <tr><th class="text-left px-3 py-2">Type</th><th class="text-left px-3 py-2">Chambre</th><th class="text-left px-3 py-2">Début</th><th class="text-left px-3 py-2">Fin</th><th class="text-right px-3 py-2">Montant</th><th class="text-center px-3 py-2">Statut</th></tr>
+            <table class="w-full text-sm bro-table">
+                <thead>
+                    <tr><th>Type</th><th>Chambre</th><th>Début</th><th>Fin</th><th class="text-right">Montant</th><th class="text-center">Statut</th></tr>
                 </thead>
-                <tbody class="divide-y divide-outline/10">
+                <tbody>
                     {% for op in operations.locations %}
-                    <tr class="hover:bg-surface-container-high transition">
-                        <td class="px-3 py-2.5">{{ op.type }}</td>
-                        <td class="px-3 py-2.5">{{ op.unite }}</td>
-                        <td class="px-3 py-2.5 text-xs">{{ op.date_debut|slice:":10" }}</td>
-                        <td class="px-3 py-2.5 text-xs">{% if op.date_fin %}{{ op.date_fin|slice:":10" }}{% else %}—{% endif %}</td>
-                        <td class="px-3 py-2.5 text-right font-mono">{{ op.montant|floatformat:0 }} F</td>
-                        <td class="px-3 py-2.5 text-center"><span class="text-xs px-2 py-0.5 rounded-full bg-surface-container-high">{{ op.statut }}</span></td>
+                    <tr>
+                        <td>{{ op.type }}</td>
+                        <td>{{ op.unite }}</td>
+                        <td class="text-xs">{{ op.date_debut|slice:":10" }}</td>
+                        <td class="text-xs">{% if op.date_fin %}{{ op.date_fin|slice:":10" }}{% else %}—{% endif %}</td>
+                        <td class="text-right font-mono">{{ op.montant|floatformat:0 }} F</td>
+                        <td class="text-center"><span class="badge-bro bg-surface-soft text-on-surface-muted">{{ op.statut }}</span></td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6" class="text-center py-10 text-on-surface-variant"><i class="fas fa-bed text-2xl mb-2 block"></i>Aucun séjour ni réservation</td></tr>
+                    <tr><td colspan="6" class="text-center py-10 text-on-surface-muted"><i class="fas fa-bed text-2xl mb-2 block"></i>Aucun séjour ni réservation</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -182,29 +180,29 @@
         <!-- ── Factures & paiements ── -->
         <div x-show="tab === 'finances'" class="p-4 max-h-[560px] overflow-y-auto space-y-5" x-cloak>
             <div>
-                <h4 class="text-xs font-semibold uppercase tracking-wider text-on-surface-variant mb-2"><i class="fas fa-file-invoice mr-1"></i>Factures ({{ operations.factures|length }})</h4>
+                <h4 class="text-xs font-semibold uppercase tracking-wider text-on-surface-muted mb-2"><i class="fas fa-file-invoice mr-1"></i>Factures ({{ operations.factures|length }})</h4>
                 <div class="space-y-1.5">
                     {% for f in operations.factures %}
-                    <div class="flex items-center justify-between bg-surface-container-high/50 rounded-lg px-4 py-2.5 text-sm">
-                        <div><span class="font-mono text-xs font-medium">{{ f.numero }}</span><span class="text-[10px] text-on-surface-variant ml-2">{{ f.type }} · {{ f.date|slice:":10" }}</span></div>
+                    <div class="flex items-center justify-between bg-surface-soft/50 rounded-xl px-4 py-2.5 text-sm">
+                        <div><span class="font-mono text-xs font-medium">{{ f.numero }}</span><span class="text-[10px] text-on-surface-muted ml-2">{{ f.type }} · {{ f.date|slice:":10" }}</span></div>
                         <div class="flex items-center gap-3">
                             {% if f.reste > 0 %}<span class="text-[10px] text-red-500">Reste : {{ f.reste|floatformat:0 }} F</span>{% endif %}
                             <span class="font-mono text-xs">{{ f.montant|floatformat:0 }} F</span>
-                            <span class="text-[10px] px-1.5 py-0.5 rounded {% if f.statut_code == 'PAYEE' %}bg-green-100 text-green-700{% elif f.statut_code == 'ANNULEE' %}bg-red-100 text-red-700{% else %}bg-yellow-100 text-yellow-700{% endif %}">{{ f.statut }}</span>
+                            <span class="badge-bro {% if f.statut_code == 'PAYEE' %}bg-green-100 text-green-700{% elif f.statut_code == 'ANNULEE' %}bg-red-100 text-red-700{% else %}bg-yellow-100 text-yellow-700{% endif %}">{{ f.statut }}</span>
                         </div>
                     </div>
-                    {% empty %}<p class="text-xs text-on-surface-variant py-3 text-center">Aucune facture</p>{% endfor %}
+                    {% empty %}<p class="text-xs text-on-surface-muted py-3 text-center">Aucune facture</p>{% endfor %}
                 </div>
             </div>
             <div>
-                <h4 class="text-xs font-semibold uppercase tracking-wider text-on-surface-variant mb-2"><i class="fas fa-credit-card mr-1"></i>Paiements ({{ operations.paiements|length }})</h4>
+                <h4 class="text-xs font-semibold uppercase tracking-wider text-on-surface-muted mb-2"><i class="fas fa-credit-card mr-1"></i>Paiements ({{ operations.paiements|length }})</h4>
                 <div class="space-y-1.5">
                     {% for p in operations.paiements %}
-                    <div class="flex items-center justify-between bg-surface-container-high/50 rounded-lg px-4 py-2.5 text-sm">
-                        <div><span class="font-mono text-xs">{{ p.reference }}</span><span class="text-[10px] text-on-surface-variant ml-2">{{ p.mode }} · {{ p.date|slice:":10" }}</span></div>
-                        <span class="font-mono text-xs font-medium {% if p.sens_code == 'ENTREE' %}text-green-600{% else %}text-red-500{% endif %}">{% if p.sens_code == 'ENTREE' %}+{% else %}−{% endif %} {{ p.montant|floatformat:0 }} F</span>
+                    <div class="flex items-center justify-between bg-surface-soft/50 rounded-xl px-4 py-2.5 text-sm">
+                        <div><span class="font-mono text-xs">{{ p.reference }}</span><span class="text-[10px] text-on-surface-muted ml-2">{{ p.mode }} · {{ p.date|slice:":10" }}</span></div>
+                        <span class="font-mono text-xs font-medium {% if p.sens_code == 'ENTREE' %}text-green-600{% else %}text-red-600{% endif %}">{% if p.sens_code == 'ENTREE' %}+{% else %}−{% endif %} {{ p.montant|floatformat:0 }} F</span>
                     </div>
-                    {% empty %}<p class="text-xs text-on-surface-variant py-3 text-center">Aucun paiement</p>{% endfor %}
+                    {% empty %}<p class="text-xs text-on-surface-muted py-3 text-center">Aucun paiement</p>{% endfor %}
                 </div>
             </div>
         </div>
@@ -212,20 +210,20 @@
         <!-- ── Compte (position financière) ── -->
         <div x-show="tab === 'compte'" class="p-6" x-cloak>
             <div class="max-w-md mx-auto space-y-1 text-sm">
-                <div class="flex justify-between py-2.5 border-b border-outline/10"><span class="text-on-surface-variant">Total facturé</span><span class="font-mono font-medium">{{ position.total_facture|floatformat:0 }} F</span></div>
-                <div class="flex justify-between py-2.5 border-b border-outline/10"><span class="text-on-surface-variant">Total payé</span><span class="font-mono font-medium text-green-600">− {{ position.total_paye|floatformat:0 }} F</span></div>
+                <div class="flex justify-between py-2.5 border-b border-border"><span class="text-on-surface-muted">Total facturé</span><span class="font-mono font-medium">{{ position.total_facture|floatformat:0 }} F</span></div>
+                <div class="flex justify-between py-2.5 border-b border-border"><span class="text-on-surface-muted">Total payé</span><span class="font-mono font-medium text-green-600">− {{ position.total_paye|floatformat:0 }} F</span></div>
                 {% if position.total_rembourse > 0 %}
-                <div class="flex justify-between py-2.5 border-b border-outline/10"><span class="text-on-surface-variant">Remboursements</span><span class="font-mono font-medium text-red-500">+ {{ position.total_rembourse|floatformat:0 }} F</span></div>
+                <div class="flex justify-between py-2.5 border-b border-border"><span class="text-on-surface-muted">Remboursements</span><span class="font-mono font-medium text-red-600">+ {{ position.total_rembourse|floatformat:0 }} F</span></div>
                 {% endif %}
                 <div class="flex justify-between py-3 text-base">
                     <span class="font-semibold">Solde dû</span>
-                    <span class="font-mono font-bold {% if position.solde_du > 0 %}text-red-500{% else %}text-green-600{% endif %}">{{ position.solde_du|floatformat:0 }} F</span>
+                    <span class="font-mono font-bold {% if position.solde_du > 0 %}text-red-600{% else %}text-green-600{% endif %}">{{ position.solde_du|floatformat:0 }} F</span>
                 </div>
                 {% if position.acompte_disponible > 0 %}
-                <div class="flex justify-between py-2.5 rounded-lg bg-green-50 px-3"><span class="text-green-700">Acompte disponible</span><span class="font-mono font-medium text-green-700">{{ position.acompte_disponible|floatformat:0 }} F</span></div>
+                <div class="flex justify-between py-2.5 rounded-xl bg-green-50 px-3"><span class="text-green-700">Acompte disponible</span><span class="font-mono font-medium text-green-700">{{ position.acompte_disponible|floatformat:0 }} F</span></div>
                 {% endif %}
-                <div class="flex justify-between py-2.5 mt-3 text-xs text-on-surface-variant"><span>Solde comptable (tous exercices)</span><span class="font-mono">{{ position.solde_comptable|floatformat:0 }} F</span></div>
-                <div class="flex justify-between py-1 text-xs text-on-surface-variant"><span>Factures impayées</span><span>{{ position.nb_factures_impayees }} / {{ position.nb_factures }}</span></div>
+                <div class="flex justify-between py-2.5 mt-3 text-xs text-on-surface-muted"><span>Solde comptable (tous exercices)</span><span class="font-mono">{{ position.solde_comptable|floatformat:0 }} F</span></div>
+                <div class="flex justify-between py-1 text-xs text-on-surface-muted"><span>Factures impayées</span><span>{{ position.nb_factures_impayees }} / {{ position.nb_factures }}</span></div>
             </div>
         </div>
     </div>
@@ -235,12 +233,12 @@
         <form method="post" action="{% url 'clients:changer_statut' client.id %}">
             {% csrf_token %}
             {% if client.statut == 'ACTIF' %}
-            <button type="submit" name="statut" value="INACTIF" class="border border-yellow-500/40 text-yellow-600 px-4 py-2 rounded-lg text-sm hover:bg-yellow-50 transition"><i class="fas fa-pause mr-1"></i>Désactiver</button>
+            <button type="submit" name="statut" value="INACTIF" class="border border-yellow-300 bg-yellow-50 text-yellow-700 px-4 py-2 rounded-xl text-sm hover:bg-yellow-100 transition"><i class="fas fa-pause mr-1"></i>Désactiver</button>
             {% else %}
-            <button type="submit" name="statut" value="ACTIF" class="border border-green-500/40 text-green-600 px-4 py-2 rounded-lg text-sm hover:bg-green-50 transition"><i class="fas fa-play mr-1"></i>Activer</button>
+            <button type="submit" name="statut" value="ACTIF" class="border border-green-300 bg-green-50 text-green-700 px-4 py-2 rounded-xl text-sm hover:bg-green-100 transition"><i class="fas fa-play mr-1"></i>Activer</button>
             {% endif %}
         </form>
-        <a href="{% url 'clients:supprimer' client.id %}" class="border border-red-400/40 text-red-500 px-4 py-2 rounded-lg text-sm hover:bg-red-50 transition ml-auto"><i class="fas fa-trash mr-1"></i>Supprimer</a>
+        <a href="{% url 'clients:supprimer' client.id %}" class="border border-red-200 bg-red-50 text-red-600 px-4 py-2 rounded-xl text-sm hover:bg-red-100 transition ml-auto"><i class="fas fa-trash mr-1"></i>Supprimer</a>
     </div>
 </div>
 {% endblock %}

@@ -1,14 +1,14 @@
 {% load static %}
-<div @click.self="" class="bg-surface-container rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-outline/10 max-h-[90vh] flex flex-col">
-    <div class="px-6 py-4 border-b border-outline/10 flex justify-between items-center bg-surface-container-low shrink-0">
+<div @click.self="" class="bg-surface-card rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden border border-border max-h-[90vh] flex flex-col">
+    <div class="px-6 py-4 border-b border-border flex justify-between items-center bg-surface-soft shrink-0">
         <h3 class="font-semibold text-lg">
             {% if succes %}
-                <i class="fas fa-check-circle text-secondary mr-2"></i>Check-in effectué
+                <i class="fas fa-check-circle text-primary mr-2"></i>Check-in effectué
             {% else %}
-                <i class="fas fa-sign-in-alt text-secondary mr-2"></i>Check-in
+                <i class="fas fa-sign-in-alt text-primary mr-2"></i>Check-in
             {% endif %}
         </h3>
-        <button onclick="document.getElementById('modal').innerHTML=''" class="text-on-surface-variant hover:text-on-surface transition-colors">
+        <button onclick="document.getElementById('modal').innerHTML=''" class="text-on-surface-muted hover:text-on-surface transition-colors">
             <i class="fas fa-times text-xl"></i>
         </button>
     </div>
@@ -17,10 +17,10 @@
         {% if messages %}
             <div class="space-y-2 mb-4">
                 {% for message in messages %}
-                    <div class="rounded-lg p-3 border-l-4 text-sm
-                        {% if message.tags == 'success' %}bg-green-50 border-green-500 text-green-800
+                    <div class="rounded-xl p-3 border-l-4 text-sm
+                        {% if message.tags == 'success' %}bg-emerald-50 border-emerald-500 text-emerald-800
                         {% elif message.tags == 'error' %}bg-red-50 border-red-500 text-red-800
-                        {% else %}bg-secondary-container border-secondary text-on-surface{% endif %}">
+                        {% else %}bg-primary-soft border-primary text-on-surface{% endif %}">
                         {{ message }}
                     </div>
                 {% endfor %}
@@ -29,8 +29,8 @@
 
         {% if succes %}
             <div class="text-center py-6 space-y-4">
-                <div class="w-16 h-16 rounded-full bg-secondary-container mx-auto flex items-center justify-center">
-                    <i class="fas fa-check text-2xl text-secondary"></i>
+                <div class="w-16 h-16 rounded-full bg-primary-soft mx-auto flex items-center justify-center">
+                    <i class="fas fa-check text-2xl text-primary"></i>
                 </div>
                 <p class="text-on-surface">Le check-in a été effectué avec succès.</p>
                 <div class="flex gap-3 justify-center pt-2">
@@ -38,20 +38,20 @@
                        hx-get="{% url 'hotel:liste_sejours' %}"
                        hx-target="#page-region" hx-select="#page-region" hx-swap="outerHTML"
                        onclick="document.getElementById('modal').innerHTML=''"
-                       class="btn-primary px-4 py-2 rounded-full text-sm">
+                       class="px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition">
                         Voir les séjours
                     </a>
-                    <button onclick="document.getElementById('modal').innerHTML=''" class="px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-on-surface transition-colors">
+                    <button onclick="document.getElementById('modal').innerHTML=''" class="px-4 py-2 text-sm font-medium text-on-surface-muted hover:text-on-surface transition-colors">
                         Fermer
                     </button>
                 </div>
             </div>
         {% else %}
             <div class="flex gap-4 mb-6">
-                <a href="javascript:void(0)" class="tab-link flex-1 text-center py-2 rounded-lg bg-primary text-white font-medium" onclick="showTabDlg('avec-reservation', this)">
+                <a href="javascript:void(0)" class="tab-link flex-1 text-center py-2 rounded-xl bg-primary text-white font-medium" onclick="showTabDlg('avec-reservation', this)">
                     <i class="fas fa-calendar-check mr-1"></i>Avec réservation
                 </a>
-                <a href="javascript:void(0)" class="tab-link flex-1 text-center py-2 rounded-lg bg-surface-container-high text-on-surface-variant font-medium" onclick="showTabDlg('sans-reservation', this)">
+                <a href="javascript:void(0)" class="tab-link flex-1 text-center py-2 rounded-xl bg-surface-soft text-on-surface-muted font-medium" onclick="showTabDlg('sans-reservation', this)">
                     <i class="fas fa-walking mr-1"></i>Walk-in
                 </a>
             </div>
@@ -63,8 +63,8 @@
                 {% csrf_token %}
                 <input type="hidden" name="avec_reservation" value="1">
                 <div>
-                    <label class="block text-sm font-medium text-on-surface-variant mb-1">Réservation confirmée</label>
-                    <select name="reservation" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5" required>
+                    <label class="block text-sm font-medium text-on-surface-muted mb-1">Réservation confirmée</label>
+                    <select name="reservation" class="w-full rounded-xl border border-border bg-surface-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" required>
                         <option value="">---</option>
                         {% for r in reservations_confirmees %}
                         <option value="{{ r.id }}">{{ r.code }} - {{ r.client.nom_complet }} ({{ r.date_arrivee_prevue|date:"d/m" }})</option>
@@ -72,13 +72,13 @@
                     </select>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-on-surface-variant mb-1">Notes</label>
-                    <textarea name="notes" rows="2" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5" placeholder="Optionnel..."></textarea>
+                    <label class="block text-sm font-medium text-on-surface-muted mb-1">Notes</label>
+                    <textarea name="notes" rows="2" class="w-full rounded-xl border border-border bg-surface-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="Optionnel..."></textarea>
                 </div>
                 <div class="pt-4 flex justify-end gap-3">
-                    <button type="button" onclick="document.getElementById('modal').innerHTML=''" class="px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-on-surface">Annuler</button>
-                    <button type="submit" class="btn-primary">
-                        <i class="fas fa-sign-in-alt mr-1"></i>Effectuer le check-in
+                    <button type="button" onclick="document.getElementById('modal').innerHTML=''" class="px-4 py-2 text-sm font-medium text-on-surface-muted hover:text-on-surface">Annuler</button>
+                    <button type="submit" class="px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition flex items-center gap-2">
+                        <i class="fas fa-sign-in-alt"></i>Effectuer le check-in
                     </button>
                 </div>
             </form>
@@ -90,8 +90,8 @@
                 {% csrf_token %}
                 <div class="grid grid-cols-2 gap-4">
                     <div class="col-span-2">
-                        <label class="block text-sm font-medium text-on-surface-variant mb-1">Client</label>
-                        <select name="client" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5" required>
+                        <label class="block text-sm font-medium text-on-surface-muted mb-1">Client</label>
+                        <select name="client" class="w-full rounded-xl border border-border bg-surface-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" required>
                             <option value="">---</option>
                             {% for c in clients %}
                             <option value="{{ c.id }}">{{ c.nom_complet }} - {{ c.telephone }}</option>
@@ -99,8 +99,8 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-on-surface-variant mb-1">Type de chambre</label>
-                        <select name="type_chambre" id="dlg_type_chambre_wi" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5">
+                        <label class="block text-sm font-medium text-on-surface-muted mb-1">Type de chambre</label>
+                        <select name="type_chambre" id="dlg_type_chambre_wi" class="w-full rounded-xl border border-border bg-surface-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
                             <option value="">---</option>
                             {% for tc in types_chambres %}
                             <option value="{{ tc.id }}">{{ tc.nom }}</option>
@@ -108,34 +108,34 @@
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-on-surface-variant mb-1">Chambre</label>
-                        <select name="chambre" id="dlg_chambre_wi" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5" required>
+                        <label class="block text-sm font-medium text-on-surface-muted mb-1">Chambre</label>
+                        <select name="chambre" id="dlg_chambre_wi" class="w-full rounded-xl border border-border bg-surface-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" required>
                             <option value="">Sélectionnez d'abord un type</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-on-surface-variant mb-1">Tarif</label>
-                        <select name="tarif" id="dlg_tarif_wi" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5" required>
+                        <label class="block text-sm font-medium text-on-surface-muted mb-1">Tarif</label>
+                        <select name="tarif" id="dlg_tarif_wi" class="w-full rounded-xl border border-border bg-surface-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" required>
                             <option value="">Sélectionnez d'abord une chambre</option>
                         </select>
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-on-surface-variant mb-1">Adultes</label>
-                        <input type="number" name="nombre_adultes" value="1" min="1" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5">
+                        <label class="block text-sm font-medium text-on-surface-muted mb-1">Adultes</label>
+                        <input type="number" name="nombre_adultes" value="1" min="1" class="w-full rounded-xl border border-border bg-surface-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
                     </div>
                     <div>
-                        <label class="block text-sm font-medium text-on-surface-variant mb-1">Enfants</label>
-                        <input type="number" name="nombre_enfants" value="0" min="0" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5">
+                        <label class="block text-sm font-medium text-on-surface-muted mb-1">Enfants</label>
+                        <input type="number" name="nombre_enfants" value="0" min="0" class="w-full rounded-xl border border-border bg-surface-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30">
                     </div>
                 </div>
                 <div>
-                    <label class="block text-sm font-medium text-on-surface-variant mb-1">Notes</label>
-                    <textarea name="notes" rows="2" class="w-full rounded-lg border-outline/30 bg-surface focus:border-primary focus:ring-1 focus:ring-primary text-sm p-2.5" placeholder="Optionnel..."></textarea>
+                    <label class="block text-sm font-medium text-on-surface-muted mb-1">Notes</label>
+                    <textarea name="notes" rows="2" class="w-full rounded-xl border border-border bg-surface-card px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="Optionnel..."></textarea>
                 </div>
                 <div class="pt-4 flex justify-end gap-3">
-                    <button type="button" onclick="document.getElementById('modal').innerHTML=''" class="px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-on-surface">Annuler</button>
-                    <button type="submit" class="btn-primary">
-                        <i class="fas fa-sign-in-alt mr-1"></i>Enregistrer le client
+                    <button type="button" onclick="document.getElementById('modal').innerHTML=''" class="px-4 py-2 text-sm font-medium text-on-surface-muted hover:text-on-surface">Annuler</button>
+                    <button type="submit" class="px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition flex items-center gap-2">
+                        <i class="fas fa-sign-in-alt"></i>Enregistrer le client
                     </button>
                 </div>
             </form>
@@ -147,9 +147,9 @@
                 
                 document.querySelectorAll('.tab-link').forEach(el => {
                     el.classList.remove('bg-primary', 'text-white');
-                    el.classList.add('bg-surface-container-high', 'text-on-surface-variant');
+                    el.classList.add('bg-surface-soft', 'text-on-surface-muted');
                 });
-                btn.classList.remove('bg-surface-container-high', 'text-on-surface-variant');
+                btn.classList.remove('bg-surface-soft', 'text-on-surface-muted');
                 btn.classList.add('bg-primary', 'text-white');
             }
 

@@ -1,5 +1,4 @@
 {% extends 'restaurant/base_restaurant.html' %}
-{% load static %}
 
 {% block title %}{{ recette.nom }}{% endblock %}
 
@@ -9,14 +8,14 @@
     <!-- En-tête -->
     <div class="flex items-center justify-between mb-6">
         <div>
-            <h1 class="text-2xl font-bold">{{ recette.nom }}</h1>
-            <p class="text-on-surface-variant">{{ recette.get_type_recette_display }}</p>
+            <h1 class="text-2xl font-bold text-on-surface tracking-tight">{{ recette.nom }}</h1>
+            <p class="text-on-surface-muted">{{ recette.get_type_recette_display }}</p>
         </div>
         <div class="flex gap-2">
-            <a href="{% url 'restaurant:recette_modifier' recette.id %}" class="px-4 py-2 text-white rounded-lg bg-secondary hover:bg-secondary/80 {% if est_bloque_restaurant %}pointer-events-none opacity-30{% endif %}" {% if est_bloque_restaurant %}aria-disabled="true" tabindex="-1"{% endif %}>
+            <a href="{% url 'restaurant:recette_modifier' recette.id %}" class="px-4 py-2 text-white rounded-xl bg-primary hover:bg-primary/80 {% if est_bloque_restaurant %}pointer-events-none opacity-30{% endif %}" {% if est_bloque_restaurant %}aria-disabled="true" tabindex="-1"{% endif %}>
                 <i class="fas fa-edit"></i> Modifier
             </a>
-            <a href="{% url 'restaurant:recettes' %}" class="px-4 py-2 text-on-surface bg-surface-container-highest rounded-lg hover:bg-surface-container-highest">
+            <a href="{% url 'restaurant:recettes' %}" class="px-4 py-2 text-on-surface bg-surface-soft rounded-xl hover:bg-surface-soft">
                 <i class="fas fa-arrow-left"></i> Retour
             </a>
         </div>
@@ -27,51 +26,51 @@
         <div class="space-y-6 lg:col-span-2">
             
             <!-- Image et infos -->
-            <div class="overflow-hidden bg-surface-container-low shadow-md rounded-xl">
+            <div class="overflow-hidden bg-surface-card shadow-md rounded-xl card-bro">
                 {% if recette.image %}
-                <div class="h-48 bg-surface-container-high">
+                <div class="h-48 bg-surface-soft">
                     <img src="{{ recette.image.url }}" alt="{{ recette.nom }}" class="object-cover w-full h-full">
                 </div>
                 {% endif %}
                 <div class="p-6">
                     <div class="grid grid-cols-2 gap-4">
-                        <div><p class="text-sm text-on-surface-variant">Code</p><p class="font-medium">{{ recette.code|default:"-" }}</p></div>
-                        <div><p class="text-sm text-on-surface-variant">Temps prép</p><p class="font-medium">{{ recette.temps_preparation_minutes }} min</p></div>
-                        <div><p class="text-sm text-on-surface-variant">Prix vente</p><p class="font-bold text-secondary">{{ recette.prix_vente|floatformat:0|default:"-" }} F</p></div>
-                        <div><p class="text-sm text-on-surface-variant">Coût revient</p><p class="font-medium">{{ cout_total|floatformat:0 }} F</p></div>
-                        <div><p class="text-sm text-on-surface-variant">Marge</p><p class="font-medium {% if marge > 0 %}text-green-400{% else %}text-red-400{% endif %}">{{ marge|floatformat:0 }} F ({{ marge_pourcentage|floatformat:1 }}%)</p></div>
-                        <div><p class="text-sm text-on-surface-variant">POS</p>{% if recette.visible_dans_pos %}<span class="text-green-400"><i class="fas fa-eye"></i> Visible</span>{% else %}<span class="text-on-surface-variant"><i class="fas fa-eye-slash"></i> Masqué</span>{% endif %}</div>
+                        <div><p class="text-sm text-on-surface-muted">Code</p><p class="font-medium">{{ recette.code|default:"-" }}</p></div>
+                        <div><p class="text-sm text-on-surface-muted">Temps prép</p><p class="font-medium">{{ recette.temps_preparation_minutes }} min</p></div>
+                        <div><p class="text-sm text-on-surface-muted">Prix vente</p><p class="font-bold text-primary">{{ recette.prix_vente|floatformat:0|default:"-" }} F</p></div>
+                        <div><p class="text-sm text-on-surface-muted">Coût revient</p><p class="font-medium">{{ cout_total|floatformat:0 }} F</p></div>
+                        <div><p class="text-sm text-on-surface-muted">Marge</p><p class="font-medium {% if marge > 0 %}text-emerald-600{% else %}text-red-600{% endif %}">{{ marge|floatformat:0 }} F ({{ marge_pourcentage|floatformat:1 }}%)</p></div>
+                        <div><p class="text-sm text-on-surface-muted">POS</p>{% if recette.visible_dans_pos %}<span class="text-emerald-600"><i class="fas fa-eye"></i> Visible</span>{% else %}<span class="text-on-surface-muted"><i class="fas fa-eye-slash"></i> Masqué</span>{% endif %}</div>
                     </div>
-                    {% if recette.description %}<div class="mt-4"><p class="text-sm text-on-surface-variant">Description</p><p class="text-on-surface">{{ recette.description }}</p></div>{% endif %}
+                    {% if recette.description %}<div class="mt-4"><p class="text-sm text-on-surface-muted">Description</p><p class="text-on-surface">{{ recette.description }}</p></div>{% endif %}
                 </div>
             </div>
             
             <!-- INGRÉDIENTS AVEC MODAL -->
-            <div class="overflow-hidden bg-surface-container-low shadow-md rounded-xl">
-                <div class="p-4 border-b bg-surface-container-high flex justify-between items-center">
-                    <h3 class="font-semibold"><i class="mr-2 fas fa-list text-secondary"></i> Ingrédients</h3>
-                    <button @click="openIngredientModal()" :disabled="{{ est_bloque_restaurant|lower }}" class="text-sm text-secondary hover:underline">
+            <div class="overflow-hidden bg-surface-card shadow-md rounded-xl card-bro">
+                <div class="p-4 border-b border-border bg-surface-soft flex justify-between items-center">
+                    <h3 class="font-semibold"><i class="mr-2 fas fa-list text-primary"></i> Ingrédients</h3>
+                    <button @click="openIngredientModal()" :disabled="{{ est_bloque_restaurant|lower }}" class="text-sm text-primary hover:underline">
                         <i class="fas fa-plus mr-1"></i> Ajouter
                     </button>
                 </div>
                 <div class="overflow-x-auto">
                     <table class="w-full">
-                        <thead class="bg-surface-container-high">
-                            <tr class="border-b">
-                                <th class="px-4 py-2 text-sm text-left">Produit</th>
-                                <th class="px-4 py-2 text-sm text-right">Quantité</th>
-                                <th class="px-4 py-2 text-sm text-left">Unité</th>
-                                <th class="px-4 py-2 text-sm text-right">Coût</th>
-                                <th class="px-4 py-2 text-center">Type</th>
+                        <thead class="bg-surface-soft">
+                            <tr class="border-b border-border">
+                                <th class="px-4 py-2 text-sm text-left text-on-surface-muted">Produit</th>
+                                <th class="px-4 py-2 text-sm text-right text-on-surface-muted">Quantité</th>
+                                <th class="px-4 py-2 text-sm text-left text-on-surface-muted">Unité</th>
+                                <th class="px-4 py-2 text-sm text-right text-on-surface-muted">Coût</th>
+                                <th class="px-4 py-2 text-center text-on-surface-muted">Type</th>
                                 <th class="px-4 py-2 text-center"></th>
                             </tr>
                         </thead>
-                        <tbody class="divide-y">
+                        <tbody class="divide-y divide-border/20">
                             <template x-for="(ing, idx) in ingredients" :key="ing.id">
-                                <tr class="hover:bg-surface-container-low">
+                                <tr class="hover:bg-surface-soft">
                                     <td class="px-4 py-2">
                                         <span x-text="ing.nom_display"></span>
-                                        <span x-show="ing.quantite_approximative" class="text-xs text-orange-500 ml-1">
+                                        <span x-show="ing.quantite_approximative" class="text-xs text-orange-600 ml-1">
                                             <i class="fas fa-chart-line"></i> approx
                                         </span>
                                     </td>
@@ -79,23 +78,23 @@
                                     <td class="px-4 py-2" x-text="ing.unite"></td>
                                     <td class="px-4 py-2 text-right" x-text="formatMoney(ing.cout) + ' F'"></td>
                                     <td class="px-4 py-2 text-center">
-                                        <span x-show="ing.type_ingredient === 'DEDUIRE'" class="text-xs bg-blue-900/30 text-blue-300 px-2 py-0.5 rounded">Stockable</span>
-                                        <span x-show="ing.type_ingredient === 'NE_PAS_DEDUIRE'" class="text-xs bg-surface-container-high text-on-surface-variant px-2 py-0.5 rounded">Consommable</span>
+                                        <span x-show="ing.type_ingredient === 'DEDUIRE'" class="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded">Stockable</span>
+                                        <span x-show="ing.type_ingredient === 'NE_PAS_DEDUIRE'" class="text-xs bg-surface-soft text-on-surface-muted px-2 py-0.5 rounded">Consommable</span>
                                     </td>
                                     <td class="px-4 py-2 text-center">
-                                        <button @click="editIngredient(idx)" :disabled="{{ est_bloque_restaurant|lower }}" class="text-on-surface-variant hover:text-on-surface mr-2"><i class="fas fa-edit"></i></button>
-                                        <button @click="deleteIngredient(idx)" :disabled="{{ est_bloque_restaurant|lower }}" class="text-red-400 hover:text-red-600"><i class="fas fa-trash"></i></button>
+                                        <button @click="editIngredient(idx)" :disabled="{{ est_bloque_restaurant|lower }}" class="text-on-surface-muted hover:text-on-surface mr-2"><i class="fas fa-edit"></i></button>
+                                        <button @click="deleteIngredient(idx)" :disabled="{{ est_bloque_restaurant|lower }}" class="text-red-600 hover:text-red-500"><i class="fas fa-trash"></i></button>
                                     </td>
                                 </tr>
                             </template>
                             <tr x-show="ingredients.length === 0">
-                                <td colspan="6" class="px-4 py-8 text-center text-on-surface-variant">
+                                <td colspan="6" class="px-4 py-8 text-center text-on-surface-muted">
                                     <i class="fas fa-shopping-basket text-3xl mb-2 block"></i>
                                     Aucun ingrédient
                                 </td>
                             </tr>
                         </tbody>
-                        <tfoot class="bg-surface-container-high border-t">
+                        <tfoot class="bg-surface-soft border-t border-border">
                             <tr>
                                 <td colspan="3" class="px-4 py-2 font-bold text-right">Total :</td>
                                 <td class="px-4 py-2 font-bold text-right" x-text="formatMoney(totalCout) + ' F'"></td>
@@ -106,36 +105,36 @@
                 </div>
                 
                 <!-- Production possible -->
-                <div x-show="nbPortions > 0" class="p-4 border-t bg-blue-900/20">
+                <div x-show="nbPortions > 0" class="p-4 border-t border-border bg-blue-50">
                     <div class="flex items-center justify-between">
                         <div>
                             <span class="font-semibold">📦 Production possible avec stock actuel</span>
-                            <p class="text-sm text-on-surface-variant">Basé sur les ingrédients mesurables</p>
+                            <p class="text-sm text-on-surface-muted">Basé sur les ingrédients mesurables</p>
                         </div>
-                        <div class="text-3xl font-bold text-secondary" x-text="nbPortions"></div>
+                        <div class="text-3xl font-bold text-primary" x-text="nbPortions"></div>
                     </div>
                 </div>
-                <div x-show="nbPortions === 0" class="p-4 border-t bg-yellow-900/20">
+                <div x-show="nbPortions === 0" class="p-4 border-t border-border bg-amber-50">
                     <div class="flex items-center gap-2">
-                        <i class="fas fa-info-circle text-yellow-400"></i>
-                        <p class="text-sm text-yellow-300">Production non calculable (ingrédients approximatifs)</p>
+                        <i class="fas fa-info-circle text-amber-600"></i>
+                        <p class="text-sm text-amber-700">Production non calculable (ingrédients approximatifs)</p>
                     </div>
                 </div>
             </div>
             
             <!-- Étapes -->
-            <div class="overflow-hidden bg-surface-container-low shadow-md rounded-xl">
-                <div class="p-4 border-b bg-surface-container-high">
-                    <h3 class="font-semibold"><i class="mr-2 fas fa-utensils text-secondary"></i> Préparation</h3>
+            <div class="overflow-hidden bg-surface-card shadow-md rounded-xl card-bro">
+                <div class="p-4 border-b border-border bg-surface-soft">
+                    <h3 class="font-semibold"><i class="mr-2 fas fa-utensils text-primary"></i> Préparation</h3>
                 </div>
                 <div class="p-4 space-y-4">
                     {% for etape in etapes %}
                     <div class="flex gap-3">
-                        <div class="flex items-center justify-center w-8 h-8 font-bold rounded-full bg-secondary/20 text-secondary">{{ etape.ordre }}</div>
-                        <div class="flex-1"><p>{{ etape.instruction }}</p>{% if etape.duree_minutes %}<p class="mt-1 text-sm text-on-surface-variant">⏱️ {{ etape.duree_minutes }} min</p>{% endif %}</div>
+                        <div class="flex items-center justify-center w-8 h-8 font-bold rounded-full bg-primary-soft text-primary">{{ etape.ordre }}</div>
+                        <div class="flex-1"><p>{{ etape.instruction }}</p>{% if etape.duree_minutes %}<p class="mt-1 text-sm text-on-surface-muted">⏱️ {{ etape.duree_minutes }} min</p>{% endif %}</div>
                     </div>
                     {% empty %}
-                    <div class="py-4 text-center text-on-surface-variant">Aucune étape définie</div>
+                    <div class="py-4 text-center text-on-surface-muted">Aucune étape définie</div>
                     {% endfor %}
                 </div>
             </div>
@@ -143,26 +142,26 @@
         
         <!-- Sidebar -->
         <div class="space-y-6">
-            <div class="p-6 bg-surface-container-low shadow-md rounded-xl">
+            <div class="p-6 bg-surface-card shadow-md rounded-xl card-bro">
                 <h3 class="mb-4 font-semibold">Actions</h3>
                 <div class="space-y-2">
-                    <a href="{% url 'restaurant:calcul_cout' recette.id %}" class="block w-full px-4 py-2 text-center text-white bg-secondary rounded-lg hover:bg-secondary/80">
+                    <a href="{% url 'restaurant:calcul_cout' recette.id %}" class="block w-full px-4 py-2 text-center text-white bg-primary rounded-xl hover:bg-primary/80">
                         <i class="fas fa-calculator"></i> Calcul coût détaillé
                     </a>
-                    <a href="{% url 'restaurant:recette_dupliquer' recette.id %}" class="block w-full px-4 py-2 text-center text-on-surface bg-surface-container-highest rounded-lg hover:bg-surface-container-highest {% if est_bloque_restaurant %}pointer-events-none opacity-30{% endif %}" {% if est_bloque_restaurant %}aria-disabled="true" tabindex="-1"{% endif %}>
+                    <a href="{% url 'restaurant:recette_dupliquer' recette.id %}" class="block w-full px-4 py-2 text-center text-on-surface bg-surface-soft rounded-xl hover:bg-surface-soft {% if est_bloque_restaurant %}pointer-events-none opacity-30{% endif %}" {% if est_bloque_restaurant %}aria-disabled="true" tabindex="-1"{% endif %}>
                         <i class="fas fa-copy"></i> Dupliquer
                     </a>
-                    <a href="{% url 'restaurant:recette_supprimer' recette.id %}" class="block w-full px-4 py-2 text-center text-white bg-red-600 rounded-lg hover:bg-red-700 {% if est_bloque_restaurant %}pointer-events-none opacity-30{% endif %}" onclick="return confirm('Supprimer cette recette ?')" {% if est_bloque_restaurant %}aria-disabled="true" tabindex="-1"{% endif %}>
+                    <a href="{% url 'restaurant:recette_supprimer' recette.id %}" class="block w-full px-4 py-2 text-center text-white bg-red-600 rounded-xl hover:bg-red-700 {% if est_bloque_restaurant %}pointer-events-none opacity-30{% endif %}" onclick="return confirm('Supprimer cette recette ?')" {% if est_bloque_restaurant %}aria-disabled="true" tabindex="-1"{% endif %}>
                         <i class="fas fa-trash"></i> Supprimer
                     </a>
                 </div>
             </div>
-            <div class="p-6 bg-surface-container-low shadow-md rounded-xl">
+            <div class="p-6 bg-surface-card shadow-md rounded-xl card-bro">
                 <h3 class="mb-4 font-semibold">Infos</h3>
                 <div class="space-y-2 text-sm">
-                    <div class="flex justify-between"><span class="text-on-surface-variant">Créée le :</span><span>{{ recette.created_at|date:"d/m/Y" }}</span></div>
-                    <div class="flex justify-between"><span class="text-on-surface-variant">Modifiée le :</span><span>{{ recette.updated_at|date:"d/m/Y" }}</span></div>
-                    <div class="flex justify-between"><span class="text-on-surface-variant">Statut :</span>{% if recette.actif %}<span class="text-green-400">Actif</span>{% else %}<span class="text-red-400">Inactif</span>{% endif %}</div>
+                    <div class="flex justify-between"><span class="text-on-surface-muted">Créée le :</span><span>{{ recette.created_at|date:"d/m/Y" }}</span></div>
+                    <div class="flex justify-between"><span class="text-on-surface-muted">Modifiée le :</span><span>{{ recette.updated_at|date:"d/m/Y" }}</span></div>
+                    <div class="flex justify-between"><span class="text-on-surface-muted">Statut :</span>{% if recette.actif %}<span class="text-emerald-600">Actif</span>{% else %}<span class="text-red-600">Inactif</span>{% endif %}</div>
                 </div>
             </div>
         </div>
@@ -170,10 +169,10 @@
     
     <!-- MODAL INGRÉDIENT -->
     <div x-show="ingredientModal" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="closeIngredientModal()">
-        <div class="bg-surface-container-low rounded-xl shadow-2xl w-full max-w-md mx-4" @click.stop>
-            <div class="px-5 py-3 border-b flex justify-between items-center">
+        <div class="bg-surface-card rounded-xl shadow-2xl w-full max-w-md mx-4" @click.stop>
+            <div class="px-5 py-3 border-b border-border flex justify-between items-center">
                 <h2 class="font-semibold text-lg" x-text="ingredientModalTitle"></h2>
-                <button @click="closeIngredientModal()" class="text-on-surface-variant hover:text-on-surface">✕</button>
+                <button @click="closeIngredientModal()" class="text-on-surface-muted hover:text-on-surface">✕</button>
             </div>
             <div class="p-5 space-y-4">
                 <!-- Type -->
@@ -187,7 +186,7 @@
                 <!-- Produit (traçable) -->
                 <div x-show="ingredientForm.type_ingredient === 'DEDUIRE'">
                     <label class="text-sm font-medium">Produit</label>
-                    <select x-model="ingredientForm.produit_id" class="w-full px-3 py-2 input-md3 rounded-lg mt-1">
+                    <select x-model="ingredientForm.produit_id" class="w-full px-3 py-2 border border-border bg-surface-card rounded-xl mt-1">
                         <option value="">Sélectionner...</option>
                         {% for p in produits %}
                         <option value="{{ p.id }}">{{ p.nom }}</option>
@@ -197,18 +196,18 @@
                 <!-- Nom (consommable) -->
                 <div x-show="ingredientForm.type_ingredient === 'NE_PAS_DEDUIRE'">
                     <label class="text-sm font-medium">Nom</label>
-                    <input type="text" x-model="ingredientForm.nom" placeholder="Ex: Sel, Poivre" class="w-full px-3 py-2 input-md3 rounded-lg mt-1">
+                    <input type="text" x-model="ingredientForm.nom" placeholder="Ex: Sel, Poivre" class="w-full px-3 py-2 border border-border bg-surface-card rounded-xl mt-1">
                 </div>
                 <!-- Quantité -->
                 <div class="grid grid-cols-2 gap-3">
                     <div>
                         <label class="text-sm font-medium">Quantité</label>
-                        <input type="number" step="0.01" x-model="ingredientForm.quantite" class="w-full px-3 py-2 input-md3 rounded-lg mt-1">
-                        <p class="text-xs text-on-surface-variant mt-1">Laisser vide si approximatif</p>
+                        <input type="number" step="0.01" x-model="ingredientForm.quantite" class="w-full px-3 py-2 border border-border bg-surface-card rounded-xl mt-1">
+                        <p class="text-xs text-on-surface-muted mt-1">Laisser vide si approximatif</p>
                     </div>
                     <div>
                         <label class="text-sm font-medium">Unité</label>
-                        <select x-model="ingredientForm.unite" class="w-full px-3 py-2 input-md3 rounded-lg mt-1">
+                        <select x-model="ingredientForm.unite" class="w-full px-3 py-2 border border-border bg-surface-card rounded-xl mt-1">
                             {% for v,l in unites_ingredient %}
                             <option value="{{ v }}">{{ l }}</option>
                             {% endfor %}
@@ -218,12 +217,12 @@
                 <!-- Coût unitaire -->
                 <div>
                     <label class="text-sm font-medium">Coût unitaire (F)</label>
-                    <input type="number" step="1" x-model="ingredientForm.cout_unitaire" class="w-full px-3 py-2 input-md3 rounded-lg mt-1" placeholder="Optionnel">
-                    <p class="text-xs text-on-surface-variant mt-1">Pour les consommables, le coût est obligatoire</p>
+                    <input type="number" step="1" x-model="ingredientForm.cout_unitaire" class="w-full px-3 py-2 border border-border bg-surface-card rounded-xl mt-1" placeholder="Optionnel">
+                    <p class="text-xs text-on-surface-muted mt-1">Pour les consommables, le coût est obligatoire</p>
                 </div>
                 <div class="flex gap-3 pt-3">
-                    <button @click="saveIngredient()" :disabled="{{ est_bloque_restaurant|lower }}" class="flex-1 bg-secondary text-white py-2 rounded-lg">Enregistrer</button>
-                    <button @click="closeIngredientModal()" class="flex-1 border-outline/10 rounded-lg py-2">Annuler</button>
+                    <button @click="saveIngredient()" :disabled="{{ est_bloque_restaurant|lower }}" class="flex-1 bg-primary text-white py-2 rounded-xl">Enregistrer</button>
+                    <button @click="closeIngredientModal()" class="flex-1 border border-border/30 rounded-xl py-2">Annuler</button>
                 </div>
             </div>
         </div>

@@ -1,5 +1,4 @@
 {% extends 'stock/base_stock.html' %}
-{% load static %}
 
 {% block title %}Achats / Approvisionnements{% endblock %}
 
@@ -10,12 +9,12 @@
     <div class="flex items-center justify-between">
         <div>
             <h1 class="text-2xl font-bold text-on-surface">
-                <i class="fas fa-truck-loading text-secondary mr-2"></i>Achats / Approvisionnements
+                <i class="fas fa-truck-loading text-primary mr-2"></i>Achats / Approvisionnements
             </h1>
-            <p class="text-sm text-on-surface-variant mt-1">Gestion des entrées stock et factures fournisseurs</p>
+            <p class="text-sm text-on-surface-muted mt-1">Gestion des entrées stock et factures fournisseurs</p>
         </div>
         <div class="flex gap-2">
-            <button @click="openCreate()" :disabled="{{ est_bloque_stock|lower }}" class="btn-md3-primary text-sm px-4 py-2 rounded-lg">
+            <button @click="openCreate()" :disabled="{{ est_bloque_stock|lower }}" class="btn-primary-bro text-sm">
                 <i class="fas fa-plus mr-1"></i>Nouvel achat
             </button>
         </div>
@@ -23,38 +22,38 @@
 
     <!-- Stats -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="stat-card p-4">
-            <p class="text-xs text-on-surface-variant">Total achats</p>
-            <p class="text-xl font-bold text-secondary mt-1" x-text="stats.total"></p>
+        <div class="card-bro p-4">
+            <p class="text-xs text-on-surface-muted">Total achats</p>
+            <p class="text-xl font-bold text-primary mt-1" x-text="stats.total"></p>
         </div>
-        <div class="stat-card p-4">
-            <p class="text-xs text-on-surface-variant">Ce mois</p>
-            <p class="text-xl font-bold text-blue-400 mt-1" x-text="stats.mois + ' F'"></p>
+        <div class="card-bro p-4">
+            <p class="text-xs text-on-surface-muted">Ce mois</p>
+            <p class="text-xl font-bold text-blue-500 mt-1" x-text="stats.mois + ' F'"></p>
         </div>
-        <div class="stat-card p-4">
-            <p class="text-xs text-on-surface-variant">En attente</p>
-            <p class="text-xl font-bold text-yellow-400 mt-1" x-text="stats.en_attente"></p>
+        <div class="card-bro p-4">
+            <p class="text-xs text-on-surface-muted">En attente</p>
+            <p class="text-xl font-bold text-amber-500 mt-1" x-text="stats.en_attente"></p>
         </div>
-        <div class="stat-card p-4">
-            <p class="text-xs text-on-surface-variant">Fournisseurs</p>
-            <p class="text-xl font-bold text-green-400 mt-1" x-text="stats.fournisseurs"></p>
+        <div class="card-bro p-4">
+            <p class="text-xs text-on-surface-muted">Fournisseurs</p>
+            <p class="text-xl font-bold text-emerald-600 mt-1" x-text="stats.fournisseurs"></p>
         </div>
     </div>
 
     <!-- Filtres avancés -->
-    <div class="bg-surface-container-low rounded-xl border border-outline/10 p-4">
+    <div class="card-bro-static p-4">
         <div class="flex flex-wrap gap-3 items-end">
             <div>
-                <label class="text-xs text-on-surface-variant block mb-1">Date début</label>
-                <input type="date" x-model="filtreDateDebut" @change="chargerAchats()" class="input-md3 rounded-lg text-sm">
+                <label class="text-xs text-on-surface-muted block mb-1">Date début</label>
+                <input type="date" x-model="filtreDateDebut" @change="chargerAchats()" class="input-bro rounded-lg text-sm">
             </div>
             <div>
-                <label class="text-xs text-on-surface-variant block mb-1">Date fin</label>
-                <input type="date" x-model="filtreDateFin" @change="chargerAchats()" class="input-md3 rounded-lg text-sm">
+                <label class="text-xs text-on-surface-muted block mb-1">Date fin</label>
+                <input type="date" x-model="filtreDateFin" @change="chargerAchats()" class="input-bro rounded-lg text-sm">
             </div>
             <div>
-                <label class="text-xs text-on-surface-variant block mb-1">Fournisseur</label>
-                <select x-model="filtreFournisseur" @change="chargerAchats()" class="input-md3 rounded-lg text-sm">
+                <label class="text-xs text-on-surface-muted block mb-1">Fournisseur</label>
+                <select x-model="filtreFournisseur" @change="chargerAchats()" class="input-bro rounded-lg text-sm">
                     <option value="">Tous</option>
                     <template x-for="f in fournisseurs" :key="f.id">
                         <option :value="f.id" x-text="f.nom + ' (' + f.code + ')'"></option>
@@ -62,8 +61,8 @@
                 </select>
             </div>
             <div>
-                <label class="text-xs text-on-surface-variant block mb-1">Entrepôt</label>
-                <select x-model="filtreEntrepot" @change="chargerAchats()" class="input-md3 rounded-lg text-sm">
+                <label class="text-xs text-on-surface-muted block mb-1">Entrepôt</label>
+                <select x-model="filtreEntrepot" @change="chargerAchats()" class="input-bro rounded-lg text-sm">
                     <option value="">Tous</option>
                     <template x-for="e in entrepots" :key="e.id">
                         <option :value="e.id" x-text="e.nom"></option>
@@ -76,11 +75,11 @@
     <!-- Search + Filtres -->
     <div class="flex gap-3">
         <div class="relative flex-1 max-w-xs">
-            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm"></i>
+            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-muted text-sm"></i>
             <input type="text" x-model="searchQuery" @input.debounce.300ms="chargerAchats()"
-                   class="input-md3 rounded-lg pl-9 text-sm" placeholder="Rechercher...">
+                   class="input-bro rounded-lg pl-9 text-sm" placeholder="Rechercher...">
         </div>
-        <select x-model="filtreStatut" @change="chargerAchats()" class="input-md3 rounded-lg text-sm max-w-[150px]">
+        <select x-model="filtreStatut" @change="chargerAchats()" class="input-bro rounded-lg text-sm max-w-[150px]">
             <option value="">Tous</option>
             <option value="VALIDE">Validés</option>
             <option value="BROUILLON">Brouillons</option>
@@ -89,44 +88,43 @@
     </div>
 
     <!-- Tableau Achats -->
-    <div class="bg-surface-container-low rounded-xl border border-outline/10 overflow-hidden">
+    <div class="card-bro-static overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-surface-container-high border-b border-outline/10">
+            <table class="bro-table w-full">
+                <thead>
                     <tr>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">N° Bon</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Facture fournisseur</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Fournisseur</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Date</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase">Total</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold text-on-surface-variant uppercase">Statut</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold text-on-surface-variant uppercase">Actions</th>
+                        <th>N° Bon</th>
+                        <th>Facture fournisseur</th>
+                        <th>Fournisseur</th>
+                        <th>Date</th>
+                        <th class="text-right">Total</th>
+                        <th class="text-center">Statut</th>
+                        <th class="text-center">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-outline/10">
+                <tbody>
                     <template x-for="a in achatsFiltres" :key="a.id">
-                        <tr class="hover:bg-surface-container-low">
-                            <td class="px-4 py-3 font-mono text-sm font-medium" x-text="a.numero"></td>
-                            <td class="px-4 py-3 text-sm" x-text="a.reference_fournisseur || '-'"></td>
-                            <td class="px-4 py-3 text-sm font-medium" x-text="a.fournisseur"></td>
-                            <td class="px-4 py-3 text-sm text-on-surface-variant" x-text="formatDate(a.date_reception)"></td>
-                            <td class="px-4 py-3 text-right font-mono font-bold text-secondary" x-text="formatMoney(a.total) + ' F'"></td>
-                            <td class="px-4 py-3 text-center">
-                                <span class="px-2 py-1 rounded-full text-xs font-medium"
-                                      :class="statutClass(a.statut)" x-text="a.statut"></span>
+                        <tr>
+                            <td class="font-mono text-sm font-medium" x-text="a.numero"></td>
+                            <td class="text-sm" x-text="a.reference_fournisseur || '-'"></td>
+                            <td class="text-sm font-medium" x-text="a.fournisseur"></td>
+                            <td class="text-sm text-on-surface-muted" x-text="formatDate(a.date_reception)"></td>
+                            <td class="text-right font-mono font-bold text-primary" x-text="formatMoney(a.total) + ' F'"></td>
+                            <td class="text-center">
+                                <span :class="statutClass(a.statut)" x-text="a.statut"></span>
                             </td>
-                            <td class="px-4 py-3 text-center">
-                                <button @click="detailAchat(a)" class="text-secondary hover:text-secondary/80 transition-smooth" title="Détail">
+                            <td class="text-center">
+                                <button @click="detailAchat(a)" class="text-primary hover:text-primary/80 transition" title="Détail">
                                     <i class="fas fa-eye"></i>
                                 </button>
                             </td>
                         </tr>
                     </template>
                     <tr x-show="!achats.length">
-                        <td colspan="7" class="px-4 py-12 text-center text-on-surface-variant">
+                        <td colspan="7" class="px-4 py-12 text-center text-on-surface-muted">
                             <i class="fas fa-box-open text-4xl mb-3 block"></i>
                             <p class="text-sm">Aucun achat enregistré</p>
-                            <button @click="openCreate()" :disabled="{{ est_bloque_stock|lower }}" class="text-secondary text-sm mt-2 hover:underline">Créer le premier achat</button>
+                            <button @click="openCreate()" :disabled="{{ est_bloque_stock|lower }}" class="text-primary text-sm mt-2 hover:underline">Créer le premier achat</button>
                         </td>
                     </tr>
                 </tbody>
@@ -136,12 +134,12 @@
 
     <!-- Modal: Nouvel Achat -->
     <div x-show="showCreate" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @keydown.escape.window="showCreate = false">
-        <div class="w-full max-w-4xl max-h-[95vh] overflow-y-auto bg-surface-container-low rounded-2xl shadow-xl mx-4" @click.stop>
-            <div class="sticky top-0 bg-surface-container-low border-b border-outline/10 px-6 py-4 flex justify-between items-center z-10">
+        <div class="w-full max-w-4xl max-h-[95vh] overflow-y-auto bg-white rounded-2xl shadow-xl mx-4" @click.stop>
+            <div class="sticky top-0 bg-white border-b border-border px-6 py-4 flex justify-between items-center z-10">
                 <h2 class="text-lg font-bold">
-                    <i class="fas fa-plus-circle text-secondary mr-2"></i>Nouvel achat
+                    <i class="fas fa-plus-circle text-primary mr-2"></i>Nouvel achat
                 </h2>
-                <button @click="showCreate = false" class="text-on-surface-variant hover:text-on-surface"><i class="fas fa-times"></i></button>
+                <button @click="showCreate = false" class="text-on-surface-muted hover:text-on-surface"><i class="fas fa-times"></i></button>
             </div>
 
             <div class="p-6 space-y-5">
@@ -149,11 +147,11 @@
                 <!-- Infos générales -->
                 <div class="grid grid-cols-2 gap-4">
                     <div>
-                        <label class="label-md3">
+                        <label class="label-bro">
                             Fournisseur
-                            <a href="{% url 'stock:liste_fournisseurs' %}" class="text-xs text-secondary hover:underline ml-1">(voir liste)</a>
+                            <a href="{% url 'stock:liste_fournisseurs' %}" class="text-xs text-primary hover:underline ml-1">(voir liste)</a>
                         </label>
-                        <select x-model="form.fournisseur_id" class="input-md3 rounded-lg w-full" :disabled="saving">
+                        <select x-model="form.fournisseur_id" class="input-bro" :disabled="saving">
                             <option value="">Sélectionner...</option>
                             {% for f in fournisseurs %}
                             <option value="{{ f.id }}">{{ f.nom }} ({{ f.code }})</option>
@@ -161,11 +159,11 @@
                         </select>
                     </div>
                     <div>
-                        <label class="label-md3">
+                        <label class="label-bro">
                             Entrepôt
-                            <a href="{% url 'stock:liste_entrepots' %}" class="text-xs text-secondary hover:underline ml-1">(voir liste)</a>
+                            <a href="{% url 'stock:liste_entrepots' %}" class="text-xs text-primary hover:underline ml-1">(voir liste)</a>
                         </label>
-                        <select x-model="form.entrepot_id" class="input-md3 rounded-lg w-full" :disabled="saving">
+                        <select x-model="form.entrepot_id" class="input-bro" :disabled="saving">
                             <option value="">Défaut (Central)</option>
                             {% for e in entrepots %}
                             <option value="{{ e.id }}">{{ e.nom }}</option>
@@ -173,43 +171,43 @@
                         </select>
                     </div>
                     <div>
-                        <label class="label-md3">N° Facture fournisseur</label>
-                        <input type="text" x-model="form.reference_fournisseur" class="input-md3 rounded-lg w-full" placeholder="Ex: FACT-001">
+                        <label class="label-bro">N° Facture fournisseur</label>
+                        <input type="text" x-model="form.reference_fournisseur" class="input-bro" placeholder="Ex: FACT-001">
                     </div>
                     <div>
-                        <label class="label-md3">Date</label>
-                        <input type="date" x-model="form.date_achat" class="input-md3 rounded-lg w-full">
+                        <label class="label-bro">Date</label>
+                        <input type="date" x-model="form.date_achat" class="input-bro">
                     </div>
                 </div>
 
                 <!-- Mode paiement -->
                 <div>
-                    <label class="label-md3">Mode de paiement</label>
+                    <label class="label-bro">Mode de paiement</label>
                     <div class="flex flex-wrap gap-3">
-                        <label class="flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition-smooth text-sm"
-                               :class="form.mode_paiement === 'CREDIT' ? 'bg-secondary-container/20 border border-secondary' : 'bg-surface-container-high hover:bg-surface-container'">
-                            <input type="radio" value="CREDIT" x-model="form.mode_paiement" class="accent-secondary">
-                            <i class="fas fa-book text-secondary"></i> À crédit
+                        <label class="flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition text-sm"
+                               :class="form.mode_paiement === 'CREDIT' ? 'bg-primary-soft border border-primary' : 'bg-surface-soft hover:bg-border'">
+                            <input type="radio" value="CREDIT" x-model="form.mode_paiement" class="accent-primary">
+                            <i class="fas fa-book text-primary"></i> À crédit
                         </label>
-                        <label class="flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition-smooth text-sm"
-                               :class="form.mode_paiement === 'ESPECES' ? 'bg-secondary-container/20 border border-secondary' : 'bg-surface-container-high hover:bg-surface-container'">
-                            <input type="radio" value="ESPECES" x-model="form.mode_paiement" class="accent-secondary">
-                            <i class="fas fa-money-bill-wave text-secondary"></i> Espèces
+                        <label class="flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition text-sm"
+                               :class="form.mode_paiement === 'ESPECES' ? 'bg-primary-soft border border-primary' : 'bg-surface-soft hover:bg-border'">
+                            <input type="radio" value="ESPECES" x-model="form.mode_paiement" class="accent-primary">
+                            <i class="fas fa-money-bill-wave text-primary"></i> Espèces
                         </label>
-                        <label class="flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition-smooth text-sm"
-                               :class="form.mode_paiement === 'VIREMENT' ? 'bg-secondary-container/20 border border-secondary' : 'bg-surface-container-high hover:bg-surface-container'">
-                            <input type="radio" value="VIREMENT" x-model="form.mode_paiement" class="accent-secondary">
-                            <i class="fas fa-university text-secondary"></i> Virement
+                        <label class="flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition text-sm"
+                               :class="form.mode_paiement === 'VIREMENT' ? 'bg-primary-soft border border-primary' : 'bg-surface-soft hover:bg-border'">
+                            <input type="radio" value="VIREMENT" x-model="form.mode_paiement" class="accent-primary">
+                            <i class="fas fa-university text-primary"></i> Virement
                         </label>
-                        <label class="flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition-smooth text-sm"
-                               :class="form.mode_paiement === 'MOBILE_MONEY' ? 'bg-secondary-container/20 border border-secondary' : 'bg-surface-container-high hover:bg-surface-container'">
-                            <input type="radio" value="MOBILE_MONEY" x-model="form.mode_paiement" class="accent-secondary">
-                            <i class="fas fa-mobile-alt text-secondary"></i> Orange Money
+                        <label class="flex items-center gap-2 px-4 py-2 rounded-lg cursor-pointer transition text-sm"
+                               :class="form.mode_paiement === 'MOBILE_MONEY' ? 'bg-primary-soft border border-primary' : 'bg-surface-soft hover:bg-border'">
+                            <input type="radio" value="MOBILE_MONEY" x-model="form.mode_paiement" class="accent-primary">
+                            <i class="fas fa-mobile-alt text-primary"></i> Orange Money
                         </label>
                     </div>
                     <div x-show="form.mode_paiement !== 'CREDIT'" class="mt-3">
-                        <label class="label-md3 text-sm">Caisse de débit</label>
-                        <select x-model="form.caisse_id" class="input-md3 rounded-lg w-full max-w-xs">
+                        <label class="label-bro text-sm">Caisse de débit</label>
+                        <select x-model="form.caisse_id" class="input-bro max-w-xs">
                             <option value="">Sélectionner une caisse...</option>
                             <template x-for="c in caisses" :key="c.id">
                                 <option :value="c.id" x-text="c.nom + ' (' + c.solde.toLocaleString('fr-FR') + ' F)'"></option>
@@ -220,14 +218,14 @@
 
                 <!-- Image facture -->
                 <div>
-                    <label class="label-md3">Image de la facture</label>
+                    <label class="label-bro">Image de la facture</label>
                     <div x-show="!imagePreviewUrl" class="flex items-center gap-2 mt-1">
                         <button type="button" onclick="document.getElementById('factureImageInput').click()"
-                                class="px-3 py-1.5 rounded-lg bg-surface-container-high text-on-surface-variant text-xs font-medium hover:bg-secondary/20 hover:text-secondary transition flex items-center gap-1.5">
+                                class="px-3 py-1.5 rounded-lg bg-surface-soft text-on-surface-muted text-xs font-medium hover:bg-primary/10 hover:text-primary transition flex items-center gap-1.5">
                             <i class="fas fa-camera"></i> Joindre une photo
                         </button>
                     </div>
-                    <div x-show="imagePreviewUrl" class="relative mt-2 rounded-lg overflow-hidden max-w-[140px] bg-surface-container-high">
+                    <div x-show="imagePreviewUrl" class="relative mt-2 rounded-lg overflow-hidden max-w-[140px] bg-surface-soft">
                         <img :src="imagePreviewUrl" class="w-full h-24 object-contain">
                         <button type="button" @click="clearImage()" class="absolute top-1 right-1 w-5 h-5 bg-black/60 rounded-full flex items-center justify-center text-white text-[10px] hover:bg-black/80 transition">
                             <i class="fas fa-times"></i>
@@ -239,92 +237,92 @@
                 <!-- Produits -->
                 <div>
                     <div class="flex items-center justify-between mb-2">
-                        <label class="label-md3">Produits</label>
+                        <label class="label-bro">Produits</label>
                         <div class="flex gap-2">
                             <input type="text" x-model="rechercheProduit" placeholder="Rechercher un produit..."
-                                   class="input-md3 rounded-lg text-sm max-w-[200px]">
-                            <select x-model="filtreDomaine" class="input-md3 rounded-lg text-sm max-w-[160px]">
+                                   class="input-bro rounded-lg text-sm max-w-[200px]">
+                            <select x-model="filtreDomaine" class="input-bro rounded-lg text-sm max-w-[160px]">
                                 <option value="">Tous les domaines</option>
                                 {% for d in domaines %}
                                 <option value="{{ d.id }}">{{ d.nom }}</option>
                                 {% endfor %}
                             </select>
-                            <button @click="ajouterLigne()" :disabled="{{ est_bloque_stock|lower }}" class="btn-md3-primary text-xs px-3 py-1.5 rounded-lg">
+                            <button @click="ajouterLigne()" :disabled="{{ est_bloque_stock|lower }}" class="btn-primary-bro text-xs px-3 py-1.5">
                                 <i class="fas fa-plus mr-1"></i>Ligne
                             </button>
                         </div>
                     </div>
 
                     <!-- Tableau lignes -->
-                    <div class="overflow-x-auto rounded-lg border border-outline/10">
-                        <table class="w-full">
-                            <thead class="bg-surface-container-high">
+                    <div class="overflow-x-auto rounded-lg border border-border">
+                        <table class="bro-table w-full">
+                            <thead>
                                 <tr>
-                                    <th class="px-3 py-2 text-left text-xs font-semibold text-on-surface-variant uppercase">Produit</th>
-                                    <th class="px-3 py-2 text-center text-xs font-semibold text-on-surface-variant uppercase w-20">Qté</th>
-                                    <th class="px-3 py-2 text-right text-xs font-semibold text-on-surface-variant uppercase w-28">Prix achat</th>
-                                    <th class="px-3 py-2 text-right text-xs font-semibold text-on-surface-variant uppercase w-28">Prix vente</th>
-                                    <th class="px-3 py-2 text-right text-xs font-semibold text-on-surface-variant uppercase w-28">Total</th>
-                                    <th class="px-3 py-2 text-center w-10"></th>
+                                    <th>Produit</th>
+                                    <th class="text-center w-20">Qté</th>
+                                    <th class="text-right w-28">Prix achat</th>
+                                    <th class="text-right w-28">Prix vente</th>
+                                    <th class="text-right w-28">Total</th>
+                                    <th class="text-center w-10"></th>
                                 </tr>
                             </thead>
-                            <tbody class="divide-y divide-outline/10">
+                            <tbody>
                                 <template x-for="(l, idx) in form.lignes" :key="idx">
-                                    <tr class="hover:bg-surface-container-low">
-                                        <td class="px-3 py-2">
-                                            <select x-model="l.produit_id" @change="produitChange(idx)" class="input-md3 rounded-lg text-sm w-full">
+                                    <tr>
+                                        <td>
+                                            <select x-model="l.produit_id" @change="produitChange(idx)" class="input-bro rounded-lg text-sm">
                                                 <option value="">Sélectionner...</option>
                                                 <template x-for="p in produitsFiltres" :key="p.id">
                                                     <option :value="p.id" x-text="p.nom + ' (' + p.code + ')'"></option>
                                                 </template>
                                             </select>
                                         </td>
-                                        <td class="px-3 py-2">
+                                        <td class="text-center">
                                             <input type="number" x-model="l.quantite" min="0.01" step="1"
-                                                   class="input-md3 rounded-lg text-center text-sm w-full"
+                                                   class="input-bro text-center text-sm"
                                                    @input="calculerLigne(idx)">
                                         </td>
-                                        <td class="px-3 py-2">
+                                        <td class="text-right">
                                             <input type="number" x-model="l.prix_achat" min="0" step="10"
-                                                   class="input-md3 rounded-lg text-right text-sm w-full"
+                                                   class="input-bro text-right text-sm"
                                                    @input="calculerLigne(idx)">
                                         </td>
-                                        <td class="px-3 py-2">
+                                        <td class="text-right">
                                             <input type="number" x-model="l.prix_vente" min="0" step="10"
-                                                   class="input-md3 rounded-lg text-right text-sm w-full">
+                                                   class="input-bro text-right text-sm">
                                         </td>
-                                        <td class="px-3 py-2 text-right font-mono text-sm font-bold text-secondary" x-text="formatMoney(l.montant)"></td>
-                                        <td class="px-3 py-2 text-center">
-                                            <button @click="supprimerLigne(idx)" :disabled="{{ est_bloque_stock|lower }}" class="text-error/70 hover:text-error transition-smooth"><i class="fas fa-trash-alt"></i></button>
+                                        <td class="text-right font-mono text-sm font-bold text-primary" x-text="formatMoney(l.montant)"></td>
+                                        <td class="text-center">
+                                            <button @click="supprimerLigne(idx)" :disabled="{{ est_bloque_stock|lower }}" class="text-red-500/70 hover:text-red-600 transition"><i class="fas fa-trash-alt"></i></button>
                                         </td>
                                     </tr>
                                 </template>
                             </tbody>
-                            <tfoot class="bg-surface-container-high">
-                                <tr class="border-t border-outline/10">
+                            <tfoot>
+                                <tr class="border-t border-border">
                                     <td colspan="4" class="px-3 py-2 text-right text-sm font-bold text-lg">Total</td>
-                                    <td class="px-3 py-2 text-right font-mono font-bold text-secondary text-lg" x-text="formatMoney(totaux.total) + ' F'"></td>
+                                    <td class="px-3 py-2 text-right font-mono font-bold text-primary text-lg" x-text="formatMoney(totaux.total) + ' F'"></td>
                                     <td></td>
                                 </tr>
                             </tfoot>
                         </table>
                     </div>
-                    <p x-show="!form.lignes.length" class="text-center py-6 text-on-surface-variant text-sm">Cliquez sur "+ Ligne" pour ajouter un produit</p>
+                    <p x-show="!form.lignes.length" class="text-center py-6 text-on-surface-muted text-sm">Cliquez sur "+ Ligne" pour ajouter un produit</p>
                 </div>
 
                 <!-- Notes -->
                 <div>
-                    <label class="label-md3">Notes</label>
-                    <textarea x-model="form.notes" class="input-md3 rounded-lg w-full text-sm" rows="2" placeholder="Optionnel..."></textarea>
+                    <label class="label-bro">Notes</label>
+                    <textarea x-model="form.notes" class="input-bro text-sm" rows="2" placeholder="Optionnel..."></textarea>
                 </div>
 
             </div>
 
             <!-- Footer actions -->
-            <div class="sticky bottom-0 bg-surface-container-low border-t border-outline/10 px-6 py-4 flex justify-end gap-3">
-                <button @click="showCreate = false" class="px-5 py-2 border border-outline/10 rounded-lg text-sm hover:bg-surface-container transition-smooth">Annuler</button>
+            <div class="sticky bottom-0 bg-white border-t border-border px-6 py-4 flex justify-end gap-3">
+                <button @click="showCreate = false" class="px-5 py-2 border border-border rounded-lg text-sm hover:bg-surface-soft transition">Annuler</button>
                 <button @click="soumettreAchat()" :disabled="saving || !form.fournisseur_id || !form.lignes.length || {{ est_bloque_stock|lower }}"
-                        class="btn-md3-primary px-6 py-2 rounded-lg text-sm disabled:opacity-30"
+                        class="btn-primary-bro px-6 py-2 rounded-lg text-sm disabled:opacity-30"
                         :class="saving ? 'opacity-50 cursor-not-allowed' : ''">
                     <i class="fas fa-spinner fa-spin mr-1" x-show="saving" x-cloak></i>
                     <span x-text="saving ? 'Enregistrement...' : 'Valider l\'achat'"></span>
@@ -335,37 +333,37 @@
 
     <!-- Modal: Détail achat -->
     <div x-show="showDetail" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.self="showDetail = false">
-        <div class="w-full max-w-2xl bg-surface-container-low rounded-2xl shadow-xl mx-4">
-            <div class="px-6 py-4 border-b border-outline/10 flex justify-between items-center">
-                <h2 class="text-lg font-bold">Achat <span class="text-secondary font-mono" x-text="detail.numero"></span></h2>
-                <button @click="showDetail = false" class="text-on-surface-variant hover:text-on-surface"><i class="fas fa-times"></i></button>
+        <div class="w-full max-w-2xl bg-white rounded-2xl shadow-xl mx-4">
+            <div class="px-6 py-4 border-b border-border flex justify-between items-center">
+                <h2 class="text-lg font-bold">Achat <span class="text-primary font-mono" x-text="detail.numero"></span></h2>
+                <button @click="showDetail = false" class="text-on-surface-muted hover:text-on-surface"><i class="fas fa-times"></i></button>
             </div>
             <div class="p-6 space-y-4 max-h-[70vh] overflow-y-auto">
                 <div class="grid grid-cols-2 gap-3 text-sm">
-                    <div><span class="text-on-surface-variant">Fournisseur :</span> <span class="font-medium" x-text="detail.fournisseur"></span></div>
-                    <div><span class="text-on-surface-variant">Facture :</span> <span x-text="detail.reference_fournisseur || '-'"></span></div>
-                    <div><span class="text-on-surface-variant">Entrepôt :</span> <span x-text="detail.entrepot"></span></div>
-                    <div><span class="text-on-surface-variant">Date :</span> <span x-text="formatDate(detail.date_reception)"></span></div>
+                    <div><span class="text-on-surface-muted">Fournisseur :</span> <span class="font-medium" x-text="detail.fournisseur"></span></div>
+                    <div><span class="text-on-surface-muted">Facture :</span> <span x-text="detail.reference_fournisseur || '-'"></span></div>
+                    <div><span class="text-on-surface-muted">Entrepôt :</span> <span x-text="detail.entrepot"></span></div>
+                    <div><span class="text-on-surface-muted">Date :</span> <span x-text="formatDate(detail.date_reception)"></span></div>
                 </div>
-                <div class="overflow-x-auto rounded-lg border border-outline/10">
-                    <table class="w-full text-sm">
-                        <thead class="bg-surface-container-high"><tr>
-                            <th class="px-3 py-2 text-left">Produit</th>
-                            <th class="px-3 py-2 text-right">Qté</th>
-                            <th class="px-3 py-2 text-right">PU</th>
-                            <th class="px-3 py-2 text-right">Total</th>
+                <div class="overflow-x-auto rounded-lg border border-border">
+                    <table class="bro-table w-full text-sm">
+                        <thead><tr>
+                            <th>Produit</th>
+                            <th class="text-right">Qté</th>
+                            <th class="text-right">PU</th>
+                            <th class="text-right">Total</th>
                         </tr></thead>
-                        <tbody class="divide-y divide-outline/10">
-                            <tr><td colspan="4" class="px-3 py-8 text-center text-on-surface-variant text-sm">Chargement...</td></tr>
+                        <tbody>
+                            <tr><td colspan="4" class="px-3 py-8 text-center text-on-surface-muted text-sm">Chargement...</td></tr>
                         </tbody>
                     </table>
                 </div>
-                <div class="flex justify-end text-sm border-t border-outline/10 pt-3">
-                    <div class="font-bold text-secondary"><span>Total :</span> <span class="font-mono" x-text="formatMoney(detail.total) + ' F'"></span></div>
+                <div class="flex justify-end text-sm border-t border-border pt-3">
+                    <div class="font-bold text-primary"><span>Total :</span> <span class="font-mono" x-text="formatMoney(detail.total) + ' F'"></span></div>
                 </div>
             </div>
-            <div class="px-6 py-4 border-t border-outline/10 flex justify-end">
-                <button @click="showDetail = false" class="px-4 py-2 border border-outline/10 rounded-lg text-sm hover:bg-surface-container">Fermer</button>
+            <div class="px-6 py-4 border-t border-border flex justify-end">
+                <button @click="showDetail = false" class="px-4 py-2 border border-border rounded-lg text-sm hover:bg-surface-soft">Fermer</button>
             </div>
         </div>
     </div>
@@ -593,10 +591,10 @@ function achatsApp() {
         },
         formatMoney(v) { return new Intl.NumberFormat('fr-FR').format(v || 0); },
         statutClass(s) {
-            return s === 'VALIDE' ? 'bg-green-900/30 text-green-300' :
-                   s === 'BROUILLON' ? 'bg-yellow-900/30 text-yellow-300' :
-                   s === 'PARTIEL' ? 'bg-blue-900/30 text-blue-300' :
-                   s === 'ANNULE' ? 'bg-red-900/30 text-red-300' : 'bg-surface-container-highest text-on-surface-variant';
+            return s === 'VALIDE' ? 'badge-bro bg-emerald-100 text-emerald-700' :
+                   s === 'BROUILLON' ? 'badge-bro bg-amber-100 text-amber-700' :
+                   s === 'PARTIEL' ? 'badge-bro bg-blue-100 text-blue-700' :
+                   s === 'ANNULE' ? 'badge-bro bg-red-100 text-red-700' : 'badge-bro bg-surface-soft text-on-surface-muted';
         },
         getCookie(n) { let v = `; ${document.cookie}`, p = v.split(`; ${n}=`); return p.length === 2 ? p.pop().split(';').shift() : ''; },
     }

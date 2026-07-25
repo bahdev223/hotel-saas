@@ -1,45 +1,31 @@
-<!-- apps/pos/templates/pos/base_pos.html -->
-{% load static %}
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}POS - Point de vente{% endblock %} — {{ entreprise_courante.nom_commercial|default:entreprise_courante.nom|default:'ERP' }}</title>
-    {% include "partials/theme_head.html" %}
-    {% block extra_css %}{% endblock %}
-</head>
-<body class="bg-surface text-on-surface font-body-md">
-<div class="min-h-screen flex flex-col">
+{% extends 'base_bro.html' %}
 
-    <!-- Top Navbar -->
-    <nav class="bg-surface-container border-b border-outline/10 sticky top-0 z-50">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div class="flex items-center justify-between h-16">
-                <a href="/" class="flex items-center gap-3 hover:opacity-85 transition-smooth">
-                    <img src="{% if entreprise_courante.logo %}{{ entreprise_courante.logo.url }}{% else %}{% static 'img/logo.jpg' %}{% endif %}" alt="{{ entreprise_courante.nom|default:'ERP' }}" class="w-10 h-10 rounded-lg shadow-md object-cover">
-                    <div>
-                        <span class="text-lg font-bold text-on-surface">{{ entreprise_courante.nom_commercial|default:entreprise_courante.nom|default:'ERP Hôtelier' }}</span>
-                    </div>
-                </a>
-                <div class="flex items-center gap-3">
-                    <a href="{% url 'pos:employe_dashboard' %}" class="px-3 py-1.5 rounded-lg text-xs font-medium bg-secondary/10 text-secondary hover:bg-secondary/20 transition-smooth" title="Mon tableau de bord">
-                        <i class="fas fa-tachometer-alt mr-1"></i>Mon espace
-                    </a>
-                    <a href="{% url 'pos:liste_points_vente' %}" class="px-3 py-1.5 rounded-lg text-xs font-medium text-on-surface-variant hover:bg-surface-container-high transition-smooth" title="Points de vente">
-                        <i class="fas fa-store mr-1"></i>Points de vente
-                    </a>
-                    <span class="hidden sm:inline text-sm text-on-surface-variant font-medium">{{ user.username }}</span>
-                    <a href="{% url 'authentication:logout' %}" class="w-10 h-10 flex items-center justify-center rounded-full bg-surface-container-high hover:bg-error-container/20 text-on-surface-variant hover:text-error transition-smooth" title="Déconnexion">
-                        <i class="fas fa-sign-out-alt text-sm"></i>
-                    </a>
-                </div>
-            </div>
-        </div>
+{% block title %}POS — Point de vente{% endblock %}
+
+{% block subnav %}
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-4">
+    <nav class="pill-nav">
+        <a href="{% url 'pos:liste_points_vente' %}" class="{% if request.resolver_match.url_name == 'liste_points_vente' or request.resolver_match.url_name == 'ajouter_point_vente' or request.resolver_match.url_name == 'detail_point_vente' or request.resolver_match.url_name == 'modifier_point_vente' %}active{% endif %}">
+            <i class="fas fa-store mr-1"></i>Points de vente
+        </a>
+        <a href="{% url 'pos:employe_dashboard' %}" class="{% if request.resolver_match.url_name == 'employe_dashboard' or request.resolver_match.url_name == 'employe_paiement_clients' %}active{% endif %}">
+            <i class="fas fa-tachometer-alt mr-1"></i>Mon espace
+        </a>
+        <a href="{% url 'pos:dashboard_commandes' %}" class="{% if request.resolver_match.url_name == 'dashboard_commandes' or request.resolver_match.url_name == 'cuisine_dashboard' %}active{% endif %}">
+            <i class="fas fa-clipboard-list mr-1"></i>Commandes
+        </a>
+        <a href="{% url 'pos:liste_ventes' %}" class="{% if request.resolver_match.url_name == 'liste_ventes' %}active{% endif %}">
+            <i class="fas fa-history mr-1"></i>Ventes
+        </a>
+        <a href="{% url 'pos:planning' %}" class="{% if request.resolver_match.url_name == 'planning' %}active{% endif %}">
+            <i class="fas fa-calendar-alt mr-1"></i>Planning
+        </a>
+        <a href="{% url 'pos:sessions_liste' %}" class="{% if request.resolver_match.url_name == 'sessions_liste' or request.resolver_match.url_name == 'session_detail' %}active{% endif %}">
+            <i class="fas fa-cash-register mr-1"></i>Sessions
+        </a>
+        <a href="{% url 'pos:raf_dashboard' %}" class="{% if request.resolver_match.url_name == 'raf_dashboard' or request.resolver_match.url_name == 'raf_collecte' or request.resolver_match.url_name == 'raf_transferts' %}active{% endif %}">
+            <i class="fas fa-chart-pie mr-1"></i>RAF
+        </a>
     </nav>
-
-    {% block content %}{% endblock %}
-    {% block extra_js %}{% endblock %}
 </div>
-</body>
-</html>
+{% endblock %}

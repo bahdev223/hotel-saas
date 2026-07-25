@@ -1,5 +1,4 @@
 {% extends 'stock/base_stock.html' %}
-{% load static %}
 
 {% block title %}{{ entrepot.nom }} — Stock{% endblock %}
 
@@ -9,26 +8,26 @@
     <!-- Breadcrumb + Back -->
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-            <a href="{% url 'stock:dashboard' %}?tab=entrepots" class="text-sm text-secondary/70 hover:text-secondary transition-smooth">
+            <a href="{% url 'stock:dashboard' %}?tab=entrepots" class="text-sm text-primary/70 hover:text-primary transition">
                 <i class="fas fa-arrow-left mr-1"></i> Retour aux entrepôts
             </a>
             <h1 class="text-2xl font-bold text-on-surface mt-1 flex items-center gap-2">
                 <span x-show="!editing" x-text="nom"></span>
-                <input x-show="editing" x-model="nom" @keydown.enter="sauverNom()" @keydown.escape="annulerNom()" class="input-md3 rounded-lg text-2xl font-bold py-1 px-2" style="width:400px">
-                <button @click="editerNom()" x-show="!editing" class="text-on-surface-variant hover:text-secondary text-sm"><i class="fas fa-edit"></i></button>
-                <button @click="sauverNom()" x-show="editing" class="text-green-400 text-sm"><i class="fas fa-check"></i></button>
-                <button @click="annulerNom()" x-show="editing" class="text-red-400 text-sm"><i class="fas fa-times"></i></button>
+                <input x-show="editing" x-model="nom" @keydown.enter="sauverNom()" @keydown.escape="annulerNom()" class="input-bro rounded-lg text-2xl font-bold py-1 px-2" style="width:400px">
+                <button @click="editerNom()" x-show="!editing" class="text-on-surface-muted hover:text-primary text-sm"><i class="fas fa-edit"></i></button>
+                <button @click="sauverNom()" x-show="editing" class="text-emerald-600 text-sm"><i class="fas fa-check"></i></button>
+                <button @click="annulerNom()" x-show="editing" class="text-red-500 text-sm"><i class="fas fa-times"></i></button>
             </h1>
-            <p class="text-sm text-on-surface-variant">{{ entrepot.code }} · {{ entrepot.get_type_entrepot_display }}</p>
+            <p class="text-sm text-on-surface-muted">{{ entrepot.code }} · {{ entrepot.get_type_entrepot_display }}</p>
         </div>
         <div class="flex items-center gap-3">
             {% if entrepot.type_entrepot == 'CENTRAL' %}
-            <button @click="openTransfert()" class="btn-md3-primary text-sm px-4 py-2 rounded-lg">
+            <button @click="openTransfert()" class="btn-primary-bro text-sm">
                 <i class="fas fa-exchange-alt mr-1"></i> Transférer
             </button>
             {% endif %}
-            <span class="text-xs px-3 py-1.5 rounded-full font-medium
-                {% if entrepot.actif %}bg-green-900/30 text-green-400 border border-green-500/30{% else %}bg-red-900/30 text-red-400 border border-red-500/30{% endif %}">
+            <span class="badge-bro text-xs
+                {% if entrepot.actif %}bg-emerald-100 text-emerald-700 border border-emerald-200{% else %}bg-red-100 text-red-700 border border-red-200{% endif %}">
                 {{ entrepot.actif|yesno:"Actif,Inactif" }}
             </span>
         </div>
@@ -36,37 +35,37 @@
 
     <!-- Stats Cards -->
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div class="stat-card p-5">
+        <div class="card-bro p-5">
             <div class="flex items-center justify-between mb-3">
-                <span class="text-sm text-on-surface-variant font-medium">Produits</span>
-                <div class="stat-icon"><i class="fas fa-boxes-stacked"></i></div>
+                <span class="text-sm text-on-surface-muted font-medium">Produits</span>
+                <div class="stat-icon-bro"><i class="fas fa-boxes-stacked"></i></div>
             </div>
-            <p class="text-3xl font-bold text-secondary">{{ stats.total_produits }}</p>
-            <p class="text-xs text-on-surface-variant mt-1">Nombre d'articles</p>
+            <p class="text-3xl font-bold text-primary">{{ stats.total_produits }}</p>
+            <p class="text-xs text-on-surface-muted mt-1">Nombre d'articles</p>
         </div>
-        <div class="stat-card p-5">
+        <div class="card-bro p-5">
             <div class="flex items-center justify-between mb-3">
-                <span class="text-sm text-on-surface-variant font-medium">Valeur stock</span>
-                <div class="stat-icon" style="background: rgba(74, 222, 128, 0.1);"><i class="fas fa-coins" style="color: #4ade80;"></i></div>
+                <span class="text-sm text-on-surface-muted font-medium">Valeur stock</span>
+                <div class="stat-icon-bro" style="background: rgba(74, 222, 128, 0.1);"><i class="fas fa-coins" style="color: #4ade80;"></i></div>
             </div>
             <p class="text-3xl font-bold" style="color: #4ade80;">{{ stats.valeur_stock|floatformat:0 }} FCFA</p>
-            <p class="text-xs text-on-surface-variant mt-1">Prix d'achat total</p>
+            <p class="text-xs text-on-surface-muted mt-1">Prix d'achat total</p>
         </div>
-        <div class="stat-card p-5">
+        <div class="card-bro p-5">
             <div class="flex items-center justify-between mb-3">
-                <span class="text-sm text-on-surface-variant font-medium">En rupture</span>
-                <div class="stat-icon" style="background: rgba(248, 113, 113, 0.1);"><i class="fas fa-circle-exclamation" style="color: #f87171;"></i></div>
+                <span class="text-sm text-on-surface-muted font-medium">En rupture</span>
+                <div class="stat-icon-bro" style="background: rgba(248, 113, 113, 0.1);"><i class="fas fa-circle-exclamation" style="color: #f87171;"></i></div>
             </div>
             <p class="text-3xl font-bold" style="color: #f87171;">{{ stats.rupture }}</p>
-            <p class="text-xs text-on-surface-variant mt-1"><span class="text-red-400">⚠ Stock épuisé</span></p>
+            <p class="text-xs text-on-surface-muted mt-1"><span class="text-red-500">⚠ Stock épuisé</span></p>
         </div>
-        <div class="stat-card p-5">
+        <div class="card-bro p-5">
             <div class="flex items-center justify-between mb-3">
-                <span class="text-sm text-on-surface-variant font-medium">Stock bas</span>
-                <div class="stat-icon" style="background: rgba(251, 191, 36, 0.1);"><i class="fas fa-bell" style="color: #fbbf24;"></i></div>
+                <span class="text-sm text-on-surface-muted font-medium">Stock bas</span>
+                <div class="stat-icon-bro" style="background: rgba(251, 191, 36, 0.1);"><i class="fas fa-bell" style="color: #fbbf24;"></i></div>
             </div>
             <p class="text-3xl font-bold" style="color: #fbbf24;">{{ stats.alerte }}</p>
-            <p class="text-xs text-on-surface-variant mt-1">En dessous du seuil</p>
+            <p class="text-xs text-on-surface-muted mt-1">En dessous du seuil</p>
         </div>
     </div>
 
@@ -74,8 +73,8 @@
     <div class="flex gap-3 flex-wrap">
         <form method="get" class="flex gap-3 flex-1 flex-wrap items-end">
             <div>
-                <label class="block text-xs text-on-surface-variant mb-1">Domaine</label>
-                <select name="domaine" class="input-md3 rounded-lg text-sm" onchange="this.form.submit()">
+                <label class="block text-xs text-on-surface-muted mb-1">Domaine</label>
+                <select name="domaine" class="input-bro rounded-lg text-sm" onchange="this.form.submit()">
                     <option value="">Tous les domaines</option>
                     {% for d in domaines %}
                     <option value="{{ d.id }}" {% if domaine_id|stringformat:"s" == d.id|stringformat:"s" %}selected{% endif %}>{{ d.nom }}</option>
@@ -83,8 +82,8 @@
                 </select>
             </div>
             <div>
-                <label class="block text-xs text-on-surface-variant mb-1">Catégorie</label>
-                <select name="categorie" class="input-md3 rounded-lg text-sm" onchange="this.form.submit()">
+                <label class="block text-xs text-on-surface-muted mb-1">Catégorie</label>
+                <select name="categorie" class="input-bro rounded-lg text-sm" onchange="this.form.submit()">
                     <option value="">Toutes les catégories</option>
                     {% for c in categories %}
                     <option value="{{ c.id }}" {% if categorie_id|stringformat:"s" == c.id|stringformat:"s" %}selected{% endif %}>{{ c.nom }}</option>
@@ -92,8 +91,8 @@
                 </select>
             </div>
             <div>
-                <label class="block text-xs text-on-surface-variant mb-1">Type</label>
-                <select name="type_article" class="input-md3 rounded-lg text-sm" onchange="this.form.submit()">
+                <label class="block text-xs text-on-surface-muted mb-1">Type</label>
+                <select name="type_article" class="input-bro rounded-lg text-sm" onchange="this.form.submit()">
                     <option value="">Tous les types</option>
                     {% for key, label in types_article %}
                     <option value="{{ key }}" {% if type_article == key %}selected{% endif %}>{{ label }}</option>
@@ -101,75 +100,75 @@
                 </select>
             </div>
             <div>
-                <label class="block text-xs text-on-surface-variant mb-1">Statut</label>
-                <select name="statut_stock" class="input-md3 rounded-lg text-sm" onchange="this.form.submit()">
+                <label class="block text-xs text-on-surface-muted mb-1">Statut</label>
+                <select name="statut_stock" class="input-bro rounded-lg text-sm" onchange="this.form.submit()">
                     <option value="">Tous les statuts</option>
                     <option value="ok" {% if statut_stock == "ok" %}selected{% endif %}>Stock OK</option>
                     <option value="alerte" {% if statut_stock == "alerte" %}selected{% endif %}>Stock bas</option>
                     <option value="rupture" {% if statut_stock == "rupture" %}selected{% endif %}>Rupture</option>
                 </select>
             </div>
-            <input type="text" name="search" value="{{ search|default:'' }}" placeholder="Rechercher un produit..." class="input-md3 rounded-lg flex-1 min-w-[200px]">
-            <button type="submit" class="btn-md3-primary px-5 py-2.5 rounded-lg text-sm"><i class="fas fa-search mr-1"></i> Rechercher</button>
+            <input type="text" name="search" value="{{ search|default:'' }}" placeholder="Rechercher un produit..." class="input-bro rounded-lg flex-1 min-w-[200px]">
+            <button type="submit" class="btn-primary-bro px-5 py-2.5 rounded-lg text-sm"><i class="fas fa-search mr-1"></i> Rechercher</button>
             {% if search or domaine_id or categorie_id or type_article or statut_stock %}
-            <a href="{% url 'stock:detail_entrepot' entrepot.id %}" class="border border-outline/10 px-4 py-2.5 rounded-lg text-sm text-on-surface-variant hover:text-on-surface transition-smooth flex items-center">Réinitialiser</a>
+            <a href="{% url 'stock:detail_entrepot' entrepot.id %}" class="border border-border px-4 py-2.5 rounded-lg text-sm text-on-surface-muted hover:text-on-surface transition flex items-center">Réinitialiser</a>
             {% endif %}
         </form>
     </div>
 
     <!-- Stock Table -->
-    <div class="stat-card p-0 overflow-hidden">
-        <div class="overflow-x-auto scrollbar-md">
-            <table class="w-full text-sm">
-                <thead class="bg-surface-container-high">
-                    <tr class="text-on-surface-variant text-left">
-                        <th class="px-4 py-3 font-medium">Produit</th>
-                        <th class="px-4 py-3 font-medium text-right">Quantité</th>
-                        <th class="px-4 py-3 font-medium text-right hidden sm:table-cell">Valeur</th>
-                        <th class="px-4 py-3 font-medium text-right hidden sm:table-cell">Prix vente</th>
-                        <th class="px-4 py-3 font-medium text-right hidden md:table-cell">Statut</th>
-                        <th class="px-4 py-3 font-medium text-center">Actions</th>
+    <div class="card-bro-static overflow-hidden">
+        <div class="overflow-x-auto scrollbar-bro">
+            <table class="bro-table w-full text-sm">
+                <thead>
+                    <tr>
+                        <th>Produit</th>
+                        <th class="text-right">Quantité</th>
+                        <th class="text-right hidden sm:table-cell">Valeur</th>
+                        <th class="text-right hidden sm:table-cell">Prix vente</th>
+                        <th class="text-right hidden md:table-cell">Statut</th>
+                        <th class="text-center">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-outline/10">
+                <tbody>
                     {% for s in stocks %}
-                    <tr class="hover:bg-surface-container/50 transition-smooth">
-                        <td class="px-4 py-3">
-                            <a href="{% url 'stock:detail_produit' s.produit.id %}" class="font-medium text-on-surface hover:text-secondary transition-smooth">{{ s.produit.nom }}</a>
-                            <span class="block text-[11px] text-on-surface-variant">{{ s.stock_converti }}</span>
+                    <tr>
+                        <td>
+                            <a href="{% url 'stock:detail_produit' s.produit.id %}" class="font-medium text-on-surface hover:text-primary transition">{{ s.produit.nom }}</a>
+                            <span class="block text-[11px] text-on-surface-muted">{{ s.stock_converti }}</span>
                         </td>
-                        <td class="px-4 py-3 text-right font-mono align-middle">{{ s.quantite }}</td>
-                        <td class="px-4 py-3 text-right hidden sm:table-cell align-middle">{{ s.valeur|floatformat:0 }} FCFA</td>
-                        <td class="px-4 py-3 text-right hidden sm:table-cell align-middle">
+                        <td class="text-right font-mono align-middle">{{ s.quantite }}</td>
+                        <td class="text-right hidden sm:table-cell align-middle">{{ s.valeur|floatformat:0 }} FCFA</td>
+                        <td class="text-right hidden sm:table-cell align-middle">
                             {% if s.produit.est_vendable %}
                             <div class="inline-flex items-center gap-1">
                                 <input type="number" step="any"
                                        x-init="$el.value = {{ s.produit.prix_vente|floatformat:0 }}"
                                        @change="savePrice({{ s.produit.id }}, $el.value)"
-                                       class="w-24 text-right bg-transparent border-b border-transparent hover:border-secondary/50 focus:border-secondary outline-none font-mono text-sm transition-smooth">
-                                <span class="text-[11px] text-on-surface-variant">F</span>
+                                       class="w-24 text-right bg-transparent border-b border-transparent hover:border-primary/50 focus:border-primary outline-none font-mono text-sm transition">
+                                <span class="text-[11px] text-on-surface-muted">F</span>
                             </div>
                             {% else %}
-                            <span class="text-on-surface-variant">—</span>
+                            <span class="text-on-surface-muted">—</span>
                             {% endif %}
                         </td>
-                        <td class="px-4 py-3 text-right hidden md:table-cell align-middle">
+                        <td class="text-right hidden md:table-cell align-middle">
                             {% if s.quantite <= 0 %}
-                            <span class="text-xs px-2 py-1 rounded-full bg-red-900/30 text-red-400">Rupture</span>
+                            <span class="badge-bro bg-red-100 text-red-700">Rupture</span>
                             {% elif s.quantite <= s.produit.seuil_alerte %}
-                            <span class="text-xs px-2 py-1 rounded-full bg-yellow-900/30 text-yellow-400">Stock bas</span>
+                            <span class="badge-bro bg-amber-100 text-amber-700">Stock bas</span>
                             {% else %}
-                            <span class="text-xs px-2 py-1 rounded-full bg-green-900/30 text-green-400">OK</span>
+                            <span class="badge-bro bg-emerald-100 text-emerald-700">OK</span>
                             {% endif %}
                         </td>
-                        <td class="px-4 py-3 text-center align-middle">
+                        <td class="text-center align-middle">
                             {% if entrepot.type_entrepot == 'CENTRAL' %}
-                            <button @click="openTransfert({{ s.produit.id }}, '{{ s.produit.nom|escapejs }}', {{ s.quantite }})" class="text-xs px-2 py-1.5 rounded-lg bg-blue-900/30 text-blue-400 hover:bg-blue-900/50 transition-smooth" title="Transférer">
+                            <button @click="openTransfert({{ s.produit.id }}, '{{ s.produit.nom|escapejs }}', {{ s.quantite }})" class="badge-bro bg-blue-100 text-blue-700 hover:bg-blue-200 transition" title="Transférer">
                                 <i class="fas fa-exchange-alt"></i>
                             </button>
                             {% endif %}
                             {% if s.quantite <= 0 %}
-                            <button onclick="supprimerStock({{ s.produit.id }})" class="text-xs px-2 py-1.5 rounded-lg bg-red-900/30 text-red-400 hover:bg-red-900/50 transition-smooth" title="Retirer de cet entrepôt">
+                            <button onclick="supprimerStock({{ s.produit.id }})" class="badge-bro bg-red-100 text-red-700 hover:bg-red-200 transition" title="Retirer de cet entrepôt">
                                 <i class="fas fa-trash"></i>
                             </button>
                             {% endif %}
@@ -177,7 +176,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="px-4 py-12 text-center text-on-surface-variant">
+                        <td colspan="7" class="px-4 py-12 text-center text-on-surface-muted">
                             <i class="fas fa-box-open text-2xl mb-2 block opacity-50"></i>
                             Aucun produit dans cet entrepôt
                         </td>
@@ -192,15 +191,15 @@
     {% if stocks.paginator.num_pages > 1 %}
     <div class="flex justify-center gap-2">
         {% if stocks.has_previous %}
-        <a href="?page={{ stocks.previous_page_number }}{{ params_str }}" class="px-4 py-2 rounded-lg bg-surface-container-high text-on-surface hover:bg-surface-container-highest transition-smooth text-sm">
+        <a href="?page={{ stocks.previous_page_number }}{{ params_str }}" class="px-4 py-2 rounded-lg bg-surface-soft text-on-surface hover:bg-border transition text-sm">
             <i class="fas fa-chevron-left mr-1"></i> Précédent
         </a>
         {% endif %}
-        <span class="px-4 py-2 text-sm text-on-surface-variant">
+        <span class="px-4 py-2 text-sm text-on-surface-muted">
             Page {{ stocks.number }} / {{ stocks.paginator.num_pages }}
         </span>
         {% if stocks.has_next %}
-        <a href="?page={{ stocks.next_page_number }}{{ params_str }}" class="px-4 py-2 rounded-lg bg-surface-container-high text-on-surface hover:bg-surface-container-highest transition-smooth text-sm">
+        <a href="?page={{ stocks.next_page_number }}{{ params_str }}" class="px-4 py-2 rounded-lg bg-surface-soft text-on-surface hover:bg-border transition text-sm">
             Suivant <i class="fas fa-chevron-right ml-1"></i>
         </a>
         {% endif %}
@@ -208,59 +207,59 @@
     {% endif %}
 
     <!-- Mouvements récents -->
-    <div class="stat-card p-0 overflow-hidden">
-        <div class="px-6 py-4 border-b border-outline/10 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(227, 194, 130, 0.1);">
-                <i class="fas fa-clock-rotate-left text-secondary"></i>
+    <div class="card-bro-static overflow-hidden">
+        <div class="px-6 py-4 border-b border-border flex items-center gap-3">
+            <div class="stat-icon-bro">
+                <i class="fas fa-clock-rotate-left"></i>
             </div>
             <div>
                 <h3 class="font-semibold text-on-surface">Mouvements récents</h3>
-                <p class="text-xs text-on-surface-variant">Les 15 dernières opérations</p>
+                <p class="text-xs text-on-surface-muted">Les 15 dernières opérations</p>
             </div>
         </div>
-        <div class="overflow-x-auto scrollbar-md">
-            <table class="w-full text-sm">
-                <thead class="bg-surface-container-high">
-                    <tr class="text-on-surface-variant">
-                        <th class="px-4 py-3 text-left">Date</th>
-                        <th class="px-4 py-3 text-left">Produit</th>
-                        <th class="px-4 py-3 text-left">Type</th>
-                        <th class="px-4 py-3 text-left">Motif</th>
-                        <th class="px-4 py-3 text-right">Qté</th>
-                        <th class="px-4 py-3 text-left">Ref</th>
+        <div class="overflow-x-auto scrollbar-bro">
+            <table class="bro-table w-full text-sm">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Produit</th>
+                        <th>Type</th>
+                        <th>Motif</th>
+                        <th class="text-right">Qté</th>
+                        <th>Ref</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-outline/10">
+                <tbody>
                     {% for mvt in derniers_mouvements %}
-                    <tr class="hover:bg-surface-container-low transition-colors">
-                        <td class="px-4 py-3 text-on-surface-variant">{{ mvt.date_mouvement|date:"d/m H:i" }}</td>
-                        <td class="px-4 py-3 font-medium">{{ mvt.produit.nom }}</td>
-                        <td class="px-4 py-3">
+                    <tr>
+                        <td class="text-on-surface-muted">{{ mvt.date_mouvement|date:"d/m H:i" }}</td>
+                        <td class="font-medium">{{ mvt.produit.nom }}</td>
+                        <td>
                             {% if mvt.type_mouvement == 'ENTREE' %}
-                            <span class="px-2 py-1 rounded-full text-xs bg-green-900/30 text-green-300"><i class="fas fa-arrow-down text-xs mr-1"></i>Entrée</span>
+                            <span class="badge-bro bg-emerald-100 text-emerald-700"><i class="fas fa-arrow-down text-xs mr-1"></i>Entrée</span>
                             {% elif mvt.type_mouvement == 'SORTIE' %}
-                            <span class="px-2 py-1 rounded-full text-xs bg-red-900/30 text-red-300"><i class="fas fa-arrow-up text-xs mr-1"></i>Sortie</span>
+                            <span class="badge-bro bg-red-100 text-red-700"><i class="fas fa-arrow-up text-xs mr-1"></i>Sortie</span>
                             {% elif mvt.type_mouvement == 'TRANSFERT' %}
-                            <span class="px-2 py-1 rounded-full text-xs bg-blue-900/30 text-blue-300"><i class="fas fa-exchange-alt text-xs mr-1"></i>Transfert</span>
+                            <span class="badge-bro bg-blue-100 text-blue-700"><i class="fas fa-exchange-alt text-xs mr-1"></i>Transfert</span>
                             {% elif mvt.type_mouvement == 'INITIALISATION' %}
-                            <span class="px-2 py-1 rounded-full text-xs bg-purple-900/30 text-purple-300"><i class="fas fa-rocket text-xs mr-1"></i>Initialisation</span>
+                            <span class="badge-bro bg-purple-100 text-purple-700"><i class="fas fa-rocket text-xs mr-1"></i>Initialisation</span>
                             {% endif %}
                         </td>
-                        <td class="px-4 py-3 text-on-surface-variant text-xs">{{ mvt.get_motif_display }}</td>
-                        <td class="px-4 py-3 text-right font-mono">
+                        <td class="text-on-surface-muted text-xs">{{ mvt.get_motif_display }}</td>
+                        <td class="text-right font-mono">
                             {% if mvt.type_mouvement == 'SORTIE' %}
-                            <span class="text-red-400">-{{ mvt.quantite|floatformat:0 }}</span>
+                            <span class="text-red-500">-{{ mvt.quantite|floatformat:0 }}</span>
                             {% elif mvt.type_mouvement == 'ENTREE' %}
-                            <span class="text-green-400">+{{ mvt.quantite|floatformat:0 }}</span>
+                            <span class="text-emerald-600">+{{ mvt.quantite|floatformat:0 }}</span>
                             {% else %}
-                            <span class="text-blue-400">{{ mvt.quantite|floatformat:0 }}</span>
+                            <span class="text-blue-600">{{ mvt.quantite|floatformat:0 }}</span>
                             {% endif %}
-                            <span class="text-xs text-on-surface-variant ml-1">{{ mvt.produit.unite_base }}</span>
+                            <span class="text-xs text-on-surface-muted ml-1">{{ mvt.produit.unite_base }}</span>
                         </td>
-                        <td class="px-4 py-3 text-on-surface-variant text-xs">{{ mvt.reference|default:"-" }}</td>
+                        <td class="text-on-surface-muted text-xs">{{ mvt.reference|default:"-" }}</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6" class="px-4 py-8 text-center text-on-surface-variant">Aucun mouvement</td></tr>
+                    <tr><td colspan="6" class="px-4 py-8 text-center text-on-surface-muted">Aucun mouvement</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -270,25 +269,25 @@
     {% if entrepot.type_entrepot == 'CENTRAL' %}
     <!-- Transfer Modal -->
     <div x-show="showTransfert" x-cloak class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" @click.away="showTransfert = false" @keydown.escape.window="showTransfert = false">
-        <div class="w-full max-w-md bg-surface-container-low rounded-2xl shadow-xl mx-4" @click.stop>
-            <div class="px-6 py-4 border-b border-outline/10 flex justify-between items-center">
+        <div class="w-full max-w-md bg-white rounded-2xl shadow-xl mx-4" @click.stop>
+            <div class="px-6 py-4 border-b border-border flex justify-between items-center">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(227, 194, 130, 0.1);">
-                        <i class="fas fa-exchange-alt text-secondary"></i>
+                    <div class="w-10 h-10 rounded-xl flex items-center justify-center" style="background: rgba(184, 134, 44, 0.08);">
+                        <i class="fas fa-exchange-alt text-primary"></i>
                     </div>
                     <div>
                         <h2 class="text-lg font-bold text-on-surface">Transférer</h2>
-                        <p class="text-xs text-on-surface-variant" x-text="transfert.produit_nom ? transfert.produit_nom : 'Sélectionnez un produit'"></p>
+                        <p class="text-xs text-on-surface-muted" x-text="transfert.produit_nom ? transfert.produit_nom : 'Sélectionnez un produit'"></p>
                     </div>
                 </div>
-                <button @click="showTransfert = false" class="w-8 h-8 flex items-center justify-center rounded-full text-on-surface-variant hover:text-on-surface hover:bg-surface-container transition-smooth">
+                <button @click="showTransfert = false" class="w-8 h-8 flex items-center justify-center rounded-full text-on-surface-muted hover:text-on-surface hover:bg-surface-soft transition">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
             <form @submit.prevent="saveTransfert" class="p-6 space-y-4">
                 <div>
-                    <label class="label-md3">Produit</label>
-                    <select x-model="transfert.produit" class="input-md3 rounded-lg w-full" required>
+                    <label class="label-bro">Produit</label>
+                    <select x-model="transfert.produit" class="input-bro" required>
                         <option value="">Sélectionner...</option>
                         {% for s in stocks_full %}
                         <option value="{{ s.produit.id }}" x-text="'{{ s.produit.nom|escapejs }}'"></option>
@@ -296,8 +295,8 @@
                     </select>
                 </div>
                 <div>
-                    <label class="label-md3">Destination</label>
-                    <select x-model="transfert.dest" class="input-md3 rounded-lg w-full" required>
+                    <label class="label-bro">Destination</label>
+                    <select x-model="transfert.dest" class="input-bro" required>
                         <option value="">Choisir un entrepôt...</option>
                         <template x-for="e in entrepots" :key="e.id">
                             <option :value="e.id" x-text="e.nom + ' (' + e.type_display + ')'" :disabled="e.id === {{ entrepot.id }}"></option>
@@ -305,20 +304,20 @@
                     </select>
                 </div>
                 <div>
-                    <label class="label-md3">Quantité</label>
-                    <input type="number" step="any" x-model="transfert.quantite" class="input-md3 rounded-lg w-full" required min="1">
-                    <p class="text-xs text-on-surface-variant mt-1" x-show="transfert.stock_dispo">Stock disponible: <span class="font-mono text-secondary" x-text="transfert.stock_dispo"></span></p>
+                    <label class="label-bro">Quantité</label>
+                    <input type="number" step="any" x-model="transfert.quantite" class="input-bro" required min="1">
+                    <p class="text-xs text-on-surface-muted mt-1" x-show="transfert.stock_dispo">Stock disponible: <span class="font-mono text-primary" x-text="transfert.stock_dispo"></span></p>
                 </div>
                 <div>
-                    <label class="label-md3">Référence <span class="text-on-surface-variant font-normal">(optionnelle)</span></label>
-                    <input type="text" x-model="transfert.reference" class="input-md3 rounded-lg w-full" placeholder="Ex: TRANSF-001">
+                    <label class="label-bro">Référence <span class="text-on-surface-muted font-normal">(optionnelle)</span></label>
+                    <input type="text" x-model="transfert.reference" class="input-bro" placeholder="Ex: TRANSF-001">
                 </div>
                 <div class="flex gap-3 pt-2">
-                    <button type="submit" class="flex-1 btn-md3-primary py-2.5 rounded-lg" :disabled="saving || !transfert.produit || !transfert.dest || !transfert.quantite">
+                    <button type="submit" class="flex-1 btn-primary-bro justify-center py-2.5" :disabled="saving || !transfert.produit || !transfert.dest || !transfert.quantite">
                         <i class="fas fa-spinner fa-spin" x-show="saving" x-cloak></i>
                         <span x-text="saving ? 'Transfert...' : 'Confirmer le transfert'"></span>
                     </button>
-                    <button type="button" @click="showTransfert = false" class="flex-1 border border-outline/10 py-2.5 rounded-lg text-sm text-on-surface-variant hover:bg-surface-container transition-smooth">Annuler</button>
+                    <button type="button" @click="showTransfert = false" class="flex-1 border border-border py-2.5 rounded-lg text-sm text-on-surface-muted hover:bg-surface-soft transition">Annuler</button>
                 </div>
             </form>
         </div>

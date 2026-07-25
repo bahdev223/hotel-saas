@@ -1,116 +1,112 @@
 {% extends 'comptabilite/base_compta.html' %}
-{% load static %}
 
-{% block title %}Détail du compte - {{ compte.code }}{% endblock %}
+{% block comptatitle %}Détail du compte - {{ compte.code }}{% endblock %}
 
 {% block header %}Compte {{ compte.code }}{% endblock %}
 
 {% block subtitle %}{{ compte.libelle }}{% endblock %}
 
-{% block content %}
+{% block comptacontent %}
 <div class="space-y-6">
-    
-    <!-- Informations générales -->
-    <div class="bg-surface-container-low rounded-2xl shadow-md p-6">
+
+    <div class="card-bro card-bro-static p-6">
         <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
             <div>
-                <p class="text-xs text-on-surface-variant uppercase">Code</p>
+                <p class="text-xs text-on-surface-muted uppercase">Code</p>
                 <p class="text-2xl font-mono font-bold">{{ compte.code }}</p>
             </div>
             <div>
-                <p class="text-xs text-on-surface-variant uppercase">Nature</p>
+                <p class="text-xs text-on-surface-muted uppercase">Nature</p>
                 <p class="font-semibold">
                     {% if compte.nature == 'ACTIF' %}
                         <span class="text-emerald-600">Actif</span>
                     {% elif compte.nature == 'PASSIF' %}
-                        <span class="text-red-400">Passif</span>
+                        <span class="text-red-600">Passif</span>
                     {% elif compte.nature == 'CHARGE' %}
-                        <span class="text-orange-400">Charge</span>
+                        <span class="text-orange-600">Charge</span>
                     {% else %}
-                        <span class="text-blue-400">Produit</span>
+                        <span class="text-blue-600">Produit</span>
                     {% endif %}
                 </p>
             </div>
             <div>
-                <p class="text-xs text-on-surface-variant uppercase">Sens</p>
+                <p class="text-xs text-on-surface-muted uppercase">Sens</p>
                 <p>
                     {% if compte.sens == 'DEBIT' %}
-                        <span class="text-red-400">Débit</span>
+                        <span class="text-red-600">Débit</span>
                     {% else %}
-                        <span class="text-green-400">Crédit</span>
+                        <span class="text-emerald-600">Crédit</span>
                     {% endif %}
                 </p>
             </div>
             <div>
-                <p class="text-xs text-on-surface-variant uppercase">Type</p>
+                <p class="text-xs text-on-surface-muted uppercase">Type</p>
                 <p>{{ compte.get_type_compte_display }}</p>
             </div>
             <div>
-                <p class="text-xs text-on-surface-variant uppercase">Catégorie</p>
+                <p class="text-xs text-on-surface-muted uppercase">Catégorie</p>
                 <p>{{ compte.get_categorie_display }}</p>
             </div>
             <div>
-                <p class="text-xs text-on-surface-variant uppercase">Statut</p>
+                <p class="text-xs text-on-surface-muted uppercase">Statut</p>
                 {% if compte.actif %}
-                <span class="bg-green-900/30 text-green-300 px-2 py-1 rounded-full text-xs">Actif</span>
+                <span class="badge-bro bg-emerald-100 text-emerald-700">Actif</span>
                 {% else %}
-                <span class="bg-red-900/30 text-red-300 px-2 py-1 rounded-full text-xs">Inactif</span>
+                <span class="badge-bro bg-red-100 text-red-700">Inactif</span>
                 {% endif %}
             </div>
         </div>
     </div>
-    
-    <!-- Parent si sous-compte -->
+
     {% if compte.parent %}
-    <div class="bg-blue-900/20 rounded-2xl p-4 border-outline/10">
+    <div class="bg-blue-50 rounded-2xl p-4 border border-blue-200">
         <div class="flex items-center gap-3">
-            <i class="fas fa-level-up-alt text-blue-400"></i>
+            <i class="fas fa-level-up-alt text-blue-600"></i>
             <div>
-                <p class="text-xs text-on-surface-variant">Compte parent</p>
-                <a href="{% url 'comptabilite:detail_compte' compte.parent.id %}" class="font-semibold text-blue-300 hover:underline">
+                <p class="text-xs text-on-surface-muted">Compte parent</p>
+                <a href="{% url 'comptabilite:detail_compte' compte.parent.id %}" class="font-semibold text-blue-700 hover:underline">
                     {{ compte.parent.code }} - {{ compte.parent.libelle }}
                 </a>
             </div>
         </div>
     </div>
     {% endif %}
-    
-    <!-- Sous-comptes -->
+
     {% if enfants %}
-    <div class="bg-surface-container-low rounded-2xl shadow-md overflow-hidden">
-        <div class="px-6 py-4 border-b border-outline/10 bg-surface-container-high">
+    <div class="card-bro card-bro-static overflow-hidden">
+        <div class="px-6 py-4 border-b border-border bg-surface-soft">
             <h3 class="font-semibold text-on-surface">
-                <i class="fas fa-sitemap mr-2 text-emerald-600"></i>Sous-comptes
+                <i class="fas fa-sitemap mr-2 text-primary"></i>Sous-comptes
             </h3>
         </div>
         <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-surface-container-high">
-                    <tr class="border-b border-outline/10">
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Code</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Libellé</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Nature</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Type</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold text-on-surface-variant uppercase">Actions</th>
+            <table class="bro-table w-full">
+                <thead>
+                    <tr>
+                        <th class="px-4">Code</th>
+                        <th class="px-4">Libellé</th>
+                        <th class="px-4">Nature</th>
+                        <th class="px-4">Type</th>
+                        <th class="px-4 text-center">Actions</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-outline/10">
+                <tbody>
                     {% for enfant in enfants %}
-                    <tr class="hover:bg-surface-container-low transition">
-                        <td class="px-4 py-3 font-mono text-sm">{{ enfant.code }}</td>
-                        <td class="px-4 py-3 text-sm">{{ enfant.libelle }}</td>
-                        <td class="px-4 py-3 text-sm">{{ enfant.get_nature_display }}</td>
-                        <td class="px-4 py-3 text-sm">{{ enfant.get_type_compte_display }}</td>
-                        <td class="px-4 py-3 text-center">
-                            <a href="{% url 'comptabilite:detail_compte' enfant.id %}" 
-                               class="text-emerald-600 hover:text-emerald-800">
+                    <tr>
+                        <td class="px-4 font-mono text-sm">{{ enfant.code }}</td>
+                        <td class="px-4 text-sm">{{ enfant.libelle }}</td>
+                        <td class="px-4 text-sm">{{ enfant.get_nature_display }}</td>
+                        <td class="px-4 text-sm">{{ enfant.get_type_compte_display }}</td>
+                        <td class="px-4 text-center">
+                            <a href="{% url 'comptabilite:detail_compte' enfant.id %}"
+                               class="text-primary hover:text-primary/80">
                                 <i class="fas fa-eye"></i>
                             </a>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="px-4 py-8 text-center text-on-surface-variant">
+                        <td colspan="5" class="px-4 py-8 text-center text-on-surface-muted">
                             Aucun sous-compte
                         </td>
                     </tr>
@@ -120,65 +116,64 @@
         </div>
     </div>
     {% endif %}
-    
-    <!-- Mouvements du compte -->
-    <div class="bg-surface-container-low rounded-2xl shadow-md overflow-hidden">
-        <div class="px-6 py-4 border-b border-outline/10 bg-surface-container-high">
+
+    <div class="card-bro card-bro-static overflow-hidden">
+        <div class="px-6 py-4 border-b border-border bg-surface-soft">
             <h3 class="font-semibold text-on-surface">
-                <i class="fas fa-exchange-alt mr-2 text-emerald-600"></i>Mouvements du compte
+                <i class="fas fa-exchange-alt mr-2 text-primary"></i>Mouvements du compte
             </h3>
-            <p class="text-xs text-on-surface-variant mt-1">Dernières écritures</p>
+            <p class="text-xs text-on-surface-muted mt-1">Dernières écritures</p>
         </div>
         <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-surface-container-high">
-                    <tr class="border-b border-outline/10">
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Date</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Référence</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Libellé</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase">Débit</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase">Crédit</th>
+            <table class="bro-table w-full">
+                <thead>
+                    <tr>
+                        <th class="px-4">Date</th>
+                        <th class="px-4">Référence</th>
+                        <th class="px-4">Libellé</th>
+                        <th class="px-4 text-right">Débit</th>
+                        <th class="px-4 text-right">Crédit</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-outline/10">
+                <tbody>
                     {% for ligne in mouvements %}
-                    <tr class="hover:bg-surface-container-low transition">
-                        <td class="px-4 py-3 text-sm">{{ ligne.ecriture.date_ecriture|date:"d/m/Y" }}</td>
-                        <td class="px-4 py-3 font-mono text-sm">{{ ligne.ecriture.reference }}</td>
-                        <td class="px-4 py-3 text-sm max-w-md truncate" title="{{ ligne.ecriture.libelle }}">
+                    <tr>
+                        <td class="px-4 text-sm">{{ ligne.ecriture.date_ecriture|date:"d/m/Y" }}</td>
+                        <td class="px-4 font-mono text-sm">{{ ligne.ecriture.reference }}</td>
+                        <td class="px-4 text-sm max-w-md truncate" title="{{ ligne.ecriture.libelle }}">
                             {{ ligne.ecriture.libelle|truncatechars:40 }}
                         </td>
-                        <td class="px-4 py-3 text-right font-mono text-red-400">
+                        <td class="px-4 text-right font-mono text-red-600">
                             {% if ligne.debit > 0 %}{{ ligne.debit|floatformat:0 }} F{% else %}-{% endif %}
                         </td>
-                        <td class="px-4 py-3 text-right font-mono text-green-400">
+                        <td class="px-4 text-right font-mono text-emerald-600">
                             {% if ligne.credit > 0 %}{{ ligne.credit|floatformat:0 }} F{% else %}-{% endif %}
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="px-4 py-8 text-center text-on-surface-variant">
+                        <td colspan="5" class="px-4 py-8 text-center text-on-surface-muted">
                             <i class="fas fa-chart-line text-4xl mb-2 block"></i>
                             <p>Aucun mouvement sur ce compte</p>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
-                <tfoot class="bg-surface-container-high font-semibold border-t border-outline/10">
+                <tfoot class="bg-surface-soft font-semibold border-t border-border">
                     <tr>
                         <td colspan="3" class="px-4 py-3 text-right">TOTAUX :</td>
-                        <td class="px-4 py-3 text-right font-mono text-red-400">{{ total_debit|floatformat:0 }} F</td>
-                        <td class="px-4 py-3 text-right font-mono text-green-400">{{ total_credit|floatformat:0 }} F</td>
+                        <td class="px-4 py-3 text-right font-mono text-red-600">{{ total_debit|floatformat:0 }} F</td>
+                        <td class="px-4 py-3 text-right font-mono text-emerald-600">{{ total_credit|floatformat:0 }} F</td>
                     </tr>
                     <tr>
                         <td colspan="3" class="px-4 py-3 text-right font-semibold">SOLDE :</td>
                         <td colspan="2" class="px-4 py-3 text-right font-mono font-bold">
                             {% if solde > 0 %}
-                            <span class="text-red-400">{{ solde|floatformat:0 }} F (Débiteur)</span>
+                            <span class="text-red-600">{{ solde|floatformat:0 }} F (Débiteur)</span>
                             {% elif solde < 0 %}
-                            <span class="text-green-400">{{ solde|floatformat:0|slice:"1:" }} F (Créditeur)</span>
+                            <span class="text-emerald-600">{{ solde|floatformat:0|slice:"1:" }} F (Créditeur)</span>
                             {% else %}
-                            <span class="text-on-surface-variant">0 F</span>
+                            <span class="text-on-surface-muted">0 F</span>
                             {% endif %}
                         </td>
                     </tr>
@@ -186,14 +181,13 @@
             </table>
         </div>
     </div>
-    
-    <!-- Actions -->
+
     <div class="flex justify-between items-center">
-        <a href="{% url 'comptabilite:comptes_liste' %}" class="text-on-surface-variant hover:text-on-surface">
+        <a href="{% url 'comptabilite:comptes_liste' %}" class="text-on-surface-muted hover:text-on-surface">
             <i class="fas fa-arrow-left mr-2"></i> Retour à la liste
         </a>
         {% if compte.type_compte == 'sous_compte' %}
-        <a href="{% url 'comptabilite:modifier_compte' compte.id %}" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700">
+        <a href="{% url 'comptabilite:modifier_compte' compte.id %}" class="bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary/90">
             <i class="fas fa-edit mr-2"></i> Modifier
         </a>
         {% endif %}

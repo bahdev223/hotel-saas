@@ -1,25 +1,24 @@
 {% extends "comptabilite/base_compta.html" %}
-{% load static %}
 {% load compta_filters %}
 
-{% block title %}Remboursement client - Comptabilité{% endblock %}
+{% block comptatitle %}Remboursement client - Comptabilité{% endblock %}
 
 {% block header %}Remboursement client{% endblock %}
 {% block subtitle %}Retrait d'argent du compte client{% endblock %}
 
-{% block content %}
+{% block comptacontent %}
 <div class="max-w-2xl mx-auto">
-    <form method="post" class="bg-surface-container-low rounded-2xl border-outline/10 p-6 space-y-4">
+    <form method="post" class="card-bro card-bro-static p-6 space-y-4">
         {% csrf_token %}
 
         <div class="grid grid-cols-2 gap-4">
             <div>
                 <label class="block text-sm font-medium mb-1">Date *</label>
-                <input type="date" name="date_operation" required value="{{ today|date:'Y-m-d' }}" class="w-full px-3 py-2 input-md3 rounded-lg">
+                <input type="date" name="date_operation" required value="{{ today|date:'Y-m-d' }}" class="w-full px-3 py-2 rounded-lg border border-border bg-surface-card text-on-surface">
             </div>
             <div>
                 <label class="block text-sm font-medium mb-1">Mode de paiement</label>
-                <select name="mode_paiement" class="w-full px-3 py-2 input-md3 rounded-lg">
+                <select name="mode_paiement" class="w-full px-3 py-2 rounded-lg border border-border bg-surface-card text-on-surface">
                     <option value="ESPECES">💰 Espèces</option>
                     <option value="CARTE">💳 Carte bancaire</option>
                     <option value="VIREMENT">🏦 Virement</option>
@@ -30,27 +29,27 @@
 
         <div>
             <label class="block text-sm font-medium mb-1">Client *</label>
-            <select name="client_id" id="client-select" required class="w-full px-3 py-2 input-md3 rounded-lg">
+            <select name="client_id" id="client-select" required class="w-full px-3 py-2 rounded-lg border border-border bg-surface-card text-on-surface">
                 <option value="">-- Sélectionner un client --</option>
                 {% for client in clients %}
                 <option value="{{ client.id }}" data-solde="{{ client_soldes|get_item:client.id|floatformat:0 }}">{{ client.nom_complet }}</option>
                 {% endfor %}
             </select>
             <div id="solde-display" class="mt-2 text-sm hidden">
-                <span class="text-on-surface-variant">Solde actuel :</span>
-                <span id="solde-value" class="font-mono font-semibold text-green-400">0 F</span>
+                <span class="text-on-surface-muted">Solde actuel :</span>
+                <span id="solde-value" class="font-mono font-semibold text-emerald-600">0 F</span>
             </div>
         </div>
 
         <div>
             <label class="block text-sm font-medium mb-1">Montant à rembourser (FCFA) *</label>
-            <input type="number" step="1" name="montant" required min="1" class="w-full px-3 py-2 input-md3 rounded-lg" placeholder="Montant du remboursement">
-            <p class="text-xs text-on-surface-variant mt-1">Le solde du client sera vérifié avant validation.</p>
+            <input type="number" step="1" name="montant" required min="1" class="w-full px-3 py-2 rounded-lg border border-border bg-surface-card text-on-surface" placeholder="Montant du remboursement">
+            <p class="text-xs text-on-surface-muted mt-1">Le solde du client sera vérifié avant validation.</p>
         </div>
 
         <div>
             <label class="block text-sm font-medium mb-1">Caisse *</label>
-            <select name="caisse_id" required class="w-full px-3 py-2 input-md3 rounded-lg">
+            <select name="caisse_id" required class="w-full px-3 py-2 rounded-lg border border-border bg-surface-card text-on-surface">
                 <option value="">-- Sélectionner --</option>
                 {% for caisse in caisses %}
                 <option value="{{ caisse.id }}">{{ caisse.nom }} ({{ caisse.code }})</option>
@@ -60,12 +59,12 @@
 
         <div>
             <label class="block text-sm font-medium mb-1">Notes</label>
-            <textarea name="notes" rows="2" class="w-full px-3 py-2 input-md3 rounded-lg" placeholder="Motif du remboursement"></textarea>
+            <textarea name="notes" rows="2" class="w-full px-3 py-2 rounded-lg border border-border bg-surface-card text-on-surface" placeholder="Motif du remboursement"></textarea>
         </div>
 
         <div class="flex gap-3 pt-4">
-            <button type="submit" class="flex-1 bg-secondary text-on-secondary py-2 rounded-lg">Enregistrer le remboursement</button>
-            <a href="{% url 'comptabilite:operations' %}" class="flex-1 border-outline/10 py-2 rounded-lg text-center">Annuler</a>
+            <button type="submit" class="flex-1 bg-primary text-white py-2 rounded-lg">Enregistrer le remboursement</button>
+            <a href="{% url 'comptabilite:operations' %}" class="flex-1 border border-border py-2 rounded-lg text-center">Annuler</a>
         </div>
     </form>
 </div>
@@ -78,7 +77,7 @@ document.getElementById('client-select').addEventListener('change', function() {
     if (selected && selected.value) {
         const solde = parseFloat(selected.dataset.solde) || 0;
         value.textContent = solde.toLocaleString() + ' F';
-        value.className = 'font-mono font-semibold ' + (solde >= 0 ? 'text-green-400' : 'text-red-400');
+        value.className = 'font-mono font-semibold ' + (solde >= 0 ? 'text-emerald-600' : 'text-red-600');
         display.classList.remove('hidden');
     } else {
         display.classList.add('hidden');

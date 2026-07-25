@@ -1,0 +1,16 @@
+{% extends 'base_bro.html' %}
+
+{% block subnav %}
+<nav class="bg-white/50 backdrop-blur-sm border-b border-border overflow-x-auto scrollbar-bro">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+        <div class="pill-nav">
+            <a href="{% url 'clients:liste' %}" class="{% if request.resolver_match.view_name == 'clients:liste' or request.resolver_match.view_name == 'clients:dashboard' %}active{% endif %}"><i class="fas fa-list mr-1.5"></i>Liste</a>
+            <a href="{% url 'clients:ajouter' %}" class="{% if request.resolver_match.view_name == 'clients:ajouter' %}active{% endif %}"><i class="fas fa-plus mr-1.5"></i>Nouveau client</a>
+        </div>
+    </div>
+</nav>
+{% endblock %}
+
+{% block content %}{% endblock %}
+
+{% block extra_js %}{% endblock %}

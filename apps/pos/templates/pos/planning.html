@@ -1,12 +1,8 @@
-{% extends 'base.html' %}
-{% load static %}
+{% extends 'pos/base_pos.html' %}
 
 {% block title %}Planning — Point de vente{% endblock %}
 
-{% block header %}Planning{% endblock %}
-{% block subtitle %}Affectation du personnel par point de vente{% endblock %}
-
-{% block extra_css %}
+{% block head_extra %}
 <style>
 .pv-header {
     display: flex;
@@ -27,25 +23,25 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    background: rgba(255,255,255,0.04);
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    background: #f1eee8;
+    border-bottom: 1px solid #e5ded2;
 }
 .planning-table td {
     padding: 8px;
-    border-bottom: 1px solid rgba(255,255,255,0.04);
+    border-bottom: 1px solid rgba(229,222,210,0.4);
     vertical-align: top;
     min-height: 48px;
     transition: background 0.12s;
 }
 .planning-table tr:not(.empty-row):hover td {
-    background: rgba(255,255,255,0.02);
+    background: rgba(241,238,232,0.5);
 }
 .planning-table .creneau-label {
     font-size: 12px;
     font-weight: 600;
     white-space: nowrap;
     padding-right: 16px;
-    color: rgba(255,255,255,0.7);
+    color: #6b6560;
 }
 .planning-table .cell-empty {
     opacity: 0.3;
@@ -60,7 +56,7 @@
 }
 .planning-table .cell-empty:hover {
     opacity: 1;
-    background: rgba(255,255,255,0.06);
+    background: rgba(229,222,210,0.3);
 }
 .planning-table .cell-filled {
     display: inline-flex;
@@ -77,7 +73,7 @@
 }
 .planning-table .cell-filled:hover {
     transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
 }
 .planning-table .cell-filled .dot {
     width: 7px;
@@ -86,10 +82,10 @@
     flex-shrink: 0;
 }
 .planning-table .today-col {
-    background: rgba(99, 102, 241, 0.04);
+    background: rgba(184,134,44,0.04);
 }
 .planning-table .today-col .cell-empty {
-    background: rgba(99, 102, 241, 0.06);
+    background: rgba(184,134,44,0.06);
 }
 .jour-checkbox {
     display: inline-flex;
@@ -105,15 +101,15 @@
     user-select: none;
 }
 .jour-checkbox.active {
-    background: rgb(var(--color-secondary));
-    color: black;
+    background: #b8862c;
+    color: white;
 }
 .jour-checkbox:not(.active) {
-    background: rgba(255,255,255,0.06);
-    color: rgba(255,255,255,0.5);
+    background: #f1eee8;
+    color: #6b6560;
 }
 .jour-checkbox:hover {
-    background: rgba(255,255,255,0.12);
+    background: #e5ded2;
 }
 </style>
 {% endblock %}
@@ -122,10 +118,10 @@
 <div x-data="planningPvApp()" x-init="init()" class="space-y-5">
 
     <!-- ==================== SÉLECTEUR POINT DE VENTE ==================== -->
-    <div class="bg-surface-container-low rounded-xl border border-outline/10 p-4">
+    <div class="card-bro card-bro-static p-4">
         <div class="flex flex-wrap items-center gap-4">
             <div class="pv-header">
-                <i class="fas fa-store text-secondary"></i>
+                <i class="fas fa-store text-primary"></i>
                 <select x-model="pvId" @change="changerPv()" class="bg-transparent border-none text-xl font-bold outline-none cursor-pointer">
                     <option value="">— Sélectionnez un point de vente —</option>
                     {% for p in points %}
@@ -134,26 +130,26 @@
                 </select>
             </div>
             <div class="flex items-center gap-1 ml-auto">
-                <button @click="precedent()" class="px-2.5 py-2 border border-outline/10 rounded-lg text-sm hover:bg-surface-container" title="Précédent">
+                <button @click="precedent()" class="px-2.5 py-2 border border-border rounded-lg text-sm hover:bg-surface-soft" title="Précédent">
                     <i class="fas fa-chevron-left"></i>
                 </button>
                 <span class="px-3 py-2 text-sm font-medium min-w-[200px] text-center" x-text="titrePeriode"></span>
-                <button @click="suivant()" class="px-2.5 py-2 border border-outline/10 rounded-lg text-sm hover:bg-surface-container" title="Suivant">
+                <button @click="suivant()" class="px-2.5 py-2 border border-border rounded-lg text-sm hover:bg-surface-soft" title="Suivant">
                     <i class="fas fa-chevron-right"></i>
                 </button>
-                <button @click="aujourdhui()" class="px-3 py-2 bg-secondary text-black rounded-lg text-sm font-medium ml-1">Aujourd'hui</button>
+                <button @click="aujourdhui()" class="px-3 py-2 bg-primary text-white rounded-lg text-sm font-medium ml-1">Aujourd'hui</button>
             </div>
             <div class="flex gap-1 w-full mt-2 md:w-auto md:mt-0">
                 <button @click="mode = 'jour'; actualiser()" class="px-3 py-1.5 rounded-lg text-xs font-medium transition"
-                        :class="mode === 'jour' ? 'bg-secondary text-black' : 'border border-outline/10 hover:bg-surface-container'">
+                        :class="mode === 'jour' ? 'bg-primary text-white' : 'border border-border hover:bg-surface-soft'">
                     <i class="fas fa-calendar-day mr-1"></i>Jour
                 </button>
                 <button @click="mode = 'semaine'; actualiser()" class="px-3 py-1.5 rounded-lg text-xs font-medium transition"
-                        :class="mode === 'semaine' ? 'bg-secondary text-black' : 'border border-outline/10 hover:bg-surface-container'">
+                        :class="mode === 'semaine' ? 'bg-primary text-white' : 'border border-border hover:bg-surface-soft'">
                     <i class="fas fa-calendar-week mr-1"></i>Semaine
                 </button>
                 <button @click="mode = 'mois'; actualiser()" class="px-3 py-1.5 rounded-lg text-xs font-medium transition"
-                        :class="mode === 'mois' ? 'bg-secondary text-black' : 'border border-outline/10 hover:bg-surface-container'">
+                        :class="mode === 'mois' ? 'bg-primary text-white' : 'border border-border hover:bg-surface-soft'">
                     <i class="fas fa-calendar-alt mr-1"></i>Mois
                 </button>
             </div>
@@ -161,15 +157,15 @@
     </div>
 
     <!-- ==================== PANEL AFFECTATION RAPIDE ==================== -->
-    <div x-show="pvId" class="bg-surface-container-low rounded-xl border border-outline/10 p-4">
+    <div x-show="pvId" class="card-bro card-bro-static p-4">
         <div class="flex items-center gap-2 mb-3">
-            <i class="fas fa-bolt text-secondary"></i>
+            <i class="fas fa-bolt text-primary"></i>
             <span class="font-semibold text-sm">Affectation rapide</span>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-3">
             <div>
-                <label class="text-xs text-on-surface-variant">Employé</label>
-                <select x-model="mass.employe_id" class="w-full input-md3 rounded-lg text-sm mt-0.5">
+                <label class="text-xs text-on-surface-muted">Employé</label>
+                <select x-model="mass.employe_id" class="w-full border border-border rounded-lg text-sm mt-0.5 bg-surface-card px-3 py-2">
                     <option value="">-- Sélectionner --</option>
                     {% for e in employes %}
                     <option value="{{ e.id }}">{{ e.nom_complet }}</option>
@@ -177,24 +173,24 @@
                 </select>
             </div>
             <div>
-                <label class="text-xs text-on-surface-variant">Du</label>
-                <input type="date" x-model="mass.date_debut" class="w-full input-md3 rounded-lg text-sm mt-0.5">
+                <label class="text-xs text-on-surface-muted">Du</label>
+                <input type="date" x-model="mass.date_debut" class="w-full border border-border rounded-lg text-sm mt-0.5 bg-surface-card px-3 py-2">
             </div>
             <div>
-                <label class="text-xs text-on-surface-variant">Au</label>
-                <input type="date" x-model="mass.date_fin" class="w-full input-md3 rounded-lg text-sm mt-0.5">
+                <label class="text-xs text-on-surface-muted">Au</label>
+                <input type="date" x-model="mass.date_fin" class="w-full border border-border rounded-lg text-sm mt-0.5 bg-surface-card px-3 py-2">
             </div>
             <div>
-                <label class="text-xs text-on-surface-variant">Début</label>
-                <input type="time" x-model="mass.heure_debut" class="w-full input-md3 rounded-lg text-sm mt-0.5">
+                <label class="text-xs text-on-surface-muted">Début</label>
+                <input type="time" x-model="mass.heure_debut" class="w-full border border-border rounded-lg text-sm mt-0.5 bg-surface-card px-3 py-2">
             </div>
             <div>
-                <label class="text-xs text-on-surface-variant">Fin</label>
-                <input type="time" x-model="mass.heure_fin" class="w-full input-md3 rounded-lg text-sm mt-0.5">
+                <label class="text-xs text-on-surface-muted">Fin</label>
+                <input type="time" x-model="mass.heure_fin" class="w-full border border-border rounded-lg text-sm mt-0.5 bg-surface-card px-3 py-2">
             </div>
             <div>
-                <label class="text-xs text-on-surface-variant">Statut</label>
-                <select x-model="mass.statut" class="w-full input-md3 rounded-lg text-sm mt-0.5">
+                <label class="text-xs text-on-surface-muted">Statut</label>
+                <select x-model="mass.statut" class="w-full border border-border rounded-lg text-sm mt-0.5 bg-surface-card px-3 py-2">
                     <option value="PLANIFIE">Planifié</option>
                     <option value="CONFIRME">Confirmé</option>
                 </select>
@@ -202,16 +198,16 @@
         </div>
 
         <div class="flex flex-wrap items-center gap-2 mb-3">
-            <span class="text-xs text-on-surface-variant">Jours :</span>
+            <span class="text-xs text-on-surface-muted">Jours :</span>
             <template x-for="(j, idx) in ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim']" :key="idx">
                 <div @click="toggleJour(idx+1)" class="jour-checkbox" :class="mass.jours_semaine.includes(idx+1) ? 'active' : ''" x-text="j"></div>
             </template>
-            <span class="mx-2 text-on-surface-variant/40">|</span>
-            <button @click="resetMass()" class="px-3 py-1.5 border border-outline/10 rounded-lg text-xs hover:bg-surface-container">
+            <span class="mx-2 text-on-surface-muted/40">|</span>
+            <button @click="resetMass()" class="px-3 py-1.5 border border-border rounded-lg text-xs hover:bg-surface-soft">
                 <i class="fas fa-eraser mr-1"></i>Effacer
             </button>
             <button @click="appliquerMasse()" :disabled="!massOk || savingMass"
-                    class="px-4 py-1.5 bg-secondary text-black rounded-lg text-sm font-medium disabled:opacity-40">
+                    class="px-4 py-1.5 bg-primary text-white rounded-lg text-sm font-medium disabled:opacity-40">
                 <i class="fas fa-spinner fa-spin mr-1" x-show="savingMass" x-cloak></i>
                 <i class="fas fa-check mr-1" x-show="!savingMass"></i>
                 <span x-text="savingMass ? 'Création...' : '📋 Appliquer'"></span>
@@ -220,7 +216,7 @@
 
         <!-- Conflits -->
         <div x-show="massResultat" class="p-3 rounded-lg text-sm"
-             :class="massResultat?.conflits?.length ? 'bg-red-900/20 text-red-300 border border-red-900/30' : 'bg-green-900/20 text-green-300'">
+             :class="massResultat?.conflits?.length ? 'bg-red-50 text-red-700 border border-red-300' : 'bg-emerald-50 text-emerald-800'">
             <p x-text="massResultat?.message"></p>
             <div x-show="massResultat?.conflits?.length" class="mt-1 text-xs">
                 <p>⚠️ <span x-text="massResultat.conflits.length"></span> conflit(s) :</p>
@@ -232,20 +228,20 @@
     </div>
 
     <!-- ==================== TABLEAU PLANNING ==================== -->
-    <div x-show="!pvId" class="bg-surface-container-low rounded-xl border border-outline/10 p-12 text-center text-on-surface-variant">
+    <div x-show="!pvId" class="card-bro card-bro-static p-12 text-center text-on-surface-muted">
         <i class="fas fa-store text-4xl mb-3 block"></i>
         <p class="text-lg font-medium">Sélectionnez un point de vente</p>
         <p class="text-sm">Choisissez un point de vente ci-dessus pour voir son planning</p>
     </div>
 
-    <div x-show="pvId" class="bg-surface-container-low rounded-xl border border-outline/10 overflow-hidden">
+    <div x-show="pvId" class="card-bro card-bro-static overflow-hidden">
         <div class="overflow-x-auto">
             <table class="planning-table">
                 <thead>
                     <tr>
                         <th class="text-left w-28">Créneau</th>
                         <template x-for="(jour, idx) in jours" :key="idx">
-                            <th class="text-center" :class="(estAujourdhui(jour.date) ? 'text-secondary' : '') + (jour.horsMois ? ' opacity-40' : '')">
+                            <th class="text-center" :class="(estAujourdhui(jour.date) ? 'text-primary' : '') + (jour.horsMois ? ' opacity-40' : '')">
                                 <span x-text="jour.nom"></span>
                                 <span class="block text-base font-bold" x-text="jour.num"></span>
                             </th>
@@ -260,7 +256,6 @@
                             </td>
                             <template x-for="(jour, idx) in jours" :key="idx">
                                 <td :class="estAujourdhui(jour.date) ? 'today-col' : ''">
-                                    <!-- Employee(s) for this slot -->
                                     <template x-for="emp in getEmployes(jour.date, creneau.heure_debut, creneau.heure_fin)" :key="emp.planning_id">
                                         <div @click="editPlanning(emp)"
                                              class="cell-filled"
@@ -269,7 +264,6 @@
                                             <span x-text="emp.employe_nom"></span>
                                         </div>
                                     </template>
-                                    <!-- Empty cell: show + if employee is filtered or always -->
                                     <div @click="quickAdd(jour.date, creneau.heure_debut, creneau.heure_fin)"
                                          class="cell-empty"
                                          x-show="!getEmployes(jour.date, creneau.heure_debut, creneau.heure_fin).length">
@@ -279,16 +273,15 @@
                             </template>
                         </tr>
                     </template>
-                    <!-- Empty state -->
                     <tr x-show="!creneaux.length && !loading">
-                        <td :colspan="jours.length + 1" class="text-center py-12 text-on-surface-variant">
+                        <td :colspan="jours.length + 1" class="text-center py-12 text-on-surface-muted">
                             <i class="fas fa-calendar-day text-3xl mb-2 block"></i>
                             <p>Aucun planning pour <span x-text="mode === 'jour' ? 'ce jour' : mode === 'mois' ? 'ce mois' : 'cette semaine'"></span></p>
                             <p class="text-sm">Utilisez l'affectation rapide ci-dessus</p>
                         </td>
                     </tr>
                     <tr x-show="loading">
-                        <td :colspan="jours.length + 1" class="text-center py-12 text-on-surface-variant">
+                        <td :colspan="jours.length + 1" class="text-center py-12 text-on-surface-muted">
                             <i class="fas fa-spinner fa-spin text-xl"></i>
                         </td>
                     </tr>
@@ -299,15 +292,15 @@
 
     <!-- ==================== MODAL AJOUTER/MODIFIER ==================== -->
     <div x-show="modalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm" x-cloak @click.away="closeModal()">
-        <div class="bg-surface-container-low rounded-xl shadow-xl w-full max-w-md mx-4">
-            <div class="flex justify-between items-center p-4 border-b border-outline/10">
+        <div class="bg-surface-card rounded-xl shadow-xl w-full max-w-md mx-4">
+            <div class="flex justify-between items-center p-4 border-b border-border">
                 <h2 class="text-sm font-bold" x-text="editMode ? 'Modifier' : 'Ajouter un planning'"></h2>
-                <button @click="closeModal()" class="text-on-surface-variant hover:text-on-surface text-xl">✕</button>
+                <button @click="closeModal()" class="text-on-surface-muted hover:text-on-surface text-xl">✕</button>
             </div>
             <form @submit.prevent="sauvegarder()" class="p-4 space-y-3">
                 <div>
-                    <label class="text-xs text-on-surface-variant">Employé *</label>
-                    <select x-model="form.employe_id" required class="w-full input-md3 rounded-lg text-sm mt-1">
+                    <label class="text-xs text-on-surface-muted">Employé *</label>
+                    <select x-model="form.employe_id" required class="w-full border border-border rounded-lg text-sm mt-1 bg-surface-card px-3 py-2">
                         <option value="">-- Choisir --</option>
                         {% for e in employes %}
                         <option value="{{ e.id }}">{{ e.nom_complet }}</option>
@@ -315,33 +308,33 @@
                     </select>
                 </div>
                 <div>
-                    <label class="text-xs text-on-surface-variant">Date *</label>
-                    <input type="date" x-model="form.date" required class="w-full input-md3 rounded-lg text-sm mt-1">
+                    <label class="text-xs text-on-surface-muted">Date *</label>
+                    <input type="date" x-model="form.date" required class="w-full border border-border rounded-lg text-sm mt-1 bg-surface-card px-3 py-2">
                 </div>
                 <div class="grid grid-cols-2 gap-3">
                     <div>
-                        <label class="text-xs text-on-surface-variant">Début *</label>
-                        <input type="time" x-model="form.heure_debut" required class="w-full input-md3 rounded-lg text-sm mt-1">
+                        <label class="text-xs text-on-surface-muted">Début *</label>
+                        <input type="time" x-model="form.heure_debut" required class="w-full border border-border rounded-lg text-sm mt-1 bg-surface-card px-3 py-2">
                     </div>
                     <div>
-                        <label class="text-xs text-on-surface-variant">Fin *</label>
-                        <input type="time" x-model="form.heure_fin" required class="w-full input-md3 rounded-lg text-sm mt-1">
+                        <label class="text-xs text-on-surface-muted">Fin *</label>
+                        <input type="time" x-model="form.heure_fin" required class="w-full border border-border rounded-lg text-sm mt-1 bg-surface-card px-3 py-2">
                     </div>
                 </div>
                 <div>
-                    <label class="text-xs text-on-surface-variant">Statut</label>
-                    <select x-model="form.statut" class="w-full input-md3 rounded-lg text-sm mt-1">
+                    <label class="text-xs text-on-surface-muted">Statut</label>
+                    <select x-model="form.statut" class="w-full border border-border rounded-lg text-sm mt-1 bg-surface-card px-3 py-2">
                         <option value="PLANIFIE">Planifié</option>
                         <option value="CONFIRME">Confirmé</option>
                         <option value="ANNULE">Annulé</option>
                     </select>
                 </div>
                 <div class="flex gap-2 pt-1">
-                    <button type="submit" class="flex-1 bg-secondary text-black py-2 rounded-lg text-sm font-medium" :disabled="saving">
+                    <button type="submit" class="flex-1 bg-primary text-white py-2 rounded-lg text-sm font-medium" :disabled="saving">
                         <i class="fas fa-spinner fa-spin mr-1" x-show="saving" x-cloak></i>
                         <span x-text="saving ? '...' : (editMode ? 'Enregistrer' : 'Ajouter')"></span>
                     </button>
-                    <button type="button" @click="closeModal()" class="flex-1 border border-outline/10 py-2 rounded-lg text-sm">Annuler</button>
+                    <button type="button" @click="closeModal()" class="flex-1 border border-border py-2 rounded-lg text-sm">Annuler</button>
                 </div>
             </form>
             <div class="px-4 pb-4" x-show="editMode">
@@ -544,21 +537,21 @@ function planningPvApp() {
 
         couleurBg(statut) {
             const map = {
-                PLANIFIE: 'bg-green-900/30 text-green-200',
-                CONFIRME: 'bg-blue-900/30 text-blue-200',
-                ANNULE: 'bg-red-900/30 text-red-200',
-                EFFECTUE: 'bg-green-600/30 text-green-100',
+                PLANIFIE: 'bg-emerald-100 text-emerald-800',
+                CONFIRME: 'bg-blue-100 text-blue-800',
+                ANNULE: 'bg-red-100 text-red-800',
+                EFFECTUE: 'bg-emerald-200 text-emerald-900',
             };
-            return map[statut] || 'bg-surface-container-high';
+            return map[statut] || 'bg-surface-soft';
         },
         couleurDot(statut) {
             const map = {
-                PLANIFIE: 'bg-green-400',
-                CONFIRME: 'bg-blue-400',
-                ANNULE: 'bg-red-400',
-                EFFECTUE: 'bg-green-300',
+                PLANIFIE: 'bg-emerald-500',
+                CONFIRME: 'bg-blue-500',
+                ANNULE: 'bg-red-500',
+                EFFECTUE: 'bg-emerald-400',
             };
-            return map[statut] || 'bg-on-surface-variant';
+            return map[statut] || 'bg-on-surface-muted';
         },
 
         // --- Quick add via cell click ---

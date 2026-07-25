@@ -1,33 +1,32 @@
 <!-- apps/restaurant/templates/restaurant/cuisine/dashboard.html -->
 {% extends 'restaurant/base_restaurant.html' %}
-{% load static %}
 
 {% block title %}Cuisine - Restaurant{% endblock %}
 
 {% block content %}
-<div x-data="cuisineApp()" x-init="init()" class="h-screen flex flex-col bg-surface-container-high">
+<div x-data="cuisineApp()" x-init="init()" class="h-screen flex flex-col bg-surface">
     
     <!-- En-tête -->
-    <div class="bg-surface-container-low shadow-md px-6 py-4 flex justify-between items-center sticky top-0 z-10">
+    <div class="bg-surface-card shadow-md px-6 py-4 flex justify-between items-center sticky top-0 z-10">
         <div>
             <h1 class="text-2xl font-bold text-on-surface">
-                <i class="fas fa-utensils text-secondary mr-2"></i>
+                <i class="fas fa-utensils text-primary mr-2"></i>
                 Cuisine
             </h1>
-            <p class="text-sm text-on-surface-variant">Commandes à préparer</p>
+            <p class="text-sm text-on-surface-muted">Commandes à préparer</p>
         </div>
         <div class="flex gap-3">
             <button @click="activeTab = 'commandes'" 
                     class="px-4 py-2 rounded-lg text-sm font-medium transition"
-                    :class="activeTab === 'commandes' ? 'bg-secondary text-white' : 'bg-surface-container-highest text-on-surface-variant'">
+                    :class="activeTab === 'commandes' ? 'bg-primary text-white' : 'bg-surface-soft text-on-surface-muted'">
                 <i class="fas fa-list mr-1"></i> En cours
             </button>
             <button @click="activeTab = 'historique'" 
                     class="px-4 py-2 rounded-lg text-sm font-medium transition"
-                    :class="activeTab === 'historique' ? 'bg-secondary text-white' : 'bg-surface-container-highest text-on-surface-variant'">
+                    :class="activeTab === 'historique' ? 'bg-primary text-white' : 'bg-surface-soft text-on-surface-muted'">
                 <i class="fas fa-history mr-1"></i> Historique
             </button>
-            <button @click="refreshCommandes()" class="text-on-surface-variant hover:text-on-surface">
+            <button @click="refreshCommandes()" class="text-on-surface-muted hover:text-on-surface">
                 <i class="fas fa-sync-alt"></i>
             </button>
         </div>
@@ -39,25 +38,25 @@
         <!-- Commandes à préparer -->
         <div x-show="activeTab === 'commandes'" class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             <template x-for="commande in commandes" :key="commande.id">
-                <div class="bg-surface-container-low rounded-xl shadow-md overflow-hidden border-l-4 cursor-pointer hover:shadow-md transition"
+                <div class="bg-surface-card rounded-xl shadow-md overflow-hidden border-l-4 cursor-pointer hover:shadow-md transition"
                      :class="commande.statut === 'EN_PREPARATION' ? 'border-orange-500' : 'border-blue-500'"
                      @click="voirDetail(commande.id)">
                     
                     <!-- En-tête commande -->
-                    <div class="p-4 border-b bg-surface-container-high">
+                    <div class="p-4 border-b bg-surface-soft">
                         <div class="flex justify-between items-center">
                             <div>
-                                <span class="text-xs text-on-surface-variant">Commande #<span x-text="commande.numero"></span></span>
+                                <span class="text-xs text-on-surface-muted">Commande #<span x-text="commande.numero"></span></span>
                                 <span class="ml-2 text-xs font-mono" x-text="commande.temps_attente + ' min'"></span>
                             </div>
                             <span class="px-2 py-1 text-xs rounded-full"
-                                  :class="commande.statut === 'EN_PREPARATION' ? 'bg-orange-900/30 text-orange-300' : 'bg-blue-900/30 text-blue-300'"
+                                  :class="commande.statut === 'EN_PREPARATION' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'"
                                   x-text="commande.statut_display"></span>
                         </div>
                         <div class="mt-2">
                             <span class="font-bold text-lg">Table <span x-text="commande.table"></span></span>
-                            <span class="ml-2 text-xs text-on-surface-variant" x-text="commande.type"></span>
-                            <span x-show="commande.point_vente" class="ml-2 text-xs bg-surface-container-high px-2 py-0.5 rounded" x-text="commande.point_vente"></span>
+                            <span class="ml-2 text-xs text-on-surface-muted" x-text="commande.type"></span>
+                            <span x-show="commande.point_vente" class="ml-2 text-xs bg-surface-soft px-2 py-0.5 rounded" x-text="commande.point_vente"></span>
                         </div>
                     </div>
                     
@@ -66,10 +65,10 @@
                         <template x-for="ligne in commande.lignes.slice(0, 3)" :key="ligne.nom">
                             <div class="flex justify-between items-center text-sm">
                                 <span x-text="ligne.quantite + 'x ' + ligne.nom"></span>
-                                <span x-show="ligne.notes" class="text-xs text-orange-400" x-text="ligne.notes"></span>
+                                <span x-show="ligne.notes" class="text-xs text-orange-600" x-text="ligne.notes"></span>
                             </div>
                         </template>
-                        <div x-show="commande.lignes.length > 3" class="text-xs text-on-surface-variant mt-1">
+                        <div x-show="commande.lignes.length > 3" class="text-xs text-on-surface-muted mt-1">
                             + <span x-text="commande.lignes.length - 3"></span> autre(s)
                         </div>
                     </div>
@@ -83,10 +82,10 @@
                         </button>
                         <button x-show="commande.statut === 'EN_PREPARATION'"
                                 @click="marquerPrete(commande.id)"
-                                class="flex-1 bg-green-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-green-600 transition">
+                                class="flex-1 bg-emerald-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-emerald-600 transition">
                             <i class="fas fa-check-circle mr-1"></i> Prête
                         </button>
-                        <button @click="voirDetail(commande.id)" class="px-4 py-2 border-outline/10 rounded-lg text-sm hover:bg-surface-container-low">
+                        <button @click="voirDetail(commande.id)" class="px-4 py-2 border-border/30 rounded-lg text-sm hover:bg-surface-soft">
                             <i class="fas fa-eye"></i>
                         </button>
                     </div>
@@ -96,44 +95,44 @@
             <!-- Message vide -->
             <div x-show="commandes.length === 0 && loading === false" class="col-span-full text-center py-20">
                 <div class="text-6xl mb-4">🍽️</div>
-                <p class="text-on-surface-variant text-lg">Aucune commande en attente</p>
-                <p class="text-sm text-on-surface-variant">Les commandes apparaîtront ici</p>
+                <p class="text-on-surface-muted text-lg">Aucune commande en attente</p>
+                <p class="text-sm text-on-surface-muted">Les commandes apparaîtront ici</p>
             </div>
             
             <!-- Chargement -->
             <div x-show="loading" class="col-span-full text-center py-20">
-                <i class="fas fa-spinner fa-spin text-3xl text-secondary"></i>
-                <p class="text-on-surface-variant mt-2">Chargement...</p>
+                <i class="fas fa-spinner fa-spin text-3xl text-primary"></i>
+                <p class="text-on-surface-muted mt-2">Chargement...</p>
             </div>
         </div>
         
         <!-- Historique -->
-        <div x-show="activeTab === 'historique'" class="bg-surface-container-low rounded-xl shadow-md overflow-hidden">
+        <div x-show="activeTab === 'historique'" class="bg-surface-card rounded-xl shadow-md overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="w-full">
-                    <thead class="bg-surface-container-high">
-                        <tr class="border-b">
-                            <th class="px-4 py-3 text-left text-sm font-medium">Commande</th>
-                            <th class="px-4 py-3 text-left text-sm font-medium">Table</th>
-                            <th class="px-4 py-3 text-left text-sm font-medium">Date</th>
-                            <th class="px-4 py-3 text-center text-sm font-medium">Actions</th>
+                    <thead class="bg-surface-soft">
+                        <tr class="border-b border-border">
+                            <th class="px-4 py-3 text-left text-sm font-medium text-on-surface-muted">Commande</th>
+                            <th class="px-4 py-3 text-left text-sm font-medium text-on-surface-muted">Table</th>
+                            <th class="px-4 py-3 text-left text-sm font-medium text-on-surface-muted">Date</th>
+                            <th class="px-4 py-3 text-center text-sm font-medium text-on-surface-muted">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         <template x-for="commande in historique" :key="commande.id">
-                            <tr class="border-t hover:bg-surface-container-low cursor-pointer" @click="voirDetail(commande.id)">
+                            <tr class="border-t border-border/20 hover:bg-surface-soft cursor-pointer" @click="voirDetail(commande.id)">
                                 <td class="px-4 py-3 font-mono text-sm" x-text="'#' + commande.numero"></td>
                                 <td class="px-4 py-3" x-text="commande.table"></td>
                                 <td class="px-4 py-3 text-sm" x-text="commande.date"></td>
                                 <td class="px-4 py-3 text-center" @click.stop>
-                                    <button @click="voirDetail(commande.id)" class="text-secondary hover:text-secondary/80">
+                                    <button @click="voirDetail(commande.id)" class="text-primary hover:text-primary/80">
                                         <i class="fas fa-eye"></i>
                                     </button>
                                 </td>
                             </tr>
                         </template>
                         <tr x-show="historique.length === 0">
-                            <td colspan="4" class="px-4 py-8 text-center text-on-surface-variant">
+                            <td colspan="4" class="px-4 py-8 text-center text-on-surface-muted">
                                 Aucun historique
                             </td>
                         </tr>
@@ -143,19 +142,19 @@
         </div>
     </div>
     
-    <!-- 🔥 MODAL DÉTAIL COMMANDE (sans quitter l'écran) -->
+    <!-- MODAL DÉTAIL COMMANDE -->
     <div x-show="modalDetailOpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto" @click.away="modalDetailOpen = false">
         <div class="flex items-center justify-center min-h-screen px-4">
             <div class="fixed inset-0 bg-black/60 backdrop-blur-sm transition-opacity"></div>
             
-            <div class="relative bg-surface-container-low rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="relative bg-surface-card rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                 <!-- Header -->
-                <div class="flex justify-between items-center p-4 border-b sticky top-0 bg-surface-container-low">
+                <div class="flex justify-between items-center p-4 border-b border-border sticky top-0 bg-surface-card">
                     <h3 class="text-lg font-semibold flex items-center gap-2">
-                        <i class="fas fa-receipt text-secondary"></i>
+                        <i class="fas fa-receipt text-primary"></i>
                         Détail commande #<span x-text="detailCommande.numero"></span>
                     </h3>
-                    <button @click="modalDetailOpen = false" class="text-on-surface-variant hover:text-on-surface">
+                    <button @click="modalDetailOpen = false" class="text-on-surface-muted hover:text-on-surface">
                         <i class="fas fa-times text-xl"></i>
                     </button>
                 </div>
@@ -163,22 +162,22 @@
                 <!-- Contenu -->
                 <div class="p-4 space-y-4">
                     <!-- Infos générales -->
-                    <div class="grid grid-cols-2 gap-4 bg-surface-container-high p-3 rounded-lg">
+                    <div class="grid grid-cols-2 gap-4 bg-surface-soft p-3 rounded-lg">
                         <div>
-                            <span class="text-xs text-on-surface-variant">Table</span>
+                            <span class="text-xs text-on-surface-muted">Table</span>
                             <p class="font-medium" x-text="detailCommande.table || 'Emporter'"></p>
                         </div>
                         <div>
-                            <span class="text-xs text-on-surface-variant">Type</span>
+                            <span class="text-xs text-on-surface-muted">Type</span>
                             <p class="font-medium" x-text="detailCommande.type"></p>
                         </div>
                         <div>
-                            <span class="text-xs text-on-surface-variant">Date</span>
+                            <span class="text-xs text-on-surface-muted">Date</span>
                             <p class="font-medium" x-text="detailCommande.date"></p>
                         </div>
                         <div>
-                            <span class="text-xs text-on-surface-variant">Statut</span>
-                            <p class="font-medium" :class="detailCommande.statut === 'EN_PREPARATION' ? 'text-orange-400' : 'text-blue-400'" x-text="detailCommande.statut_display"></p>
+                            <span class="text-xs text-on-surface-muted">Statut</span>
+                            <p class="font-medium" :class="detailCommande.statut === 'EN_PREPARATION' ? 'text-orange-600' : 'text-blue-600'" x-text="detailCommande.statut_display"></p>
                         </div>
                     </div>
                     
@@ -187,10 +186,10 @@
                         <h4 class="font-medium text-on-surface mb-2">Articles commandés</h4>
                         <div class="space-y-2">
                             <template x-for="ligne in detailCommande.lignes" :key="ligne.nom">
-                                <div class="flex justify-between items-center border-b py-2">
+                                <div class="flex justify-between items-center border-b border-border/20 py-2">
                                     <div>
                                         <span class="font-medium" x-text="ligne.quantite + 'x ' + ligne.nom"></span>
-                                        <div x-show="ligne.notes" class="text-xs text-orange-400" x-text="ligne.notes"></div>
+                                        <div x-show="ligne.notes" class="text-xs text-orange-600" x-text="ligne.notes"></div>
                                     </div>
                                 </div>
                             </template>
@@ -198,15 +197,15 @@
                     </div>
                     
                     <!-- Notes générales -->
-                    <div x-show="detailCommande.notes" class="bg-yellow-900/20 p-3 rounded-lg">
-                        <span class="text-xs text-on-surface-variant">Notes</span>
+                    <div x-show="detailCommande.notes" class="bg-amber-50 p-3 rounded-lg">
+                        <span class="text-xs text-on-surface-muted">Notes</span>
                         <p class="text-sm" x-text="detailCommande.notes"></p>
                     </div>
                 </div>
                 
                 <!-- Footer avec actions -->
-                <div class="flex justify-end gap-3 p-4 border-t bg-surface-container-high">
-                    <button @click="modalDetailOpen = false" class="px-4 py-2 border-outline/10 rounded-lg text-on-surface hover:bg-surface-container-high">
+                <div class="flex justify-end gap-3 p-4 border-t border-border bg-surface-soft">
+                    <button @click="modalDetailOpen = false" class="px-4 py-2 border-border/30 rounded-lg text-on-surface hover:bg-surface-soft">
                         Fermer
                     </button>
                     <button x-show="detailCommande.statut === 'EN_ATTENTE'"
@@ -216,7 +215,7 @@
                     </button>
                     <button x-show="detailCommande.statut === 'EN_PREPARATION'"
                             @click="marquerPrete(detailCommande.id); modalDetailOpen = false"
-                            class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">
+                            class="px-4 py-2 bg-emerald-500 text-white rounded-lg hover:bg-emerald-600">
                         <i class="fas fa-check-circle mr-1"></i> Prête
                     </button>
                 </div>
@@ -374,8 +373,4 @@ function cuisineApp() {
 }
 </script>
 
-<style>
-[x-cloak] { display: none; }
-.cursor-pointer { cursor: pointer; }
-</style>
 {% endblock %}

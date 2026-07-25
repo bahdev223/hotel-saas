@@ -1,174 +1,184 @@
-{% extends 'base.html' %}
+{% extends 'base_bro.html' %}
 {% load static %}
 
-{% block title %}Dashboard{% endblock %}
+{% block title %}Tableau de bord{% endblock %}
 
-{% block header %}Tableau de bord{% endblock %}
-{% block subtitle %}Bienvenue, {{ user.username }}. Voici un aperçu de votre activité.{% endblock %}
-
-{% block content %}
-<style>
-    .card-module {
-        background: var(--surface-container-low, #1c1b1b);
-        border: 1px solid rgba(142, 145, 146, 0.1);
-        border-radius: 16px;
-        transition: all 0.2s ease;
-    }
-    .card-module:hover {
-        background: #20201f;
-        border-color: #e3c282;
-        transform: translateY(-4px);
-        box-shadow: 0 20px 30px -12px rgba(0, 0, 0, 0.3);
-    }
-    .icon-box {
-        width: 48px; height: 48px;
-        border-radius: 16px;
-        display: flex; align-items: center; justify-content: center;
-        background: rgba(227, 194, 130, 0.1);
-    }
-    .icon-box i { color: #e3c282; font-size: 22px; }
-    .card-title {
-        font-size: 13px; font-weight: 700;
-        text-transform: uppercase; letter-spacing: 0.5px;
-        color: #e5e2e1;
-    }
-    .stat-highlight {
-        color: var(--secondary, #e3c282);
-        font-weight: 700;
-    }
-</style>
-
-<!-- Module Cards -->
-<div class="grid grid-cols-2 md:grid-cols-5 gap-4">
-
-    <a href="{% url 'dashboard:index' %}" class="card-module p-5 flex flex-col items-center text-center">
-        <div class="icon-box"><i class="fas fa-chart-line"></i></div>
-        <span class="card-title mt-3">Tableau de bord</span>
-    </a>
-
-    <a href="{% url 'hotel:dashboard' %}" class="card-module p-5 flex flex-col items-center text-center">
-        <div class="icon-box"><i class="fas fa-hotel"></i></div>
-        <span class="card-title mt-3">Hôtel</span>
-    </a>
-
-    <a href="{% url 'restaurant:dashboard' %}" class="card-module p-5 flex flex-col items-center text-center">
-        <div class="icon-box"><i class="fas fa-utensils"></i></div>
-        <span class="card-title mt-3">Restaurant</span>
-    </a>
-
-    <a href="{% url 'dashboard:brasserie' %}" class="card-module p-5 flex flex-col items-center text-center">
-        <div class="icon-box"><i class="fas fa-beer"></i></div>
-        <span class="card-title mt-3">Brasserie</span>
-        <span class="mt-1 text-[10px] text-on-surface-variant opacity-70">BAR • Entrepôt • Stock</span>
-    </a>
-
-    <a href="{% url 'clients:liste' %}" class="card-module p-5 flex flex-col items-center text-center">
-        <div class="icon-box"><i class="fas fa-users"></i></div>
-        <span class="card-title mt-3">Clients</span>
-    </a>
-
-    <a href="{% url 'pos:liste_points_vente' %}" class="card-module p-5 flex flex-col items-center text-center">
-        <div class="icon-box"><i class="fas fa-cash-register"></i></div>
-        <span class="card-title mt-3">Point de vente</span>
-    </a>
-
-    <a href="{% url 'facturation:dashboard' %}" class="card-module p-5 flex flex-col items-center text-center">
-        <div class="icon-box"><i class="fas fa-file-invoice-dollar"></i></div>
-        <span class="card-title mt-3">Facturation</span>
-    </a>
-
-    <a href="{% url 'comptabilite:dashboard' %}" class="card-module p-5 flex flex-col items-center text-center">
-        <div class="icon-box"><i class="fas fa-chart-pie"></i></div>
-        <span class="card-title mt-3">Comptabilité</span>
-        <span class="mt-1 text-[10px] text-on-surface-variant opacity-70">Générale • Mes Comptes • Paie</span>
-    </a>
-
-    <a href="{% url 'fournisseurs:dashboard' %}" class="card-module p-5 flex flex-col items-center text-center">
-        <div class="icon-box"><i class="fas fa-truck"></i></div>
-        <span class="card-title mt-3">Fournisseurs</span>
-        <span class="mt-1 text-[10px] text-on-surface-variant opacity-70">Achats • Comptes • Soldes</span>
-    </a>
-
-    <a href="{% url 'stock:dashboard' %}" class="card-module p-5 flex flex-col items-center text-center">
-        <div class="icon-box"><i class="fas fa-boxes"></i></div>
-        <span class="card-title mt-3">Gestion Stock</span>
-    </a>
-
-    <a href="{% url 'catalogue:index' %}" class="card-module p-5 flex flex-col items-center text-center">
-        <div class="icon-box"><i class="fas fa-book"></i></div>
-        <span class="card-title mt-3">Catalogue</span>
-    </a>
-
-    <a href="{% url 'rh:dashboard' %}" class="card-module p-5 flex flex-col items-center text-center">
-        <div class="icon-box"><i class="fas fa-users"></i></div>
-        <span class="card-title mt-3">Ressources Humaines</span>
-        <span class="mt-1 text-[10px] text-on-surface-variant opacity-70">Employés • Congés • Pointage</span>
-    </a>
-
-    <a href="{% url 'pos:dashboard_commandes' %}" class="card-module md:col-span-3 p-5 flex flex-col items-center text-center">
-        <div class="icon-box"><i class="fas fa-shopping-cart"></i></div>
-        <span class="card-title mt-3">Commandes en cours</span>
-        <span class="mt-1 text-[10px] text-on-surface-variant opacity-70">Restaurant | POS</span>
-    </a>
-
-</div>
-
-
-<!-- Derniers clients -->
-<div class="mt-8">
-    <div class="flex items-center justify-between mb-4">
-        <h2 class="text-lg font-bold text-on-surface">
-            <i class="fas fa-users text-secondary mr-2"></i>Derniers clients
-        </h2>
-        <a href="{% url 'clients:liste' %}" class="text-xs text-secondary hover:underline">Voir tous →</a>
-    </div>
-    <div class="card-md3 overflow-hidden">
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-surface-container-high">
-                    <tr class="text-on-surface-variant text-left text-[10px] uppercase tracking-wider">
-                        <th class="px-4 py-3 font-medium">Client</th>
-                        <th class="px-4 py-3 font-medium hidden sm:table-cell">Téléphone</th>
-                        <th class="px-4 py-3 font-medium">Type</th>
-                        <th class="px-4 py-3 font-medium">Statut</th>
-                        <th class="px-4 py-3 font-medium text-right">Solde</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-outline/10">
-                    {% for c in derniers_clients %}
-                    <tr class="hover:bg-surface-container-low transition">
-                        <td class="px-4 py-3">
-                            <a href="{% url 'clients:detail' c.id %}" class="font-medium text-on-surface hover:text-secondary transition">{{ c.nom_complet }}</a>
-                            <span class="block text-[11px] text-on-surface-variant">{{ c.code_client }}</span>
-                        </td>
-                        <td class="px-4 py-3 text-on-surface-variant hidden sm:table-cell">{{ c.telephone|default:"—" }}</td>
-                        <td class="px-4 py-3">
-                            <span class="text-xs px-2 py-0.5 rounded-full {% if c.type_client == 'PARTICULIER' %}bg-blue-900/30 text-blue-300{% elif c.type_client == 'ENTREPRISE' %}bg-purple-900/30 text-purple-300{% else %}bg-green-900/30 text-green-300{% endif %}">
-                                {{ c.get_type_client_display }}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3">
-                            <span class="text-xs px-2 py-0.5 rounded-full {% if c.statut == 'ACTIF' %}bg-green-900/30 text-green-400{% else %}bg-red-900/30 text-red-400{% endif %}">
-                                {{ c.get_statut_display }}
-                            </span>
-                        </td>
-                        <td class="px-4 py-3 text-right font-mono text-sm {% if c.compte.solde > 0 %}text-green-400{% elif c.compte.solde < 0 %}text-red-400{% endif %}">
-                            {{ c.compte.solde|floatformat:0 }} F
-                        </td>
-                    </tr>
-                    {% empty %}
-                    <tr>
-                        <td colspan="5" class="px-4 py-8 text-center text-on-surface-variant text-sm">
-                            <i class="fas fa-users text-2xl block mb-2 opacity-50"></i>
-                            Aucun client
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+{% block subnav %}
+<nav class="bg-white/50 backdrop-blur-sm border-b border-border overflow-x-auto scrollbar-bro">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+        <div class="pill-nav">
+            <a href="{% url 'dashboard:home' %}" class="active"><i class="fas fa-chart-pie mr-1.5"></i>Dashboard</a>
+            <a href="{% url 'hotel:dashboard' %}"><i class="fas fa-hotel mr-1.5"></i>Hôtel</a>
+            <a href="{% url 'restaurant:dashboard' %}"><i class="fas fa-utensils mr-1.5"></i>Restaurant</a>
+            <a href="{% url 'dashboard:brasserie' %}"><i class="fas fa-beer mr-1.5"></i>Brasserie</a>
+            <a href="{% url 'clients:liste' %}"><i class="fas fa-users mr-1.5"></i>Clients</a>
+            <a href="{% url 'pos:liste_points_vente' %}"><i class="fas fa-cash-register mr-1.5"></i>POS</a>
+            <a href="{% url 'facturation:dashboard' %}"><i class="fas fa-file-invoice-dollar mr-1.5"></i>Facturation</a>
+            <a href="{% url 'comptabilite:dashboard' %}"><i class="fas fa-calculator mr-1.5"></i>Comptabilité</a>
+            <a href="{% url 'fournisseurs:dashboard' %}"><i class="fas fa-truck mr-1.5"></i>Fournisseurs</a>
+            <a href="{% url 'stock:dashboard' %}"><i class="fas fa-boxes mr-1.5"></i>Stock</a>
+            <a href="{% url 'catalogue:index' %}"><i class="fas fa-book mr-1.5"></i>Catalogue</a>
+            <a href="{% url 'rh:dashboard' %}"><i class="fas fa-user-tie mr-1.5"></i>RH</a>
         </div>
     </div>
+</nav>
+{% endblock %}
+
+{% block content %}
+
+<!-- Page Header -->
+<div class="flex items-center justify-between mb-6">
+    <div>
+        <h1 class="text-2xl font-bold text-on-surface tracking-tight">Tableau de bord</h1>
+        <p class="text-sm text-on-surface-muted">Bienvenue, {{ user.username }}. Voici un aperçu de votre activité.</p>
+    </div>
+    <div class="flex items-center gap-2 text-xs text-on-surface-muted/60">
+        <i class="far fa-clock"></i>
+        <span id="clock"></span>
+    </div>
 </div>
 
+<!-- Stats Cards -->
+<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
+    {% for card in cards %}
+    <a href="{{ card.link }}" class="card-bro p-4 flex items-center gap-3">
+        <div class="stat-icon-bro {{ card.bg_color }}">
+            <i class="fas {{ card.icon }} text-{{ card.color }}"></i>
+        </div>
+        <div class="min-w-0">
+            <p class="text-[10px] uppercase tracking-wider text-on-surface-muted/70 truncate">{{ card.title }}</p>
+            <p class="text-sm font-bold text-on-surface font-mono truncate">{{ card.value }}</p>
+            <p class="text-[10px] text-on-surface-muted/60 truncate">{{ card.subtitle }}</p>
+        </div>
+    </a>
+    {% endfor %}
+</div>
 
+<!-- Module Cards -->
+<h2 class="text-base font-bold text-on-surface mb-4">
+    <i class="fas fa-th-large text-primary mr-2"></i>Modules
+</h2>
+<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-8">
+    <a href="{% url 'hotel:dashboard' %}" class="module-btn">
+        <div class="module-icon"><i class="fas fa-hotel"></i></div>
+        <span class="text-[11px] font-semibold text-center">Hôtel</span>
+    </a>
+    <a href="{% url 'restaurant:dashboard' %}" class="module-btn">
+        <div class="module-icon"><i class="fas fa-utensils"></i></div>
+        <span class="text-[11px] font-semibold text-center">Restaurant</span>
+    </a>
+    <a href="{% url 'dashboard:brasserie' %}" class="module-btn">
+        <div class="module-icon"><i class="fas fa-beer"></i></div>
+        <span class="text-[11px] font-semibold text-center">Brasserie</span>
+    </a>
+    <a href="{% url 'clients:liste' %}" class="module-btn">
+        <div class="module-icon"><i class="fas fa-users"></i></div>
+        <span class="text-[11px] font-semibold text-center">Clients</span>
+    </a>
+    <a href="{% url 'pos:liste_points_vente' %}" class="module-btn">
+        <div class="module-icon"><i class="fas fa-cash-register"></i></div>
+        <span class="text-[11px] font-semibold text-center">Point de vente</span>
+    </a>
+    <a href="{% url 'pos:dashboard_commandes' %}" class="module-btn">
+        <div class="module-icon"><i class="fas fa-shopping-cart"></i></div>
+        <span class="text-[11px] font-semibold text-center">Commandes</span>
+    </a>
+    <a href="{% url 'facturation:dashboard' %}" class="module-btn">
+        <div class="module-icon"><i class="fas fa-file-invoice-dollar"></i></div>
+        <span class="text-[11px] font-semibold text-center">Facturation</span>
+    </a>
+    <a href="{% url 'comptabilite:dashboard' %}" class="module-btn">
+        <div class="module-icon"><i class="fas fa-calculator"></i></div>
+        <span class="text-[11px] font-semibold text-center">Comptabilité</span>
+    </a>
+    <a href="{% url 'fournisseurs:dashboard' %}" class="module-btn">
+        <div class="module-icon"><i class="fas fa-truck"></i></div>
+        <span class="text-[11px] font-semibold text-center">Fournisseurs</span>
+    </a>
+    <a href="{% url 'stock:dashboard' %}" class="module-btn">
+        <div class="module-icon"><i class="fas fa-boxes"></i></div>
+        <span class="text-[11px] font-semibold text-center">Stock</span>
+    </a>
+    <a href="{% url 'catalogue:index' %}" class="module-btn">
+        <div class="module-icon"><i class="fas fa-book"></i></div>
+        <span class="text-[11px] font-semibold text-center">Catalogue</span>
+    </a>
+    <a href="{% url 'rh:dashboard' %}" class="module-btn">
+        <div class="module-icon"><i class="fas fa-user-tie"></i></div>
+        <span class="text-[11px] font-semibold text-center">Ressources Humaines</span>
+    </a>
+</div>
+
+<!-- Derniers Clients -->
+<div class="card-bro p-5 card-bro-static">
+    <div class="flex items-center justify-between mb-4">
+        <h3 class="text-sm font-semibold text-on-surface">
+            <i class="fas fa-users text-primary mr-1.5"></i>Derniers clients
+        </h3>
+        <a href="{% url 'clients:liste' %}" class="text-xs text-primary hover:underline font-medium">Voir tous →</a>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="w-full text-sm bro-table">
+            <thead>
+                <tr>
+                    <th>Client</th>
+                    <th class="hidden sm:table-cell">Téléphone</th>
+                    <th>Type</th>
+                    <th>Statut</th>
+                    <th class="text-right">Solde</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for c in derniers_clients %}
+                <tr>
+                    <td>
+                        <a href="{% url 'clients:detail' c.id %}" class="font-medium text-on-surface hover:text-primary transition text-sm">{{ c.nom_complet }}</a>
+                        <span class="block text-[11px] text-on-surface-muted">{{ c.code_client }}</span>
+                    </td>
+                    <td class="text-on-surface-muted text-xs hidden sm:table-cell">{{ c.telephone|default:"—" }}</td>
+                    <td>
+                        <span class="badge-bro {% if c.type_client == 'PARTICULIER' %}bg-blue-100 text-blue-700{% elif c.type_client == 'ENTREPRISE' %}bg-purple-100 text-purple-700{% else %}bg-green-100 text-green-700{% endif %}">
+                            {{ c.get_type_client_display }}
+                        </span>
+                    </td>
+                    <td>
+                        <span class="badge-bro {% if c.statut == 'ACTIF' %}bg-emerald-100 text-emerald-700{% else %}bg-red-100 text-red-700{% endif %}">
+                            {{ c.get_statut_display }}
+                        </span>
+                    </td>
+                    <td class="text-right font-mono text-sm {% if c.compte.solde > 0 %}text-emerald-600{% elif c.compte.solde < 0 %}text-red-600{% endif %}">
+                        {{ c.compte.solde|floatformat:0 }} F
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center py-8 text-on-surface-muted/60 text-xs">
+                        <i class="fas fa-users text-xl block mb-2 opacity-50"></i>
+                        Aucun client
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    function updateClock() {
+        const el = document.getElementById('clock');
+        if (!el) return;
+        const now = new Date();
+        el.textContent = now.toLocaleDateString('fr-FR', {
+            weekday: 'short', day: 'numeric', month: 'short',
+            hour: '2-digit', minute: '2-digit'
+        });
+    }
+    updateClock();
+    setInterval(updateClock, 30000);
+})();
+</script>
 {% endblock %}

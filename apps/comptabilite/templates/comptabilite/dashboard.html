@@ -1,109 +1,106 @@
 {% extends 'comptabilite/base_compta.html' %}
-{% load static %}
 {% load compta_filters %}
-{% block title %}Dashboard Comptable{% endblock %}
+{% block comptatitle %}Dashboard Comptable{% endblock %}
 
 {% block header %}Tableau de bord{% endblock %}
 
 {% block subtitle %}Synthèse financière et opérationnelle{% endblock %}
 
-{% block content %}
+{% block comptacontent %}
 <div class="space-y-6">
 
-    <!-- Ligne 1 : 4 KPIs -->
     <div class="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-        <div class="stat-card p-5">
+        <div class="card-bro card-bro-static p-5">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-on-surface-variant">Trésorerie disponible</p>
-                    <p class="text-2xl font-bold text-secondary mt-1">{{ tresorerie.total|floatformat:0 }} F</p>
-                    <p class="text-xs text-on-surface-variant mt-1">Caisses: {{ tresorerie.total_caisses|floatformat:0 }} F • Banques: {{ tresorerie.total_banques|floatformat:0 }} F</p>
+                    <p class="text-sm text-on-surface-muted">Trésorerie disponible</p>
+                    <p class="text-2xl font-bold text-primary mt-1">{{ tresorerie.total|floatformat:0 }} F</p>
+                    <p class="text-xs text-on-surface-muted mt-1">Caisses: {{ tresorerie.total_caisses|floatformat:0 }} F • Banques: {{ tresorerie.total_banques|floatformat:0 }} F</p>
                 </div>
-                <div class="stat-icon"><i class="fas fa-coins text-secondary"></i></div>
+                <div class="stat-icon"><i class="fas fa-coins text-primary"></i></div>
             </div>
         </div>
-        <div class="stat-card p-5">
+        <div class="card-bro card-bro-static p-5">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-on-surface-variant">Chiffre d'affaires du mois</p>
-                    <p class="text-2xl font-bold text-green-400 mt-1">{{ ca.ca_mois|floatformat:0 }} F</p>
-                    <p class="text-xs text-on-surface-variant mt-1">
+                    <p class="text-sm text-on-surface-muted">Chiffre d'affaires du mois</p>
+                    <p class="text-2xl font-bold text-emerald-600 mt-1">{{ ca.ca_mois|floatformat:0 }} F</p>
+                    <p class="text-xs text-on-surface-muted mt-1">
                         Aujourd'hui: {{ ca.ca_jour|floatformat:0 }} F
                         {% if ca.evolution >= 0 %}
-                        <span class="text-green-400">▲ {{ ca.evolution }}%</span>
+                        <span class="text-emerald-600">▲ {{ ca.evolution }}%</span>
                         {% else %}
-                        <span class="text-red-400">▼ {{ ca.evolution }}%</span>
+                        <span class="text-red-600">▼ {{ ca.evolution }}%</span>
                         {% endif %}
                         vs mois dernier
                     </p>
                 </div>
-                <div class="stat-icon"><i class="fas fa-chart-line text-green-400"></i></div>
+                <div class="stat-icon"><i class="fas fa-chart-line text-emerald-600"></i></div>
             </div>
         </div>
-        <div class="stat-card p-5">
+        <div class="card-bro card-bro-static p-5">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-on-surface-variant">Charges du mois</p>
-                    <p class="text-2xl font-bold text-red-400 mt-1">{{ charges.charges_mois|floatformat:0 }} F</p>
-                    <p class="text-xs text-on-surface-variant mt-1">Aujourd'hui: {{ charges.charges_jour|floatformat:0 }} F</p>
+                    <p class="text-sm text-on-surface-muted">Charges du mois</p>
+                    <p class="text-2xl font-bold text-red-600 mt-1">{{ charges.charges_mois|floatformat:0 }} F</p>
+                    <p class="text-xs text-on-surface-muted mt-1">Aujourd'hui: {{ charges.charges_jour|floatformat:0 }} F</p>
                 </div>
-                <div class="stat-icon"><i class="fas fa-arrow-up text-red-400"></i></div>
+                <div class="stat-icon"><i class="fas fa-arrow-up text-red-600"></i></div>
             </div>
         </div>
-        <div class="stat-card p-5">
+        <div class="card-bro card-bro-static p-5">
             <div class="flex items-center justify-between">
                 <div>
-                    <p class="text-sm text-on-surface-variant">Résultat provisoire</p>
-                    <p class="text-2xl font-bold {% if resultat >= 0 %}text-green-400{% else %}text-red-400{% endif %} mt-1">
+                    <p class="text-sm text-on-surface-muted">Résultat provisoire</p>
+                    <p class="text-2xl font-bold {% if resultat >= 0 %}text-emerald-600{% else %}text-red-600{% endif %} mt-1">
                         {% if resultat >= 0 %}+{% endif %}{{ resultat|floatformat:0 }} F
                     </p>
-                    <p class="text-xs text-on-surface-variant mt-1">Produits - Charges du mois</p>
+                    <p class="text-xs text-on-surface-muted mt-1">Produits - Charges du mois</p>
                 </div>
-                <div class="stat-icon"><i class="fas fa-bullseye {% if resultat >= 0 %}text-green-400{% else %}text-red-400{% endif %}"></i></div>
+                <div class="stat-icon"><i class="fas fa-bullseye {% if resultat >= 0 %}text-emerald-600{% else %}text-red-600{% endif %}"></i></div>
             </div>
         </div>
     </div>
 
-    <!-- Ligne 2 : Créances + Dettes + Dépôts & Alertes -->
     <div class="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div class="stat-card p-5">
+        <div class="card-bro card-bro-static p-5">
             <div class="flex items-center gap-3 mb-3">
-                <div class="w-10 h-10 rounded-xl bg-warning/20 flex items-center justify-center text-warning"><i class="fas fa-user-clock"></i></div>
+                <div class="w-10 h-10 rounded-xl bg-amber-100 flex items-center justify-center text-amber-600"><i class="fas fa-user-clock"></i></div>
                 <div>
-                    <p class="text-xs uppercase tracking-wider text-on-surface-variant">Créances clients</p>
+                    <p class="text-xs uppercase tracking-wider text-on-surface-muted">Créances clients</p>
                     <p class="text-lg font-bold text-on-surface">{{ creances.nombre }} client(s)</p>
                 </div>
             </div>
-            <p class="text-2xl font-bold font-mono text-warning">{{ creances.total|floatformat:0 }} F</p>
-            <a href="{% url 'clients:liste' %}" class="inline-block mt-3 text-sm text-secondary hover:underline">Voir les créances <i class="fas fa-arrow-right ml-1"></i></a>
+            <p class="text-2xl font-bold font-mono text-amber-600">{{ creances.total|floatformat:0 }} F</p>
+            <a href="{% url 'clients:liste' %}" class="inline-block mt-3 text-sm text-primary hover:underline">Voir les créances <i class="fas fa-arrow-right ml-1"></i></a>
         </div>
-        <div class="stat-card p-5">
+        <div class="card-bro card-bro-static p-5">
             <div class="flex items-center gap-3 mb-3">
-                <div class="w-10 h-10 rounded-xl bg-red-900/20 flex items-center justify-center text-red-400"><i class="fas fa-truck"></i></div>
+                <div class="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center text-red-600"><i class="fas fa-truck"></i></div>
                 <div>
-                    <p class="text-xs uppercase tracking-wider text-on-surface-variant">Fournisseurs à payer</p>
+                    <p class="text-xs uppercase tracking-wider text-on-surface-muted">Fournisseurs à payer</p>
                     <p class="text-lg font-bold text-on-surface">{{ dettes.nombre }} fournisseur(s)</p>
                 </div>
             </div>
-            <p class="text-2xl font-bold font-mono text-red-400">{{ dettes.total|floatformat:0 }} F</p>
-            <a href="{% url 'fournisseurs:dashboard' %}" class="inline-block mt-3 text-sm text-secondary hover:underline">Voir les échéances <i class="fas fa-arrow-right ml-1"></i></a>
+            <p class="text-2xl font-bold font-mono text-red-600">{{ dettes.total|floatformat:0 }} F</p>
+            <a href="{% url 'fournisseurs:dashboard' %}" class="inline-block mt-3 text-sm text-primary hover:underline">Voir les échéances <i class="fas fa-arrow-right ml-1"></i></a>
         </div>
         <div class="space-y-4">
-            <div class="stat-card p-5">
+            <div class="card-bro card-bro-static p-5">
                 <div class="flex items-center gap-3 mb-2">
-                    <div class="w-10 h-10 rounded-xl bg-green-900/20 flex items-center justify-center text-green-400"><i class="fas fa-piggy-bank"></i></div>
+                    <div class="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-600"><i class="fas fa-piggy-bank"></i></div>
                     <div>
-                        <p class="text-xs uppercase tracking-wider text-on-surface-variant">Dépôts clients</p>
+                        <p class="text-xs uppercase tracking-wider text-on-surface-muted">Dépôts clients</p>
                         <p class="text-lg font-bold text-on-surface">{{ depots|floatformat:0 }} F</p>
                     </div>
                 </div>
             </div>
             {% if alertes %}
-            <div class="stat-card p-5">
-                <p class="text-xs uppercase tracking-wider text-on-surface-variant mb-2">Alertes</p>
+            <div class="card-bro card-bro-static p-5">
+                <p class="text-xs uppercase tracking-wider text-on-surface-muted mb-2">Alertes</p>
                 <div class="space-y-2">
                     {% for alerte in alertes %}
-                    <div class="flex items-center gap-2 text-sm {% if alerte.type == 'warning' %}text-warning{% else %}text-red-400{% endif %}">
+                    <div class="flex items-center gap-2 text-sm {% if alerte.type == 'warning' %}text-amber-600{% else %}text-red-600{% endif %}">
                         <i class="fas {{ alerte.icon }}"></i>
                         <span>{{ alerte.message }}</span>
                     </div>
@@ -114,126 +111,121 @@
         </div>
     </div>
 
-    <!-- Ligne 3 : Graphiques -->
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <!-- Donut CA par domaine -->
-        <div class="bg-surface-container-low rounded-xl shadow-md p-6">
+        <div class="card-bro card-bro-static p-6">
             <h3 class="font-semibold text-on-surface mb-4">
-                <i class="fas fa-chart-pie mr-2 text-secondary"></i>Répartition du CA
+                <i class="fas fa-chart-pie mr-2 text-primary"></i>Répartition du CA
             </h3>
             <canvas id="domaineChart" class="w-full" style="max-width: 100%;" height="200"></canvas>
             <div class="mt-4 space-y-2">
                 <div class="flex justify-between text-sm">
-                    <span><span class="inline-block w-2 h-2 rounded-full bg-blue-400 mr-1"></span>Brasserie</span>
+                    <span><span class="inline-block w-2 h-2 rounded-full bg-blue-500 mr-1"></span>Brasserie</span>
                     <span class="font-mono">{{ repartition_domaine.brasserie.pct }}% ({{ repartition_domaine.brasserie.montant|floatformat:0 }} F)</span>
                 </div>
                 <div class="flex justify-between text-sm">
-                    <span><span class="inline-block w-2 h-2 rounded-full bg-green-400 mr-1"></span>Restaurant</span>
+                    <span><span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1"></span>Restaurant</span>
                     <span class="font-mono">{{ repartition_domaine.restaurant.pct }}% ({{ repartition_domaine.restaurant.montant|floatformat:0 }} F)</span>
                 </div>
                 <div class="flex justify-between text-sm">
-                    <span><span class="inline-block w-2 h-2 rounded-full bg-orange-400 mr-1"></span>Hôtel</span>
+                    <span><span class="inline-block w-2 h-2 rounded-full bg-orange-500 mr-1"></span>Hôtel</span>
                     <span class="font-mono">{{ repartition_domaine.hotel.pct }}% ({{ repartition_domaine.hotel.montant|floatformat:0 }} F)</span>
                 </div>
             </div>
         </div>
 
-        <!-- Dépenses par domaine -->
-        <div class="bg-surface-container-low rounded-xl shadow-md p-6">
+        <div class="card-bro card-bro-static p-6">
             <h3 class="font-semibold text-on-surface mb-4">
-                <i class="fas fa-arrow-up mr-2 text-red-400"></i>Dépenses par domaine
+                <i class="fas fa-arrow-up mr-2 text-red-600"></i>Dépenses par domaine
             </h3>
             <div class="space-y-4">
                 <div>
                     <div class="flex justify-between text-sm mb-1">
-                        <span><span class="inline-block w-2 h-2 rounded-full bg-blue-400 mr-1"></span>Brasserie</span>
-                        <span class="font-mono text-red-400">{{ charges_par_domaine.brasserie|cut:"-"|floatformat:0 }} F</span>
+                        <span><span class="inline-block w-2 h-2 rounded-full bg-blue-500 mr-1"></span>Brasserie</span>
+                        <span class="font-mono text-red-600">{{ charges_par_domaine.brasserie|cut:"-"|floatformat:0 }} F</span>
                     </div>
-                    <div class="w-full bg-surface-container-high rounded-full h-2">
-                        <div class="bg-blue-500 h-2 rounded-full" style="width: {{ charges_par_domaine.brasserie|cut:'-'|default:0|add:0.1 }}%"></div>
-                    </div>
-                </div>
-                <div>
-                    <div class="flex justify-between text-sm mb-1">
-                        <span><span class="inline-block w-2 h-2 rounded-full bg-green-400 mr-1"></span>Restaurant</span>
-                        <span class="font-mono text-red-400">{{ charges_par_domaine.restaurant|cut:"-"|floatformat:0 }} F</span>
-                    </div>
-                    <div class="w-full bg-surface-container-high rounded-full h-2">
-                        <div class="bg-green-500 h-2 rounded-full" style="width: {{ charges_par_domaine.restaurant|cut:'-'|default:0|add:0.1 }}%"></div>
+                    <div class="w-full bg-surface-soft rounded-full h-2">
+                        <div class="bg-blue-600 h-2 rounded-full" style="width: {{ charges_par_domaine.brasserie|cut:'-'|default:0|add:0.1 }}%"></div>
                     </div>
                 </div>
                 <div>
                     <div class="flex justify-between text-sm mb-1">
-                        <span><span class="inline-block w-2 h-2 rounded-full bg-orange-400 mr-1"></span>Hôtel</span>
-                        <span class="font-mono text-red-400">{{ charges_par_domaine.hotel|cut:"-"|floatformat:0 }} F</span>
+                        <span><span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1"></span>Restaurant</span>
+                        <span class="font-mono text-red-600">{{ charges_par_domaine.restaurant|cut:"-"|floatformat:0 }} F</span>
                     </div>
-                    <div class="w-full bg-surface-container-high rounded-full h-2">
-                        <div class="bg-orange-500 h-2 rounded-full" style="width: {{ charges_par_domaine.hotel|cut:'-'|default:0|add:0.1 }}%"></div>
+                    <div class="w-full bg-surface-soft rounded-full h-2">
+                        <div class="bg-emerald-600 h-2 rounded-full" style="width: {{ charges_par_domaine.restaurant|cut:'-'|default:0|add:0.1 }}%"></div>
                     </div>
                 </div>
-                <div class="pt-2 border-t border-outline/10">
+                <div>
+                    <div class="flex justify-between text-sm mb-1">
+                        <span><span class="inline-block w-2 h-2 rounded-full bg-orange-500 mr-1"></span>Hôtel</span>
+                        <span class="font-mono text-red-600">{{ charges_par_domaine.hotel|cut:"-"|floatformat:0 }} F</span>
+                    </div>
+                    <div class="w-full bg-surface-soft rounded-full h-2">
+                        <div class="bg-orange-600 h-2 rounded-full" style="width: {{ charges_par_domaine.hotel|cut:'-'|default:0|add:0.1 }}%"></div>
+                    </div>
+                </div>
+                <div class="pt-2 border-t border-border">
                     <div class="flex justify-between text-sm">
-                        <span class="text-on-surface-variant">Autres (hors PV)</span>
-                        <span class="font-mono text-on-surface-variant">{{ charges_par_domaine.autres|cut:"-"|floatformat:0 }} F</span>
+                        <span class="text-on-surface-muted">Autres (hors PV)</span>
+                        <span class="font-mono text-on-surface-muted">{{ charges_par_domaine.autres|cut:"-"|floatformat:0 }} F</span>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Line chart évolution CA 30j -->
-        <div class="lg:col-span-2 bg-surface-container-low rounded-xl shadow-md p-6">
+        <div class="lg:col-span-2 card-bro card-bro-static p-6">
                 <div class="flex flex-wrap justify-between items-center mb-4">
                     <h3 class="font-semibold text-on-surface">
-                        <i class="fas fa-chart-line mr-2 text-secondary"></i>Évolution du CA (30 jours)
+                        <i class="fas fa-chart-line mr-2 text-primary"></i>Évolution du CA (30 jours)
                     </h3>
                     <div class="flex flex-wrap gap-3 text-sm">
-                    <div class="flex items-center gap-1"><div class="w-3 h-3 bg-blue-400 rounded"></div><span class="text-on-surface-variant">Brasserie</span></div>
-                    <div class="flex items-center gap-1"><div class="w-3 h-3 bg-green-400 rounded"></div><span class="text-on-surface-variant">Restaurant</span></div>
-                    <div class="flex items-center gap-1"><div class="w-3 h-3 bg-orange-400 rounded"></div><span class="text-on-surface-variant">Hôtel</span></div>
+                    <div class="flex items-center gap-1"><div class="w-3 h-3 bg-blue-500 rounded"></div><span class="text-on-surface-muted">Brasserie</span></div>
+                    <div class="flex items-center gap-1"><div class="w-3 h-3 bg-emerald-500 rounded"></div><span class="text-on-surface-muted">Restaurant</span></div>
+                    <div class="flex items-center gap-1"><div class="w-3 h-3 bg-orange-500 rounded"></div><span class="text-on-surface-muted">Hôtel</span></div>
                 </div>
             </div>
             <canvas id="evolutionCAChart" class="w-full" style="max-width: 100%;" height="100"></canvas>
         </div>
     </div>
 
-    <!-- Dernières opérations -->
-    <div class="bg-surface-container-low rounded-xl shadow-md overflow-hidden">
-        <div class="px-6 py-4 border-b border-outline/10 flex flex-wrap justify-between items-center">
+    <div class="card-bro card-bro-static overflow-hidden">
+        <div class="px-6 py-4 border-b border-border flex flex-wrap justify-between items-center">
             <h3 class="font-semibold text-on-surface">
-                <i class="fas fa-list mr-2 text-secondary"></i>Dernières opérations
+                <i class="fas fa-list mr-2 text-primary"></i>Dernières opérations
             </h3>
-            <a href="{% url 'comptabilite:operations' %}" class="text-secondary text-sm hover:underline">Voir toutes <i class="fas fa-arrow-right ml-1"></i></a>
+            <a href="{% url 'comptabilite:operations' %}" class="text-primary text-sm hover:underline">Voir toutes <i class="fas fa-arrow-right ml-1"></i></a>
         </div>
         <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-surface-container-high">
-                    <tr class="border-b border-outline/10">
-                        <th class="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Type</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Date</th>
-                        <th class="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Client</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase">Montant</th>
-                        <th class="hidden md:table-cell px-4 py-3 text-center text-xs font-semibold text-on-surface-variant uppercase">Mode</th>
+            <table class="bro-table w-full">
+                <thead>
+                    <tr>
+                        <th class="hidden md:table-cell px-4">Type</th>
+                        <th class="px-4">Date</th>
+                        <th class="hidden md:table-cell px-4">Client</th>
+                        <th class="px-4 text-right">Montant</th>
+                        <th class="hidden md:table-cell px-4 text-center">Mode</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-outline/10 text-on-surface">
+                <tbody>
                     {% for op in dernieres_operations %}
-                    <tr class="hover:bg-surface-container-low">
-                        <td class="hidden md:table-cell px-4 py-3">
-                            <span class="text-sm {% if op.sens == 'ENTREE' %}text-green-400{% else %}text-red-400{% endif %}">
+                    <tr>
+                        <td class="hidden md:table-cell px-4">
+                            <span class="text-sm {% if op.sens == 'ENTREE' %}text-emerald-600{% else %}text-red-600{% endif %}">
                                 <i class="fas {% if op.sens == 'ENTREE' %}fa-arrow-down{% else %}fa-arrow-up{% endif %} mr-1"></i>
                                 {{ op.type }}
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-sm text-on-surface-variant">{{ op.date|date:"d/m/Y H:i" }}</td>
-                        <td class="hidden md:table-cell px-4 py-3 text-sm text-on-surface">{{ op.client|default:"—" }}</td>
-                        <td class="px-4 py-3 text-right font-mono text-sm {% if op.sens == 'ENTREE' %}text-green-400{% else %}text-red-400{% endif %}">
+                        <td class="px-4 text-sm text-on-surface-muted">{{ op.date|date:"d/m/Y H:i" }}</td>
+                        <td class="hidden md:table-cell px-4 text-sm text-on-surface">{{ op.client|default:"—" }}</td>
+                        <td class="px-4 text-right font-mono text-sm {% if op.sens == 'ENTREE' %}text-emerald-600{% else %}text-red-600{% endif %}">
                             {% if op.sens == 'SORTIE' %}-{% endif %}{{ op.montant|floatformat:0 }} F
                         </td>
-                        <td class="hidden md:table-cell px-4 py-3 text-center text-sm text-on-surface-variant">{{ op.mode }}</td>
+                        <td class="hidden md:table-cell px-4 text-center text-sm text-on-surface-muted">{{ op.mode }}</td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="px-4 py-8 text-center text-on-surface-variant">
+                        <td colspan="5" class="px-4 py-8 text-center text-on-surface-muted">
                             <i class="fas fa-inbox text-4xl mb-2 block"></i>
                             <p>Aucune opération récente</p>
                         </td>
@@ -244,65 +236,64 @@
         </div>
     </div>
 
-    <!-- Détail des caisses -->
-    <div class="bg-surface-container-low rounded-xl shadow-md overflow-hidden">
-        <div class="px-6 py-4 border-b border-outline/10 bg-surface-container-high">
+    <div class="card-bro card-bro-static overflow-hidden">
+        <div class="px-6 py-4 border-b border-border bg-surface-soft">
             <h3 class="font-semibold text-on-surface">
-                <i class="fas fa-cash-register mr-2 text-secondary"></i>Détail des caisses
+                <i class="fas fa-cash-register mr-2 text-primary"></i>Détail des caisses
             </h3>
         </div>
         <div class="overflow-x-auto">
-            <table class="w-full">
-                <thead class="bg-surface-container-high">
-                    <tr class="border-b border-outline/10">
-                        <th class="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Code</th>
-                        <th class="px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Nom</th>
-                        <th class="hidden md:table-cell px-4 py-3 text-left text-xs font-semibold text-on-surface-variant uppercase">Type</th>
-                        <th class="px-4 py-3 text-right text-xs font-semibold text-on-surface-variant uppercase">Solde</th>
-                        <th class="px-4 py-3 text-center text-xs font-semibold text-on-surface-variant uppercase">Statut</th>
+            <table class="bro-table w-full">
+                <thead>
+                    <tr>
+                        <th class="hidden md:table-cell px-4">Code</th>
+                        <th class="px-4">Nom</th>
+                        <th class="hidden md:table-cell px-4">Type</th>
+                        <th class="px-4 text-right">Solde</th>
+                        <th class="px-4 text-center">Statut</th>
                     </tr>
                 </thead>
-                <tbody class="divide-y divide-outline/10">
+                <tbody>
                     {% for caisse in tresorerie.caisses %}
-                    <tr class="hover:bg-surface-container-low text-on-surface">
-                        <td class="hidden md:table-cell px-4 py-3 font-mono">{{ caisse.code }}</td>
-                        <td class="px-4 py-3">{{ caisse.nom }}</td>
-                        <td class="hidden md:table-cell px-4 py-3">
+                    <tr>
+                        <td class="hidden md:table-cell px-4 font-mono">{{ caisse.code }}</td>
+                        <td class="px-4">{{ caisse.nom }}</td>
+                        <td class="hidden md:table-cell px-4">
                             {% if caisse.role == 'CENTRALE' %}
-                            <span class="text-purple-400">🏛️ Centrale</span>
+                            <span class="text-purple-600">🏛️ Centrale</span>
                             {% elif caisse.type_financier == 'BANQUE' %}
-                            <span class="text-blue-400">🏦 Banque</span>
+                            <span class="text-blue-600">🏦 Banque</span>
                             {% elif caisse.type_financier == 'MOBILE_MONEY' %}
-                            <span class="text-green-400">📱 Mobile</span>
+                            <span class="text-emerald-600">📱 Mobile</span>
                             {% elif caisse.role == 'POINT_VENTE' %}
-                            <span class="text-orange-400">🏪 PV</span>
+                            <span class="text-orange-600">🏪 PV</span>
                             {% else %}
-                            <span class="text-on-surface-variant">{{ caisse.get_type_financier_display }}</span>
+                            <span class="text-on-surface-muted">{{ caisse.get_type_financier_display }}</span>
                             {% endif %}
                         </td>
-                        <td class="px-4 py-3 text-right font-mono">
-                            <span class="{% if caisse.solde < 0 %}text-red-400{% else %}text-green-400{% endif %}">
+                        <td class="px-4 text-right font-mono">
+                            <span class="{% if caisse.solde < 0 %}text-red-600{% else %}text-emerald-600{% endif %}">
                                 {{ caisse.solde|floatformat:0 }} F
                             </span>
                         </td>
-                        <td class="px-4 py-3 text-center">
+                        <td class="px-4 text-center">
                             {% if caisse.actif %}
-                            <span class="bg-green-900/30 text-green-300 px-2 py-1 rounded-full text-xs">Actif</span>
+                            <span class="badge-bro bg-emerald-100 text-emerald-700">Actif</span>
                             {% else %}
-                            <span class="bg-red-900/30 text-red-300 px-2 py-1 rounded-full text-xs">Inactif</span>
+                            <span class="badge-bro bg-red-100 text-red-700">Inactif</span>
                             {% endif %}
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="px-4 py-8 text-center text-on-surface-variant">Aucune caisse configurée</td>
+                        <td colspan="5" class="px-4 py-8 text-center text-on-surface-muted">Aucune caisse configurée</td>
                     </tr>
                     {% endfor %}
                 </tbody>
-                <tfoot class="bg-surface-container-high font-bold">
+                <tfoot class="bg-surface-soft font-bold">
                     <tr>
                         <td colspan="3" class="px-4 py-3">TOTAL GÉNÉRAL</td>
-                        <td class="px-4 py-3 text-right text-green-400">{{ tresorerie.total|floatformat:0 }} F</td>
+                        <td class="px-4 py-3 text-right text-emerald-600">{{ tresorerie.total|floatformat:0 }} F</td>
                         <td></td>
                     </tr>
                 </tfoot>
@@ -311,10 +302,8 @@
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Graphique 1 : Répartition CA par domaine (donut)
     const domaineCtx = document.getElementById('domaineChart').getContext('2d');
     new Chart(domaineCtx, {
         type: 'doughnut',
@@ -348,7 +337,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Graphique 2 : Évolution CA 30 jours (3 courbes)
     const evolutionCtx = document.getElementById('evolutionCAChart').getContext('2d');
     new Chart(evolutionCtx, {
         type: 'line',

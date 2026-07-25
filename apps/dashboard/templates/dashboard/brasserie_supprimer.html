@@ -1,5 +1,4 @@
 {% extends 'dashboard/base_brasserie.html' %}
-{% load static %}
 
 {% block title %}Supprimer {{ produit.nom }}{% endblock %}
 
@@ -7,19 +6,19 @@
 
 {% block content %}
 <div class="max-w-md mx-auto mt-10">
-    <div class="card-md3 p-6 text-center">
+    <div class="card-bro p-6 text-center">
         <i class="fas fa-exclamation-triangle text-4xl text-red-400 mb-4"></i>
         <h2 class="text-lg font-semibold mb-2">Confirmer la suppression</h2>
-        <p class="text-on-surface-variant mb-6">
+        <p class="text-on-surface-muted mb-6">
             Voulez-vous vraiment supprimer <strong>{{ produit.nom }}</strong> ?
         </p>
         <form method="post">
             {% csrf_token %}
             <div class="flex gap-3 justify-center">
-                <button type="submit" class="px-6 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700">
+                <button type="submit" class="rounded-xl bg-error text-white text-sm font-medium px-6 py-2">
                     <i class="fas fa-trash mr-1"></i> Supprimer
                 </button>
-                <a href="{% url 'dashboard:brasserie_produits' %}" class="px-6 py-2 border border-outline/10 rounded-lg hover:bg-surface-container-low">
+                <a href="{% url 'dashboard:brasserie_produits' %}" class="px-6 py-2 border border-border rounded-xl hover:bg-surface-soft text-sm">
                     Annuler
                 </a>
             </div>

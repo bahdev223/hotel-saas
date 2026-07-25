@@ -5,60 +5,58 @@
 {% block header %}<i class="fas fa-door-open text-secondary mr-2"></i>Chambres{% endblock %}
 {% block subtitle %}Gestion des chambres (Standard et VIP){% endblock %}
 
-{% block content %}
+{% block inner_content %}
 <div x-data="chambreManagement()" x-init="init()" class="space-y-6">
 
-    <!-- Header -->
     <div class="flex items-center justify-between">
         <div class="flex gap-2">
-            <a href="?{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-3 py-1.5 rounded-lg text-sm border border-outline/10 hover:bg-surface-container-high transition-smooth {% if not filtre_type %}bg-secondary-container/20 text-secondary border-secondary{% endif %}">Tous</a>
+            <a href="?{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-3 py-1.5 rounded-lg text-sm border border-border hover:bg-surface-soft {% if not filtre_type %}bg-primary-soft text-primary border-primary{% endif %}">Tous</a>
             {% for key, label in type_choices %}
-            <a href="?type={{ key }}{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-3 py-1.5 rounded-lg text-sm border border-outline/10 hover:bg-surface-container-high transition-smooth {% if filtre_type == key %}bg-secondary-container/20 text-secondary border-secondary{% endif %}">{{ label }}</a>
+            <a href="?type={{ key }}{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-3 py-1.5 rounded-lg text-sm border border-border hover:bg-surface-soft {% if filtre_type == key %}bg-primary-soft text-primary border-primary{% endif %}">{{ label }}</a>
             {% endfor %}
-            <button hx-get="{% url 'hotel:ajouter_unite' %}" hx-target="#modal" class="px-3 py-1.5 rounded-lg text-sm bg-secondary text-black font-semibold cursor-pointer hover:opacity-90 {% if est_bloque_hotel %}pointer-events-none opacity-30{% endif %}">
+            <button hx-get="{% url 'hotel:ajouter_unite' %}" hx-target="#modal" class="px-3 py-1.5 rounded-lg text-sm bg-primary text-white font-semibold cursor-pointer hover:opacity-90 {% if est_bloque_hotel %}pointer-events-none opacity-30{% endif %}">
                 <i class="fas fa-plus mr-1"></i>Ajouter
             </button>
         </div>
     </div>
 
-    <!-- Grille -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {% for unite in unites %}
-        <a href="{% url 'hotel:detail_unite' unite.id %}" class="card-md3 overflow-hidden hover:shadow-lg hover:shadow-secondary/5 transition-smooth group">
-            <div class="aspect-video bg-surface-container-high relative overflow-hidden">
+        <a href="{% url 'hotel:detail_unite' unite.id %}" class="card-bro overflow-hidden group">
+            <div class="aspect-video bg-surface-soft relative overflow-hidden">
                 {% if unite.image %}
-                <img src="{{ unite.image.url }}" alt="{{ unite.nom }}" class="w-full h-full object-cover group-hover:scale-105 transition-smooth duration-300">
+                <img src="{{ unite.image.url }}" alt="{{ unite.nom }}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
                 {% else %}
-                <div class="w-full h-full flex items-center justify-center text-on-surface-variant">
+                <div class="w-full h-full flex items-center justify-center text-on-surface-muted">
                     <i class="fas fa-image text-4xl opacity-30"></i>
                 </div>
                 {% endif %}
-                <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-medium
-                    {% if unite.statut == 'DISPONIBLE' %}bg-green-900/60 text-green-300
-                    {% elif unite.statut == 'OCCUPEE' %}bg-red-900/60 text-red-300
-                    {% elif unite.statut == 'NETTOYAGE' %}bg-yellow-900/60 text-yellow-300
-                    {% else %}bg-gray-900/60 text-gray-300{% endif %}">
+                <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-medium badge-bro
+                    {% if unite.statut == 'DISPONIBLE' %}bg-emerald-100 text-emerald-700
+                    {% elif unite.statut == 'OCCUPEE' %}bg-red-100 text-red-700
+                    {% elif unite.statut == 'NETTOYAGE' %}bg-amber-100 text-amber-700
+                    {% else %}bg-surface-soft text-on-surface-muted{% endif %}">
                     {{ unite.get_statut_display }}
                 </span>
             </div>
             <div class="p-4">
                 <div class="flex items-center gap-2 mb-1">
-                    <span class="text-xs font-mono text-secondary/80">{{ unite.code }}</span>
-                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-surface-container-high text-on-surface-variant">{{ unite.get_type_unite_display }}</span>
+                    <span class="text-xs font-mono text-primary/80">{{ unite.code }}</span>
+                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-surface-soft text-on-surface-muted">{{ unite.get_type_unite_display }}</span>
                 </div>
-                <h3 class="font-semibold text-on-surface group-hover:text-secondary transition-smooth">{{ unite.nom }}</h3>
-                <div class="flex items-center gap-3 mt-2 text-xs text-on-surface-variant">
+                <h3 class="font-semibold text-on-surface group-hover:text-primary">{{ unite.nom }}</h3>
+                <div class="flex items-center gap-3 mt-2 text-xs text-on-surface-muted">
                     <span><i class="fas fa-users mr-1"></i>{{ unite.capacite }} pers.</span>
                     {% if unite.surface_m2 %}
                     <span><i class="fas fa-vector-square mr-1"></i>{{ unite.surface_m2 }} m²</span>
                     {% endif %}
                 </div>
-                <p class="text-sm font-bold text-secondary mt-2">{{ unite.prix|floatformat:0 }} F <span class="text-xs text-on-surface-variant font-normal">/h</span>
-                {% if unite.prix_jour %}<span class="text-sm text-on-surface-variant ml-2">| {{ unite.prix_jour|floatformat:0 }} F <span class="text-xs">/j</span></span>{% endif %}</p>
+                <p class="text-sm font-bold text-primary mt-2">{{ unite.prix|floatformat:0 }} F <span class="text-xs text-on-surface-muted font-normal">/h</span>
+                {% if unite.prix_jour %}<span class="text-sm text-on-surface-muted ml-2">| {{ unite.prix_jour|floatformat:0 }} F <span class="text-xs">/j</span></span>{% endif %}</p>
             </div>
         </a>
         {% empty %}
-        <div class="col-span-full text-center py-12 text-on-surface-variant">
+        <div class="col-span-full text-center py-12 text-on-surface-muted">
             <i class="fas fa-door-open text-4xl mb-3 block opacity-30"></i>
             <p class="text-sm">Aucune chambre trouvée</p>
         </div>
@@ -68,11 +66,11 @@
     {% if unites.has_other_pages %}
     <div class="flex justify-center gap-2 mt-6">
         {% if unites.has_previous %}
-        <a href="?page={{ unites.previous_page_number }}{% if filtre_type %}&type={{ filtre_type }}{% endif %}{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-3 py-1.5 rounded-lg border border-outline/10 text-sm hover:bg-surface-container-high">&laquo; Précédent</a>
+        <a href="?page={{ unites.previous_page_number }}{% if filtre_type %}&type={{ filtre_type }}{% endif %}{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-3 py-1.5 rounded-lg border border-border text-sm hover:bg-surface-soft">&laquo; Précédent</a>
         {% endif %}
-        <span class="px-3 py-1.5 text-sm text-on-surface-variant">Page {{ unites.number }} / {{ unites.paginator.num_pages }}</span>
+        <span class="px-3 py-1.5 text-sm text-on-surface-muted">Page {{ unites.number }} / {{ unites.paginator.num_pages }}</span>
         {% if unites.has_next %}
-        <a href="?page={{ unites.next_page_number }}{% if filtre_type %}&type={{ filtre_type }}{% endif %}{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-3 py-1.5 rounded-lg border border-outline/10 text-sm hover:bg-surface-container-high">Suivant &raquo;</a>
+        <a href="?page={{ unites.next_page_number }}{% if filtre_type %}&type={{ filtre_type }}{% endif %}{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-3 py-1.5 rounded-lg border border-border text-sm hover:bg-surface-soft">Suivant &raquo;</a>
         {% endif %}
     </div>
     {% endif %}
