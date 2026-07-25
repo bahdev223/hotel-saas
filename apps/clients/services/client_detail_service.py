@@ -1,4 +1,4 @@
-from apps.hotel.models import LocationModel
+from apps.hotel.models import LocationModel, Reservation, Sejour
 from apps.pos.models import Commande, Vente, LigneVente
 from apps.facturation.models import FactureModel
 from apps.paiements.models import Paiement
@@ -19,10 +19,16 @@ def get_client_operations(client_id):
 
 
 def _get_locations(client_id):
-    qs = LocationModel.objects.filter(client_id=client_id).select_related('unite').order_by('-created_at')
-    return [
-        {
-            'id': loc.id,
+    """Historique unifié des séjours/réservations du client, toutes sources
+    confondues : ancien flux hotel.LocationModel (encore alimenté par le POS)
+    + nouveau flux Reservation/Sejour. Prefixes d'id distincts pour éviter
+    toute collision de clé entre tables différentes."""
+    resultats = []
+
+    qs_loc = LocationModel.objects.filter(client_id=client_id).select_related('unite').order_by('-created_at')
+    for loc in qs_loc:
+        resultats.append({
+            'id': f'LOC-{loc.id}',
             'type': loc.get_type_location_display(),
             'unite': loc.unite.nom if loc.unite else 'N/A',
             'date_debut': loc.date_debut.isoformat(),
@@ -31,9 +37,48 @@ def _get_locations(client_id):
             'statut': loc.get_statut_display(),
             'statut_code': loc.statut,
             'date': loc.created_at.isoformat(),
-        }
-        for loc in qs
-    ]
+        })
+
+    # Réservations pas encore transformées en séjour (à venir, annulées, no-show).
+    # Les réservations transformées sont déjà représentées par leur Sejour ci-dessous.
+    qs_res = Reservation.objects.filter(
+        client_id=client_id,
+    ).exclude(
+        statut=Reservation.StatutReservation.TRANSFORMEE,
+    ).prefetch_related('chambres_reservees__chambre').order_by('-cree_le')
+    for reservation in qs_res:
+        chambres = reservation.chambres_reservees.all()
+        if not chambres:
+            continue
+        for rc in chambres:
+            resultats.append({
+                'id': f'RES-{rc.id}',
+                'type': f'Réservation ({reservation.code})',
+                'unite': rc.chambre.nom if rc.chambre else 'N/A',
+                'date_debut': reservation.date_arrivee_prevue.isoformat(),
+                'date_fin': reservation.date_depart_prevue.isoformat(),
+                'montant': float(rc.montant_total),
+                'statut': reservation.get_statut_display(),
+                'statut_code': reservation.statut,
+                'date': reservation.cree_le.isoformat(),
+            })
+
+    qs_sej = Sejour.objects.filter(client_id=client_id).select_related('chambre').order_by('-cree_le')
+    for sejour in qs_sej:
+        resultats.append({
+            'id': f'SEJ-{sejour.id}',
+            'type': f'Séjour ({sejour.code})',
+            'unite': sejour.chambre.nom if sejour.chambre else 'N/A',
+            'date_debut': sejour.date_arrivee.isoformat(),
+            'date_fin': sejour.date_depart.isoformat() if sejour.date_depart else None,
+            'montant': float(sejour.montant_total),
+            'statut': sejour.get_statut_display(),
+            'statut_code': sejour.statut,
+            'date': sejour.cree_le.isoformat(),
+        })
+
+    resultats.sort(key=lambda r: r['date'], reverse=True)
+    return resultats
 
 
 def _get_commandes(client_id):
