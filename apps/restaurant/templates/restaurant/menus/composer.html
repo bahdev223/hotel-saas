@@ -7,6 +7,7 @@
 {% block subtitle %}{{ menu.nom }} - {{ menu.code }}{% endblock %}
 
 {% block content %}
+{% csrf_token %}
 <div x-data="menuComposition()" x-init="init()" class="flex flex-col h-full">
     
     <div class="flex gap-6">
@@ -387,7 +388,6 @@ function menuComposition() {
         
         async enregistrer() {
             const data = {
-                menu_id: this.menuId,
                 lignes: this.lignes.map(l => ({
                     recette_id: l.recette_id,
                     groupe: l.groupe,
@@ -396,8 +396,8 @@ function menuComposition() {
                     prix_supplement: l.prix_supplement || 0
                 }))
             };
-            
-            const response = await fetch('/restaurant/api/menus/composition/save/', {
+
+            const response = await fetch(`/restaurant/api/menus/${this.menuId}/composition/save/`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

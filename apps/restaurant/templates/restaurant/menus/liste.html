@@ -242,84 +242,8 @@
         </div>
     </div>
 
-    <!-- ==================== MODAL COMPOSER ==================== -->
-    <div x-show="composerModalOpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto">
-        <div class="flex items-center justify-center min-h-screen px-4 py-6">
-            <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" @click="composerModalOpen = false"></div>
-            <div class="relative bg-surface-container-low rounded-xl shadow-xl max-w-5xl w-full max-h-[90vh] overflow-y-auto">
-                <div class="sticky top-0 bg-surface-container-low border-b border-outline/10 px-6 py-4 flex justify-between items-center">
-                    <h2 class="text-xl font-bold">Composer le menu: <span x-text="composerMenuNom"></span></h2>
-                    <button @click="composerModalOpen = false" class="text-on-surface-variant hover:text-on-surface"><i class="fas fa-times text-xl"></i></button>
-                </div>
-                <div class="p-6">
-                    <div class="border-b border-outline/10 mb-4">
-                        <nav class="flex gap-4">
-                            <button @click="composerTab = 'fixes'" class="py-2 px-4 font-medium"
-                                    :class="composerTab === 'fixes' ? 'text-secondary border-b-2 border-secondary' : 'text-on-surface-variant hover:text-on-surface'">Éléments fixes</button>
-                            <button @click="composerTab = 'choix'" class="py-2 px-4 font-medium"
-                                    :class="composerTab === 'choix' ? 'text-secondary border-b-2 border-secondary' : 'text-on-surface-variant hover:text-on-surface'">Choix du client</button>
-                            <button @click="composerTab = 'supplements'" class="py-2 px-4 font-medium"
-                                    :class="composerTab === 'supplements' ? 'text-secondary border-b-2 border-secondary' : 'text-on-surface-variant hover:text-on-surface'">Suppléments</button>
-                        </nav>
-                    </div>
-                    <div x-show="composerTab === 'fixes'">
-                        <div class="mb-4 flex justify-between items-center"><h3 class="font-semibold">Éléments inclus d'office</h3><button @click="showAddRecetteForm('FIXE')" :disabled="{{ est_bloque_restaurant|lower }}" class="text-sm text-secondary hover:underline"><i class="fas fa-plus"></i> Ajouter</button></div>
-                        <div x-html="fixesListeHtml" class="space-y-2"></div>
-                    </div>
-                    <div x-show="composerTab === 'choix'">
-                        <div class="mb-4 flex justify-between items-center"><h3 class="font-semibold">Éléments au choix du client</h3><button @click="showAddRecetteForm('CHOIX')" :disabled="{{ est_bloque_restaurant|lower }}" class="text-sm text-secondary hover:underline"><i class="fas fa-plus"></i> Ajouter</button></div>
-                        <div x-html="choixListeHtml" class="space-y-2"></div>
-                    </div>
-                    <div x-show="composerTab === 'supplements'">
-                        <div class="mb-4 flex justify-between items-center"><h3 class="font-semibold">Suppléments payants</h3><button @click="showAddRecetteForm('SUPPLEMENT')" :disabled="{{ est_bloque_restaurant|lower }}" class="text-sm text-secondary hover:underline"><i class="fas fa-plus"></i> Ajouter</button></div>
-                        <div x-html="supplementsListeHtml" class="space-y-2"></div>
-                    </div>
-                    <div class="border-t border-outline/10 mt-6 pt-4 bg-surface-container-high p-4 rounded-lg">
-                        <div class="grid grid-cols-3 gap-4 text-center">
-                            <div><div class="text-sm text-on-surface-variant">Coût de revient</div><div class="text-xl font-bold" x-text="composerCout + ' F'">0 F</div></div>
-                            <div><div class="text-sm text-on-surface-variant">Prix de vente</div><div class="text-xl font-bold" x-text="composerPrix + ' F'">0 F</div></div>
-                            <div><div class="text-sm text-on-surface-variant">Marge</div><div class="text-xl font-bold" x-text="composerMarge + ' F'">0 F</div></div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- ==================== MODAL AJOUTER RECETTE ==================== -->
-    <div x-show="addRecetteModalOpen" x-cloak class="fixed inset-0 z-50 overflow-y-auto">
-        <div class="flex items-center justify-center min-h-screen px-4 py-6">
-            <div class="fixed inset-0 bg-black/60 backdrop-blur-sm" @click="addRecetteModalOpen = false"></div>
-            <div class="relative bg-surface-container-low rounded-xl shadow-xl max-w-md w-full">
-                <div class="border-b border-outline/10 px-6 py-4 flex justify-between items-center">
-                    <h2 class="text-xl font-bold">Ajouter une recette</h2>
-                    <button @click="addRecetteModalOpen = false" class="text-on-surface-variant hover:text-on-surface"><i class="fas fa-times text-xl"></i></button>
-                </div>
-                <form @submit.prevent="saveRecetteLigne" class="p-6">
-                    {% csrf_token %}
-                    <input type="hidden" x-model="addRecetteForm.type_ligne">
-                    <div class="mb-4"><label class="block text-sm font-medium mb-1">Groupe</label>
-                        <select x-model="addRecetteForm.groupe" class="w-full input-md3 rounded-lg" required>
-                            <option value="ENTREE">Entrée</option><option value="PLAT">Plat principal</option>
-                            <option value="ACCOMPAGNEMENT">Accompagnement</option><option value="BOISSON">Boisson</option><option value="DESSERT">Dessert</option>
-                        </select>
-                    </div>
-                    <div class="mb-4"><label class="block text-sm font-medium mb-1">Recette</label>
-                        <select x-model="addRecetteForm.recette_id" class="w-full input-md3 rounded-lg" required>
-                            <option value="">Choisir une recette</option>
-                            {% for recette in recettes %}<option value="{{ recette.id }}">{{ recette.nom }}</option>{% endfor %}
-                        </select>
-                    </div>
-                    <div class="mb-4"><label class="block text-sm font-medium mb-1">Quantité</label><input type="number" x-model="addRecetteForm.quantite" min="1" class="w-full input-md3 rounded-lg"></div>
-                    <div x-show="addRecetteForm.type_ligne === 'SUPPLEMENT'" class="mb-4"><label class="block text-sm font-medium mb-1">Prix du supplément (FCFA)</label><input type="number" x-model="addRecetteForm.prix_supplement" step="0.01" class="w-full input-md3 rounded-lg"></div>
-                    <div class="flex justify-end gap-2 pt-4">
-                        <button type="button" @click="addRecetteModalOpen = false" class="px-4 py-2 border-outline/10 rounded-lg hover:bg-surface-container-low">Annuler</button>
-                        <button type="submit" :disabled="{{ est_bloque_restaurant|lower }}" class="px-4 py-2 bg-secondary text-white rounded-lg hover:bg-secondary/80">Ajouter</button>
-                    </div>
-                </form>
-            </div>
-        </div>
-    </div>
+    <!-- Note : la composition d'un menu se fait sur la page dediee
+         "Composer" (restaurant:menu_composer), pas via une modale ici. -->
 </div>
 
 <script>
@@ -337,20 +261,6 @@ function menusApp() {
         menuForm: { code: '', nom: '', type_menu: '', prix_vente: '', ordre_affichage: 0, visible_dans_pos: true, description: '' },
         imagePreviewUrl: null,
         imageFile: null,
-        // Composer modal
-        composerModalOpen: false,
-        composerMenuId: null,
-        composerMenuNom: '',
-        composerTab: 'fixes',
-        fixesListeHtml: '',
-        choixListeHtml: '',
-        supplementsListeHtml: '',
-        composerCout: 0,
-        composerPrix: 0,
-        composerMarge: 0,
-        // Add recette modal
-        addRecetteModalOpen: false,
-        addRecetteForm: { type_ligne: 'FIXE', recette_id: '', groupe: 'ENTREE', quantite: 1, prix_supplement: 0 },
 
         init() {},
 
@@ -462,86 +372,6 @@ function menusApp() {
         },
 
         /* ===== Composer ===== */
-        async openComposerModal(menuId) {
-            this.composerMenuId = menuId;
-            this.composerModalOpen = true;
-            try {
-                const [res1, res2] = await Promise.all([
-                    fetch(`/restaurant/api/menu/${menuId}/get/`),
-                    fetch(`/restaurant/api/menu/${menuId}/recettes/`)
-                ]);
-                const data1 = await res1.json();
-                this.composerMenuNom = data1.nom;
-                this.composerPrix = (data1.prix_vente || 0) + ' F';
-                const data2 = await res2.json();
-                this.chargerListes(data2);
-            } catch(e) { console.error(e); }
-        },
-
-        chargerListes(data) {
-            const recettes = data.recettes || [];
-            this.fixesListeHtml = this.renderListe(recettes.filter(r => r.type_ligne === 'FIXE'));
-            this.choixListeHtml = this.renderListe(recettes.filter(r => r.type_ligne === 'CHOIX'));
-            this.supplementsListeHtml = this.renderListe(recettes.filter(r => r.type_ligne === 'SUPPLEMENT'));
-            if (data.cout_revient) {
-                this.composerCout = data.cout_revient + ' F';
-                this.composerMarge = ((data.prix_vente || 0) - data.cout_revient) + ' F';
-            }
-        },
-
-        renderListe(items) {
-            if (!items || items.length === 0) return '<div class="text-center text-on-surface-variant py-4">Aucun élément</div>';
-            return items.map(item => `
-                <div class="flex justify-between items-center p-3 bg-surface-container-high rounded-lg">
-                    <div>
-                        <span class="font-medium">${item.recette_nom}</span>
-                        <span class="text-sm text-on-surface-variant ml-2">x${item.quantite}</span>
-                        <span class="text-xs ml-2 px-2 py-1 rounded-full ${this.getBadgeClass(item.type_ligne)}">${this.getBadgeLabel(item.type_ligne)}</span>
-                        <div class="text-xs text-on-surface-variant">Groupe: ${item.groupe}</div>
-                    </div>
-                    <button @click="supprimerLigneComposer('${item.id}')" class="text-red-400 hover:text-red-300"><i class="fas fa-trash"></i></button>
-                </div>
-            `).join('');
-        },
-
-        getBadgeClass(type) { return {'FIXE':'bg-blue-900/30 text-blue-300','CHOIX':'bg-green-900/30 text-green-300','SUPPLEMENT':'bg-orange-900/30 text-orange-300'}[type] || 'bg-surface-container-high text-on-surface-variant'; },
-        getBadgeLabel(type) { return {'FIXE':'Fixe','CHOIX':'Au choix','SUPPLEMENT':'Supplément'}[type] || type; },
-
-        async supprimerLigneComposer(ligneId) {
-            if (!confirm('Retirer cette recette du menu ?')) return;
-            await fetch(`/restaurant/api/menu/ligne/${ligneId}/supprimer/`, {
-                method: 'POST', headers: { 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value }
-            });
-            this.openComposerModal(this.composerMenuId);
-        },
-
-        showAddRecetteForm(type) {
-            this.addRecetteForm = { type_ligne: type, recette_id: '', groupe: 'ENTREE', quantite: 1, prix_supplement: 0 };
-            this.addRecetteModalOpen = true;
-        },
-
-        async saveRecetteLigne() {
-            if (!this.addRecetteForm.recette_id) { alert('Choisissez une recette'); return; }
-            try {
-                const formData = new FormData();
-                formData.append('menu_id', this.composerMenuId);
-                formData.append('type_ligne', this.addRecetteForm.type_ligne);
-                formData.append('recette_id', this.addRecetteForm.recette_id);
-                formData.append('groupe', this.addRecetteForm.groupe);
-                formData.append('quantite', this.addRecetteForm.quantite);
-                formData.append('prix_supplement', this.addRecetteForm.prix_supplement);
-                formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
-                const res = await fetch(`/restaurant/api/menu/${this.composerMenuId}/ajouter-recette/`, {
-                    method: 'POST', body: formData
-                });
-                const data = await res.json();
-                if (data.success) {
-                    this.addRecetteModalOpen = false;
-                    this.openComposerModal(this.composerMenuId);
-                } else alert('Erreur: ' + (data.error || 'Erreur'));
-            } catch(e) { alert('Erreur réseau'); }
-        },
-
         /* ===== Suppression ===== */
         supprimerMenu(menuId, menuNom) {
             if (confirm(`Supprimer le menu "${menuNom}" ?`)) {

@@ -1,4 +1,5 @@
 # apps/restaurant/models/menu.py
+from decimal import Decimal
 from django.db import models
 from .recette import RecetteModel
 
