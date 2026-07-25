@@ -15,7 +15,7 @@ class StockComptaService:
         ('ENTREE', 'production'): {'debit': '31', 'credit': '31'},
         ('ENTREE', 'reapprovisionnement'): {'debit': '31', 'credit': '401'},
         ('ENTREE', 'inventaire'): {'debit': '31', 'credit': '603'},
-        ('SORTIE', 'vente'): {'debit': '411', 'credit': '701'},
+        ('SORTIE', 'vente'): {'debit': '603', 'credit': '31'},  # Variation de stock
         ('SORTIE', 'consommation'): {'debit': '601', 'credit': '31'},
         ('SORTIE', 'perte'): {'debit': '658', 'credit': '31'},
         ('SORTIE', 'production'): {'debit': '601', 'credit': '31'},
@@ -32,32 +32,19 @@ class StockComptaService:
 
     @staticmethod
     @transaction.atomic
-    def enregistrer_mouvement(produit, type_mouvement, motif, quantite,
-                              valeur_unitaire=0, entrepot_source=None,
-                              entrepot_dest=None, reference='',
-                              raison='', utilisateur='', lot=None,
-                              unite_texte=''):
-        """Cree le MouvementStock + l'Ecriture comptable"""
+    def enregistrer_ecriture(mouvement):
+        """Cree l'Ecriture comptable pour le MouvementStock"""
 
-        from ..models import MouvementStock
-
-        valeur_total = Decimal(str(quantite)) * Decimal(str(valeur_unitaire))
-
-        mouvement = MouvementStock.objects.create(
-            produit=produit, type_mouvement=type_mouvement, motif=motif,
-            quantite=quantite, valeur_unitaire=valeur_unitaire,
-            valeur_total=valeur_total, entrepot_source=entrepot_source,
-            entrepot_dest=entrepot_dest, reference=reference,
-            raison=raison, utilisateur=utilisateur,
-            unite_texte=unite_texte,
-        )
+        type_mouvement = mouvement.type_mouvement
+        motif = mouvement.motif
+        valeur_total = mouvement.valeur_total
 
         comptes = StockComptaService.COMPTES_PAR_DEFAUT.get((type_mouvement, motif))
         if comptes and valeur_total > 0:
             # Résoudre le compte de débit
             debit = comptes['debit']
             if debit is None:
-                debit = StockComptaService.COMPTE_STOCK_PAR_TYPE.get(produit.type_article, '31')
+                debit = StockComptaService.COMPTE_STOCK_PAR_TYPE.get(mouvement.produit.type_article, '31')
 
             # Résoudre le compte de crédit
             credit = comptes['credit']
@@ -66,8 +53,7 @@ class StockComptaService:
                 credit = ParametreEntreprise.get_compte_contrepartie()
 
             StockComptaService._creer_ecriture(mouvement, {'debit': debit, 'credit': credit})
-
-        return mouvement
+        return mouvement.ecriture
 
     @staticmethod
     def _creer_ecriture(mouvement, comptes):

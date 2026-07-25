@@ -9,6 +9,8 @@ from .sous_unite import SousUnite
 from .inventaire import Inventaire, LigneInventaire
 from .bon_entree import BonEntree, LigneBonEntree, StatutBonEntree
 from .domaine import Domaine
+from .source_operation import SourceOperation
+from .journal_stock import JournalStock
 
 
 __all__ = [
@@ -26,4 +28,6 @@ __all__ = [
     'LigneBonEntree',      # ? AJOUTER
     'StatutBonEntree',     # ? AJOUTER
     'Domaine',
+    'SourceOperation',
+    'JournalStock',
 ]

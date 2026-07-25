@@ -1,4 +1,4 @@
-﻿# apps/stock/services/transfert_service.py
+# apps/stock/services/transfert_service.py
 from decimal import Decimal
 from django.db import transaction
 from ..models import Produit, Entrepot
@@ -60,73 +60,7 @@ class TransfertService:
         
         return mouvement
     
-    @classmethod
-    def transfert_central_vers_bar(cls, produit_id, quantite, utilisateur, 
-                                    reference=None, notes=None, sous_unite_id=None):
-        """Transfert du stock central vers le bar (avec ou sans sous-unitÃ©)"""
-        try:
-            central = Entrepot.objects.get(type_entrepot='CENTRAL', actif=True)
-        except Entrepot.DoesNotExist:
-            central = Entrepot.objects.filter(type_entrepot='CENTRAL').first()
-            if not central:
-                raise Exception("EntrepÃ´t CENTRAL non trouvÃ©")
-        
-        try:
-            bar = Entrepot.objects.get(type_entrepot='BAR', actif=True)
-        except Entrepot.DoesNotExist:
-            bar = Entrepot.objects.filter(type_entrepot='BAR').first()
-            if not bar:
-                bar = Entrepot.objects.create(
-                    code='BAR001',
-                    nom='BAR',
-                    type_entrepot='BAR',
-                    actif=True
-                )
-        
-        return cls.transfert_entre_entrepots(
-            produit_id=produit_id,
-            quantite=quantite,
-            entrepot_source_id=central.id,
-            entrepot_dest_id=bar.id,
-            utilisateur=utilisateur,
-            reference=reference,
-            notes=notes,
-            sous_unite_id=sous_unite_id
-        )
-    
-    @classmethod
-    def transfert_central_vers_restaurant(cls, produit_id, quantite, utilisateur,
-                                           reference=None, notes=None, sous_unite_id=None):
-        """Transfert du stock central vers le restaurant (avec ou sans sous-unitÃ©)"""
-        try:
-            central = Entrepot.objects.get(type_entrepot='CENTRAL', actif=True)
-        except Entrepot.DoesNotExist:
-            central = Entrepot.objects.filter(type_entrepot='CENTRAL').first()
-            if not central:
-                raise Exception("EntrepÃ´t CENTRAL non trouvÃ©")
-        
-        try:
-            resto = Entrepot.objects.get(type_entrepot='RESTAURANT', actif=True)
-        except Entrepot.DoesNotExist:
-            resto = Entrepot.objects.filter(type_entrepot='RESTAURANT').first()
-            if not resto:
-                resto = Entrepot.objects.create(
-                    code='RST001',
-                    nom='RESTAURANT',
-                    type_entrepot='RESTAURANT',
-                    actif=True
-                )
-        
-        return cls.transfert_entre_entrepots(
-            produit_id=produit_id,
-            quantite=quantite,
-            entrepot_source_id=central.id,
-            entrepot_dest_id=resto.id,
-            utilisateur=utilisateur,
-            reference=reference,
-            notes=notes,
-            sous_unite_id=sous_unite_id
-        )
+
     
     @classmethod
     def get_stock_entrepot(cls, code_entrepot, produit_id=None):

@@ -9,7 +9,7 @@ class RestaurantReportingService:
         Calcule les KPIs du restaurant pour une journée d'exploitation donnée.
         """
         ventes = Vente.objects.filter(
-            session_caisse__date_ouverture__date=journee_exploitation.date_metier,
+            journee_exploitation=journee_exploitation,
             statut__in=['PAYEE', 'PARTIELLEMENT_PAYEE']
         )
         

@@ -96,14 +96,14 @@ class MenuModel(models.Model):
     @property
     def marge(self):
         if self.prix_vente:
-            return float(self.prix_vente) - self.get_cout_revient_total()
-        return 0
+            return self.prix_vente - Decimal(str(self.get_cout_revient_total()))
+        return Decimal('0')
     
     @property
     def marge_pourcentage(self):
         if self.prix_vente and self.prix_vente > 0:
-            return (self.marge / float(self.prix_vente)) * 100
-        return 0
+            return (self.marge / self.prix_vente) * 100
+        return Decimal('0')
 
 
 class LigneMenuModel(models.Model):
@@ -145,7 +145,7 @@ class LigneMenuModel(models.Model):
     
     def get_cout(self, produits_dict=None):
         """Coût de la ligne (pour FIXE et SUPPLEMENT)"""
-        return float(self.quantite) * self.recette.cout_revient(produits_dict or {})
+        return Decimal(str(self.quantite)) * Decimal(str(self.recette.cout_revient(produits_dict or {})))
     
     @property
     def est_fixe(self):

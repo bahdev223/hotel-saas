@@ -62,4 +62,4 @@ class RestaurantFacturationService:
     @classmethod
     def get_ca_restaurant(cls, date_debut=None, date_fin=None) -> Decimal:
         factures = cls.get_factures_restaurant(date_debut, date_fin)
-        return Decimal(str(sum(float(f.montant_total) for f in factures)))
+        return sum((f.montant_total for f in factures), Decimal('0'))

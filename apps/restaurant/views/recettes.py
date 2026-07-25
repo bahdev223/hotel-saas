@@ -179,8 +179,8 @@ def recette_detail(request, recette_id):
         prix = ingredient.cout_unitaire or (produit.prix_achat if produit else 0)
         
         # Gestion des quantités optionnelles
-        quantite = float(ingredient.quantite) if ingredient.quantite else 1
-        cout = quantite * float(prix)
+        quantite = Decimal(str(ingredient.quantite)) if ingredient.quantite else Decimal('1')
+        cout = quantite * Decimal(str(prix))
         cout_total += cout
         
         # Stock dans l'entrepôt RESTAURANT (uniquement si quantité précise)
@@ -193,8 +193,8 @@ def recette_detail(request, recette_id):
                 entrepot=restaurant_entrepot, 
                 produit=produit
             ).first()
-            stock_qte = float(stock.quantite) if stock else 0
-            besoin = float(ingredient.quantite)
+            stock_qte = stock.quantite if stock else Decimal('0')
+            besoin = ingredient.quantite
             possible = int(stock_qte // besoin) if besoin > 0 else 0
         
         production_possible.append({
@@ -205,8 +205,8 @@ def recette_detail(request, recette_id):
             'quantite_approximative': not ingredient.quantite or ingredient.quantite <= 0
         })
     
-    marge = float(recette.prix_vente) - cout_total if recette.prix_vente else 0
-    marge_pourcentage = (marge / float(recette.prix_vente) * 100) if recette.prix_vente and recette.prix_vente > 0 else 0
+    marge = recette.prix_vente - cout_total if recette.prix_vente else Decimal('0')
+    marge_pourcentage = (marge / recette.prix_vente * 100) if recette.prix_vente and recette.prix_vente > 0 else Decimal('0')
     
     # Filtrer les possibilités réelles
     possibilites_reelles = [p['possible'] for p in production_possible if p['besoin'] > 0]

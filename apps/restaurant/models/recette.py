@@ -78,8 +78,8 @@ class RecetteModel(models.Model):
     def __str__(self):
         return f"{self.nom} ({self.get_type_recette_display()})"
     
-    def cout_revient(self, produits: dict) -> float:
-        total = 0.0
+    def cout_revient(self, produits: dict) -> Decimal:
+        total = Decimal('0')
         for ingredient in self.ingredients.all():
             if ingredient.type_ingredient == 'DEDUIRE':
                 produit = produits.get(ingredient.produit_id)
@@ -92,11 +92,11 @@ class RecetteModel(models.Model):
                 prix = ingredient.cout_unitaire
             
             if ingredient.quantite and ingredient.quantite > 0:
-                quantite = float(ingredient.quantite)
+                quantite = Decimal(str(ingredient.quantite))
             else:
                 continue
             
-            total += quantite * float(prix)
+            total += quantite * Decimal(str(prix))
         return total
     
     def consommer_ingredients(self, quantite=1, entrepot=None):
@@ -133,8 +133,8 @@ class RecetteModel(models.Model):
                 produit=ingredient.produit
             ).first() if entrepot else None
 
-            stock_qte = float(stock.quantite) if stock else 0
-            besoin = float(ingredient.quantite) * quantite
+            stock_qte = stock.quantite if stock else Decimal('0')
+            besoin = ingredient.quantite * Decimal(str(quantite))
 
             if stock_qte < besoin:
                 manques.append({

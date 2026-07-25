@@ -10,6 +10,7 @@ class SessionCaisse(models.Model):
     caisse = models.ForeignKey(Caisse, on_delete=models.CASCADE, related_name='sessions_pos')
     point_vente = models.ForeignKey('PointVente', on_delete=models.CASCADE, related_name='sessions')
     shift = models.ForeignKey('ShiftEmploye', on_delete=models.SET_NULL, null=True, blank=True, related_name='sessions')
+    journee_exploitation = models.ForeignKey('core.JourneeExploitation', on_delete=models.PROTECT, null=True, blank=True, related_name='sessions_caisse')
 
     ouverte_par = models.ForeignKey(
         Employe, on_delete=models.PROTECT, related_name='sessions_ouvertes',
@@ -44,6 +45,12 @@ class SessionCaisse(models.Model):
                 name='unique_session_active_par_caisse',
             ),
         ]
+
+    def save(self, *args, **kwargs):
+        if not self.journee_exploitation_id:
+            from apps.core.models import JourneeExploitation
+            self.journee_exploitation = JourneeExploitation.get_journee_en_cours()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Session {self.pk} - {self.ouverte_par} - {self.date_ouverture.strftime('%d/%m/%Y %H:%M')}"

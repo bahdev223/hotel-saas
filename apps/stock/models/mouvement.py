@@ -1,33 +1,18 @@
-﻿from decimal import Decimal
+from decimal import Decimal
 from django.db import models
 from .produit import Produit
 from .entrepot import Entrepot
 
 
+from ..enums.mouvements import TypeMouvement
+from ..enums.sources import SourceOperationType
+
 class MouvementStock(models.Model):
     """Mouvement de stock"""
 
-    TYPE_MOUVEMENT_CHOICES = [
-        ('ENTREE', 'Entrée'),
-        ('SORTIE', 'Sortie'),
-        ('TRANSFERT', 'Transfert'),
-        ('INITIALISATION', 'Initialisation'),
-    ]
-
-    MOTIF_CHOICES = [
-        ('achat', 'Achat'),
-        ('vente', 'Vente'),
-        ('consommation', 'Consommation'),
-        ('perte', 'Perte'),
-        ('production', 'Production'),
-        ('reapprovisionnement', 'Réapprovisionnement'),
-        ('inventaire', 'Inventaire'),
-        ('stock_initial', 'Stock initial'),
-    ]
-
     produit = models.ForeignKey(Produit, on_delete=models.CASCADE, related_name='mouvements')
-    type_mouvement = models.CharField(max_length=20, choices=TYPE_MOUVEMENT_CHOICES, default='ENTREE')
-    motif = models.CharField(max_length=30, choices=MOTIF_CHOICES, default='achat')
+    type_mouvement = models.CharField(max_length=20, choices=TypeMouvement.choices, default=TypeMouvement.ENTREE)
+    motif = models.CharField(max_length=30, choices=SourceOperationType.choices, default=SourceOperationType.ACHAT)
     quantite = models.DecimalField(max_digits=10, decimal_places=2)
     valeur_unitaire = models.DecimalField(max_digits=10, decimal_places=2, default=0,
         help_text="Prix unitaire au moment du mouvement")
@@ -41,6 +26,14 @@ class MouvementStock(models.Model):
     utilisateur = models.CharField(max_length=100)
     date_mouvement = models.DateTimeField(auto_now_add=True)
     unite_texte = models.CharField(max_length=100, blank=True, null=True)
+
+    source_operation = models.ForeignKey(
+        'stock.SourceOperation',
+        on_delete=models.PROTECT,
+        related_name="mouvements",
+        null=True, 
+        blank=True
+    )
 
     ecriture = models.ForeignKey(
         'comptabilite.EcritureModel',

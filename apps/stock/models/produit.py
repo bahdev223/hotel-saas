@@ -43,6 +43,16 @@ class Produit(models.Model):
     prix_achat = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     prix_vente = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     
+    methode_valorisation = models.CharField(
+        max_length=20,
+        choices=[
+            ("CUMP", "Coût moyen pondéré"),
+            ("FIFO", "Premier entré, premier sorti"),
+            ("STANDARD", "Coût standard"),
+        ],
+        default="CUMP",
+    )
+    
     # Stock central
     seuil_alerte = models.DecimalField(max_digits=10, decimal_places=2, default=5)
     

@@ -153,9 +153,20 @@ def transfert_central_restaurant(request, produit_id):
     if request.method == 'POST':
         try:
             quantite = Decimal(request.POST.get('quantite', 0))
-            TransfertService.transfert_central_vers_restaurant(
+            from apps.stock.models import Entrepot
+            
+            try:
+                central = Entrepot.objects.get(type_entrepot='CENTRAL', actif=True)
+                resto = Entrepot.objects.get(type_entrepot='RESTAURANT', actif=True)
+            except Entrepot.DoesNotExist:
+                messages.error(request, 'Entrepôt central ou restaurant non configuré.')
+                return redirect('restaurant:produits_stock')
+
+            TransfertService.transfert_entre_entrepots(
                 produit_id=produit_id,
                 quantite=quantite,
+                entrepot_source_id=central.id,
+                entrepot_dest_id=resto.id,
                 utilisateur=request.user.username,
                 reference=request.POST.get('reference', ''),
                 notes=request.POST.get('notes', '')

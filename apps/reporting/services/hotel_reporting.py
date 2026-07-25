@@ -19,7 +19,8 @@ class HotelReportingService:
         )
         
         chambres_occupees = reservations_actives.count()
-        total_chambres = 20  # À récupérer de ChambreModel.objects.filter(actif=True).count() idéalement
+        from apps.hotel.models import UniteModel
+        total_chambres = UniteModel.objects.filter(actif=True, type_unite__in=['CHAMBRE', 'VIP']).count()
         
         return {
             'chambres_occupees': chambres_occupees,

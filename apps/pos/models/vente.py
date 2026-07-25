@@ -29,6 +29,7 @@ class Vente(models.Model):
     point_vente = models.ForeignKey('PointVente', on_delete=models.CASCADE, related_name='ventes')
     caisse = models.ForeignKey(Caisse, on_delete=models.CASCADE, related_name='ventes_pos')
     session_caisse = models.ForeignKey('SessionCaisse', on_delete=models.SET_NULL, null=True, blank=True, related_name='ventes')
+    journee_exploitation = models.ForeignKey('core.JourneeExploitation', on_delete=models.PROTECT, null=True, blank=True, related_name='ventes')
     caissier = models.ForeignKey(Employe, on_delete=models.SET_NULL, null=True, blank=True, related_name='ventes_effectuees')
     serveur = models.ForeignKey(Employe, on_delete=models.SET_NULL, null=True, blank=True, related_name='ventes_servies')
     numero = models.CharField(max_length=50, unique=True)
@@ -56,6 +57,12 @@ class Vente(models.Model):
         verbose_name = 'Vente'
         verbose_name_plural = 'Ventes'
         ordering = ['-created_at']
+
+    def save(self, *args, **kwargs):
+        if not self.journee_exploitation_id:
+            from apps.core.models import JourneeExploitation
+            self.journee_exploitation = JourneeExploitation.get_journee_en_cours()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return f"Vente {self.numero} - {self.montant_total:,.0f} F"

@@ -51,6 +51,7 @@ class Paiement(models.Model):
     sens = models.CharField(max_length=20, choices=SENS_CHOICES, default='SORTIE')
     mode = models.CharField(max_length=20, choices=MODE_CHOICES)
     caisse = models.ForeignKey(Caisse, on_delete=models.PROTECT, related_name='paiements')
+    journee_exploitation = models.ForeignKey('core.JourneeExploitation', on_delete=models.PROTECT, null=True, blank=True, related_name='paiements')
     date = models.DateTimeField(auto_now_add=True)
     
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, null=True, blank=True)
@@ -92,6 +93,9 @@ class Paiement(models.Model):
     def save(self, *args, **kwargs):
         if not self.reference:
             self.reference = uuid.uuid4().hex[:8].upper()
+        if not self.journee_exploitation_id:
+            from apps.core.models import JourneeExploitation
+            self.journee_exploitation = JourneeExploitation.get_journee_en_cours()
         super().save(*args, **kwargs)
 
     def __str__(self):

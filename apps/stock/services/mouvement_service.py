@@ -1,9 +1,15 @@
-﻿# apps/stock/services/mouvement_service.py
+# apps/stock/services/mouvement_service.py
 from decimal import Decimal
 from django.db import transaction
-from ..models import StockEntrepot
+from django.core.exceptions import ValidationError
+from ..models import StockEntrepot, MouvementStock, JournalStock, SourceOperation
+from ..enums.mouvements import TypeMouvement
+from ..enums.sources import SourceOperationType
 from .stock_compta_service import StockComptaService
+from .valorisation_stock_service import ValorisationStockService
+from django.contrib.auth import get_user_model
 
+User = get_user_model()
 
 class MouvementStockService:
     """Service pour gerer les mouvements de stock avec ecriture comptable
@@ -12,98 +18,193 @@ class MouvementStockService:
     @staticmethod
     @transaction.atomic
     def entree_stock(produit, entrepot, quantite, utilisateur,
-                     motif='achat', valeur_unitaire=0,
+                     motif=SourceOperationType.ACHAT, valeur_unitaire=0,
                      reference=None, raison="", unite_texte='',
-                     entrepot_source=None):
+                     entrepot_source=None, source_operation=None,
+                     type_mouvement_override=None):
         quantite = Decimal(str(quantite))
         valeur_unitaire = Decimal(str(valeur_unitaire))
+        
+        if quantite <= 0:
+            raise ValidationError("La quantité doit être positive.")
+            
         try:
             stock = StockEntrepot.objects.select_for_update().get(entrepot=entrepot, produit=produit)
         except StockEntrepot.DoesNotExist:
             stock = StockEntrepot.objects.create(entrepot=entrepot, produit=produit, quantite=0)
             stock = StockEntrepot.objects.select_for_update().get(pk=stock.pk)
-        ancienne_quantite = stock.quantite
+            
+        stock_avant = stock.quantite
         stock.quantite += quantite
+        
+        # Mettre à jour le prix d'achat du stock (ancien CUMP de StockEntrepot, à déprécier à terme)
         if valeur_unitaire > 0 and stock.quantite > 0:
-            ancienne_valeur = Decimal(str(ancienne_quantite)) * Decimal(str(stock.prix_achat or 0))
+            ancienne_valeur = Decimal(str(stock_avant)) * Decimal(str(stock.prix_achat or 0))
             nouvelle_valeur = quantite * valeur_unitaire
             stock.prix_achat = (ancienne_valeur + nouvelle_valeur) / stock.quantite
-        stock.save()
+            
+        stock.save(update_fields=['quantite', 'prix_achat'])
 
-        return StockComptaService.enregistrer_mouvement(
-            produit=produit, type_mouvement='ENTREE', motif=motif,
-            quantite=quantite, valeur_unitaire=valeur_unitaire,
-            entrepot_dest=entrepot, entrepot_source=entrepot_source,
+        if not source_operation:
+            source_operation = SourceOperation.objects.create(
+                type_source=motif,
+                reference=reference or f"ENTREE-{produit.id}-{entrepot.id}",
+                notes=raison
+            )
+
+        utilisateur_username = utilisateur if isinstance(utilisateur, str) else getattr(utilisateur, 'username', 'system')
+        utilisateur_obj = utilisateur if not isinstance(utilisateur, str) and isinstance(utilisateur, User) else None
+
+        type_mouv = type_mouvement_override or TypeMouvement.ENTREE
+
+        mouvement = MouvementStock.objects.create(
+            produit=produit,
+            entrepot_dest=entrepot,
+            entrepot_source=entrepot_source,
+            type_mouvement=type_mouv,
+            motif=motif,
+            quantite=quantite,
+            valeur_unitaire=valeur_unitaire,
             reference=reference,
             raison=raison or "Entree de stock",
-            utilisateur=utilisateur if isinstance(utilisateur, str) else utilisateur.username,
+            utilisateur=utilisateur_username,
             unite_texte=unite_texte,
+            source_operation=source_operation
         )
+
+        JournalStock.objects.create(
+            mouvement=mouvement,
+            produit=produit,
+            entrepot=entrepot,
+            stock_avant=stock_avant,
+            quantite_mouvement=quantite,
+            stock_apres=stock.quantite,
+            cout_unitaire=valeur_unitaire,
+            valeur_mouvement=quantite * valeur_unitaire,
+            effectue_par=utilisateur_username,
+            effectue_par_user=utilisateur_obj
+        )
+
+        # Appel au module compta
+        try:
+            ecriture = StockComptaService.enregistrer_ecriture(mouvement)
+        except Exception:
+            # Pour l'instant on ignore les erreurs de compta en V1
+            pass
+            
+        return mouvement
 
     @staticmethod
     @transaction.atomic
     def sortie_stock(produit, entrepot, quantite, utilisateur,
-                     motif='vente', valeur_unitaire=0,
+                     motif=SourceOperationType.VENTE, valeur_unitaire=None,
                      reference=None, raison="", unite_texte='',
-                     entrepot_dest=None):
+                     entrepot_dest=None, source_operation=None,
+                     type_mouvement_override=None):
         quantite = Decimal(str(quantite))
-        valeur_unitaire = Decimal(str(valeur_unitaire))
+        
+        if quantite <= 0:
+            raise ValidationError("La quantité doit être positive.")
+            
         try:
             stock = StockEntrepot.objects.select_for_update().get(entrepot=entrepot, produit=produit)
         except StockEntrepot.DoesNotExist:
-            raise ValueError(f"Stock introuvable pour {produit.nom} dans {entrepot.nom}")
+            raise ValidationError(f"Stock introuvable pour {produit.nom} dans {entrepot.nom}")
+            
         if stock.quantite < quantite:
-            raise ValueError(f"Stock insuffisant pour {produit.nom}")
+            raise ValidationError(f"Stock insuffisant pour {produit.nom}")
+            
+        stock_avant = stock.quantite
+        
+        # Valorisation de la sortie (CUMP par defaut)
+        if valeur_unitaire is None:
+            cout_unitaire = ValorisationStockService.get_cout_sortie(
+                produit=produit,
+                entrepot=entrepot,
+                quantite=quantite
+            )
+        else:
+            cout_unitaire = Decimal(str(valeur_unitaire))
+            
         stock.quantite -= quantite
-        stock.save()
+        stock.save(update_fields=['quantite'])
 
-        return StockComptaService.enregistrer_mouvement(
-            produit=produit, type_mouvement='SORTIE', motif=motif,
-            quantite=quantite, valeur_unitaire=valeur_unitaire,
-            entrepot_source=entrepot, entrepot_dest=entrepot_dest,
+        if not source_operation:
+            source_operation = SourceOperation.objects.create(
+                type_source=motif,
+                reference=reference or f"SORTIE-{produit.id}-{entrepot.id}",
+                notes=raison
+            )
+
+        utilisateur_username = utilisateur if isinstance(utilisateur, str) else getattr(utilisateur, 'username', 'system')
+        utilisateur_obj = utilisateur if not isinstance(utilisateur, str) and isinstance(utilisateur, User) else None
+
+        type_mouv = type_mouvement_override or TypeMouvement.SORTIE
+
+        mouvement = MouvementStock.objects.create(
+            produit=produit,
+            entrepot_source=entrepot,
+            entrepot_dest=entrepot_dest,
+            type_mouvement=type_mouv,
+            motif=motif,
+            quantite=quantite,
+            valeur_unitaire=cout_unitaire,
             reference=reference,
             raison=raison or "Sortie de stock",
-            utilisateur=utilisateur if isinstance(utilisateur, str) else utilisateur.username,
+            utilisateur=utilisateur_username,
             unite_texte=unite_texte,
+            source_operation=source_operation
         )
+
+        JournalStock.objects.create(
+            mouvement=mouvement,
+            produit=produit,
+            entrepot=entrepot,
+            stock_avant=stock_avant,
+            quantite_mouvement=-quantite,
+            stock_apres=stock.quantite,
+            cout_unitaire=cout_unitaire,
+            valeur_mouvement=quantite * cout_unitaire,
+            effectue_par=utilisateur_username,
+            effectue_par_user=utilisateur_obj
+        )
+
+        # Appel au module compta
+        try:
+            ecriture = StockComptaService.enregistrer_ecriture(mouvement)
+        except Exception:
+            # Pour l'instant on ignore les erreurs de compta en V1
+            pass
+
+        return mouvement
 
     @staticmethod
     @transaction.atomic
     def initialiser_stock(produit, entrepot, quantite, utilisateur,
                           valeur_unitaire=0, reference=None, raison="", unite_texte=''):
-        quantite = Decimal(str(quantite))
-        valeur_unitaire = Decimal(str(valeur_unitaire))
-        try:
-            stock = StockEntrepot.objects.select_for_update().get(entrepot=entrepot, produit=produit)
-        except StockEntrepot.DoesNotExist:
-            stock = StockEntrepot.objects.create(entrepot=entrepot, produit=produit, quantite=0)
-            stock = StockEntrepot.objects.select_for_update().get(pk=stock.pk)
-        stock.quantite += quantite
-        stock.save()
-
-        return StockComptaService.enregistrer_mouvement(
-            produit=produit, type_mouvement='INITIALISATION', motif='stock_initial',
-            quantite=quantite, valeur_unitaire=valeur_unitaire,
-            entrepot_dest=entrepot, reference=reference,
-            raison=raison or "Stock initial",
-            utilisateur=utilisateur if isinstance(utilisateur, str) else utilisateur.username,
-            unite_texte=unite_texte,
+        return MouvementStockService.entree_stock(
+            produit=produit, entrepot=entrepot, quantite=quantite,
+            utilisateur=utilisateur, motif=SourceOperationType.INITIALISATION,
+            valeur_unitaire=valeur_unitaire, reference=reference,
+            raison=raison or "Stock initial", unite_texte=unite_texte
         )
 
     @staticmethod
     @transaction.atomic
     def ajuster_stock(produit, entrepot, nouvelle_quantite, utilisateur,
-                      motif='inventaire', raison=""):
+                      motif=SourceOperationType.INVENTAIRE, raison=""):
         stock = StockEntrepot.objects.select_for_update().get(entrepot=entrepot, produit=produit)
         diff = Decimal(str(nouvelle_quantite)) - stock.quantite
         if diff > 0:
             return MouvementStockService.entree_stock(
                 produit, entrepot, diff, utilisateur,
-                motif=motif, raison=f"Ajustement: {raison}"
+                motif=motif, raison=f"Ajustement: {raison}",
+                type_mouvement_override=TypeMouvement.AJUSTEMENT_POSITIF
             )
         elif diff < 0:
             return MouvementStockService.sortie_stock(
                 produit, entrepot, abs(diff), utilisateur,
-                motif=motif, raison=f"Ajustement: {raison}"
+                motif=motif, raison=f"Ajustement: {raison}",
+                type_mouvement_override=TypeMouvement.AJUSTEMENT_NEGATIF
             )
         return None
