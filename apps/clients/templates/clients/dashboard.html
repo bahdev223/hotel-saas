@@ -494,6 +494,7 @@
                     <label class="label-md3">Adresse</label>
                     <textarea x-model="editForm.adresse" class="input-md3 rounded-lg w-full text-sm" rows="2"></textarea>
                 </div>
+                <div x-show="editFormError" class="text-sm text-error"><i class="fas fa-exclamation-circle mr-1"></i><span x-text="editFormError"></span></div>
                 <div class="flex gap-3 pt-2">
                     <button type="submit" class="flex-1 btn-md3-primary py-2 rounded-lg text-sm" :disabled="saving">
                         <i class="fas fa-spinner fa-spin mr-1" x-show="saving" x-cloak></i>
@@ -538,6 +539,7 @@ function clientsApp() {
         showEdit: false,
         saving: false,
         formError: '',
+        editFormError: '',
         form: { nom: '', prenom: '', telephone: '', email: '', adresse: '', type_client: 'PARTICULIER' },
         editForm: { id: '', nom_complet: '', nom: '', prenom: '', telephone: '', email: '', adresse: '' },
 
@@ -717,44 +719,58 @@ function clientsApp() {
                 adresse: c.adresse || '',
                 type_client: c.type_client,
             };
+            this.editFormError = '';
             this.showEdit = true;
         },
 
         async ajouterClient() {
             if (!this.form.nom.trim()) { this.formError = 'Le nom est requis'; return; }
+            if (!this.form.telephone.trim()) { this.formError = 'Le téléphone est requis'; return; }
             this.formError = '';
             this.saving = true;
             try {
                 const r = await fetch('/clients/ajouter/', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': getCsrfToken() },
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': getCsrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
                     body: new URLSearchParams(this.form).toString()
                 });
-                const html = await r.text();
-                if (r.ok && !html.includes('class="text-error"')) {
+                const d = await r.json();
+                if (d.success) {
                     this.form = { nom: '', prenom: '', telephone: '', email: '', adresse: '', type_client: 'PARTICULIER' };
                     this.activeTab = 'liste';
                     await this.chargerStats();
                 } else {
-                    this.formError = 'Erreur lors de l\'ajout';
+                    this.formError = d.error || 'Erreur lors de l\'ajout';
                 }
             } catch(e) { this.formError = 'Erreur réseau'; }
             this.saving = false;
         },
 
         async sauvegarderClient() {
+            this.editFormError = '';
             this.saving = true;
             try {
                 const r = await fetch('/clients/' + this.editForm.id + '/modifier/', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'X-CSRFToken': getCsrfToken() },
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                        'X-CSRFToken': getCsrfToken(),
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
                     body: new URLSearchParams(this.editForm).toString()
                 });
-                if (r.ok) {
+                const d = await r.json();
+                if (d.success) {
                     this.showEdit = false;
                     await this.chargerStats();
+                } else {
+                    this.editFormError = d.error || 'Erreur lors de la modification';
                 }
-            } catch(e) { console.error(e); }
+            } catch(e) { this.editFormError = 'Erreur réseau'; }
             this.saving = false;
         },
 

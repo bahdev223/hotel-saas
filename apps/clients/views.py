@@ -34,14 +34,28 @@ def dashboard(request):
     return render(request, 'clients/dashboard.html', context)
 
 
+def _is_ajax(request):
+    return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
+
+
 @login_required
 def ajouter_client(request):
     if request.method == 'POST':
+        nom = (request.POST.get('nom') or '').strip()
+        telephone = (request.POST.get('telephone') or '').strip()
+        if not nom or not telephone:
+            erreur = 'Le nom et le téléphone sont obligatoires.'
+            if _is_ajax(request):
+                return JsonResponse({'success': False, 'error': erreur}, status=400)
+            messages.error(request, erreur)
+            return render(request, 'clients/ajouter.html', {
+                'types_client': [t[0] for t in Client.TYPE_CLIENT_CHOICES],
+            })
         try:
             client = Client.objects.create(
-                nom=request.POST.get('nom'),
+                nom=nom,
                 prenom=request.POST.get('prenom', ''),
-                telephone=request.POST.get('telephone', ''),
+                telephone=telephone,
                 email=request.POST.get('email', ''),
                 adresse=request.POST.get('adresse', ''),
                 type_client=request.POST.get('type_client', 'PARTICULIER'),
@@ -63,9 +77,13 @@ def ajouter_client(request):
                         solde=montant,
                     )
 
+            if _is_ajax(request):
+                return JsonResponse({'success': True, 'id': client.id})
             messages.success(request, f'Client {client.nom_complet} ajouté avec succès')
             return redirect('clients:dashboard')
         except Exception as e:
+            if _is_ajax(request):
+                return JsonResponse({'success': False, 'error': str(e)}, status=400)
             messages.error(request, f'Erreur: {str(e)}')
 
     types_client = [t[0] for t in Client.TYPE_CLIENT_CHOICES]
@@ -90,18 +108,30 @@ def modifier_client(request, client_id):
     client = get_object_or_404(Client, id=client_id)
 
     if request.method == 'POST':
-        try:
-            client.nom = request.POST.get('nom')
-            client.prenom = request.POST.get('prenom', '')
-            client.telephone = request.POST.get('telephone', '')
-            client.email = request.POST.get('email', '')
-            client.adresse = request.POST.get('adresse', '')
-            client.type_client = request.POST.get('type_client')
-            client.save()
-            messages.success(request, 'Client modifié avec succès')
-            return redirect('clients:dashboard')
-        except Exception as e:
-            messages.error(request, f'Erreur: {str(e)}')
+        nom = (request.POST.get('nom') or '').strip()
+        telephone = (request.POST.get('telephone') or '').strip()
+        if not nom or not telephone:
+            erreur = 'Le nom et le téléphone sont obligatoires.'
+            if _is_ajax(request):
+                return JsonResponse({'success': False, 'error': erreur}, status=400)
+            messages.error(request, erreur)
+        else:
+            try:
+                client.nom = nom
+                client.prenom = request.POST.get('prenom', '')
+                client.telephone = telephone
+                client.email = request.POST.get('email', '')
+                client.adresse = request.POST.get('adresse', '')
+                client.type_client = request.POST.get('type_client') or client.type_client
+                client.save()
+                if _is_ajax(request):
+                    return JsonResponse({'success': True})
+                messages.success(request, 'Client modifié avec succès')
+                return redirect('clients:dashboard')
+            except Exception as e:
+                if _is_ajax(request):
+                    return JsonResponse({'success': False, 'error': str(e)}, status=400)
+                messages.error(request, f'Erreur: {str(e)}')
 
     types_client = [t[0] for t in Client.TYPE_CLIENT_CHOICES]
     return render(request, 'clients/modifier.html', {
