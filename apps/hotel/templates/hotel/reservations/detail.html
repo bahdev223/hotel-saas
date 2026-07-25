@@ -65,10 +65,9 @@
             <thead>
                 <tr class="bg-surface-container border-b border-outline/10">
                     <th class="text-left py-3 px-4">Chambre</th>
-                    <th class="text-left py-3 px-4">Plan</th>
-                    <th class="text-left py-3 px-4">Type</th>
-                    <th class="text-right py-3 px-4">Prix unitaire</th>
-                    <th class="text-center py-3 px-4">Qté</th>
+                    <th class="text-left py-3 px-4">Tarif</th>
+                    <th class="text-right py-3 px-4">Prix / nuit</th>
+                    <th class="text-center py-3 px-4">Nuits</th>
                     <th class="text-right py-3 px-4">Total</th>
                 </tr>
             </thead>
@@ -76,8 +75,7 @@
                 {% for rc in chambres %}
                 <tr class="border-b border-outline/5">
                     <td class="py-3 px-4">{{ rc.chambre.code }} - {{ rc.chambre.nom }}</td>
-                    <td class="py-3 px-4">{{ rc.plan_tarifaire_nom }}</td>
-                    <td class="py-3 px-4">{{ rc.type_tarif_nom }}</td>
+                    <td class="py-3 px-4">{{ rc.tarif_nom }}</td>
                     <td class="py-3 px-4 text-right font-mono">{{ rc.montant_unitaire }}</td>
                     <td class="py-3 px-4 text-center">{{ rc.quantite }}</td>
                     <td class="py-3 px-4 text-right font-mono">{{ rc.montant_total }}</td>

@@ -61,8 +61,8 @@ class CheckOutService:
         elif rc and nuits == 1:
             sejour.montant_base = rc.montant_unitaire
         elif not rc and sejour.montant_base == 0:
-            from ..models.tarifs import TarifChambre
-            tarif = TarifChambre.objects.filter(type_chambre=sejour.chambre.type_chambre, actif=True).first()
+            from ..models.tarifs import Tarif
+            tarif = Tarif.objects.filter(unite=sejour.chambre, actif=True).first()
             if tarif:
                 sejour.montant_base = tarif.montant * Decimal(str(nuits))
 

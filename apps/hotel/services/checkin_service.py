@@ -73,12 +73,10 @@ class CheckInService:
         if chambre.statut not in (StatutChambre.DISPONIBLE, StatutChambre.RESERVEE):
             raise ValidationError("La chambre n'est pas disponible.")
 
-        montant = TarificationService.calculer_montant(
+        montant = TarificationService.calculer_montant_sejour(
             tarif=tarif,
             date_debut=date_arrivee,
             date_fin=date_depart,
-            nombre_adultes=nombre_adultes,
-            nombre_enfants=nombre_enfants,
         )
 
         sejour = SejourModel.objects.create(

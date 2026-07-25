@@ -4,7 +4,7 @@ from unfold.admin import ModelAdmin
 from .models import (
     UniteModel, LocationModel,
     TypeChambre,
-    TypeTarif, PlanTarifaire, TarifChambre, CreneauTarifaire,
+    Tarif,
     Reservation, ReservationChambre,
     Sejour,
     Occupant,
@@ -39,38 +39,13 @@ class TypeChambreAdmin(ModelAdmin):
     list_editable = ['actif', 'ordre']
 
 
-@admin.register(TypeTarif)
-class TypeTarifAdmin(ModelAdmin):
-    list_display = ['code', 'nom', 'unite_facturation', 'duree_minutes', 'actif', 'ordre']
-    list_filter = ['unite_facturation', 'actif']
-    search_fields = ['code', 'nom']
-    list_editable = ['actif', 'ordre']
-
-
-@admin.register(PlanTarifaire)
-class PlanTarifaireAdmin(ModelAdmin):
-    list_display = ['code', 'nom', 'type_client', 'priorite', 'actif']
-    list_filter = ['type_client', 'actif']
-    search_fields = ['code', 'nom']
-    autocomplete_fields = ['etablissement']
-    list_editable = ['priorite', 'actif']
-
-
-@admin.register(TarifChambre)
-class TarifChambreAdmin(ModelAdmin):
-    list_display = ['type_chambre', 'plan_tarifaire', 'type_tarif', 'montant', 'actif']
-    list_filter = ['actif', 'type_chambre', 'plan_tarifaire', 'type_tarif']
-    search_fields = ['type_chambre__nom', 'plan_tarifaire__nom', 'type_tarif__nom']
-    autocomplete_fields = ['etablissement', 'type_chambre', 'plan_tarifaire', 'type_tarif']
+@admin.register(Tarif)
+class TarifAdmin(ModelAdmin):
+    list_display = ['unite', 'nom', 'montant', 'actif']
+    list_filter = ['actif', 'unite']
+    search_fields = ['nom', 'unite__nom', 'unite__code']
+    autocomplete_fields = ['unite']
     list_editable = ['montant', 'actif']
-
-
-@admin.register(CreneauTarifaire)
-class CreneauTarifaireAdmin(ModelAdmin):
-    list_display = ['nom', 'type_tarif', 'heure_debut', 'heure_fin', 'actif']
-    list_filter = ['actif']
-    search_fields = ['nom']
-    autocomplete_fields = ['type_tarif']
 
 
 @admin.register(Reservation)
@@ -84,7 +59,7 @@ class ReservationAdmin(ModelAdmin):
 
 @admin.register(ReservationChambre)
 class ReservationChambreAdmin(ModelAdmin):
-    list_display = ['reservation', 'chambre', 'plan_tarifaire_nom', 'montant_unitaire', 'montant_total']
+    list_display = ['reservation', 'chambre', 'tarif_nom', 'montant_unitaire', 'montant_total']
     autocomplete_fields = ['reservation', 'chambre', 'tarif_source']
 
 

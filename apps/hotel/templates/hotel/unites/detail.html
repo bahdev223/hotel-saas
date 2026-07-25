@@ -71,6 +71,181 @@
             </div>
             {% endif %}
         </div>
+        <!-- TARIFS SECTION -->
+        <div x-data="tarifsChambre()" class="card-md3">
+            <div class="px-6 py-4 border-b border-outline/10 flex justify-between items-center">
+                <h3 class="font-semibold"><i class="fas fa-tags text-secondary mr-2"></i>Tarifs de la chambre</h3>
+                <button @click="openModal()" class="btn-md3-primary px-3 py-1.5 text-xs rounded-lg">
+                    <i class="fas fa-plus mr-1"></i>Ajouter un tarif
+                </button>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-surface-container-high">
+                        <tr class="text-on-surface-variant">
+                            <th class="px-4 py-3 text-left">Nom</th>
+                            <th class="px-4 py-3 text-right">Montant</th>
+                            <th class="px-4 py-3 text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-outline/10">
+                        <template x-for="tarif in tarifs" :key="tarif.id">
+                            <tr class="hover:bg-surface-container-low">
+                                <td class="px-4 py-3 font-medium" x-text="tarif.nom"></td>
+                                <td class="px-4 py-3 text-right font-mono" x-text="formatMoney(tarif.montant) + ' F'"></td>
+                                <td class="px-4 py-3 text-center">
+                                    <button @click="openModal(tarif)" class="text-blue-400 hover:text-blue-300 mx-1" title="Modifier">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button @click="deleteTarif(tarif.id)" class="text-red-400 hover:text-red-300 mx-1" title="Supprimer">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                        </template>
+                        <tr x-show="tarifs.length === 0" style="display: none;">
+                            <td colspan="3" class="p-6 text-center text-on-surface-variant text-sm">Aucun tarif défini pour cette chambre</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- MODAL TARIF -->
+            <div x-show="isModalOpen" style="display: none;" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+                <div @click.away="closeModal()" class="bg-surface-container rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-outline/10">
+                    <div class="px-6 py-4 border-b border-outline/10 flex justify-between items-center bg-surface-container-low">
+                        <h3 class="font-semibold text-lg" x-text="editingId ? 'Modifier le tarif' : 'Nouveau tarif'"></h3>
+                        <button @click="closeModal()" class="text-on-surface-variant hover:text-on-surface transition-colors">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    <div class="p-6 space-y-4">
+                        <div>
+                            <label class="block text-xs font-medium text-on-surface-variant mb-1">Nom du tarif (ex: Nuitée, Sieste)</label>
+                            <input type="text" x-model="form.nom" class="input-md3 w-full" placeholder="Ex: Nuitée">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-on-surface-variant mb-1">Montant (F CFA)</label>
+                            <input type="number" x-model="form.montant" class="input-md3 w-full" min="0" placeholder="Ex: 15000">
+                        </div>
+                    </div>
+                    <div class="px-6 py-4 bg-surface-container-low border-t border-outline/10 flex justify-end gap-3">
+                        <button @click="closeModal()" class="px-4 py-2 text-sm font-medium text-on-surface-variant hover:text-on-surface transition-colors">Annuler</button>
+                        <button @click="saveTarif()" class="btn-md3-primary px-4 py-2 text-sm rounded-lg" :disabled="isSaving">
+                            <i class="fas fa-spinner fa-spin mr-2" x-show="isSaving"></i>
+                            <span x-text="isSaving ? 'Enregistrement...' : 'Enregistrer'"></span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <script>
+            function tarifsChambre() {
+                return {
+                    uniteId: '{{ unite.id }}',
+                    tarifs: [],
+                    isModalOpen: false,
+                    isSaving: false,
+                    editingId: null,
+                    form: { nom: '', montant: '' },
+
+                    async init() {
+                        await this.fetchTarifs();
+                    },
+
+                    async fetchTarifs() {
+                        try {
+                            const res = await fetch(`/hotel/api/tarifs/?chambre=${this.uniteId}`);
+                            const data = await res.json();
+                            if(data.success) {
+                                this.tarifs = data.tarifs;
+                            }
+                        } catch(e) {
+                            console.error("Erreur de chargement des tarifs", e);
+                        }
+                    },
+
+                    openModal(tarif = null) {
+                        if(tarif) {
+                            this.editingId = tarif.id;
+                            this.form.nom = tarif.nom;
+                            this.form.montant = tarif.montant;
+                        } else {
+                            this.editingId = null;
+                            this.form = { nom: '', montant: '' };
+                        }
+                        this.isModalOpen = true;
+                    },
+
+                    closeModal() {
+                        this.isModalOpen = false;
+                        this.editingId = null;
+                        this.form = { nom: '', montant: '' };
+                    },
+
+                    async saveTarif() {
+                        if(!this.form.nom || !this.form.montant) {
+                            alert("Veuillez remplir le nom et le montant.");
+                            return;
+                        }
+                        this.isSaving = true;
+                        try {
+                            const payload = {
+                                chambre_id: this.uniteId,
+                                nom: this.form.nom,
+                                montant: this.form.montant
+                            };
+                            if(this.editingId) {
+                                payload.tarif_id = this.editingId;
+                            }
+
+                            const res = await fetch('/hotel/api/tarifs/save/', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                                },
+                                body: JSON.stringify(payload)
+                            });
+                            const data = await res.json();
+                            if(data.success) {
+                                await this.fetchTarifs();
+                                this.closeModal();
+                            } else {
+                                alert("Erreur: " + data.error);
+                            }
+                        } catch(e) {
+                            alert("Erreur réseau");
+                        } finally {
+                            this.isSaving = false;
+                        }
+                    },
+
+                    async deleteTarif(id) {
+                        if(!confirm("Êtes-vous sûr de vouloir supprimer ce tarif ?")) return;
+                        try {
+                            const res = await fetch(`/hotel/api/tarifs/${id}/supprimer/`, {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                                }
+                            });
+                            const data = await res.json();
+                            if(data.success) {
+                                await this.fetchTarifs();
+                            }
+                        } catch(e) {
+                            alert("Erreur lors de la suppression");
+                        }
+                    },
+
+                    formatMoney(value) {
+                        return Number(value).toLocaleString('fr-FR');
+                    }
+                }
+            }
+        </script>
 
         <div class="card-md3">
             <div class="px-6 py-4 border-b border-outline/10"><h3 class="font-semibold"><i class="fas fa-history text-secondary mr-2"></i>Dernières locations</h3></div>

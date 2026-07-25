@@ -95,12 +95,12 @@ class ReservationChambre(models.Model):
         related_name="reservations",
     )
     tarif_source = models.ForeignKey(
-        "hotel.TarifChambre",
-        on_delete=models.PROTECT,
+        "hotel.Tarif",
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
         related_name="reservations",
     )
-    type_tarif_nom = models.CharField(max_length=100)
-    plan_tarifaire_nom = models.CharField(max_length=150)
+    tarif_nom = models.CharField(max_length=100)
     montant_unitaire = models.DecimalField(max_digits=12, decimal_places=2)
     quantite = models.DecimalField(max_digits=10, decimal_places=2, default=1)
     montant_total = models.DecimalField(max_digits=12, decimal_places=2)
@@ -110,4 +110,4 @@ class ReservationChambre(models.Model):
         verbose_name_plural = "Chambres réservées"
 
     def __str__(self):
-        return f"{self.chambre} - {self.plan_tarifaire_nom} ({self.type_tarif_nom})"
+        return f"{self.chambre} - {self.tarif_nom}"

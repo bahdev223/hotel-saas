@@ -1,33 +1,11 @@
 # apps/hotel/views/__init__.py
 from .dashboard import dashboard
-from .clients import (
-    liste_clients,
-    detail_client,
-    ajouter_client,
-    modifier_client,
-)
 from .unites import (
     liste_unites,
     detail_unite,
     ajouter_unite,
     modifier_unite,
     changer_statut_unite,
-)
-from .locations import (
-    liste_locations,
-    detail_location,
-    ajouter_sejour,
-    ajouter_evenement,
-    annuler_location,
-)
-from .tarifs import (
-    grille_tarifs,
-    ajouter_tarif,
-    modifier_tarif,
-    desactiver_tarif,
-    liste_plans,
-    liste_types_tarif,
-    liste_creneaux,
 )
 from .reservations import (
     liste_reservations,
@@ -43,58 +21,31 @@ from .sejours import (
     cloturer_sejour,
 )
 from .api import (
-    api_annuler_location,
     api_ca_evolution,
-    api_checkout_location,
-    api_clients,
-    api_locations,
-    api_paiement_location,
-    api_save_client,
-    api_save_location,
     api_save_unite,
     api_stats,
     api_supprimer_unite,
-    api_tarifs,
     api_unites,
+    api_tarifs,
+    api_save_tarif,
+    api_supprimer_tarif,
 )
 
 __all__ = [
     'dashboard',
-    'liste_clients',
-    'detail_client',
-    'ajouter_client',
-    'modifier_client',
     'liste_unites',
     'detail_unite',
     'ajouter_unite',
     'modifier_unite',
     'changer_statut_unite',
-    'liste_locations',
-    'detail_location',
-    'ajouter_sejour',
-    'ajouter_evenement',
-    'check_out',
-    'annuler_location',
-    'api_annuler_location',
     'api_ca_evolution',
-    'api_checkout_location',
-    'api_clients',
-    'api_locations',
-    'api_paiement_location',
-    'api_save_client',
-    'api_save_location',
     'api_save_unite',
     'api_stats',
     'api_supprimer_unite',
-    'api_tarifs',
     'api_unites',
-    'grille_tarifs',
-    'ajouter_tarif',
-    'modifier_tarif',
-    'desactiver_tarif',
-    'liste_plans',
-    'liste_types_tarif',
-    'liste_creneaux',
+    'api_tarifs',
+    'api_save_tarif',
+    'api_supprimer_tarif',
     'liste_reservations',
     'detail_reservation',
     'ajouter_reservation',
@@ -105,4 +56,3 @@ __all__ = [
     'check_out',
     'cloturer_sejour',
 ]
-

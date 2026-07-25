@@ -1,8 +1,8 @@
-﻿from apps.clients.models import Client
+from apps.clients.models import Client
 from .unite import UniteModel
 from .location import LocationModel
 from .types_chambres import TypeChambre
-from .tarifs import TypeTarif, PlanTarifaire, TarifChambre, CreneauTarifaire
+from .tarifs import Tarif
 from .reservations import Reservation, ReservationChambre
 from .sejours import Sejour
 from .occupants import Occupant
@@ -15,7 +15,7 @@ __all__ = [
     'ClientModel', 'Client',
     'UniteModel', 'LocationModel',
     'TypeChambre',
-    'TypeTarif', 'PlanTarifaire', 'TarifChambre', 'CreneauTarifaire',
+    'Tarif',
     'Reservation', 'ReservationChambre',
     'Sejour',
     'Occupant',

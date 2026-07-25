@@ -84,9 +84,11 @@ document.getElementById('type_chambre').addEventListener('change', function() {
             .then(r => r.json())
             .then(data => {
                 chambreSelect.innerHTML = '<option value="">---</option>';
-                data.forEach(u => {
-                    chambreSelect.innerHTML += `<option value="${u.id}">${u.code} - ${u.nom}</option>`;
-                });
+                if(data.success && data.unites) {
+                    data.unites.forEach(u => {
+                        chambreSelect.innerHTML += `<option value="${u.id}">${u.code} - ${u.nom}</option>`;
+                    });
+                }
             });
     } else {
         chambreSelect.innerHTML = '<option value="">---</option>';
@@ -102,9 +104,15 @@ document.getElementById('chambre').addEventListener('change', function() {
             .then(r => r.json())
             .then(data => {
                 tarifSelect.innerHTML = '<option value="">---</option>';
-                data.forEach(t => {
-                    tarifSelect.innerHTML += `<option value="${t.id}">${t.plan} - ${t.type_tarif} : ${t.montant}</option>`;
-                });
+                if(data.success && data.tarifs) {
+                    if (data.tarifs.length === 0) {
+                        tarifSelect.innerHTML = '<option value="">Aucun tarif pour cette chambre</option>';
+                    }
+                    data.tarifs.forEach(t => {
+                        const montant = Number(t.montant).toLocaleString('fr-FR');
+                        tarifSelect.innerHTML += `<option value="${t.id}">${t.nom} — ${montant} F</option>`;
+                    });
+                }
             });
     } else {
         tarifSelect.innerHTML = '<option value="">---</option>';

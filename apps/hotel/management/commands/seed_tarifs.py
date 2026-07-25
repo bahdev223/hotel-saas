@@ -1,13 +1,14 @@
+from decimal import Decimal
+
 from django.core.management.base import BaseCommand
-from django.utils import timezone
 
 from apps.entreprises.services import obtenir_etablissement_actuel
 from apps.entreprises.models import Etablissement
-from apps.hotel.models import TypeChambre, TypeTarif, PlanTarifaire, TarifChambre, CreneauTarifaire
+from apps.hotel.models import TypeChambre, UniteModel, Tarif
 
 
 class Command(BaseCommand):
-    help = "Crée les données de démonstration pour la tarification"
+    help = "Crée des chambres et tarifs de démonstration (modèle simplifié : Tarif lié directement à la chambre)"
 
     def handle(self, *args, **options):
         etablissement = obtenir_etablissement_actuel()
@@ -17,16 +18,15 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR("Aucun établissement trouvé."))
             return
 
-        # -- Types de chambres --
+        # -- Types de chambres (catégorisation légère, sans lien avec le prix) --
         types_chambres_data = [
             ("chambre-standard", "Chambre Standard", "CHAMBRE", 2, 25, "#4A90D9", "bed"),
             ("chambre-vip", "Chambre VIP", "VIP", 2, 35, "#D4AF37", "star"),
             ("suite", "Suite", "SUITE", 4, 50, "#9B59B6", "gem"),
-            ("salle-reunion", "Salle de réunion", "SALLE", 20, 40, "#2ECC71", "users"),
-            ("espace", "Espace événementiel", "ESPACE", 50, 100, "#E67E22", "expand"),
         ]
+        types_crees = {}
         for code, nom, cat, cap, surf, color, icon in types_chambres_data:
-            TypeChambre.objects.get_or_create(
+            tc, _ = TypeChambre.objects.get_or_create(
                 code=code,
                 defaults=dict(
                     nom=nom, categorie=cat,
@@ -35,92 +35,46 @@ class Command(BaseCommand):
                     etablissement=etablissement,
                 ),
             )
+            types_crees[code] = tc
         self.stdout.write(self.style.SUCCESS(f"Types de chambres : {TypeChambre.objects.count()}"))
 
-        # -- Types de tarif --
-        types_tarif_data = [
-            ("nuitee", "Nuitée", "NUITEE", 1440, 1),
-            ("journee", "Journée complète", "JOURNEE", 480, 2),
-            ("demi-journee", "Demi-journée", "DEMI_JOURNEE", 240, 3),
-            ("heure", "Tarif horaire", "HEURE", 60, 4),
-            ("semaine", "Tarif semaine", "SEMAINE", 10080, 5),
-            ("mois", "Tarif mensuel", "MOIS", 43200, 6),
-            ("forfait", "Forfait", "FORFAIT", None, 7),
+        # -- Chambres de démonstration --
+        chambres_data = [
+            ("CH-101", "Chambre 101", "chambre-standard"),
+            ("CH-102", "Chambre 102", "chambre-standard"),
+            ("VIP-201", "Suite VIP 201", "chambre-vip"),
         ]
-        for code, nom, unite, duree, ordre in types_tarif_data:
-            TypeTarif.objects.get_or_create(
-                code=code,
-                defaults=dict(nom=nom, unite_facturation=unite, duree_minutes=duree, ordre=ordre),
-            )
-        self.stdout.write(self.style.SUCCESS(f"Types de tarif : {TypeTarif.objects.count()}"))
-
-        # -- Plans tarifaires --
-        plans_data = [
-            ("standard", "Tarif standard", "TOUS", 100, False, True),
-            ("entreprise", "Tarif entreprise", "ENTREPRISE", 50, False, True),
-            ("agence", "Tarif agence", "AGENCE", 60, False, True),
-            ("weekend", "Tarif week-end", "TOUS", 200, False, True),
-            ("haute-saison", "Haute saison", "TOUS", 250, False, True),
-            ("basse-saison", "Basse saison", "TOUS", 300, False, True),
-            ("petit-dejeuner", "Avec petit-déjeuner", "TOUS", 150, True, True),
-        ]
-        for code, nom, tc, priorite, pdej, taxes in plans_data:
-            PlanTarifaire.objects.get_or_create(
-                etablissement=etablissement,
+        chambres_creees = {}
+        for code, nom, type_code in chambres_data:
+            chambre, _ = UniteModel.objects.get_or_create(
                 code=code,
                 defaults=dict(
-                    nom=nom, type_client=tc,
-                    priorite=priorite,
-                    petit_dejeuner_inclus=pdej,
-                    taxes_incluses=taxes,
+                    nom=nom,
+                    type_unite="CHAMBRE" if type_code != "chambre-vip" else "VIP",
+                    type_chambre=types_crees[type_code],
+                    capacite=types_crees[type_code].capacite_par_defaut,
+                    prix=5000,       # legacy (tarif horaire de secours pour l'ancien flux POS)
+                    prix_jour=25000,
                 ),
             )
-        self.stdout.write(self.style.SUCCESS(f"Plans tarifaires : {PlanTarifaire.objects.count()}"))
+            chambres_creees[code] = chambre
+        self.stdout.write(self.style.SUCCESS(f"Chambres : {len(chambres_creees)}"))
 
-        # -- Tarifs chambres --
-        standard = TypeChambre.objects.filter(code="chambre-standard").first()
-        nuit = TypeTarif.objects.filter(code="nuitee").first()
-        jour = TypeTarif.objects.filter(code="journee").first()
-        demi = TypeTarif.objects.filter(code="demi-journee").first()
-        heure = TypeTarif.objects.filter(code="heure").first()
-        plan_std = PlanTarifaire.objects.filter(etablissement=etablissement, code="standard").first()
-        plan_ent = PlanTarifaire.objects.filter(etablissement=etablissement, code="entreprise").first()
-        plan_we = PlanTarifaire.objects.filter(etablissement=etablissement, code="weekend").first()
-
-        tarifs_initiaux = []
-        if standard and plan_std and nuit:
-            tarifs_initiaux.append((standard, plan_std, nuit, "25000"))
-        if standard and plan_std and jour:
-            tarifs_initiaux.append((standard, plan_std, jour, "30000"))
-        if standard and plan_std and demi:
-            tarifs_initiaux.append((standard, plan_std, demi, "15000"))
-        if standard and plan_std and heure:
-            tarifs_initiaux.append((standard, plan_std, heure, "5000"))
-        if standard and plan_ent and nuit:
-            tarifs_initiaux.append((standard, plan_ent, nuit, "22000"))
-        if standard and plan_we and nuit:
-            tarifs_initiaux.append((standard, plan_we, nuit, "28000"))
-
-        for tc, plan, tt, montant in tarifs_initiaux:
-            TarifChambre.objects.get_or_create(
-                etablissement=etablissement,
-                type_chambre=tc,
-                plan_tarifaire=plan,
-                type_tarif=tt,
-                defaults=dict(montant=montant),
-            )
-        self.stdout.write(self.style.SUCCESS(f"Tarifs chambres : {TarifChambre.objects.count()}"))
-
-        # -- Créneaux --
-        creneaux_data = [
-            (demi, "Matin", "08:00", "13:00"),
-            (demi, "Après-midi", "14:00", "19:00"),
-        ]
-        for tt, nom, h_deb, h_fin in creneaux_data:
-            if tt:
-                CreneauTarifaire.objects.get_or_create(
-                    type_tarif=tt,
+        # -- Tarifs multiples par chambre, directement liés (aucune configuration requise) --
+        tarifs_par_chambre = {
+            "CH-101": [("Nuitée", 25000), ("Demi-journée", 15000), ("Nuitée week-end", 30000)],
+            "CH-102": [("Nuitée", 25000), ("Demi-journée", 15000)],
+            "VIP-201": [("Nuitée", 45000), ("Nuitée week-end", 55000), ("Forfait mensuel", 900000)],
+        }
+        total_tarifs = 0
+        for code, tarifs in tarifs_par_chambre.items():
+            chambre = chambres_creees[code]
+            for nom, montant in tarifs:
+                _, created = Tarif.objects.get_or_create(
+                    unite=chambre,
                     nom=nom,
-                    defaults=dict(heure_debut=h_deb, heure_fin=h_fin),
+                    defaults={"montant": Decimal(str(montant))},
                 )
-        self.stdout.write(self.style.SUCCESS(f"Créneaux : {CreneauTarifaire.objects.count()}"))
+                if created:
+                    total_tarifs += 1
+        self.stdout.write(self.style.SUCCESS(f"Tarifs créés : {total_tarifs} (total en base : {Tarif.objects.count()})"))

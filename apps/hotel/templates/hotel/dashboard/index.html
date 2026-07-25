@@ -15,7 +15,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm text-gray-400">Taux d'occupation</p>
-                    <p class="text-2xl font-bold text-secondary mt-1" x-text="stats.taux_occupation + '%'"></p>
+                    <p class="text-2xl font-bold text-secondary mt-1">{{ taux_occupation }}%</p>
                 </div>
                 <div class="stat-icon"><i class="fas fa-chart-line"></i></div>
             </div>
@@ -24,7 +24,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm text-gray-400">Disponibles</p>
-                    <p class="text-2xl font-bold text-green-400 mt-1" x-text="stats.chambres_disponibles + ' / ' + stats.total_chambres"></p>
+                    <p class="text-2xl font-bold text-green-400 mt-1">{{ unites_disponibles }} / {{ total_unites }}</p>
                 </div>
                 <div class="stat-icon"><i class="fas fa-door-open"></i></div>
             </div>
@@ -33,7 +33,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm text-gray-400">CA du mois</p>
-                    <p class="text-2xl font-bold text-green-400 mt-1" x-text="formatMoney(stats.ca_mois) + ' F'"></p>
+                    <p class="text-2xl font-bold text-green-400 mt-1" x-text="formatMoney({{ ca_mois }}) + ' F'"></p>
                 </div>
                 <div class="stat-icon"><i class="fas fa-money-bill-wave"></i></div>
             </div>
@@ -42,7 +42,7 @@
             <div class="flex items-center justify-between">
                 <div>
                     <p class="text-sm text-gray-400">Réservations en cours</p>
-                    <p class="text-2xl font-bold text-blue-400 mt-1" x-text="stats.locations_en_cours"></p>
+                    <p class="text-2xl font-bold text-blue-400 mt-1">{{ reservations_en_cours }}</p>
                 </div>
                 <div class="stat-icon"><i class="fas fa-calendar-check"></i></div>
             </div>
@@ -54,19 +54,22 @@
         <div class="stat-card p-5">
             <p class="text-xs uppercase tracking-wider text-gray-400 mb-3">📅 Aujourd'hui</p>
             <div class="flex gap-6">
-                <div><p class="text-sm text-gray-400">Arrivées</p><p class="text-xl font-bold text-green-400" x-text="arriveesAujourdhui"></p></div>
-                <div><p class="text-sm text-gray-400">Départs</p><p class="text-xl font-bold text-orange-400" x-text="departsAujourdhui"></p></div>
+                <div><p class="text-sm text-gray-400">Arrivées</p><p class="text-xl font-bold text-green-400">{{ arrivees_aujourdhui }}</p></div>
+                <div><p class="text-sm text-gray-400">Départs</p><p class="text-xl font-bold text-orange-400">{{ departs_aujourdhui }}</p></div>
             </div>
         </div>
         <div class="stat-card p-5">
             <p class="text-xs uppercase tracking-wider text-gray-400 mb-3">⚠️ Alertes</p>
-            <div x-show="stats.chambres_disponibles < 3" class="flex items-center gap-2 text-sm text-warning">
+            {% if unites_disponibles < 3 %}
+            <div class="flex items-center gap-2 text-sm text-warning">
                 <i class="fas fa-exclamation-triangle"></i>
-                <span>Plus que <span x-text="stats.chambres_disponibles"></span> chambre(s) dispo</span>
+                <span>Plus que {{ unites_disponibles }} chambre(s) dispo</span>
             </div>
-            <div x-show="stats.chambres_disponibles >= 3" class="flex items-center gap-2 text-sm text-green-400">
+            {% else %}
+            <div class="flex items-center gap-2 text-sm text-green-400">
                 <i class="fas fa-check-circle"></i><span>Tout est OK</span>
             </div>
+            {% endif %}
         </div>
         <div class="stat-card p-5 flex items-center justify-between">
             <div>
@@ -88,24 +91,99 @@
         <canvas id="caChart" height="80"></canvas>
     </div>
 
-    <!-- ========== RÉSERVATIONS ========== -->
-    <div>
+    <!-- ========== RÉSERVATIONS & SÉJOURS ========== -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Réservations Récentes -->
         <div class="bg-surface-container-low rounded-xl shadow-md overflow-hidden">
             <div class="px-6 py-4 border-b border-outline/10 flex justify-between items-center">
-                <h3 class="font-semibold text-on-surface"><i class="fas fa-calendar-check text-secondary mr-2"></i>Réservations</h3>
-                <button @click="openModal('location')" :disabled="{{ est_bloque_hotel|lower }}" class="btn-md3-primary px-3 py-2 text-sm rounded-lg">
-                    <i class="fas fa-plus mr-1"></i>Nouvelle Réservation
-                </button>
+                <h3 class="font-semibold text-on-surface"><i class="fas fa-calendar-check text-secondary mr-2"></i>Dernières Réservations</h3>
+                <a href="{% url 'hotel:ajouter_reservation' %}" class="btn-md3-primary px-3 py-2 text-sm rounded-lg">
+                    <i class="fas fa-plus mr-1"></i>Nouvelle
+                </a>
             </div>
-            {% include 'hotel/components/table_locations.html' %}
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-surface-container-high border-b border-outline/10">
+                        <tr>
+                            <th class="px-4 py-3 text-left font-medium">Code</th>
+                            <th class="px-4 py-3 text-left font-medium">Client</th>
+                            <th class="px-4 py-3 text-left font-medium">Arrivée</th>
+                            <th class="px-4 py-3 text-center font-medium">Statut</th>
+                            <th class="px-4 py-3 text-right font-medium">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-outline/10">
+                        {% for r in dernieres_reservations %}
+                        <tr class="hover:bg-surface-container-low transition-colors">
+                            <td class="px-4 py-3 font-mono text-on-surface">{{ r.code }}</td>
+                            <td class="px-4 py-3 text-on-surface">{{ r.client.nom_complet }}</td>
+                            <td class="px-4 py-3 text-on-surface">{{ r.date_arrivee_prevue|date:"d/m/Y H:i" }}</td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="rounded-full px-2 py-1 text-[10px] font-medium
+                                    {% if r.statut == 'CONFIRMEE' %}bg-green-900/30 text-green-300
+                                    {% elif r.statut == 'ANNULEE' %}bg-red-900/30 text-red-300
+                                    {% else %}bg-surface-container-high text-on-surface-variant{% endif %}">
+                                    {{ r.get_statut_display }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <a href="{% url 'hotel:detail_reservation' r.id %}" class="text-secondary hover:underline"><i class="fas fa-eye"></i></a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="px-4 py-8 text-center text-on-surface-variant">Aucune réservation récente</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Séjours en cours -->
+        <div class="bg-surface-container-low rounded-xl shadow-md overflow-hidden">
+            <div class="px-6 py-4 border-b border-outline/10 flex justify-between items-center">
+                <h3 class="font-semibold text-on-surface"><i class="fas fa-bed text-secondary mr-2"></i>Séjours Actifs</h3>
+                <a href="{% url 'hotel:check_in' %}" class="btn-md3-primary px-3 py-2 text-sm rounded-lg">
+                    <i class="fas fa-sign-in-alt mr-1"></i>Check-in
+                </a>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-surface-container-high border-b border-outline/10">
+                        <tr>
+                            <th class="px-4 py-3 text-left font-medium">Chambre</th>
+                            <th class="px-4 py-3 text-left font-medium">Client</th>
+                            <th class="px-4 py-3 text-left font-medium">Arrivée</th>
+                            <th class="px-4 py-3 text-center font-medium">Statut</th>
+                            <th class="px-4 py-3 text-right font-medium">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-outline/10">
+                        {% for s in sejours_actifs %}
+                        <tr class="hover:bg-surface-container-low transition-colors">
+                            <td class="px-4 py-3 font-mono text-on-surface">{{ s.chambre.code }}</td>
+                            <td class="px-4 py-3 text-on-surface">{{ s.client.nom_complet }}</td>
+                            <td class="px-4 py-3 text-on-surface">{{ s.date_arrivee|date:"d/m/Y H:i" }}</td>
+                            <td class="px-4 py-3 text-center">
+                                <span class="rounded-full px-2 py-1 text-[10px] font-medium bg-blue-900/30 text-blue-300">
+                                    {{ s.get_statut_display }}
+                                </span>
+                            </td>
+                            <td class="px-4 py-3 text-right">
+                                <a href="{% url 'hotel:detail_sejour' s.id %}" class="text-secondary hover:underline"><i class="fas fa-eye"></i></a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="px-4 py-8 text-center text-on-surface-variant">Aucun séjour actif</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
         </div>
     </div>
-
-    <!-- Modals -->
-    {% include 'hotel/components/modals/modal_location.html' %}
-    {% include 'hotel/components/modals/modal_paiement.html' %}
-    {% include 'hotel/components/modals/modal_checkout.html' %}
-    {% include 'hotel/components/modals/modal_annuler.html' %}
 </div>
 
 <style>
@@ -120,58 +198,8 @@
 <script>
 function hotelDashboard() {
     return {
-        stats: {
-            total_chambres: {{ total_unites|default:0 }},
-            chambres_disponibles: {{ unites_disponibles|default:0 }},
-            chambres_occupees: {{ unites_occupees|default:0 }},
-            taux_occupation: {{ taux_occupation|default:0 }},
-            locations_en_cours: {{ locations_en_cours|default:0 }},
-            ca_mois: {{ ca_mois|default:0 }}
-        },
-        locations: [],
-        unites: [],
-        clients: [],
-
-        selectedLocation: null,
-
-        paiementMontant: '',
-
-        modals: { location: false, paiement: false, checkout: false, annuler: false },
-        locationForm: {
-            type: 'CHAMBRE', client_nom: '', client_telephone: '',
-            element_id: '', date_debut: '', date_fin: '',
-            montant_avance: 0, notes: ''
-        },
-        arriveesAujourdhui: 0,
-        departsAujourdhui: 0,
-
         async init() {
-            await Promise.all([
-                this.loadLocations(), this.loadUnites(), this.loadClients()
-            ]);
-            this.calculerStats();
-            this.calculerAujourdhui();
             this.initCaChart();
-            this.$watch('unites', () => this.calculerStats());
-            this.$watch('locations', () => { this.calculerStats(); this.calculerAujourdhui(); });
-        },
-
-        calculerStats() {
-            const total = this.unites.length;
-            const dispo = this.unites.filter(u => u.statut === 'DISPONIBLE').length;
-            const occupees = this.unites.filter(u => u.statut === 'OCCUPEE').length;
-            const en_cours = this.locations.filter(l => l.statut === 'CONFIRMEE').length;
-            const ca = this.locations
-                .filter(l => l.statut === 'CONFIRMEE' || l.statut === 'TERMINEE')
-                .reduce((s, l) => s + parseFloat(l.montant_total || 0), 0);
-            this.stats = {
-                total_chambres: total,
-                chambres_disponibles: dispo,
-                chambres_occupees: occupees,
-                taux_occupation: total > 0 ? Math.round(occupees / total * 100) : 0,
-                locations_en_cours: en_cours,
-                ca_mois: ca,
-            };
         },
 
         async requestJson(url, opts = {}) {
@@ -179,135 +207,41 @@ function hotelDashboard() {
             catch(e) { return { success: false, error: e.message }; }
         },
 
-        async loadLocations() {
-            const d = await this.requestJson('/hotel/api/locations/');
-            if (d.success) this.locations = d.locations;
-        },
-        async loadUnites() {
-            const d = await this.requestJson('/hotel/api/unites/');
-            if (d.success) this.unites = d.unites;
-        },
-        async loadClients() {
-            const d = await this.requestJson('/hotel/api/clients/');
-            if (d.success) this.clients = d.clients;
-        },
-
-        calculerAujourdhui() {
-            const today = new Date().toISOString().split('T')[0];
-            let arrivees = 0, departs = 0;
-            for (const loc of this.locations) {
-                const d = loc.date_debut ? loc.date_debut.split('T')[0] : '';
-                const f = loc.date_fin ? loc.date_fin.split('T')[0] : '';
-                if (d === today && loc.statut !== 'ANNULEE') arrivees++;
-                if (f === today && loc.statut !== 'ANNULEE') departs++;
-            }
-            this.arriveesAujourdhui = arrivees;
-            this.departsAujourdhui = departs;
-        },
-
-        openModal(name, data = null) {
-            if (name === 'location') {
-                this.locationForm = { type: 'CHAMBRE', client_nom: '', client_telephone: '',
-                    element_id: '', date_debut: '', date_fin: '',
-                    montant_avance: 0, notes: '' };
-            } else if (data) {
-                this.selectedLocation = data;
-            }
-            this.modals[name] = true;
-        },
-        closeModal(name) { this.modals[name] = false; this.resetForms(); },
-        resetForms() {
-            this.locationForm = { type: 'CHAMBRE', client_nom: '', client_telephone: '',
-                element_id: '', date_debut: '', date_fin: '',
-                montant_avance: 0, notes: '' };
-            this.selectedLocation = null;
-            this.paiementMontant = '';
-        },
-
-        async saveLocation() {
-            const d = await this.postJson('/hotel/api/locations/save/', this.locationForm);
-            if (d.success) { await Promise.all([this.loadLocations(), this.loadUnites()]); this.closeModal('location'); }
-            else alert('Erreur: ' + (d.error || ''));
-        },
-        async enregistrerPaiement() {
-            const d = await this.postJson(`/hotel/api/locations/${this.selectedLocation.id}/paiement/`, { montant: this.paiementMontant });
-            if (d.success) { await this.loadLocations(); this.closeModal('paiement'); }
-            else alert('Erreur: ' + (d.error || ''));
-        },
-        async doCheckout() {
-            const d = await this.postJson(`/hotel/api/locations/${this.selectedLocation.id}/checkout/`);
-            if (d.success) { await Promise.all([this.loadLocations(), this.loadUnites()]); this.closeModal('checkout'); }
-            else alert('Erreur: ' + (d.error || ''));
-        },
-        async doAnnuler() {
-            const d = await this.postJson(`/hotel/api/locations/${this.selectedLocation.id}/annuler/`);
-            if (d.success) { await Promise.all([this.loadLocations(), this.loadUnites()]); this.closeModal('annuler'); }
-            else alert('Erreur: ' + (d.error || ''));
-        },
-
-        postJson(url, payload) {
-            return this.requestJson(url, {
-                method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': this.getCookie('csrftoken') },
-                body: JSON.stringify(payload)
-            });
+        formatMoney(value) {
+            return Number(value).toLocaleString('fr-FR');
         },
 
         async initCaChart() {
-            try {
-                const ctx = document.getElementById('caChart');
-                if (!ctx) return;
-                const r = await fetch('/hotel/api/ca-evolution/');
-                const d = await r.json();
-                if (!d.success) return;
-                new Chart(ctx, {
-                    type: 'line',
-                    data: {
-                        labels: d.data.map(i => i.date),
-                        datasets: [{
-                            label: 'CA (F)',
-                            data: d.data.map(i => i.ca),
-                            borderColor: '#e3c282',
-                            backgroundColor: 'rgba(227, 194, 130, 0.1)',
-                            fill: true, tension: 0.4, pointRadius: 2
-                        }]
-                    },
-                    options: {
-                        responsive: true, maintainAspectRatio: true,
-                        plugins: { legend: { display: false } },
-                        scales: { y: { ticks: { callback: v => v.toLocaleString() + ' F' } } }
-                    }
-                });
-            } catch (e) { console.error('Chart init error:', e); }
-        },
+            const ctx = document.getElementById('caChart');
+            if (!ctx) return;
+            const res = await this.requestJson('/hotel/api/ca-evolution/');
+            if (!res.success) return;
 
-        get filteredUnites() {
-            const map = { 'CHAMBRE': ['CHAMBRE','VIP'], 'SALLE': ['SALLE'], 'ESPACE': ['ESPACE'], 'ESPACE_BAR': ['ESPACE_BAR'], 'BAR': ['BAR'] };
-            return this.unites.filter(u => (map[this.locationForm.type] || []).includes(u.type_unite));
-        },
-        get typeUniteLabel() { return { 'CHAMBRE':'Chambre','SALLE':'Salle','ESPACE':'Espace','ESPACE_BAR':'Espace + Bar','BAR':'Bar VIP' }[this.locationForm.type] || 'Élément'; },
-        get prixUnitaire() { const u = this.unites.find(x => x.id === this.locationForm.element_id); return u ? u.prix : 0; },
-        get montantCalcule() {
-            if (!this.locationForm.element_id || !this.locationForm.date_debut || !this.locationForm.date_fin) return 0;
-            const u = this.unites.find(x => x.id === this.locationForm.element_id);
-            if (!u) return 0;
-            const debut = new Date(this.locationForm.date_debut);
-            const fin = new Date(this.locationForm.date_fin);
-            const heures = Math.max(1, (fin - debut) / (1000 * 60 * 60));
-            return u.prix * Math.ceil(heures);
-        },
-        get dureeHeures() {
-            if (!this.locationForm.date_debut || !this.locationForm.date_fin) return 0;
-            return Math.max(1, Math.ceil((new Date(this.locationForm.date_fin) - new Date(this.locationForm.date_debut)) / (1000 * 60 * 60)));
-        },
-        getCookie(name) {
-            const value = `; ${document.cookie}`;
-            const parts = value.split(`; ${name}=`);
-            return parts.length === 2 ? parts.pop().split(';').shift() : '';
-        },
-        formatMoney(v) { return new Intl.NumberFormat('fr-FR').format(v || 0); },
-        formatDate(v) { return v ? new Date(v).toLocaleDateString('fr-FR') : '-'; },
-        getStatutBadge(s) { return {'CONFIRMEE':'bg-green-900/30 text-green-300','TERMINEE':'bg-gray-700 text-gray-300','ANNULEE':'bg-red-900/30 text-red-300'}[s] || ''; },
-        getStatutLabel(s) { return {'CONFIRMEE':'Confirmée','TERMINEE':'Terminée','ANNULEE':'Annulée'}[s] || s; }
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: res.labels,
+                    datasets: [{
+                        label: 'CA TTC (F)',
+                        data: res.ca_data,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(142,145,146,0.1)' }, ticks: { color: '#8e9192' } },
+                        x: { grid: { display: false }, ticks: { color: '#8e9192' } }
+                    }
+                }
+            });
+        }
     }
 }
 </script>

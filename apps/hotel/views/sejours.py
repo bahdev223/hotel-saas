@@ -5,7 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 from datetime import timedelta
 
-from ..models import Sejour, UniteModel, Client, TarifChambre, TypeChambre
+from ..models import Sejour, UniteModel, Client, Tarif, TypeChambre
 from ..services.checkin_service import CheckInService
 from ..services.checkout_service import CheckOutService
 from ..services.disponibilite_service import DisponibiliteService
@@ -72,7 +72,7 @@ def check_in(request):
             else:
                 client = Client.objects.get(id=client_id)
                 chambre = UniteModel.objects.get(id=chambre_id)
-                tarif = TarifChambre.objects.select_related("type_tarif", "plan_tarifaire").get(id=tarif_id)
+                tarif = Tarif.objects.get(id=tarif_id)
                 sejour = CheckInService.check_in_sans_reservation(
                     etablissement=etablissement,
                     client=client,
@@ -130,10 +130,10 @@ def check_out(request, sejour_id):
 
     context = {
         "sejour": sejour,
-        "tarifs_possibles": TarifChambre.objects.filter(
-            type_chambre=sejour.chambre.type_chambre,
-            actif=True,
-        ).select_related("type_tarif", "plan_tarifaire") if sejour.chambre.type_chambre else [],
+        "tarifs_possibles": Tarif.objects.filter(
+            unite=sejour.chambre,
+            actif=True
+        ),
     }
     return render(request, "hotel/sejours/check_out.html", context)
 

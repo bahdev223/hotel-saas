@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 
-from ..models import Reservation, ReservationChambre, UniteModel, TypeChambre, TarifChambre, Client
+from ..models import Reservation, ReservationChambre, UniteModel, TypeChambre, Tarif, Client
 from ..services.reservation_service import ReservationService
 from ..services.tarification_service import TarificationService
 from ..services.disponibilite_service import DisponibiliteService
@@ -35,7 +35,7 @@ def detail_reservation(request, reservation_id):
         Reservation.objects.select_related("client", "cree_par"),
         id=reservation_id,
     )
-    chambres = reservation.chambres_reservees.select_related("chambre", "tarif_source", "tarif_source__type_tarif")
+    chambres = reservation.chambres_reservees.select_related("chambre", "tarif_source")
     context = {
         "reservation": reservation,
         "chambres": chambres,
@@ -60,7 +60,7 @@ def ajouter_reservation(request):
         try:
             client = Client.objects.get(id=client_id)
             chambre = UniteModel.objects.get(id=chambre_id)
-            tarif = TarifChambre.objects.select_related("type_tarif", "plan_tarifaire").get(id=tarif_id)
+            tarif = Tarif.objects.get(id=tarif_id)
 
             reservation = ReservationService.creer_reservation(
                 etablissement=etablissement,

@@ -57,3 +57,8 @@ class StockLotEntrepot(models.Model):
         
     def __str__(self):
         return f"{self.lot.numero} dans {self.entrepot.nom} : {self.quantite}"
+
+
+
+
+        

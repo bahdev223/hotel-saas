@@ -5,7 +5,7 @@ from django.core.exceptions import ValidationError
 from ..models import Reservation, ReservationChambre, UniteModel
 from .tarification_service import TarificationService
 from ..models.unite import StatutChambre
-from ..models.tarifs import TarifChambre
+from ..models.tarifs import Tarif
 from django.db.models import Q
 
 
@@ -34,14 +34,10 @@ class ReservationService:
         if not cls._chambre_disponible(chambre, date_arrivee_prevue, date_depart_prevue):
             raise ValidationError("La chambre n'est pas disponible pour cette période.")
 
-        quantite = cls._calculer_quantite(tarif, date_arrivee_prevue, date_depart_prevue)
-        montant_total = TarificationService.calculer_montant(
-            tarif=tarif,
-            date_debut=date_arrivee_prevue,
-            date_fin=date_depart_prevue,
-            nombre_adultes=nombre_adultes,
-            nombre_enfants=nombre_enfants,
+        quantite = TarificationService.calculer_nuits(
+            date_debut=date_arrivee_prevue, date_fin=date_depart_prevue
         )
+        montant_total = TarificationService.calculer_montant(tarif=tarif, quantite=quantite)
 
         reservation = Reservation.objects.create(
             etablissement=etablissement,
@@ -59,8 +55,7 @@ class ReservationService:
             reservation=reservation,
             chambre=chambre,
             tarif_source=tarif,
-            type_tarif_nom=tarif.type_tarif.nom,
-            plan_tarifaire_nom=tarif.plan_tarifaire.nom,
+            tarif_nom=tarif.nom,
             montant_unitaire=tarif.montant,
             quantite=quantite,
             montant_total=montant_total,
@@ -115,18 +110,3 @@ class ReservationService:
             date_depart__gt=arrivee,
         )
         return not conflits.exists() and not sejours_actifs.exists()
-
-    @classmethod
-    def _calculer_quantite(cls, tarif, debut, fin):
-        if tarif.type_tarif.unite_facturation == "NUITEE":
-            return max(1, (fin.date() - debut.date()).days)
-        elif tarif.type_tarif.unite_facturation == "HEURE":
-            return max(1, int((fin - debut).total_seconds() / 3600))
-        elif tarif.type_tarif.unite_facturation == "JOURNEE":
-            return max(1, (fin.date() - debut.date()).days)
-        elif tarif.type_tarif.unite_facturation == "DEMI_JOURNEE":
-            return 1
-        elif tarif.type_tarif.unite_facturation == "FORFAIT":
-            return 1
-        else:
-            return 1
