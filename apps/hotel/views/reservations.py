@@ -2,6 +2,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
+from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 from ..models import Reservation, ReservationChambre, UniteModel, TypeChambre, Tarif, Client
 from ..services.reservation_service import ReservationService
@@ -51,13 +53,22 @@ def ajouter_reservation(request):
         client_id = request.POST.get("client")
         chambre_id = request.POST.get("chambre")
         tarif_id = request.POST.get("tarif")
-        date_arrivee = request.POST.get("date_arrivee_prevue")
-        date_depart = request.POST.get("date_depart_prevue")
+        date_arrivee_str = request.POST.get("date_arrivee_prevue")
+        date_depart_str = request.POST.get("date_depart_prevue")
         adultes = request.POST.get("nombre_adultes", 1)
         enfants = request.POST.get("nombre_enfants", 0)
         notes = request.POST.get("notes", "")
 
         try:
+            date_arrivee = parse_datetime(date_arrivee_str)
+            date_depart = parse_datetime(date_depart_str)
+            if not date_arrivee or not date_depart:
+                raise ValueError("Dates invalides.")
+            if timezone.is_naive(date_arrivee):
+                date_arrivee = timezone.make_aware(date_arrivee)
+            if timezone.is_naive(date_depart):
+                date_depart = timezone.make_aware(date_depart)
+
             client = Client.objects.get(id=client_id)
             chambre = UniteModel.objects.get(id=chambre_id)
             tarif = Tarif.objects.get(id=tarif_id)

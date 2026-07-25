@@ -214,6 +214,12 @@ function hotelDashboard() {
         async initCaChart() {
             const ctx = document.getElementById('caChart');
             if (!ctx) return;
+
+            // Detruit toute instance deja attachee a ce canvas (re-navigation,
+            // bfcache, ou re-init Alpine) avant d'en creer une nouvelle.
+            const existing = Chart.getChart(ctx);
+            if (existing) existing.destroy();
+
             const res = await this.requestJson('/hotel/api/ca-evolution/');
             if (!res.success) return;
 

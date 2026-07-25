@@ -11,7 +11,7 @@
     <!-- Header -->
     <div class="flex items-center justify-between">
         <div class="flex gap-2">
-            <a href="?{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-3 py-1.5 rounded-lg text-sm border border-outline/10 hover:bg-surface-container-high transition-smooth" :class="!filtreType ? 'bg-secondary text-black' : ''">Tous</a>
+            <a href="?{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-3 py-1.5 rounded-lg text-sm border border-outline/10 hover:bg-surface-container-high transition-smooth {% if not filtre_type %}bg-secondary-container/20 text-secondary border-secondary{% endif %}">Tous</a>
             {% for key, label in type_choices %}
             <a href="?type={{ key }}{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-3 py-1.5 rounded-lg text-sm border border-outline/10 hover:bg-surface-container-high transition-smooth {% if filtre_type == key %}bg-secondary-container/20 text-secondary border-secondary{% endif %}">{{ label }}</a>
             {% endfor %}
