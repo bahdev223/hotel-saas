@@ -1,164 +1,322 @@
-{% extends 'restaurant/base_restaurant.html' %}
 {% load static %}
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Resto · Dashboard</title>
 
-{% block title %}Dashboard — Restaurant{% endblock %}
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        surface: '#f8f6f2',
+                        'surface-card': '#ffffff',
+                        'surface-soft': '#f1eee8',
+                        'on-surface': '#1e1b1a',
+                        'on-surface-muted': '#6b6560',
+                        primary: '#b8862c',
+                        'primary-soft': '#f2ebd3',
+                        'primary-light': '#e8d8b0',
+                        error: '#b33c3c',
+                        'error-soft': '#fbe9e9',
+                        border: '#e5ded2',
+                    },
+                    fontFamily: {
+                        sans: ['"Hanken Grotesk"', 'system-ui', 'sans-serif'],
+                    },
+                    borderRadius: {
+                        card: '1.25rem',
+                        pill: '9999px',
+                    },
+                    boxShadow: {
+                        soft: '0 4px 16px -6px rgba(0,0,0,0.04), 0 2px 4px rgba(0,0,0,0.02)',
+                        hover: '0 12px 28px -10px rgba(0,0,0,0.06)',
+                    }
+                }
+            }
+        }
+    </script>
 
-{% block content %}
-{% include "partials/page_config.html" %}
-<div x-data="dashboardApp()" class="space-y-5">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.1/dist/cdn.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
-    <!-- KPIs -->
-    <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        <div class="card-md3 p-4 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-green-900/30 flex items-center justify-center text-green-400 text-lg shrink-0"><i class="fas fa-coins"></i></div>
-            <div class="min-w-0">
-                <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">CA Aujourd'hui</p>
-                <p class="text-sm font-bold text-green-400 font-mono truncate" x-text="formatMoney(d.ca_jour) + ' F'"></p>
-            </div>
-        </div>
-        <div class="card-md3 p-4 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-secondary-container/20 flex items-center justify-center text-secondary text-lg shrink-0"><i class="fas fa-chart-line"></i></div>
-            <div class="min-w-0">
-                <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">CA Semaine</p>
-                <p class="text-sm font-bold text-secondary font-mono truncate" x-text="formatMoney(d.ca_semaine) + ' F'"></p>
-            </div>
-        </div>
-        <div class="card-md3 p-4 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-blue-900/30 flex items-center justify-center text-blue-400 text-lg shrink-0"><i class="fas fa-receipt"></i></div>
-            <div class="min-w-0">
-                <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Ventes jour</p>
-                <p class="text-sm font-bold text-blue-400 font-mono" x-text="d.ventes_jour"></p>
-            </div>
-        </div>
-        <div class="card-md3 p-4 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-orange-900/30 flex items-center justify-center text-orange-400 text-lg shrink-0"><i class="fas fa-fire"></i></div>
-            <div class="min-w-0">
-                <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">En cuisine</p>
-                <p class="text-sm font-bold text-orange-400 font-mono" x-text="d.commandes_preparation + ' / ' + d.commandes_attente"></p>
-            </div>
-        </div>
-        <div class="card-md3 p-4 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl bg-red-900/30 flex items-center justify-center text-red-400 text-lg shrink-0"><i class="fas fa-exclamation-triangle"></i></div>
-            <div class="min-w-0">
-                <p class="text-[10px] uppercase tracking-wider text-on-surface-variant">Alertes stock</p>
-                <p class="text-sm font-bold text-red-400 font-mono" x-text="d.stock_alertes?.length || 0"></p>
-            </div>
-        </div>
-    </div>
+    <style>
+        [x-cloak] { display: none !important; }
+        .card-bro {
+            background: #ffffff;
+            border: 1px solid #e5ded2;
+            border-radius: 1.25rem;
+            transition: all 0.2s ease;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+        }
+        .card-bro:hover {
+            border-color: #b8862c;
+            transform: translateY(-3px);
+            box-shadow: 0 12px 28px -10px rgba(0,0,0,0.06);
+        }
+        .stat-icon-bro {
+            width: 44px; height: 44px; border-radius: 14px;
+            display: flex; align-items: center; justify-content: center;
+            background: rgba(184, 134, 44, 0.08);
+        }
+        .stat-icon-bro i { color: #b8862c; font-size: 18px; }
+        .badge-bro {
+            padding: 0.15rem 0.6rem; border-radius: 9999px;
+            font-size: 0.65rem; font-weight: 600; letter-spacing: 0.02em;
+        }
+        .bar-bro {
+            transition: height 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+            border-radius: 4px 4px 0 0;
+        }
+        .scrollbar-bro::-webkit-scrollbar { width: 4px; }
+        .scrollbar-bro::-webkit-scrollbar-track { background: #f1eee8; border-radius: 12px; }
+        .scrollbar-bro::-webkit-scrollbar-thumb { background: #d6cfc0; border-radius: 12px; }
+    </style>
+</head>
 
-    <div class="card-md3 p-5">
-        <div class="flex items-center justify-between mb-4">
-            <h3 class="text-sm font-semibold text-on-surface"><i class="fas fa-chart-bar text-secondary mr-1.5"></i>Chiffre d'affaires — 7 derniers jours</h3>
-            <span x-show="lastUpdate" class="text-[10px] text-on-surface-variant" x-text="'Mis à jour: ' + lastUpdateStr"></span>
-        </div>
-        <div class="flex items-end gap-2 h-32">
-            <template x-for="(jour, i) in d.ca_7jours" :key="i">
-                <div class="flex-1 flex flex-col items-center gap-1">
-                    <div class="w-full rounded-t-md transition-all duration-500 relative group"
-                         :style="'height: ' + maxBarH(jour.total) + 'px'"
-                         :class="barClass(i)">
-                        <div class="absolute -top-5 left-1/2 -translate-x-1/2 text-[10px] font-mono text-secondary whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity" x-text="formatMoney(jour.total) + ' F'"></div>
+<body class="bg-surface text-on-surface font-sans antialiased">
+
+    <nav class="bg-white/80 backdrop-blur-sm border-b border-border sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <a href="/" class="flex items-center gap-3 hover:opacity-80 transition">
+                    <div class="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                        <span class="text-primary font-bold text-lg">R</span>
                     </div>
-                    <span class="text-[9px] text-on-surface-variant truncate w-full text-center" x-text="jour.date.split(' ').pop()"></span>
+                    <span class="text-lg font-bold tracking-tight text-on-surface">Resto·ERP</span>
+                </a>
+                <div class="flex items-center gap-2">
+                    <span class="hidden sm:inline text-sm text-on-surface-muted">{{ user.username }}</span>
+                    <a href="{% url 'authentication:logout' %}" class="w-9 h-9 flex items-center justify-center rounded-full hover:bg-error/10 text-on-surface-muted hover:text-error transition" title="Déconnexion">
+                        <i class="fas fa-sign-out-alt text-sm"></i>
+                    </a>
                 </div>
-            </template>
+            </div>
         </div>
-        <div x-show="!d.ca_7jours?.length" class="text-center py-6 text-on-surface-variant text-xs">Aucune donnée</div>
+    </nav>
+
+    <nav class="bg-white/50 backdrop-blur-sm border-b border-border overflow-x-auto scrollbar-bro">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex gap-1 py-1.5 text-sm">
+                <a href="{% url 'restaurant:dashboard' %}" class="px-4 py-2 rounded-full font-medium text-primary bg-primary-soft hover:bg-primary/15 transition">
+                    <i class="fas fa-chart-pie mr-1.5"></i>Dashboard
+                </a>
+                <a href="{% url 'restaurant:cuisine_dashboard' %}" class="px-4 py-2 rounded-full text-on-surface-muted hover:bg-surface-soft transition">
+                    <i class="fas fa-fire mr-1.5"></i>Cuisine
+                </a>
+                <a href="{% url 'restaurant:produits_stock' %}" class="px-4 py-2 rounded-full text-on-surface-muted hover:bg-surface-soft transition">
+                    <i class="fas fa-box mr-1.5"></i>Produits
+                </a>
+                <a href="{% url 'restaurant:recettes' %}" class="px-4 py-2 rounded-full text-on-surface-muted hover:bg-surface-soft transition">
+                    <i class="fas fa-utensil-spoon mr-1.5"></i>Recettes
+                </a>
+                <a href="{% url 'restaurant:menus_liste' %}" class="px-4 py-2 rounded-full text-on-surface-muted hover:bg-surface-soft transition">
+                    <i class="fas fa-book mr-1.5"></i>Menus
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-5 pb-2">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-2xl font-bold text-on-surface tracking-tight">🍽️ Tableau de bord</h1>
+                <p class="text-sm text-on-surface-muted">Vue instantanée de l'activité</p>
+            </div>
+        </div>
     </div>
 
-    <!-- Bottom row -->
-    <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        <!-- Top articles -->
-        <div class="card-md3 p-5">
-            <h3 class="text-sm font-semibold text-on-surface mb-3"><i class="fas fa-crown text-secondary mr-1.5"></i>Top articles du jour</h3>
-            <div class="space-y-2">
-                <template x-for="(art, i) in d.top_articles" :key="i">
-                    <div class="flex items-center gap-3 bg-surface-container-high rounded-lg px-3 py-2">
-                        <span class="w-6 h-6 rounded-full bg-secondary/20 text-secondary text-xs font-bold flex items-center justify-center shrink-0" x-text="i + 1"></span>
-                        <span class="flex-1 text-sm truncate" x-text="art.nom"></span>
-                        <span class="text-xs font-mono text-on-surface-variant" x-text="art.quantite + 'x'"></span>
-                        <span class="text-xs font-mono text-secondary" x-text="formatMoney(art.total) + ' F'"></span>
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6" x-data="dashboardBro()" x-init="load()">
+
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <div class="card-bro p-4 flex items-center gap-3">
+                <div class="stat-icon-bro bg-emerald-50"><i class="fas fa-coins text-emerald-600"></i></div>
+                <div>
+                    <p class="text-[10px] uppercase tracking-wider text-on-surface-muted/70">CA aujourd'hui</p>
+                    <p class="text-sm font-bold text-emerald-600 font-mono" x-text="formatMoney(d?.ca_jour ?? 0) + ' F'"></p>
+                </div>
+            </div>
+            <div class="card-bro p-4 flex items-center gap-3">
+                <div class="stat-icon-bro bg-amber-50"><i class="fas fa-chart-line text-amber-600"></i></div>
+                <div>
+                    <p class="text-[10px] uppercase tracking-wider text-on-surface-muted/70">CA semaine</p>
+                    <p class="text-sm font-bold text-amber-600 font-mono" x-text="formatMoney(d?.ca_semaine ?? 0) + ' F'"></p>
+                </div>
+            </div>
+            <div class="card-bro p-4 flex items-center gap-3">
+                <div class="stat-icon-bro bg-blue-50"><i class="fas fa-receipt text-blue-600"></i></div>
+                <div>
+                    <p class="text-[10px] uppercase tracking-wider text-on-surface-muted/70">Ventes jour</p>
+                    <p class="text-sm font-bold text-blue-600 font-mono" x-text="d?.ventes_jour ?? 0"></p>
+                </div>
+            </div>
+            <div class="card-bro p-4 flex items-center gap-3">
+                <div class="stat-icon-bro bg-orange-50"><i class="fas fa-fire text-orange-600"></i></div>
+                <div>
+                    <p class="text-[10px] uppercase tracking-wider text-on-surface-muted/70">En cuisine</p>
+                    <p class="text-sm font-bold text-orange-600 font-mono" x-text="(d?.commandes_preparation ?? 0) + ' / ' + (d?.commandes_attente ?? 0)"></p>
+                </div>
+            </div>
+            <div class="card-bro p-4 flex items-center gap-3">
+                <div class="stat-icon-bro bg-red-50"><i class="fas fa-exclamation-triangle text-red-600"></i></div>
+                <div>
+                    <p class="text-[10px] uppercase tracking-wider text-on-surface-muted/70">Alertes stock</p>
+                    <p class="text-sm font-bold text-red-600 font-mono" x-text="d?.stock_alertes?.length ?? 0"></p>
+                </div>
+            </div>
+        </div>
+
+        <div class="card-bro p-5 mt-4">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-sm font-semibold text-on-surface"><i class="fas fa-chart-simple text-primary mr-1.5"></i>CA — 7 derniers jours</h3>
+                <span x-show="lastUpdate" class="text-[10px] text-on-surface-muted" x-text="'⏱️ ' + lastUpdateStr"></span>
+            </div>
+            <div class="flex items-end gap-2 h-28">
+                <template x-for="(jour, i) in (d?.ca_7jours ?? [])" :key="i">
+                    <div class="flex-1 flex flex-col items-center gap-1">
+                        <div class="w-full bar-bro group relative"
+                             :style="'height: ' + maxBarH(jour.total) + 'px'"
+                             :class="i % 2 === 0 ? 'bg-primary/70' : 'bg-primary/40'">
+                            <div class="absolute -top-5 left-1/2 -translate-x-1/2 text-[9px] font-mono text-primary whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity" x-text="formatMoney(jour.total) + ' F'"></div>
+                        </div>
+                        <span class="text-[9px] text-on-surface-muted truncate w-full text-center" x-text="jour.date.split(' ').pop()"></span>
                     </div>
                 </template>
-                <div x-show="!d.top_articles?.length" class="text-center py-6 text-on-surface-variant text-xs">Aucune vente aujourd'hui</div>
             </div>
+            <div x-show="!(d?.ca_7jours?.length)" class="text-center py-6 text-on-surface-muted/60 text-xs">Aucune donnée</div>
         </div>
 
-        <!-- Recent orders -->
-        <div class="card-md3 p-5">
-            <h3 class="text-sm font-semibold text-on-surface mb-3"><i class="fas fa-clock text-secondary mr-1.5"></i>Dernières commandes</h3>
-            <div class="overflow-x-auto">
-                <table class="w-full text-xs">
-                    <thead>
-                        <tr class="text-on-surface-variant border-b border-outline/10">
-                            <th class="text-left py-2 font-medium">#</th>
-                            <th class="text-left py-2 font-medium">Type</th>
-                            <th class="text-left py-2 font-medium">Statut</th>
-                            <th class="text-right py-2 font-medium">Total</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <template x-for="c in d.dernieres_commandes" :key="c.numero">
-                            <tr class="border-b border-outline/5 hover:bg-surface-container-high transition-smooth">
-                                <td class="py-2 font-mono" x-text="c.numero"></td>
-                                <td class="py-2 text-on-surface-variant" x-text="c.type"></td>
-                                <td class="py-2">
-                                    <span class="px-1.5 py-0.5 rounded text-[10px] font-medium"
-                                          :class="c.statut === 'Servie' || c.statut === 'Prête' ? 'bg-green-900/30 text-green-400' : c.statut === 'En préparation' ? 'bg-orange-900/30 text-orange-400' : 'bg-surface-container-high text-on-surface-variant'"
-                                          x-text="c.statut"></span>
-                                </td>
-                                <td class="py-2 text-right font-mono" x-text="formatMoney(c.total) + ' F'"></td>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-4">
+            <div class="card-bro p-5">
+                <h3 class="text-sm font-semibold text-on-surface mb-3"><i class="fas fa-crown text-primary mr-1.5"></i>Top articles du jour</h3>
+                <div class="space-y-2">
+                    <template x-for="(art, i) in (d?.top_articles ?? [])" :key="i">
+                        <div class="flex items-center gap-3 bg-surface-soft rounded-xl px-3 py-2">
+                            <span class="w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center shrink-0" x-text="i + 1"></span>
+                            <span class="flex-1 text-sm truncate" x-text="art.nom"></span>
+                            <span class="text-xs font-mono text-on-surface-muted" x-text="art.quantite + 'x'"></span>
+                            <span class="text-xs font-mono text-primary" x-text="formatMoney(art.total) + ' F'"></span>
+                        </div>
+                    </template>
+                    <div x-show="!(d?.top_articles?.length)" class="text-center py-6 text-on-surface-muted/60 text-xs">Aucune vente aujourd'hui</div>
+                </div>
+            </div>
+
+            <div class="card-bro p-5">
+                <h3 class="text-sm font-semibold text-on-surface mb-3"><i class="fas fa-clock text-primary mr-1.5"></i>Commandes récentes</h3>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-xs">
+                        <thead>
+                            <tr class="text-on-surface-muted/80 border-b border-border">
+                                <th class="text-left py-2 font-medium">#</th>
+                                <th class="text-left py-2 font-medium">Type</th>
+                                <th class="text-left py-2 font-medium">Statut</th>
+                                <th class="text-right py-2 font-medium">Total</th>
                             </tr>
-                        </template>
-                    </tbody>
-                </table>
-                <div x-show="!d.dernieres_commandes?.length" class="text-center py-6 text-on-surface-variant text-xs">Aucune commande aujourd'hui</div>
+                        </thead>
+                        <tbody>
+                            <template x-for="c in (d?.dernieres_commandes ?? [])" :key="c.numero">
+                                <tr class="border-b border-border/40 hover:bg-surface-soft transition">
+                                    <td class="py-2 font-mono" x-text="c.numero"></td>
+                                    <td class="py-2 text-on-surface-muted" x-text="c.type"></td>
+                                    <td class="py-2">
+                                        <span class="badge-bro"
+                                              :class="c.statut === 'Servie' || c.statut === 'Prête' ? 'bg-emerald-100 text-emerald-700' : c.statut === 'En préparation' ? 'bg-amber-100 text-amber-700' : 'bg-surface-soft text-on-surface-muted'"
+                                              x-text="c.statut"></span>
+                                    </td>
+                                    <td class="py-2 text-right font-mono" x-text="formatMoney(c.total) + ' F'"></td>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
+                    <div x-show="!(d?.dernieres_commandes?.length)" class="text-center py-6 text-on-surface-muted/60 text-xs">Aucune commande</div>
+                </div>
             </div>
         </div>
-    </div>
 
-    <!-- Stock alerts bar -->
-    <div x-show="d.stock_alertes?.length" class="card-md3 p-5">
-        <h3 class="text-sm font-semibold text-on-surface mb-3"><i class="fas fa-boxes text-red-400 mr-1.5"></i>Stock bas — alerte</h3>
-        <div class="flex flex-wrap gap-2">
-            <template x-for="s in d.stock_alertes" :key="s.produit_id">
-                <div class="bg-red-900/20 border border-red-900/30 rounded-lg px-3 py-2 text-xs flex items-center gap-2">
-                    <i class="fas fa-cube text-red-400"></i>
-                    <span class="font-medium" x-text="s.produit_nom"></span>
-                    <span class="text-red-400 font-mono" x-text="s.stock + ' / ' + s.seuil"></span>
-                </div>
-            </template>
-        </div>
-    </div>
-
-    <!-- Error -->
-    <div x-show="error" class="card-md3 p-5 border border-red-900/30 bg-red-900/10">
-        <div class="flex items-center gap-3 text-sm">
-            <i class="fas fa-exclamation-circle text-red-400"></i>
-            <span class="text-red-300">Erreur de chargement. <button @click="load()" class="underline hover:no-underline font-medium">Réessayer</button></span>
-        </div>
-    </div>
-
-    <!-- Loading skeleton -->
-    <div x-show="!d && !error" class="space-y-4">
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-            <template x-for="i in 5" :key="i">
-                <div class="card-md3 p-4 animate-pulse">
-                    <div class="h-3 bg-surface-container-higher rounded w-2/3 mb-3"></div>
-                    <div class="h-5 bg-surface-container-higher rounded w-1/2"></div>
-                </div>
-            </template>
-        </div>
-        <div class="card-md3 p-5 animate-pulse">
-            <div class="h-4 bg-surface-container-higher rounded w-1/4 mb-6"></div>
-            <div class="flex items-end gap-2 h-32">
-                <template x-for="i in 7" :key="i">
-                    <div class="flex-1 bg-surface-container-higher rounded-t-md" :style="'height: ' + (30 + Math.random() * 80) + 'px'"></div>
+        <div x-show="d?.stock_alertes?.length" class="card-bro p-5 mt-4 border-l-4 border-red-400">
+            <h3 class="text-sm font-semibold text-on-surface mb-3"><i class="fas fa-boxes text-red-500 mr-1.5"></i>Stock bas ⚠️</h3>
+            <div class="flex flex-wrap gap-2">
+                <template x-for="s in d.stock_alertes" :key="s.produit_id">
+                    <div class="bg-red-50/80 border border-red-200 rounded-xl px-4 py-2 text-xs flex items-center gap-2">
+                        <i class="fas fa-cube text-red-500"></i>
+                        <span class="font-medium" x-text="s.produit_nom"></span>
+                        <span class="text-red-500 font-mono" x-text="s.stock + ' / ' + s.seuil"></span>
+                    </div>
                 </template>
             </div>
         </div>
-    </div>
-</div>
 
-{% include "partials/js_module.html" with module="js/restaurant/dashboard.js" %}
-{% endblock %}
+        <div x-show="error" class="card-bro p-5 mt-4 border border-red-300 bg-red-50/50">
+            <div class="flex items-center gap-3 text-sm text-red-700">
+                <i class="fas fa-exclamation-circle"></i>
+                <span>Erreur de chargement. <button @click="load()" class="underline hover:no-underline font-medium">Réessayer</button></span>
+            </div>
+        </div>
+
+        <div x-show="!d && !error" class="space-y-4 mt-4">
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+                <template x-for="i in 5" :key="i">
+                    <div class="card-bro p-4 animate-pulse">
+                        <div class="h-3 bg-surface-soft rounded w-2/3 mb-3"></div>
+                        <div class="h-5 bg-surface-soft rounded w-1/2"></div>
+                    </div>
+                </template>
+            </div>
+            <div class="card-bro p-5 animate-pulse">
+                <div class="h-4 bg-surface-soft rounded w-1/4 mb-6"></div>
+                <div class="flex items-end gap-2 h-28">
+                    <template x-for="i in 7" :key="i">
+                        <div class="flex-1 bg-surface-soft rounded-t-md" :style="'height: ' + (30 + Math.random() * 80) + 'px'"></div>
+                    </template>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <footer class="border-t border-border py-4 text-center text-xs text-on-surface-muted/50">
+        ERP Resto &copy; 2026 — Tous droits réservés
+    </footer>
+
+    <script>
+        function dashboardBro() {
+            return {
+                d: null,
+                error: false,
+                lastUpdate: null,
+                lastUpdateStr: '',
+
+                async load() {
+                    this.error = false;
+                    try {
+                        const res = await fetch('/restaurant/api/dashboard/');
+                        if (!res.ok) throw new Error('HTTP ' + res.status);
+                        const data = await res.json();
+                        this.d = data;
+                        this.lastUpdate = new Date();
+                        this.lastUpdateStr = this.lastUpdate.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+                    } catch (e) {
+                        console.warn(e);
+                        this.error = true;
+                    }
+                },
+
+                formatMoney(v) {
+                    return Number(v ?? 0).toLocaleString('fr-FR');
+                },
+
+                maxBarH(val) {
+                    const max = Math.max(...(this.d?.ca_7jours?.map(j => j.total) ?? [0]), 1);
+                    return Math.max(6, (val / max) * 100);
+                }
+            }
+        }
+    </script>
+
+</body>
+</html>
