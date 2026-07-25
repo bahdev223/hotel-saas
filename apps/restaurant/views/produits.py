@@ -9,7 +9,7 @@ from decimal import Decimal
 import json
 import uuid
 
-from apps.stock.models import Produit, StockEntrepot, Entrepot
+from apps.stock.models import Produit, StockEntrepot, Entrepot, UniteMesure
 from apps.stock.services.mouvement_service import MouvementStockService
 
 
@@ -107,7 +107,7 @@ def ajouter_produit(request):
             produit = Produit.objects.create(
                 code=code,
                 nom=request.POST.get('nom'),
-                unite_base=request.POST.get('unite_base', 'piece'),
+                unite_mesure=UniteMesure.get_or_create_by_symbole(request.POST.get('unite_base', 'piece')),
                 prix_achat=Decimal(request.POST.get('prix_achat', 0)),
                 prix_vente=Decimal(request.POST.get('prix_vente', 0)),
                 seuil_alerte=Decimal(request.POST.get('seuil_alerte', 5)),
@@ -248,7 +248,7 @@ def api_ajouter_produit(request):
             code=data.get('code') or f"PRD-{uuid.uuid4().hex[:6].upper()}",
             nom=nom,
             type_article=data.get('type_article', 'MARCHANDISE'),
-            unite_base=data.get('unite_base', 'piece'),
+            unite_mesure=UniteMesure.get_or_create_by_symbole(data.get('unite_base', 'piece')),
             prix_achat=Decimal(str(data.get('prix_achat', 0))),
             prix_vente=Decimal(str(data.get('prix_vente', 0))),
             seuil_alerte=Decimal(str(data.get('seuil_alerte', 5))),

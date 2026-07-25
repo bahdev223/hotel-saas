@@ -9,7 +9,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hotel_project.settings')
 django.setup()
 
 from decimal import Decimal
-from apps.stock.models import Produit, CategorieProduit, Entrepot, StockEntrepot
+from apps.stock.models import Produit, CategorieProduit, Entrepot, StockEntrepot, UniteMesure
 
 
 def get_or_create_categorie(nom):
@@ -68,7 +68,7 @@ def importer_produits():
                 'categorie': cat_marchandises,
                 'type_article': 'MARCHANDISE',
                 'est_vendable': True,
-                'unite_base': 'piece',
+                'unite_mesure': UniteMesure.get_or_create_by_symbole('piece'),
                 'prix_achat': Decimal(prix) * Decimal('0.6'),
                 'prix_vente': Decimal(prix),
                 'actif': True
@@ -111,7 +111,7 @@ def importer_produits():
                 'categorie': cat_matieres,
                 'type_article': 'MATIERE_PREMIERE',
                 'est_vendable': False,
-                'unite_base': 'kg' if 'Riz' in nom or 'Viande' in nom else 'piece',
+                'unite_mesure': UniteMesure.get_or_create_by_symbole('kg' if 'Riz' in nom or 'Viande' in nom else 'piece'),
                 'prix_achat': Decimal(prix),
                 'prix_vente': 0,
                 'actif': True
@@ -145,7 +145,7 @@ def importer_produits():
                 'categorie': cat_consommables,
                 'type_article': 'CONSOMMABLE',
                 'est_vendable': False,
-                'unite_base': 'piece',
+                'unite_mesure': UniteMesure.get_or_create_by_symbole('piece'),
                 'prix_achat': Decimal(prix),
                 'prix_vente': 0,
                 'actif': True
@@ -183,7 +183,7 @@ def importer_produits():
                 'categorie': cat_alcools,
                 'type_article': 'MARCHANDISE',
                 'est_vendable': True,
-                'unite_base': 'piece',
+                'unite_mesure': UniteMesure.get_or_create_by_symbole('piece'),
                 'prix_achat': Decimal(prix) * Decimal('0.7'),
                 'prix_vente': Decimal(prix),
                 'actif': True

@@ -9,7 +9,7 @@ os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'hotel_project.settings')
 django.setup()
 
 from decimal import Decimal
-from apps.stock.models import Produit, CategorieProduit, Entrepot, StockEntrepot
+from apps.stock.models import Produit, CategorieProduit, Entrepot, StockEntrepot, UniteMesure
 from django.db import models
 
 
@@ -70,7 +70,7 @@ def importer_produits():
                 'categorie': cat_marchandises,
                 'type_article': 'MARCHANDISE',
                 'est_vendable': vendable,
-                'unite_base': 'piece',
+                'unite_mesure': UniteMesure.get_or_create_by_symbole('piece'),
                 'prix_achat': Decimal(prix) * Decimal('0.6'),
                 'prix_vente': Decimal(prix) if vendable else 0,
                 'actif': True
@@ -113,7 +113,7 @@ def importer_produits():
                 'categorie': cat_matieres,
                 'type_article': 'MATIERE_PREMIERE',
                 'est_vendable': vendable if vendable else False,
-                'unite_base': 'kg' if 'Riz' in nom or 'Viande' in nom else 'piece',
+                'unite_mesure': UniteMesure.get_or_create_by_symbole('kg' if 'Riz' in nom or 'Viande' in nom else 'piece'),
                 'prix_achat': Decimal(prix),
                 'prix_vente': Decimal(prix) if vendable else 0,
                 'actif': True
@@ -148,7 +148,7 @@ def importer_produits():
                 'nom': nom,
                 'categorie': cat_consommables,
                 'type_article': 'CONSOMMABLE',
-                'unite_base': 'piece',
+                'unite_mesure': UniteMesure.get_or_create_by_symbole('piece'),
                 'prix_achat': Decimal(prix),
                 'prix_vente': Decimal(prix) if vendable else 0,
                 'actif': True

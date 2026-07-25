@@ -12,7 +12,7 @@ from decimal import Decimal
 import json
 import uuid
 
-from ..models import Produit, CategorieProduit, SousUnite, StockEntrepot, Entrepot, Domaine
+from ..models import Produit, CategorieProduit, SousUnite, StockEntrepot, Entrepot, Domaine, UniteMesure
 from ..constants import ALLOWED_STOCK_GROUPS
 
 
@@ -89,7 +89,7 @@ def api_ajouter_produit(request):
                 code=code,
                 nom=produit_data.get('nom'),
                 categorie_id=produit_data.get('categorie') or None,
-                unite_base=produit_data.get('unite_base', 'piece'),
+                unite_mesure=UniteMesure.get_or_create_by_symbole(produit_data.get('unite_base', 'piece')),
                 prix_achat=Decimal(produit_data.get('prix_achat', 0)),
                 prix_vente=Decimal(produit_data.get('prix_vente', 0)),
                 seuil_alerte=Decimal(produit_data.get('seuil_alerte', 5)),

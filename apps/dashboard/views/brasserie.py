@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-from apps.stock.models import Produit, CategorieProduit, Domaine, StockEntrepot, Entrepot
+from apps.stock.models import Produit, CategorieProduit, Domaine, StockEntrepot, Entrepot, UniteMesure
 from apps.dashboard.services import (
     get_ca_brasserie,
     get_ca_mensuel_par_categorie,
@@ -162,7 +162,7 @@ def brasserie_ajouter_api(request):
                 categorie_id=request.POST.get('categorie') or None,
                 type_article='MARCHANDISE',
                 est_vendable=True,
-                unite_base=request.POST.get('unite_base', 'piece'),
+                unite_mesure=UniteMesure.get_or_create_by_symbole(request.POST.get('unite_base', 'piece')),
                 prix_vente=Decimal(request.POST.get('prix_vente', 0)),
                 description=request.POST.get('description', ''),
                 image=request.FILES.get('image'),

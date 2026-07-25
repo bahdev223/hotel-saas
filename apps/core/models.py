@@ -33,6 +33,16 @@ class JourneeExploitation(models.Model):
     def __str__(self):
         return f"Journée du {self.date_metier.strftime('%d/%m/%Y')} - {self.get_statut_display()}"
 
+    @classmethod
+    def get_journee_en_cours(cls):
+        """Retourne la journée d'exploitation ouverte du jour, la crée si absente."""
+        aujourdhui = timezone.localdate()
+        journee, _ = cls.objects.get_or_create(
+            date_metier=aujourdhui,
+            defaults={'statut': 'OUVERTE'},
+        )
+        return journee
+
     def fermer(self, employe):
         self.statut = 'FERMEE'
         self.date_fermeture = timezone.now()
