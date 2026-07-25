@@ -92,14 +92,24 @@ def ajouter_client(request):
 
 @login_required
 def detail_client(request, client_id):
+    """Fiche client 360° : identité, position financière canonique,
+    indicateurs commerciaux, chronologie unifiée et opérations détaillées."""
+    from apps.clients.services.client_account_service import ClientAccountService
+    from apps.clients.services.client_timeline_service import ClientTimelineService
+    from apps.clients.services.client_detail_service import get_client_operations
+
     client = get_object_or_404(Client, id=client_id)
-    exercice = EcritureComptableService._get_exercice(date.today())
-    compte_client = CompteClient.objects.filter(client=client, exercice=exercice).first()
-    solde_actuel = float(compte_client.solde) if compte_client else 0
+    position = ClientAccountService.get_position(client_id)
+    indicateurs = ClientTimelineService.get_indicateurs(client_id)
+    timeline = ClientTimelineService.get_timeline(client_id, limit=100)
+    operations = get_client_operations(client_id)
+
     return render(request, 'clients/detail.html', {
         'client': client,
-        'solde_actuel': solde_actuel,
-        'compte_client': compte_client,
+        'position': position,
+        'indicateurs': indicateurs,
+        'timeline': timeline,
+        'operations': operations,
     })
 
 
@@ -214,14 +224,44 @@ def api_detail_client(request, client_id):
     })
 
 
+def _client_a_des_operations(client):
+    """True si le client possède la moindre opération métier.
+    Un tel client ne doit JAMAIS être supprimé physiquement (l'historique
+    séjours/ventes/factures serait détruit ou orphelin) : on le désactive."""
+    from apps.hotel.models import LocationModel, Reservation, Sejour
+    from apps.pos.models import Commande, Vente
+    from apps.facturation.models import FactureModel
+    from apps.paiements.models import Paiement
+
+    verifications = (
+        Reservation.objects.filter(client=client),
+        Sejour.objects.filter(client=client),
+        LocationModel.objects.filter(client=client),
+        Commande.objects.filter(client=client),
+        Vente.objects.filter(client=client),
+        FactureModel.objects.filter(client=client),
+        Paiement.objects.filter(client=client),
+    )
+    return any(qs.exists() for qs in verifications)
+
+
 @login_required
 def supprimer_client(request, client_id):
     client = get_object_or_404(Client, id=client_id)
     solde_total = CompteClient.objects.filter(client=client).aggregate(
         total=Sum('solde')
     )['total'] or 0
+    a_operations = _client_a_des_operations(client)
 
     if request.method == 'POST':
+        if a_operations:
+            messages.error(
+                request,
+                f"Impossible de supprimer {client.nom_complet} : ce client a un "
+                f"historique d'opérations (séjours, ventes, factures...). "
+                f"Désactivez-le au lieu de le supprimer."
+            )
+            return redirect('clients:detail', client_id=client.id)
         if solde_total != 0:
             messages.error(
                 request,
@@ -233,7 +273,11 @@ def supprimer_client(request, client_id):
         messages.success(request, 'Client supprimé')
         return redirect('clients:dashboard')
 
-    return render(request, 'clients/supprimer.html', {'client': client, 'solde_total': solde_total})
+    return render(request, 'clients/supprimer.html', {
+        'client': client,
+        'solde_total': solde_total,
+        'a_operations': a_operations,
+    })
 
 
 @login_required
