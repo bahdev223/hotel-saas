@@ -4,22 +4,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% if entreprise_courante %}{{ entreprise_courante.nom_commercial|default:entreprise_courante.nom }}{% else %}ERP{% endif %} | Executive Login</title>
-    
-    <!-- Tailwind CDN (mÃªme que l'original) -->
+    <title>{% if entreprise_courante %}{{ entreprise_courante.nom_commercial|default:entreprise_courante.nom }}{% else %}ERP{% endif %} | Connexion</title>
+
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    
-    <!-- Google Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&amp;family=Hanken+Grotesk:ital,wght@0,100..900;1,100..900&amp;display=swap" rel="stylesheet">
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet">
-    
-    <!-- Tailwind Config (identique Ã  l'original) -->
-    <script id="tailwind-config">
+
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400..900;1,400..900&family=Hanken+Grotesk:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+
+    <script>
         tailwind.config = {
             darkMode: "class",
             theme: {
                 extend: {
-                    "colors": {
+                    colors: {
                         "on-tertiary-fixed": "#1f2937",
                         "primary-fixed-dim": "#e3c282",
                         "on-secondary": "#ffffff",
@@ -54,7 +51,6 @@
                         "surface-tint": "#c8962c",
                         "surface-container-low": "#ffffff",
                         "inverse-surface": "#1f2937",
-                        "secondary-fixed-dim": "#e3c282",
                         "background": "#faf8f4",
                         "primary-container": "#f7ecd3",
                         "error-container": "#fee2e2",
@@ -68,13 +64,13 @@
                         "surface-bright": "#ffffff",
                         "tertiary-fixed": "#eef0f2"
                     },
-                    "borderRadius": {
-                        "DEFAULT": "0.25rem",
-                        "lg": "0.5rem",
-                        "xl": "0.75rem",
-                        "full": "9999px"
+                    borderRadius: {
+                        DEFAULT: "0.25rem",
+                        lg: "0.5rem",
+                        xl: "0.75rem",
+                        full: "9999px"
                     },
-                    "spacing": {
+                    spacing: {
                         "container-max": "1440px",
                         "section-gap": "120px",
                         "margin-desktop": "80px",
@@ -82,7 +78,7 @@
                         "gutter": "24px",
                         "margin-mobile": "24px"
                     },
-                    "fontFamily": {
+                    fontFamily: {
                         "headline-sm": ["Playfair Display"],
                         "headline-md": ["Playfair Display"],
                         "ui-element": ["Hanken Grotesk"],
@@ -92,21 +88,21 @@
                         "display-lg-mobile": ["Playfair Display"],
                         "label-caps": ["Hanken Grotesk"]
                     },
-                    "fontSize": {
-                        "headline-sm": ["24px", {"lineHeight": "32px", "letterSpacing": "0.02em", "fontWeight": "400"}],
-                        "headline-md": ["32px", {"lineHeight": "40px", "letterSpacing": "0em", "fontWeight": "400"}],
-                        "ui-element": ["14px", {"lineHeight": "20px", "letterSpacing": "0.05em", "fontWeight": "500"}],
-                        "body-lg": ["18px", {"lineHeight": "28px", "letterSpacing": "0.01em", "fontWeight": "400"}],
-                        "body-md": ["16px", {"lineHeight": "24px", "letterSpacing": "0.01em", "fontWeight": "400"}],
-                        "display-lg": ["64px", {"lineHeight": "72px", "letterSpacing": "-0.02em", "fontWeight": "400"}],
-                        "display-lg-mobile": ["40px", {"lineHeight": "48px", "letterSpacing": "-0.01em", "fontWeight": "400"}],
-                        "label-caps": ["12px", {"lineHeight": "16px", "letterSpacing": "0.2em", "fontWeight": "600"}]
+                    fontSize: {
+                        "headline-sm": ["24px", { lineHeight: "32px", letterSpacing: "0.02em", fontWeight: "400" }],
+                        "headline-md": ["32px", { lineHeight: "40px", letterSpacing: "0em", fontWeight: "400" }],
+                        "ui-element": ["14px", { lineHeight: "20px", letterSpacing: "0.05em", fontWeight: "500" }],
+                        "body-lg": ["18px", { lineHeight: "28px", letterSpacing: "0.01em", fontWeight: "400" }],
+                        "body-md": ["16px", { lineHeight: "24px", letterSpacing: "0.01em", fontWeight: "400" }],
+                        "display-lg": ["64px", { lineHeight: "72px", letterSpacing: "-0.02em", fontWeight: "400" }],
+                        "display-lg-mobile": ["40px", { lineHeight: "48px", letterSpacing: "-0.01em", fontWeight: "400" }],
+                        "label-caps": ["12px", { lineHeight: "16px", letterSpacing: "0.2em", fontWeight: "600" }]
                     }
-                },
-            },
+                }
+            }
         }
     </script>
-    
+
     <style>
         .material-symbols-outlined {
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
@@ -117,134 +113,211 @@
             border: 1px solid rgba(200, 150, 44, 0.18);
             box-shadow: 0 24px 60px -20px rgba(89, 67, 15, 0.18);
         }
-        .luxury-gradient {
-            background: radial-gradient(circle at 50% 50%, rgba(200, 150, 44, 0.08) 0%, transparent 70%);
-        }
         body { background-color: #faf8f4; }
+        .login-input {
+            transition: all 0.3s ease;
+        }
+        .login-input:focus {
+            border-color: #c8962c;
+            box-shadow: 0 1px 0 0 #c8962c;
+        }
+        .login-input.has-value {
+            border-color: #c8962c;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+        .animate-in-delay-1 { animation-delay: 0.1s; opacity: 0; }
+        .animate-in-delay-2 { animation-delay: 0.2s; opacity: 0; }
+        .animate-in-delay-3 { animation-delay: 0.3s; opacity: 0; }
     </style>
 </head>
-<body class="bg-background text-on-surface min-h-screen flex flex-col selection:bg-secondary selection:text-on-secondary">
+<body class="bg-background text-on-surface min-h-screen flex selection:bg-secondary selection:text-on-secondary">
 
-<!-- Subtle Background Ambient Light -->
-<div class="fixed inset-0 luxury-gradient pointer-events-none"></div>
-
-<!-- Main Content Canvas -->
-<main class="flex-grow flex items-center justify-center px-margin-mobile md:px-margin-desktop py-section-gap relative z-10">
-    <div class="w-full max-w-[480px] flex flex-col items-center">
-        
-        <!-- Logo Section -->
-        <header class="mb-gutter text-center">
-            <span class="font-label-caps text-label-caps text-secondary mb-4 block tracking-[0.4em]">EXECUTIVE HOTEL MANAGEMENT</span>
-            {% if request.resolver_match.url_name == 'login' %}
-            <h1 class="font-display-lg-mobile md:font-display-lg text-secondary uppercase tracking-[0.2em]">{% if entreprise_courante %}{{ entreprise_courante.nom_commercial|default:entreprise_courante.nom }}{% else %}ERP{% endif %}</h1>
-            {% else %}
-            <div class="relative inline-block">
-                <img src="{% if entreprise_courante and entreprise_courante.logo %}{{ entreprise_courante.logo.url }}{% else %}{% static 'logo.jpg' %}{% endif %}" alt="{% if entreprise_courante %}{{ entreprise_courante.nom }}{% else %}ERP{% endif %}" class="w-48 md:w-64 h-auto drop-shadow-[0_0_30px_rgba(200,169,107,0.15)]">
-            </div>
-            {% endif %}
-        </header>
-        
-        <!-- Login Card -->
-        <div class="glass-card w-full p-8 md:p-12 shadow-2xl relative overflow-hidden">
-            <!-- Soft Luminous Accent behind card content -->
-            <div class="absolute -top-24 -left-24 w-48 h-48 bg-secondary/5 rounded-full blur-[60px]"></div>
-            
-            <form method="post" class="relative z-10 flex flex-col gap-8">
-                {% csrf_token %}
-                
-                <div class="space-y-6">
-                    <!-- Identifiant Field -->
-                    <div class="group">
-                        <label class="font-label-caps text-label-caps text-on-surface-variant mb-2 block uppercase tracking-widest transition-colors group-focus-within:text-secondary" for="username">
-                            Identifiant ou Matricule
-                        </label>
-                        <input 
-                            name="username"
-                            type="text" 
-                            required
-                            class="w-full bg-surface-container-low border-b border-outline-variant/30 border-t-0 border-x-0 px-0 py-3 text-on-surface font-body-md placeholder:text-outline/40 focus:ring-0 focus:border-secondary transition-all duration-300" 
-                            id="username" 
-                            placeholder="Matricule ou email"
-                        >
-                    </div>
-                    
-                    <!-- Mot de passe Field -->
-                    <div class="group">
-                        <div class="flex justify-between items-end mb-2">
-                            <label class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest transition-colors group-focus-within:text-secondary" for="password">
-                                Mot de passe
-                            </label>
-                            <a class="font-label-caps text-[10px] text-outline hover:text-secondary transition-colors uppercase tracking-widest" href="{% url 'authentication:mot_de_passe_oublie' %}">
-                                OubliÃ©?
-                            </a>
-                        </div>
-                        <div class="relative">
-                            <input 
-                                name="password"
-                                type="password" 
-                                required
-                                class="w-full bg-surface-container-low border-b border-outline-variant/30 border-t-0 border-x-0 px-0 py-3 text-on-surface font-body-md placeholder:text-outline/40 focus:ring-0 focus:border-secondary transition-all duration-300" 
-                                id="password" 
-                                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
-                            >
-                            <span class="material-symbols-outlined absolute right-0 bottom-3 text-outline cursor-pointer hover:text-secondary transition-colors" style="font-size: 18px;" onclick="togglePassword()">
-                                visibility
-                            </span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Action Button -->
-                <button type="submit" class="w-full bg-secondary py-4 px-unit text-on-secondary font-label-caps text-label-caps tracking-[0.25em] uppercase hover:bg-secondary-fixed transition-all duration-300 active:scale-[0.98] mt-4 shadow-lg shadow-secondary/10">
-                    AccÃ©der Ã  l'espace
-                </button>
-                
-                <!-- Security Indicator -->
-                <div class="flex items-center justify-center gap-2 pt-2">
-                    <span class="material-symbols-outlined text-secondary" style="font-size: 14px;">lock</span>
-                    <span class="font-label-caps text-[10px] text-outline uppercase tracking-[0.15em]">Secure Encryption System</span>
-                </div>
-            </form>
+<div class="flex min-h-screen w-full">
+    <!-- Left Panel: Brand / Visual -->
+    <div class="hidden lg:flex lg:w-1/2 relative bg-gradient-to-br from-secondary/5 via-background to-secondary/10 items-center justify-center overflow-hidden">
+        <div class="absolute inset-0 opacity-[0.03] pointer-events-none">
+            <div class="absolute top-1/4 left-1/4 w-96 h-96 bg-secondary rounded-full blur-[120px]"></div>
+            <div class="absolute bottom-1/4 right-1/4 w-80 h-80 bg-secondary rounded-full blur-[100px]"></div>
         </div>
-        
-        <!-- Contextual Footer -->
-        <div class="mt-gutter flex flex-col items-center gap-unit opacity-40">
-            <p class="font-label-caps text-[10px] text-on-surface uppercase tracking-widest">Â© {% now "Y" %} {% if entreprise_courante %}{{ entreprise_courante.nom_commercial|default:entreprise_courante.nom }}{% else %}ERP{% endif %}. GESTION HÔTELIÈRE.</p>
+        <div class="relative z-10 text-center px-12 max-w-lg">
+            <div class="mb-10">
+                <span class="font-label-caps text-label-caps text-secondary/60 tracking-[0.4em] block mb-4">EXECUTIVE HOTEL MANAGEMENT</span>
+                <h1 class="font-display-lg text-secondary text-[56px] leading-[1.1] tracking-[-0.02em]">
+                    {% if entreprise_courante %}{{ entreprise_courante.nom_commercial|default:entreprise_courante.nom }}{% else %}ERP{% endif %}
+                </h1>
+            </div>
+            <div class="space-y-4 text-on-surface-variant/60 font-body-md leading-relaxed">
+                <p>Gestion hoteliere centralisee — stocks, POS, comptabilite, ressources humaines.</p>
+                <p class="text-sm italic">Une seule plateforme pour l'ensemble de vos operations.</p>
+            </div>
+            <div class="mt-12 flex justify-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-secondary/30"></span>
+                <span class="w-2 h-2 rounded-full bg-secondary/60"></span>
+                <span class="w-2 h-2 rounded-full bg-secondary/30"></span>
+            </div>
         </div>
     </div>
-</main>
 
-<!-- Side Visual (Subtle architectural hint) -->
-<aside class="fixed right-0 top-0 h-screen w-1/4 hidden lg:block opacity-20 pointer-events-none">
-    <img alt="Luxury Interior" class="h-full w-full object-cover grayscale" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCHl8pkNgZC5GsrqAnYE65vdLMkGbmRR-1qhyF8g_VpZ5agqyri6lPxSsD4TuCAZM1Is33DQg6EhyRqoapAIb2QUhKUe2wuTLnI8C4FrNp8I4WS4-6Qpr_ZUuIk3OqKM5gJJlcIopwa3WK8H7vJXcc5obr28WcuH2QGJGR5NhhXyotWp8rff0zBXezTots7UbDIsO1L9OktkzD6dzgR7zQXCl5km6vFO24CEqwnwQxYF_y7z1ZjtZiPGtt9cMqJzuDsPeP7of_aIDY">
-    <div class="absolute inset-0 bg-gradient-to-r from-background via-transparent to-transparent"></div>
-</aside>
+    <!-- Right Panel: Form -->
+    <div class="w-full lg:w-1/2 flex items-center justify-center px-margin-mobile md:px-margin-desktop py-section-gap relative">
+        <div class="fixed inset-0 luxury-gradient pointer-events-none lg:hidden"></div>
+        <div class="w-full max-w-[440px] relative z-10">
 
-<!-- Message d'erreur Django -->
+            <!-- Logo mobile -->
+            <div class="lg:hidden text-center mb-10 animate-in animate-in-delay-1">
+                <span class="font-label-caps text-label-caps text-secondary/60 tracking-[0.4em] block mb-3">EXECUTIVE HOTEL MANAGEMENT</span>
+                <h1 class="font-display-lg-mobile text-secondary uppercase tracking-[0.2em] text-3xl">
+                    {% if entreprise_courante %}{{ entreprise_courante.nom_commercial|default:entreprise_courante.nom }}{% else %}ERP{% endif %}
+                </h1>
+            </div>
+
+            <!-- Login Card -->
+            <div class="glass-card w-full p-8 md:p-10 shadow-2xl relative overflow-hidden animate-in animate-in-delay-2">
+                <div class="absolute -top-24 -left-24 w-48 h-48 bg-secondary/5 rounded-full blur-[60px] pointer-events-none"></div>
+
+                <form method="post" class="relative z-10 flex flex-col gap-7" id="login-form">
+                    {% csrf_token %}
+
+                    <div class="space-y-5">
+                        <!-- Identifiant -->
+                        <div class="group">
+                            <label class="font-label-caps text-label-caps text-on-surface-variant mb-1.5 block uppercase tracking-widest transition-colors group-focus-within:text-secondary" for="username">
+                                Identifiant ou Matricule
+                            </label>
+                            <input
+                                name="username"
+                                type="text"
+                                required
+                                autocomplete="username"
+                                autocapitalize="off"
+                                class="login-input w-full bg-transparent border-b-2 border-outline-variant/40 px-0 py-2.5 text-on-surface font-body-md placeholder:text-outline/30 focus:outline-none focus:border-secondary"
+                                id="username"
+                                placeholder="Matricule ou email"
+                            >
+                        </div>
+
+                        <!-- Mot de passe -->
+                        <div class="group">
+                            <div class="flex justify-between items-end mb-1.5">
+                                <label class="font-label-caps text-label-caps text-on-surface-variant uppercase tracking-widest transition-colors group-focus-within:text-secondary" for="password">
+                                    Mot de passe
+                                </label>
+                                <a class="font-label-caps text-[10px] text-outline hover:text-secondary transition-colors uppercase tracking-widest" href="{% url 'authentication:mot_de_passe_oublie' %}">
+                                    Oublie ?
+                                </a>
+                            </div>
+                            <div class="relative">
+                                <input
+                                    name="password"
+                                    type="password"
+                                    required
+                                    autocomplete="current-password"
+                                    class="login-input w-full bg-transparent border-b-2 border-outline-variant/40 px-0 py-2.5 text-on-surface font-body-md placeholder:text-outline/30 focus:outline-none focus:border-secondary pr-8"
+                                    id="password"
+                                    placeholder="Mot de passe"
+                                >
+                                <button type="button" onclick="togglePassword()" class="absolute right-0 bottom-2.5 text-outline hover:text-secondary transition-colors p-0 bg-transparent border-none cursor-pointer" tabindex="-1" aria-label="Afficher le mot de passe">
+                                    <span class="material-symbols-outlined text-[18px]" id="password-icon">visibility</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <button type="submit" id="submit-btn"
+                        class="w-full bg-secondary py-3.5 px-unit text-on-secondary font-label-caps text-label-caps tracking-[0.25em] uppercase hover:bg-primary-fixed-dim transition-all duration-300 active:scale-[0.98] mt-2 shadow-lg shadow-secondary/10 disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100">
+                        <span id="btn-text">Acceder a l'espace</span>
+                        <span id="btn-spinner" class="hidden">Connexion...</span>
+                    </button>
+
+                    <div class="flex items-center justify-center gap-2 pt-1">
+                        <span class="material-symbols-outlined text-secondary text-[14px]">lock</span>
+                        <span class="font-label-caps text-[10px] text-outline uppercase tracking-[0.15em]">Secure Encryption System</span>
+                    </div>
+                </form>
+            </div>
+
+            <div class="mt-8 text-center opacity-40 animate-in animate-in-delay-3">
+                <p class="font-label-caps text-[10px] text-on-surface uppercase tracking-widest">&copy; {% now "Y" %} {% if entreprise_courante %}{{ entreprise_courante.nom_commercial|default:entreprise_courante.nom }}{% else %}ERP{% endif %}. Gestion Hoteliere.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Messages -->
 {% if messages %}
-<div class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-3">
+<div class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2">
     {% for message in messages %}
-    <div class="glass-card px-6 py-3 rounded-full border-red-500/50 text-red-600 text-[11px] tracking-widest uppercase flex items-center gap-3">
-        <span class="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse"></span>
+    <div class="glass-card px-6 py-3.5 rounded-xl {% if message.tags == 'error' %}border-red-500/50 text-red-600{% elif message.tags == 'success' %}border-green-500/50 text-green-600{% else %}border-outline/30 text-on-surface-variant{% endif %} text-[11px] tracking-widest uppercase flex items-center gap-3 shadow-xl backdrop-blur-2xl animate-in">
+        <span class="w-1.5 h-1.5 rounded-full {% if message.tags == 'error' %}bg-red-500{% elif message.tags == 'success' %}bg-green-500{% else %}bg-outline{% endif %}"></span>
         {{ message }}
     </div>
     {% endfor %}
 </div>
 {% endif %}
 
-<!-- Simple JS pour toggle password -->
+{% if form and form.errors %}
+<div class="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2">
+    {% for field, errors in form.errors.items %}
+        {% for error in errors %}
+        <div class="glass-card px-6 py-3.5 rounded-xl border-red-500/50 text-red-600 text-[11px] tracking-widest uppercase flex items-center gap-3 shadow-xl backdrop-blur-2xl animate-in">
+            <span class="w-1.5 h-1.5 bg-red-500 rounded-full"></span>
+            {{ error }}
+        </div>
+        {% endfor %}
+    {% endfor %}
+</div>
+{% endif %}
+
 <script>
     function togglePassword() {
-        const passwordInput = document.getElementById('password');
-        const icon = event.target;
-        if (passwordInput.type === 'password') {
-            passwordInput.type = 'text';
+        var input = document.getElementById('password');
+        var icon = document.getElementById('password-icon');
+        if (input.type === 'password') {
+            input.type = 'text';
             icon.textContent = 'visibility_off';
         } else {
-            passwordInput.type = 'password';
+            input.type = 'password';
             icon.textContent = 'visibility';
         }
     }
+
+    document.addEventListener('DOMContentLoaded', function() {
+        var form = document.getElementById('login-form');
+        var btn = document.getElementById('submit-btn');
+        var btnText = document.getElementById('btn-text');
+        var btnSpinner = document.getElementById('btn-spinner');
+
+        form.addEventListener('submit', function() {
+            btn.disabled = true;
+            btnText.classList.add('hidden');
+            btnSpinner.classList.remove('hidden');
+        });
+
+        var inputs = document.querySelectorAll('.login-input');
+        inputs.forEach(function(input) {
+            if (input.value) {
+                input.classList.add('has-value');
+            }
+            input.addEventListener('input', function() {
+                if (this.value) {
+                    this.classList.add('has-value');
+                } else {
+                    this.classList.remove('has-value');
+                }
+            });
+        });
+
+        var usernameInput = document.getElementById('username');
+        if (usernameInput) {
+            usernameInput.focus();
+        }
+    });
 </script>
 
 </body>

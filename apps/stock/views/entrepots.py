@@ -11,6 +11,7 @@ import json
 import uuid
 
 from ..models import Entrepot, Produit, StockEntrepot, MouvementStock, Domaine, CategorieProduit
+from ..enums.mouvements import TypeMouvement
 from ..constants import ALLOWED_STOCK_GROUPS
 from ..services.transfert_service import TransfertService
 
@@ -304,7 +305,9 @@ def liste_transferts(request):
         messages.error(request, "â›” AccÃ¨s refusÃ©. Vous n'Ãªtes pas autorisÃ© Ã  accÃ©der Ã  cette page.")
         return redirect('admin:index')
     
-    transferts = MouvementStock.objects.filter(type_mouvement='TRANSFERT').order_by('-date_mouvement')
+    transferts = MouvementStock.objects.filter(
+        type_mouvement__in=[TypeMouvement.TRANSFERT_SORTIE, TypeMouvement.TRANSFERT_ENTREE]
+    ).order_by('-date_mouvement')
     
     # Filtres
     date_debut = request.GET.get('date_debut')

@@ -22,10 +22,10 @@ class StockService:
 
         lot = None
         if lot_numero:
-            lot = Lot.objects.create(
-                produit=produit, numero=lot_numero, quantite=quantite,
-                quantite_restante=quantite, date_peremption=date_peremption,
-                fournisseur=fournisseur, prix_achat=prix_achat
+            lot = LotProduit.objects.create(
+                produit=produit, numero=lot_numero,
+                date_peremption=date_peremption,
+                fournisseur=fournisseur
             )
 
         mouvement = MouvementStockService.entree_stock(

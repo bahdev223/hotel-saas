@@ -4,6 +4,7 @@ from django.contrib.auth.decorators import login_required
 from django.db.models import Sum, Count, Q
 from django.http import JsonResponse
 from datetime import date, timedelta
+from ..enums.mouvements import TypeMouvement
 from ..models import Produit, MouvementStock, StockLotEntrepot, Debiteur, StockDebiteur
 
 
@@ -70,7 +71,9 @@ def rapport_mouvements(request):
         'total_mouvements': mouvements.count(),
         'total_entrees': mouvements.filter(type_mouvement='ENTREE').aggregate(total=Sum('quantite'))['total'] or 0,
         'total_sorties': mouvements.filter(type_mouvement='SORTIE').aggregate(total=Sum('quantite'))['total'] or 0,
-        'total_transferts': mouvements.filter(type_mouvement='TRANSFERT').aggregate(total=Sum('quantite'))['total'] or 0,
+        'total_transferts': mouvements.filter(
+            type_mouvement__in=[TypeMouvement.TRANSFERT_SORTIE, TypeMouvement.TRANSFERT_ENTREE]
+        ).aggregate(total=Sum('quantite'))['total'] or 0,
     }
     
     # Groupement par jour

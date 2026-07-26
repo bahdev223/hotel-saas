@@ -119,7 +119,7 @@ class MouvementStockService:
                      motif=SourceOperationType.VENTE, valeur_unitaire=None,
                      reference=None, raison="", unite_texte='',
                      entrepot_dest=None, source_operation=None,
-                     type_mouvement_override=None):
+                     type_mouvement_override=None, skip_fefo=False):
         quantite = Decimal(str(quantite))
         
         if quantite <= 0:
@@ -198,10 +198,11 @@ class MouvementStockService:
             )
 
         # Gestion des lots (FEFO) si le produit a des lots dans cet entrepôt
-        from ..models import StockLotEntrepot
-        from .lot_allocation_service import LotAllocationService
-        if StockLotEntrepot.objects.filter(lot__produit=produit, entrepot=entrepot, quantite__gt=0).exists():
-            LotAllocationService.allouer_lots_fefo(mouvement, quantite)
+        if not skip_fefo:
+            from ..models import StockLotEntrepot
+            from .lot_allocation_service import LotAllocationService
+            if StockLotEntrepot.objects.filter(lot__produit=produit, entrepot=entrepot, quantite__gt=0).exists():
+                LotAllocationService.allouer_lots_fefo(mouvement, quantite)
 
         return mouvement
 

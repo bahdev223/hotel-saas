@@ -187,7 +187,8 @@ class TransfertService:
                 reference=source_annulation.reference,
                 raison=f"Annulation transfert {transfert.numero} - Sortie dest",
                 source_operation=source_annulation,
-                type_mouvement_override=TypeMouvement.SORTIE
+                type_mouvement_override=TypeMouvement.SORTIE,
+                skip_fefo=True
             )
             # Restaurer les lots exacts dans l'entrepôt source
             LotAllocationService.inverser_allocations(
