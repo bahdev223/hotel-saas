@@ -1,9 +1,13 @@
 # apps/stock/services/lot_allocation_service.py
+from datetime import timedelta
 from decimal import Decimal
 from django.db import transaction, models
-from django.db.models import Sum
+from django.db.models import Sum, F, Q
 from django.utils import timezone
-from ..models import Produit, Entrepot, LotProduit, StockLotEntrepot, MouvementStock, MouvementLot
+from ..models import (
+    Produit, Entrepot, LotProduit, StockLotEntrepot,
+    StockEntrepot, MouvementStock, MouvementLot,
+)
 from django.core.exceptions import ValidationError
 
 class LotAllocationService:
@@ -88,10 +92,11 @@ class LotAllocationService:
                 f"Disponible: {total_disponible}, demandé: {quantite_a_allouer} {produit.unite_base}"
             )
             
-        # Lock and order FEFO
+        # Lock and order FEFO (tiebreaker = pk pour éviter deadlocks)
         stocks_lots_verrouilles = stocks_lots_dispos.select_for_update().order_by(
             models.F('lot__date_peremption').asc(nulls_last=True),
-            'lot__date_creation'
+            'lot__date_creation',
+            'pk'
         )
         
         quantite_restante = quantite_a_allouer
@@ -157,3 +162,67 @@ class LotAllocationService:
                 lot=lot,
                 quantite=qte
             )
+
+    @classmethod
+    def verifier_coherence(cls, entrepot=None, produit=None):
+        """
+        Vérifie que la somme des StockLotEntrepot correspond au StockEntrepot.
+        Retourne la liste des écarts constatés.
+        """
+        qs_stock = StockEntrepot.objects.select_related('produit', 'entrepot').all()
+        if entrepot:
+            qs_stock = qs_stock.filter(entrepot=entrepot)
+        if produit:
+            qs_stock = qs_stock.filter(produit=produit)
+
+        ecarts = []
+        for se in qs_stock:
+            somme_lots = StockLotEntrepot.objects.filter(
+                lot__produit=se.produit,
+                entrepot=se.entrepot,
+                lot__actif=True,
+            ).aggregate(total=Sum('quantite'))['total'] or Decimal('0')
+
+            if se.quantite != somme_lots:
+                ecarts.append({
+                    'produit': se.produit.nom,
+                    'produit_id': se.produit_id,
+                    'entrepot': se.entrepot.nom,
+                    'stock_entrepot': se.quantite,
+                    'somme_lots': somme_lots,
+                    'ecart': se.quantite - somme_lots,
+                })
+
+        return ecarts
+
+    @classmethod
+    def alertes_peremption(cls, jours=7, entrepot=None):
+        """
+        Retourne les lots dont la date de péremption est dans moins de `jours`
+        jours, avec quantité > 0.
+        """
+        seuil = timezone.now().date() + timedelta(days=jours)
+
+        qs = StockLotEntrepot.objects.filter(
+            lot__date_peremption__lte=seuil,
+            lot__date_peremption__gte=timezone.now().date(),
+            lot__actif=True,
+            quantite__gt=0,
+        ).select_related('lot__produit', 'lot__fournisseur', 'entrepot')
+
+        if entrepot:
+            qs = qs.filter(entrepot=entrepot)
+
+        return [
+            {
+                'lot_id': sle.lot_id,
+                'lot_numero': sle.lot.numero,
+                'produit': sle.lot.produit.nom,
+                'entrepot': sle.entrepot.nom,
+                'quantite': sle.quantite,
+                'date_peremption': sle.lot.date_peremption,
+                'jours_restants': (sle.lot.date_peremption - timezone.now().date()).days,
+                'fournisseur': sle.lot.fournisseur.nom if sle.lot.fournisseur else None,
+            }
+            for sle in qs
+        ]
