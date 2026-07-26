@@ -50,18 +50,18 @@ class PaiementEngine:
         # Résoudre l'objet source
         objet, source_label = PaiementEngine._resoudre_source(data)
 
-        # Commande POS : caisse du point de vente (automatique) + session ouverte obligatoire
+        # Commande POS : déléguer à CommandeSettlementService (service unique)
         from apps.pos.models import Commande
+        from .commande_settlement_service import CommandeSettlementService
         if isinstance(objet, Commande):
-            pv = objet.point_vente
-            if not pv or not pv.caisse_id:
-                raise ValueError(f"Caisse non configurée sur le point de vente de la commande {objet.numero}")
-            caisse_id = pv.caisse_id
-            from apps.pos.services.caisse_session_service import get_session_active_pv
-            if not get_session_active_pv(pv):
-                raise SessionRequiseError(
-                    f"Aucune session de caisse ouverte sur {pv.nom} — ouvrez une session pour encaisser."
-                )
+            result = CommandeSettlementService.regler(
+                commande=objet,
+                montant=montant,
+                mode_paiement=mode,
+                utilisateur=user,
+                notes=notes,
+            )
+            return result['paiement']
 
         from apps.tresorerie.models import Caisse
         caisse = Caisse.objects.select_for_update().get(id=caisse_id)
@@ -261,15 +261,13 @@ class PaiementEngine:
                 objet.statut = 'PAYEE'
                 objet.save()
                 # Déduire le stock via le service centralisé
+                # L'erreur de consommation annule tout le paiement (transaction atomique)
                 from apps.restaurant.services.consumption_service import RestaurantConsumptionService
-                try:
-                    RestaurantConsumptionService.consommer_commande(
-                        commande=objet,
-                        entrepot=objet.entrepot or objet.point_vente.entrepot,
-                        utilisateur=user.username if hasattr(user, 'username') else str(user),
-                    )
-                except Exception:
-                    pass
+                RestaurantConsumptionService.consommer_commande(
+                    commande=objet,
+                    entrepot=objet.entrepot or objet.point_vente.entrepot,
+                    utilisateur=user.username if hasattr(user, 'username') else str(user),
+                )
             if hasattr(objet, 'facture') and objet.facture:
                 if objet.facture.reste_a_payer <= 0:
                     objet.facture.marquer_payee()

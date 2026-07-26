@@ -128,7 +128,11 @@ class RestaurantConsumptionService:
     @staticmethod
     def _consommer_recette(recette, quantite, entrepot, source_operation=None,
                            utilisateur="Cuisine", reference="", raison=""):
-        """Consomme les ingrédients individuels d'une recette via MouvementStockService."""
+        """Consomme les ingrédients individuels d'une recette via MouvementStockService.
+        Le rendement de la recette est respecté : si la recette produit 10 portions
+        avec 1 kg d'ingrédient, 2 portions = 0.2 kg.
+        """
+        rendement = Decimal(str(recette.rendement_quantite or 1))
         for ingredient in recette.ingredients.filter(
             type_ingredient='DEDUIRE',
             produit__isnull=False
@@ -143,7 +147,7 @@ class RestaurantConsumptionService:
                 produit=ingredient.produit
             )
 
-            quantite_sortie = qte_base * Decimal(str(quantite))
+            quantite_sortie = (qte_base / rendement) * Decimal(str(quantite))
 
             MouvementStockService.sortie_stock(
                 produit=ingredient.produit,
@@ -216,8 +220,9 @@ class RestaurantConsumptionService:
 
     @staticmethod
     def _agreger_besoins_recette(besoins, recette, quantite):
-        """Ajoute les besoins d'une recette dans le dict agrégé."""
+        """Ajoute les besoins d'une recette dans le dict agrégé (respecte rendement)."""
         from apps.stock.services.conversion_unite_service import ConversionUniteService
+        rendement = Decimal(str(recette.rendement_quantite or 1))
         for ingredient in recette.ingredients.filter(
             type_ingredient='DEDUIRE', produit__isnull=False
         ):
@@ -229,11 +234,12 @@ class RestaurantConsumptionService:
                 unite_dest=ingredient.produit.unite_mesure,
                 produit=ingredient.produit
             )
-            besoins[ingredient.produit_id] += qte_base * Decimal(str(quantite))
+            besoins[ingredient.produit_id] += (qte_base / rendement) * Decimal(str(quantite))
 
     @staticmethod
     def _verifier_recette(recette, quantite, entrepot):
-        """Vérifie la disponibilité des ingrédients d'une recette."""
+        """Vérifie la disponibilité des ingrédients d'une recette (respecte rendement)."""
+        rendement = Decimal(str(recette.rendement_quantite or 1))
         manques = []
 
         for ingredient in recette.ingredients.filter(
@@ -250,7 +256,7 @@ class RestaurantConsumptionService:
                 produit=ingredient.produit
             )
 
-            quantite_requise = qte_base * Decimal(str(quantite))
+            quantite_requise = (qte_base / rendement) * Decimal(str(quantite))
 
             stock = StockEntrepot.objects.filter(
                 entrepot=entrepot,

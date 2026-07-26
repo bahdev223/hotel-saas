@@ -25,6 +25,7 @@ def liste_pertes(request):
 
 @login_required
 @require_http_methods(["POST"])
+@transaction.atomic
 def api_declarer_perte(request):
     """Déclarer une perte de stock (périmé, cassé, vol, etc.)."""
     user_groups = request.user.groups.values_list('name', flat=True)

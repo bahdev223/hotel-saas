@@ -106,6 +106,7 @@ def api_detail_caisse(request, caisse_id):
 @login_required
 @csrf_exempt
 @require_http_methods(["POST"])
+@transaction.atomic
 def api_mouvement_caisse(request):
     """API pour enregistrer un mouvement de caisse (entrée/sortie)"""
     try:
@@ -220,6 +221,7 @@ def api_synthese_caisses(request):
 @login_required
 @csrf_exempt
 @require_http_methods(["POST"])
+@transaction.atomic
 def api_transfert_caisse(request):
     """API pour transférer de l'argent entre caisses"""
     try:

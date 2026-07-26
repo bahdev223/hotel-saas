@@ -1,5 +1,6 @@
 # apps/tresorerie/services/mouvement_service.py
 from decimal import Decimal
+from django.db import transaction
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 from ..models import MouvementCaisse, Caisse
@@ -39,6 +40,7 @@ class MouvementService:
         )
     
     @staticmethod
+    @transaction.atomic
     def _creer_mouvement(caisse, type_mouvement, montant, libelle, user, reference=None, source=None):
         """
         Créer un mouvement de caisse et mettre à jour le solde
@@ -124,8 +126,19 @@ class MouvementService:
                             caisse=caisse, montant=montant,
                             libelle=libelle, compte_charge='658', user=user
                         )
-            except Exception:
-                pass  # Ne pas bloquer le mouvement si la compta échoue
+            except Exception as exc:
+                from apps.core.models import IntegrationError
+                try:
+                    IntegrationError.objects.create(
+                        module='TRESORERIE',
+                        operation='COMPTABILISATION',
+                        message=f"Erreur comptable mouvement #{mouvement.id}: {exc}",
+                        details=str(exc),
+                        traceback=__import__('traceback', fromlist=['format_exc']).format_exc(),
+                        status='OPEN',
+                    )
+                except Exception:
+                    pass  # Dernier filet : ne pas planter le mouvement
         
         return mouvement
     

@@ -333,104 +333,37 @@ def changer_statut_commande(request, commande_id):
 @csrf_exempt
 @login_required
 @require_http_methods(["POST"])
-@transaction.atomic
 def api_payer_commande(request, commande_id):
-    """Payer une commande - encaisse sur la caisse choisie et marque la facture payee"""
+    """Payer une commande — délègue à CommandeSettlementService"""
     try:
-        from ..models import Vente, LigneVente
-        from apps.tresorerie.services import MouvementService
-        from apps.pos.services.vente_compta_service import VenteComptaService
-        from apps.facturation.services import FactureGenerators
-
         commande = get_object_or_404(Commande, id=commande_id)
         data = json.loads(request.body)
-
-        if commande.vente:
-            return JsonResponse({'success': False, 'error': 'Commande deja payee'})
-
-        # CREDIT interdit pour les clients passagers
         mode_paiement = data.get('mode_paiement', 'ESPECES')
-        if mode_paiement == 'CREDIT':
-            from apps.clients.models import Client
-            if not commande.client or commande.client_id == Client.PASSAGER_ID:
-                return JsonResponse({'success': False, 'error': 'Le mode Crédit nécessite un client enregistré'}, status=400)
 
-        # Caisse du point de vente — récupérée automatiquement, pas de choix libre
-        caisse = commande.point_vente.caisse
-        if not caisse or not caisse.actif:
-            return JsonResponse({'success': False, 'error': f'Caisse non configurée sur {commande.point_vente.nom}'})
-
-        employe = Employe.objects.filter(user=request.user).first()
-        if not employe:
-            return JsonResponse({'success': False, 'error': 'Employe non trouve'})
-
-        session = get_session_active_pv(commande.point_vente)
-        if not session:
-            return JsonResponse({
-                'success': False,
-                'error_code': 'SESSION_REQUISE',
-                'error': f'Aucune session ouverte sur {caisse.nom} — ouvrez une session pour encaisser.'
-            }, status=403)
-
-        # Creer la vente
-        numero = f"V{uuid.uuid4().hex[:8].upper()}"
-        vente = Vente.objects.create(
-            point_vente=commande.point_vente, caisse=caisse, session_caisse=session,
-            numero=numero, client_nom=commande.client_nom, table=commande.table,
-            mode_paiement=mode_paiement,
-            caissier=session.ouverte_par if session else employe,
-            encaisse_par=employe, montant_total=commande.montant_total, statut='PAYEE'
+        from apps.paiements.services.commande_settlement_service import (
+            CommandeSettlementService,
+            CommandeSettlementError,
         )
 
-        for ligne in commande.lignes.all():
-            LigneVente.objects.create(
-                vente=vente, produit=ligne.produit, menu=ligne.menu,
-                quantite=ligne.quantite, prix_unitaire=ligne.prix_unitaire, notes=ligne.notes
-            )
-
-        commande.vente = vente
-        commande.save()
-
-        # Déduire le stock via le service centralisé
-        from apps.restaurant.services.consumption_service import RestaurantConsumptionService
-        RestaurantConsumptionService.consommer_commande(
+        result = CommandeSettlementService.regler(
             commande=commande,
-            entrepot=commande.entrepot or commande.point_vente.entrepot,
-            utilisateur=request.user.username,
+            montant=commande.montant_total,
+            mode_paiement=mode_paiement,
+            utilisateur=request.user,
+            notes=data.get('notes', ''),
         )
-
-        # Encaisser sur la caisse choisie
-        MouvementService.encaisser(
-            caisse=caisse, montant=commande.montant_total,
-            libelle=f"Paiement commande {commande.numero}",
-            user=request.user, reference=commande.numero
-        )
-
-        try:
-            VenteComptaService.generer_ecriture_vente(vente, request.user)
-        except Exception as e:
-            print(f"Erreur ecriture comptable: {e}")
-
-        # Marquer la facture payee (creee au moment SERVIE/LIVREE)
-        if hasattr(commande, 'facture') and commande.facture:
-            try:
-                commande.facture.marquer_payee()
-            except Exception as e:
-                print(f"Erreur marquage facture: {e}")
-        else:
-            try:
-                facture = FactureGenerators.depuis_commande(commande)
-                facture.emettre()
-                facture.marquer_payee()
-            except Exception as e:
-                print(f"Erreur creation facture: {e}")
 
         return JsonResponse({
-            'success': True, 'vente_id': vente.id, 'numero': numero,
-            'montant_total': float(commande.montant_total),
-            'caisse': caisse.nom, 'message': 'Paiement effectue'
+            'success': True,
+            'vente_id': result['vente'].id,
+            'numero': result['vente'].numero,
+            'montant_total': float(result['montant']),
+            'mode': result['mode'],
+            'message': 'Paiement effectué',
         })
 
+    except CommandeSettlementError as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=400)
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=400)
     

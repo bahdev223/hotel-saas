@@ -9,7 +9,7 @@ from django.views.decorators.http import require_http_methods
 
 from decimal import Decimal
 from django.core.paginator import Paginator
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Sum, Q, F, OuterRef, Subquery, Value, Count
 from django.db.models.functions import Coalesce
 from ..models import Produit, CategorieProduit, Entrepot, StockEntrepot, SousUnite, Domaine, MouvementStock
@@ -307,6 +307,7 @@ def api_ajouter_entrepot(request):
 
 @csrf_exempt
 @login_required
+@transaction.atomic
 def api_ajouter_entree(request):
     """API ultra simple pour ajouter une entrÃ©e stock"""
     if request.method != 'POST':
@@ -576,6 +577,7 @@ def api_liste_motifs(request):
 @login_required
 @csrf_exempt
 @require_http_methods(["POST"])
+@transaction.atomic
 def api_ajouter_sortie(request):
     """API ajouter une sortie de stock"""
     try:
