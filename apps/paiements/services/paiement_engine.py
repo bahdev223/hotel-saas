@@ -162,6 +162,33 @@ class PaiementEngine:
         return paiement
 
     @staticmethod
+    def _calculer_cout_menu_reel(ligne):
+        """
+        Calcule le coût réel d'une ligne menu en fonction des choix enregistrés.
+        Utilise les snapshots si disponibles, sinon calcule à la volée.
+        """
+        from decimal import Decimal
+        cout = Decimal('0')
+
+        if not ligne.menu:
+            return cout
+
+        for ligne_menu in ligne.menu.lignes.filter(type_ligne='FIXE'):
+            if ligne_menu.recette:
+                cout += ligne_menu.recette.cout_unitaire_rendement() * Decimal(str(ligne_menu.quantite))
+
+        for choix in ligne.choix_menu.select_related('recette'):
+            if choix.cout_unitaire_snapshot and choix.cout_unitaire_snapshot > 0:
+                cout_choix = choix.cout_unitaire_snapshot
+            elif choix.recette:
+                cout_choix = choix.recette.cout_unitaire_rendement()
+            else:
+                cout_choix = Decimal('0')
+            cout += cout_choix * Decimal(str(choix.quantite))
+
+        return cout
+
+    @staticmethod
     def _resoudre_source(data):
         """Retourne (objet, label) selon ce qui est fourni."""
         if data.get('facture_id'):
@@ -215,7 +242,7 @@ class PaiementEngine:
                     if ligne.produit:
                         cout_unitaire = ligne.produit.prix_achat
                     elif ligne.menu:
-                        cout_unitaire = Decimal(str(ligne.menu.cout_revient_total))
+                        cout_unitaire = PaiementEngine._calculer_cout_menu_reel(ligne)
                     
                     marge_ligne = (ligne.prix_unitaire - cout_unitaire) * ligne.quantite
                     

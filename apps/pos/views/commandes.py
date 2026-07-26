@@ -545,7 +545,34 @@ def api_creer_commande(request):
             elif type_art == 'MENU':
                 menu = get_object_or_404(MenuModel, id=item.get('menu_id'), actif=True)
                 prix = Decimal(str(menu.prix_vente))
-                LigneCommande.objects.create(commande=commande, menu=menu, quantite=qte, prix_unitaire=prix)
+                ligne = LigneCommande.objects.create(commande=commande, menu=menu, quantite=qte, prix_unitaire=prix)
+                # Créer les choix client pour ce menu
+                from apps.restaurant.models import ChoixLigneCommande
+                for choix_data in item.get('choix', []):
+                    choix_recette_id = choix_data.get('recette_id')
+                    if not choix_recette_id:
+                        continue
+                    from apps.restaurant.models import RecetteModel
+                    choix_recette = RecetteModel.objects.filter(id=choix_recette_id).first()
+                    if not choix_recette:
+                        continue
+                    choix_cout = choix_recette.cout_unitaire_rendement()
+                    ChoixLigneCommande.objects.create(
+                        ligne_commande=ligne,
+                        groupe=choix_data.get('groupe', 'PLAT'),
+                        recette=choix_recette,
+                        ligne_menu_id=choix_data.get('ligne_menu_id'),
+                        quantite=choix_data.get('quantite', 1),
+                        prix_supplement=choix_data.get('prix_supplement', 0),
+                        nom_recette_snapshot=choix_recette.nom,
+                        cout_unitaire_snapshot=choix_cout,
+                    )
+                    # Ajouter le prix du supplément au total
+                    prix_supp = Decimal(str(choix_data.get('prix_supplement', 0)))
+                    if prix_supp > 0:
+                        prix += prix_supp
+                        ligne.prix_unitaire = prix
+                        ligne.save(update_fields=['prix_unitaire'])
                 total += qte * prix
             else:
                 produit = get_object_or_404(Produit, id=item.get('produit_id'), actif=True)

@@ -220,52 +220,15 @@ class ProductionService:
 
 
 def destocker_commande(commande, entrepot=None, source_operation=None):
-    from apps.stock.services.mouvement_service import MouvementStockService
-    from decimal import Decimal
-
-    if not entrepot:
-        return {'success': False, 'errors': ['Entrepôt requis']}
-
-    errors = []
-
-    for ligne in commande.lignes.all():
-        try:
-            if ligne.recette:
-                ProductionService.destocker_ingredients(
-                    ligne.recette,
-                    ligne.quantite,
-                    entrepot,
-                    source_operation=source_operation,
-                )
-
-            elif ligne.menu:
-                for ligne_menu in ligne.menu.lignes.filter(type_ligne='FIXE'):
-                    if ligne_menu.recette:
-                        ProductionService.destocker_ingredients(
-                            ligne_menu.recette,
-                            ligne.quantite * ligne_menu.quantite,
-                            entrepot,
-                            source_operation=source_operation,
-                        )
-
-            elif ligne.produit:
-                MouvementStockService.sortie_stock(
-                    produit=ligne.produit,
-                    entrepot=entrepot,
-                    quantite=ligne.quantite,
-                    utilisateur="Cuisine",
-                    motif='vente',
-                    raison=f"Commande #{commande.numero}",
-                    source_operation=source_operation,
-                )
-
-        except Exception as e:
-            errors.append(str(e))
-
-    if errors:
-        return {'success': False, 'errors': errors}
-
-    return {'success': True}
+    """
+    Délègue au service centralisé RestaurantConsumptionService.
+    Utilise uniquement le flux idempotent et atomique.
+    """
+    from .consumption_service import RestaurantConsumptionService
+    return RestaurantConsumptionService.consommer_commande(
+        commande=commande,
+        entrepot=entrepot,
+    )
 
 
 def verifier_stock_commande(commande, entrepot=None):
@@ -279,7 +242,7 @@ def verifier_stock_commande(commande, entrepot=None):
 
     for ligne in commande.lignes.all():
         if ligne.recette:
-            for ingredient in ligne.recette.ingredients.filter(produit__isnull=False):
+            for ingredient in ligne.recette.ingredients.filter(type_ingredient='DEDUIRE', produit__isnull=False):
                 if not ingredient.quantite:
                     continue
                 qte_base = ConversionUniteService.convertir(

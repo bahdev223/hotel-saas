@@ -175,7 +175,7 @@ def api_commande_ingredients(request, commande_id):
 
     for ligne in commande.lignes.all():
         if ligne.recette:
-            for ingredient in ligne.recette.ingredients.filter(produit__isnull=False):
+            for ingredient in ligne.recette.ingredients.filter(type_ingredient='DEDUIRE', produit__isnull=False):
                 if not ingredient.quantite:
                     continue
                 quantite = ingredient.quantite * ligne.quantite
@@ -206,7 +206,7 @@ def api_commande_ingredients(request, commande_id):
             for ligne_menu in ligne.menu.lignes.filter(type_ligne='FIXE'):
                 if not ligne_menu.recette:
                     continue
-                for ingredient in ligne_menu.recette.ingredients.filter(produit__isnull=False):
+                for ingredient in ligne_menu.recette.ingredients.filter(type_ingredient='DEDUIRE', produit__isnull=False):
                     if not ingredient.quantite:
                         continue
                     quantite = ingredient.quantite * ligne.quantite * ligne_menu.quantite
@@ -295,7 +295,7 @@ def api_lancer_cuisson(request, commande_id):
         else:
             for ligne in commande.lignes.all():
                 if ligne.recette:
-                    for ingredient in ligne.recette.ingredients.filter(produit__isnull=False):
+                    for ingredient in ligne.recette.ingredients.filter(type_ingredient='DEDUIRE', produit__isnull=False):
                         if not ingredient.quantite:
                             continue
                         ingredients_a_destock.append({
@@ -308,7 +308,7 @@ def api_lancer_cuisson(request, commande_id):
                     for ligne_menu in ligne.menu.lignes.filter(type_ligne='FIXE'):
                         if not ligne_menu.recette:
                             continue
-                        for ingredient in ligne_menu.recette.ingredients.filter(produit__isnull=False):
+                        for ingredient in ligne_menu.recette.ingredients.filter(type_ingredient='DEDUIRE', produit__isnull=False):
                             if not ingredient.quantite:
                                 continue
                             ingredients_a_destock.append({

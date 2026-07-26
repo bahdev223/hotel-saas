@@ -67,6 +67,18 @@ class RestaurantConsumptionService:
                                 raison=f"Commande #{commande.numero}: {ligne_menu.recette.nom}",
                             )
 
+                    for choix in ligne.choix_menu.select_related('recette'):
+                        if choix.recette:
+                            RestaurantConsumptionService._consommer_recette(
+                                recette=choix.recette,
+                                quantite=ligne.quantite * choix.quantite,
+                                entrepot=entrepot,
+                                source_operation=source_op,
+                                utilisateur=utilisateur,
+                                reference=commande.numero,
+                                raison=f"Commande #{commande.numero}: {choix.recette.nom} (choix)",
+                            )
+
                 elif ligne.produit:
                     MouvementStockService.sortie_stock(
                         produit=ligne.produit,
@@ -148,49 +160,76 @@ class RestaurantConsumptionService:
     def verifier_disponibilite_commande(commande, entrepot=None):
         """
         Vérifie si tous les ingrédients sont disponibles pour une commande.
+        Agrège les besoins par produit avant de comparer au stock.
         Retourne {'disponible': bool, 'manques': [...]}
         """
         if not entrepot:
             return {'disponible': False, 'manques': ['Entrepôt requis']}
 
-        manques = []
+        from collections import defaultdict
+        besoins = defaultdict(Decimal)
 
         for ligne in commande.lignes.all():
             if ligne.recette:
-                manques += RestaurantConsumptionService._verifier_recette(
-                    recette=ligne.recette,
-                    quantite=ligne.quantite,
-                    entrepot=entrepot,
+                RestaurantConsumptionService._agreger_besoins_recette(
+                    besoins, ligne.recette, ligne.quantite
                 )
 
             elif ligne.menu:
                 for ligne_menu in ligne.menu.lignes.filter(type_ligne='FIXE'):
                     if ligne_menu.recette:
-                        manques += RestaurantConsumptionService._verifier_recette(
-                            recette=ligne_menu.recette,
-                            quantite=ligne.quantite * ligne_menu.quantite,
-                            entrepot=entrepot,
+                        RestaurantConsumptionService._agreger_besoins_recette(
+                            besoins, ligne_menu.recette,
+                            ligne.quantite * ligne_menu.quantite
+                        )
+
+                for choix in ligne.choix_menu.select_related('recette'):
+                    if choix.recette:
+                        RestaurantConsumptionService._agreger_besoins_recette(
+                            besoins, choix.recette,
+                            ligne.quantite * choix.quantite
                         )
 
             elif ligne.produit:
-                stock = StockEntrepot.objects.filter(
-                    entrepot=entrepot,
-                    produit=ligne.produit
-                ).first()
-                quantite_dispo = stock.quantite if stock else Decimal('0')
+                besoins[ligne.produit_id] += ligne.quantite
 
-                if quantite_dispo < ligne.quantite:
-                    manques.append({
-                        'produit': ligne.produit.nom,
-                        'requis': ligne.quantite,
-                        'disponible': quantite_dispo,
-                        'unite': ligne.produit.unite_base
-                    })
+        manques = []
+        for produit_id, quantite_requise in besoins.items():
+            stock = StockEntrepot.objects.filter(
+                entrepot=entrepot, produit_id=produit_id
+            ).first()
+            quantite_dispo = stock.quantite if stock else Decimal('0')
+            if quantite_dispo < quantite_requise:
+                from apps.stock.models import Produit
+                produit = Produit.objects.filter(id=produit_id).first()
+                manques.append({
+                    'produit': produit.nom if produit else 'Inconnu',
+                    'requis': quantite_requise,
+                    'disponible': quantite_dispo,
+                    'unite': produit.unite_base if produit else ''
+                })
 
         return {
             'disponible': len(manques) == 0,
             'manques': manques
         }
+
+    @staticmethod
+    def _agreger_besoins_recette(besoins, recette, quantite):
+        """Ajoute les besoins d'une recette dans le dict agrégé."""
+        from apps.stock.services.conversion_unite_service import ConversionUniteService
+        for ingredient in recette.ingredients.filter(
+            type_ingredient='DEDUIRE', produit__isnull=False
+        ):
+            if not ingredient.quantite:
+                continue
+            qte_base = ConversionUniteService.convertir(
+                quantite=ingredient.quantite,
+                unite_source=ingredient.unite_mesure,
+                unite_dest=ingredient.produit.unite_mesure,
+                produit=ingredient.produit
+            )
+            besoins[ingredient.produit_id] += qte_base * Decimal(str(quantite))
 
     @staticmethod
     def _verifier_recette(recette, quantite, entrepot):

@@ -35,6 +35,8 @@ class ChoixLigneCommande(models.Model):
     )
     quantite = models.IntegerField(default=1)
     prix_supplement = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    nom_recette_snapshot = models.CharField(max_length=150, blank=True, default='')
+    cout_unitaire_snapshot = models.DecimalField(max_digits=18, decimal_places=4, default=0)
 
     class Meta:
         db_table = 'restaurant_choix_ligne_commande'
