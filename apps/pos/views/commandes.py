@@ -26,64 +26,22 @@ from ..services.caisse_session_service import get_session_active_pv
 
 def deduire_stock_commande(commande, entrepot_id=None):
     """Déduire le stock de l'entrepôt lié au point de vente.
-    Si entrepot_id est fourni, déduire de celui-là précisément.
+    Délègue au service centralisé RestaurantConsumptionService.
     Idempotent : une commande déjà déduite ne l'est jamais deux fois."""
-    from apps.stock.models import MouvementStock
-    if MouvementStock.objects.filter(
-        reference=commande.numero, type_mouvement='SORTIE', motif='vente'
-    ).exists():
-        return
-
-    pv = commande.point_vente
-    entrepot = pv.entrepot
-
-    if entrepot_id:
-        entrepots_autorises = [entrepot_id]
-    elif entrepot:
-        entrepots_autorises = [entrepot.id]
-    else:
-        entrepots_autorises = PointVenteService.get_entrepot_ids(pv)
-    if not entrepots_autorises:
-        return
-
-    for ligne in commande.lignes.all():
-        if not ligne.produit:
-            continue
-        # Déterminer l'entrepôt à utiliser
-        entrepot_cible = None
-        if len(entrepots_autorises) == 1:
-            eid = entrepots_autorises[0]
-            entrepot_cible = Entrepot.objects.filter(id=eid).first()
-        else:
-            stock = StockEntrepot.objects.filter(
-                produit=ligne.produit,
-                entrepot_id__in=entrepots_autorises,
-                quantite__gt=0
-            ).first()
-            if stock:
-                entrepot_cible = stock.entrepot
-            else:
-                continue
-        if not entrepot_cible:
-            continue
+    from apps.restaurant.services.consumption_service import RestaurantConsumptionService
+    entrepot = commande.entrepot
+    if not entrepot and entrepot_id:
+        from apps.stock.models import Entrepot
         try:
-            # Récupérer le prix unitaire pour valoriser la sortie
-            se = StockEntrepot.objects.filter(
-                produit=ligne.produit, entrepot=entrepot_cible
-            ).first()
-            valeur = float(se.prix_achat or ligne.produit.prix_achat or 0) if se else float(ligne.produit.prix_achat or 0)
-
-            MouvementStockService.sortie_stock(
-                produit=ligne.produit,
-                entrepot=entrepot_cible,
-                quantite=ligne.quantite,
-                valeur_unitaire=valeur,
-                utilisateur=commande.created_by.user.username if commande.created_by and commande.created_by.user else 'POS',
-                reference=commande.numero,
-                raison=f"Vente {commande.numero} - {pv.nom}"
-            )
-        except ValueError:
-            raise
+            entrepot = Entrepot.objects.get(id=entrepot_id)
+        except Exception:
+            pass
+    if not entrepot:
+        entrepot = commande.point_vente.entrepot
+    return RestaurantConsumptionService.consommer_commande(
+        commande=commande, entrepot=entrepot,
+        utilisateur=str(commande.created_by) if commande.created_by else 'POS',
+    )
 
 
 def _generer_facture_commande(commande):
@@ -339,11 +297,21 @@ def changer_statut_commande(request, commande_id):
             commande.demarrer_livraison()
         elif nouveau_statut == 'SERVIE':
             commande.servir()
-            deduire_stock_commande(commande, commande.entrepot_id)
+            from apps.restaurant.services.consumption_service import RestaurantConsumptionService
+            RestaurantConsumptionService.consommer_commande(
+                commande=commande,
+                entrepot=commande.entrepot or commande.point_vente.entrepot,
+                utilisateur=request.user.username,
+            )
             _generer_facture_commande(commande)
         elif nouveau_statut == 'LIVREE':
             commande.livrer()
-            deduire_stock_commande(commande, commande.entrepot_id)
+            from apps.restaurant.services.consumption_service import RestaurantConsumptionService
+            RestaurantConsumptionService.consommer_commande(
+                commande=commande,
+                entrepot=commande.entrepot or commande.point_vente.entrepot,
+                utilisateur=request.user.username,
+            )
             _generer_facture_commande(commande)
         elif nouveau_statut == 'ANNULEE':
             commande.annuler()
@@ -423,9 +391,13 @@ def api_payer_commande(request, commande_id):
         commande.vente = vente
         commande.save()
 
-        # Déduire le stock de l'entrepôt lié au point de vente
-        from ..services.pos_service import deduire_stock_commande
-        deduire_stock_commande(commande, commande.entrepot_id)
+        # Déduire le stock via le service centralisé
+        from apps.restaurant.services.consumption_service import RestaurantConsumptionService
+        RestaurantConsumptionService.consommer_commande(
+            commande=commande,
+            entrepot=commande.entrepot or commande.point_vente.entrepot,
+            utilisateur=request.user.username,
+        )
 
         # Encaisser sur la caisse choisie
         MouvementService.encaisser(

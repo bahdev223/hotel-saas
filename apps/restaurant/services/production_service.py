@@ -11,6 +11,8 @@ class ProductionService:
 
     @staticmethod
     def verifier_stock_ingredients(recette, quantite=1, entrepot=None):
+        from apps.stock.services.conversion_unite_service import ConversionUniteService
+
         if not entrepot:
             raise ValueError("entrepot requis")
 
@@ -18,16 +20,12 @@ class ProductionService:
 
         for ingredient in recette.ingredients.filter(produit__isnull=False):
             produit = ingredient.produit
-            try:
-                from apps.stock.services.conversion_unite_service import ConversionUniteService
-                qte_base = ConversionUniteService.convertir(
-                    quantite=ingredient.quantite,
-                    unite_source=ingredient.unite_mesure,
-                    unite_dest=ingredient.produit.unite_mesure,
-                    produit=ingredient.produit
-                )
-            except Exception:
-                qte_base = ingredient.quantite
+            qte_base = ConversionUniteService.convertir(
+                quantite=ingredient.quantite,
+                unite_source=ingredient.unite_mesure,
+                unite_dest=ingredient.produit.unite_mesure,
+                produit=ingredient.produit
+            )
 
             quantite_requise = qte_base * Decimal(str(quantite)) if qte_base else Decimal('0')
 
@@ -42,16 +40,17 @@ class ProductionService:
                 manques.append({
                     'produit_id': produit.id,
                     'produit_nom': produit.nom,
-                    'requis': float(quantite_requise),
-                    'disponible': float(quantite_dispo),
+                    'requis': quantite_requise,
+                    'disponible': quantite_dispo,
                     'unite': produit.unite_base
                 })
 
         return manques
 
     @staticmethod
-    def destocker_ingredients(recette, quantite=1, entrepot=None):
+    def destocker_ingredients(recette, quantite=1, entrepot=None, source_operation=None):
         from apps.stock.services.mouvement_service import MouvementStockService
+        from apps.stock.services.conversion_unite_service import ConversionUniteService
 
         if not entrepot:
             raise ValueError("entrepot requis")
@@ -60,16 +59,12 @@ class ProductionService:
             if not ingredient.quantite:
                 continue
 
-            try:
-                from apps.stock.services.conversion_unite_service import ConversionUniteService
-                qte_base = ConversionUniteService.convertir(
-                    quantite=ingredient.quantite,
-                    unite_source=ingredient.unite_mesure,
-                    unite_dest=ingredient.produit.unite_mesure,
-                    produit=ingredient.produit
-                )
-            except Exception:
-                qte_base = ingredient.quantite
+            qte_base = ConversionUniteService.convertir(
+                quantite=ingredient.quantite,
+                unite_source=ingredient.unite_mesure,
+                unite_dest=ingredient.produit.unite_mesure,
+                produit=ingredient.produit
+            )
 
             quantite_sortie = qte_base * Decimal(str(quantite))
 
@@ -80,12 +75,14 @@ class ProductionService:
                 utilisateur="Cuisine",
                 motif='consommation',
                 raison=f"Production: {recette.nom}",
+                source_operation=source_operation,
             )
 
 
     @staticmethod
     def verifier_stock_production(production):
         """Vérifie si tous les ingrédients sont disponibles pour une production."""
+        from apps.stock.services.conversion_unite_service import ConversionUniteService
         manques = []
 
         for ligne in production.lignes.select_related('recette').all():
@@ -100,7 +97,13 @@ class ProductionService:
                 if not ingredient.quantite:
                     continue
 
-                quantite_necessaire = ingredient.quantite * ligne.quantite
+                qte_base = ConversionUniteService.convertir(
+                    quantite=ingredient.quantite,
+                    unite_source=ingredient.unite_mesure,
+                    unite_dest=ingredient.produit.unite_mesure,
+                    produit=ingredient.produit
+                )
+                quantite_necessaire = qte_base * ligne.quantite
                 stock = StockEntrepot.objects.filter(
                     entrepot=production.entrepot_source,
                     produit=ingredient.produit
@@ -122,6 +125,8 @@ class ProductionService:
         """Valide la production : sortie ingrédients + entrée produit fini."""
         from apps.stock.services.mouvement_service import MouvementStockService
         from apps.stock.enums.sources import SourceOperationType
+        from apps.stock.services.conversion_unite_service import ConversionUniteService
+        from apps.stock.models import SourceOperation
 
         if production.statut == 'VALIDE':
             raise ValueError("Cette production a déjà été validée")
@@ -136,6 +141,13 @@ class ProductionService:
         if not verification['disponible']:
             raise ValueError(f"Stock insuffisant: {', '.join(verification['manques'])}")
 
+        # Source unique partagée pour tous les mouvements de cette production
+        source_op = SourceOperation.objects.create(
+            type_source=SourceOperationType.PRODUCTION,
+            reference=f"PRD-{production.numero}",
+            notes=f"Production #{production.numero}"
+        )
+
         # Appliquer les modifications
         for ligne in production.lignes.select_related('recette', 'recette__produit_fini').all():
             if not ligne.recette:
@@ -149,7 +161,13 @@ class ProductionService:
                 if not ingredient.quantite:
                     continue
 
-                quantite_necessaire = ingredient.quantite * ligne.quantite
+                qte_base = ConversionUniteService.convertir(
+                    quantite=ingredient.quantite,
+                    unite_source=ingredient.unite_mesure,
+                    unite_dest=ingredient.produit.unite_mesure,
+                    produit=ingredient.produit
+                )
+                quantite_necessaire = qte_base * ligne.quantite
 
                 MouvementStockService.sortie_stock(
                     produit=ingredient.produit,
@@ -158,6 +176,7 @@ class ProductionService:
                     utilisateur=str(employe) if employe else "Cuisine",
                     motif=SourceOperationType.PRODUCTION,
                     raison=f"Production #{production.numero}: {ligne.recette.nom}",
+                    source_operation=source_op,
                 )
 
                 ProductionIngredient.objects.create(
@@ -180,6 +199,7 @@ class ProductionService:
                     utilisateur=str(employe) if employe else "Cuisine",
                     motif=SourceOperationType.PRODUCTION,
                     raison=f"Production #{production.numero}: {ligne.recette.nom}",
+                    source_operation=source_op,
                 )
 
         production.statut = 'VALIDE'
@@ -199,8 +219,9 @@ class ProductionService:
         production.save()
 
 
-def destocker_commande(commande, entrepot=None):
+def destocker_commande(commande, entrepot=None, source_operation=None):
     from apps.stock.services.mouvement_service import MouvementStockService
+    from decimal import Decimal
 
     if not entrepot:
         return {'success': False, 'errors': ['Entrepôt requis']}
@@ -213,7 +234,8 @@ def destocker_commande(commande, entrepot=None):
                 ProductionService.destocker_ingredients(
                     ligne.recette,
                     ligne.quantite,
-                    entrepot
+                    entrepot,
+                    source_operation=source_operation,
                 )
 
             elif ligne.menu:
@@ -222,7 +244,8 @@ def destocker_commande(commande, entrepot=None):
                         ProductionService.destocker_ingredients(
                             ligne_menu.recette,
                             ligne.quantite * ligne_menu.quantite,
-                            entrepot
+                            entrepot,
+                            source_operation=source_operation,
                         )
 
             elif ligne.produit:
@@ -233,6 +256,7 @@ def destocker_commande(commande, entrepot=None):
                     utilisateur="Cuisine",
                     motif='vente',
                     raison=f"Commande #{commande.numero}",
+                    source_operation=source_operation,
                 )
 
         except Exception as e:
@@ -245,10 +269,12 @@ def destocker_commande(commande, entrepot=None):
 
 
 def verifier_stock_commande(commande, entrepot=None):
+    from apps.stock.services.conversion_unite_service import ConversionUniteService
+    from decimal import Decimal
+
     if not entrepot:
         return {'success': False, 'errors': ['Entrepôt requis']}
 
-    with_decimals = Decimal(str(0))
     manques = []
 
     for ligne in commande.lignes.all():
@@ -256,18 +282,24 @@ def verifier_stock_commande(commande, entrepot=None):
             for ingredient in ligne.recette.ingredients.filter(produit__isnull=False):
                 if not ingredient.quantite:
                     continue
-                quantite_requise = ingredient.quantite * ligne.quantite
+                qte_base = ConversionUniteService.convertir(
+                    quantite=ingredient.quantite,
+                    unite_source=ingredient.unite_mesure,
+                    unite_dest=ingredient.produit.unite_mesure,
+                    produit=ingredient.produit
+                )
+                quantite_requise = qte_base * ligne.quantite
                 stock = StockEntrepot.objects.filter(
                     entrepot=entrepot,
                     produit=ingredient.produit
                 ).first()
-                quantite_dispo = stock.quantite if stock else with_decimals
+                quantite_dispo = stock.quantite if stock else Decimal('0')
 
                 if quantite_dispo < quantite_requise:
                     manques.append({
                         'produit': ingredient.produit.nom,
-                        'requis': float(quantite_requise),
-                        'disponible': float(quantite_dispo),
+                        'requis': quantite_requise,
+                        'disponible': quantite_dispo,
                         'unite': ingredient.produit.unite_base
                     })
 
@@ -278,30 +310,36 @@ def verifier_stock_commande(commande, entrepot=None):
                 for ingredient in ligne_menu.recette.ingredients.filter(produit__isnull=False):
                     if not ingredient.quantite:
                         continue
-                    quantite_requise = ingredient.quantite * ligne.quantite * ligne_menu.quantite
+                    qte_base = ConversionUniteService.convertir(
+                        quantite=ingredient.quantite,
+                        unite_source=ingredient.unite_mesure,
+                        unite_dest=ingredient.produit.unite_mesure,
+                        produit=ingredient.produit
+                    )
+                    quantite_requise = qte_base * ligne.quantite * ligne_menu.quantite
                     stock = StockEntrepot.objects.filter(
                         entrepot=entrepot,
                         produit=ingredient.produit
                     ).first()
-                    quantite_dispo = stock.quantite if stock else with_decimals
+                    quantite_dispo = stock.quantite if stock else Decimal('0')
 
                     if quantite_dispo < quantite_requise:
                         manques.append({
                             'produit': ingredient.produit.nom,
-                            'requis': float(quantite_requise),
-                            'disponible': float(quantite_dispo),
+                            'requis': quantite_requise,
+                            'disponible': quantite_dispo,
                             'unite': ingredient.produit.unite_base
                         })
 
         elif ligne.produit:
             stock = StockEntrepot.objects.filter(entrepot=entrepot, produit=ligne.produit).first()
-            quantite_dispo = stock.quantite if stock else with_decimals
+            quantite_dispo = stock.quantite if stock else Decimal('0')
 
             if quantite_dispo < ligne.quantite:
                 manques.append({
                     'produit': ligne.produit.nom,
-                    'requis': float(ligne.quantite),
-                    'disponible': float(quantite_dispo),
+                    'requis': ligne.quantite,
+                    'disponible': quantite_dispo,
                     'unite': ligne.produit.unite_base
                 })
 

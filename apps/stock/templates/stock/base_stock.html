@@ -53,6 +53,15 @@ select.input-bro { cursor: pointer; }
         <a href="{% url 'stock:dashboard' %}" class="{% if request.resolver_match.view_name == 'stock:dashboard' %}active{% endif %}">
             <i class="fas fa-chart-pie mr-1"></i>Dashboard
         </a>
+        <a href="{% url 'stock:liste_produits' %}" class="{% if 'produit' in request.resolver_match.view_name %}active{% endif %}">
+            <i class="fas fa-box mr-1"></i>Produits
+        </a>
+        <a href="{% url 'stock:liste_mouvements' %}" class="{% if 'mouvement' in request.resolver_match.view_name %}active{% endif %}">
+            <i class="fas fa-exchange-alt mr-1"></i>Mouvements
+        </a>
+        <a href="{% url 'stock:liste_entrepots' %}" class="{% if 'entrepot' in request.resolver_match.view_name %}active{% endif %}">
+            <i class="fas fa-warehouse mr-1"></i>Entrepôts
+        </a>
         <a href="{% url 'stock:liste_achats' %}" class="{% if 'achats' in request.resolver_match.view_name %}active{% endif %}">
             <i class="fas fa-truck-loading mr-1"></i>Achats
         </a>

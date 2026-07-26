@@ -11,10 +11,10 @@ class RestaurantFacturationService:
 
     @classmethod
     def generer_facture_depuis_vente(cls, vente_id: str, client_nom: str = None):
-        from ..models import VenteModel
+        from apps.pos.models import Vente
         from ...facturation.services import FactureGenerators
 
-        vente = VenteModel.objects.get(id=vente_id)
+        vente = Vente.objects.get(id=vente_id)
         facture = FactureGenerators.depuis_vente(vente)
         if facture.statut == 'BROUILLON':
             facture.emettre()
@@ -26,7 +26,7 @@ class RestaurantFacturationService:
                                          total: Decimal, mode_paiement: str,
                                          encaisse_par: str, client_nom: str = None):
         from ...facturation.models import FactureModel
-        from ...facturation.services import BaseFactureService, FactureActions
+        from ...facturation.services import BaseFactureService
 
         facture = BaseFactureService.creer_facture(
             client_nom=client_nom or 'Client',

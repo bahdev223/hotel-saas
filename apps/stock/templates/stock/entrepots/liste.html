@@ -1,0 +1,86 @@
+{% extends 'stock/base_stock.html' %}
+
+{% block title %}Entrepôts — Stock{% endblock %}
+{% block header %}Entrepôts{% endblock %}
+{% block subtitle %}Valeur totale du stock : {{ valeur_globale|floatformat:0 }} F{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-5">
+
+    <!-- ═══════ FILTRES ═══════ -->
+    <form method="get" class="card-bro card-bro-static p-4">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div class="md:col-span-2">
+                <label class="label-bro">Recherche</label>
+                <input type="text" name="q" value="{{ f.q }}" placeholder="Nom ou code…" class="input-bro">
+            </div>
+            <div>
+                <label class="label-bro">Type</label>
+                <select name="type" class="input-bro">
+                    <option value="">Tous</option>
+                    {% for val, lib in types %}
+                    <option value="{{ val }}" {% if f.type == val %}selected{% endif %}>{{ lib }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="label-bro">Statut</label>
+                <select name="actif" class="input-bro">
+                    <option value="1" {% if f.actif == '1' %}selected{% endif %}>Actifs</option>
+                    <option value="0" {% if f.actif == '0' %}selected{% endif %}>Inactifs</option>
+                    <option value="" {% if f.actif == '' %}selected{% endif %}>Tous</option>
+                </select>
+            </div>
+        </div>
+        <div class="flex items-center gap-3 mt-3">
+            <button type="submit" class="btn-primary-bro"><i class="fas fa-filter"></i> Filtrer</button>
+            <a href="{% url 'stock:liste_entrepots' %}" class="text-sm text-on-surface-muted hover:text-on-surface">Réinitialiser</a>
+            <a href="{% url 'stock:ajouter_entrepot' %}" class="btn-primary-bro ml-auto"><i class="fas fa-plus"></i> Nouvel entrepôt</a>
+        </div>
+    </form>
+
+    <!-- ═══════ CARTES ENTREPÔTS ═══════ -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {% for e in entrepots %}
+        <a href="{% url 'stock:detail_entrepot' e.obj.id %}" class="card-bro p-5 block">
+            <div class="flex items-start justify-between mb-3">
+                <div>
+                    <h3 class="font-bold text-on-surface">{{ e.obj.nom }}</h3>
+                    <p class="text-xs text-on-surface-muted font-mono">{{ e.obj.code }} · {{ e.obj.get_type_entrepot_display }}</p>
+                </div>
+                {% if not e.obj.actif %}
+                <span class="badge-bro bg-surface-soft text-on-surface-muted">Inactif</span>
+                {% endif %}
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                    <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">Références</p>
+                    <p class="font-bold font-mono">{{ e.nb_references }}</p>
+                </div>
+                <div>
+                    <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">Quantité</p>
+                    <p class="font-bold font-mono">{{ e.quantite_totale|floatformat:0 }}</p>
+                </div>
+                <div class="col-span-2">
+                    <p class="text-[10px] uppercase tracking-wider text-on-surface-muted">Valeur du stock</p>
+                    <p class="font-bold font-mono text-primary text-lg">{{ e.valeur|floatformat:0 }} F</p>
+                </div>
+            </div>
+
+            {% if e.alertes or e.ruptures %}
+            <div class="flex gap-2 mt-3 pt-3 border-t border-border">
+                {% if e.ruptures %}<span class="badge-bro bg-red-100 text-red-700">{{ e.ruptures }} rupture{{ e.ruptures|pluralize }}</span>{% endif %}
+                {% if e.alertes %}<span class="badge-bro bg-amber-100 text-amber-700">{{ e.alertes }} sous seuil</span>{% endif %}
+            </div>
+            {% endif %}
+        </a>
+        {% empty %}
+        <div class="col-span-full text-center py-16 text-on-surface-muted">
+            <i class="fas fa-warehouse text-4xl mb-3 block"></i>
+            <p>Aucun entrepôt ne correspond à ces filtres</p>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

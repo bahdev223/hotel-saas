@@ -1,0 +1,131 @@
+{% extends 'stock/base_stock.html' %}
+
+{% block title %}Produits — Stock{% endblock %}
+{% block header %}Catalogue produits{% endblock %}
+{% block subtitle %}{{ total_resultats }} référence{{ total_resultats|pluralize }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-5">
+
+    <!-- ═══════ FILTRES ═══════ -->
+    <form method="get" class="card-bro card-bro-static p-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div class="lg:col-span-2">
+                <label class="label-bro">Recherche</label>
+                <input type="text" name="q" value="{{ f.q }}" placeholder="Nom, code, code-barres…" class="input-bro">
+            </div>
+            <div>
+                <label class="label-bro">Catégorie</label>
+                <select name="categorie" class="input-bro">
+                    <option value="">Toutes</option>
+                    {% for c in categories %}
+                    <option value="{{ c.id }}" {% if f.categorie == c.id|stringformat:"s" %}selected{% endif %}>{{ c.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="label-bro">Domaine</label>
+                <select name="domaine" class="input-bro">
+                    <option value="">Tous</option>
+                    {% for d in domaines %}
+                    <option value="{{ d.id }}" {% if f.domaine == d.id|stringformat:"s" %}selected{% endif %}>{{ d.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="label-bro">Type</label>
+                <select name="type_article" class="input-bro">
+                    <option value="">Tous</option>
+                    {% for val, lib in types_article %}
+                    <option value="{{ val }}" {% if f.type_article == val %}selected{% endif %}>{{ lib }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="label-bro">État du stock</label>
+                <select name="etat" class="input-bro">
+                    <option value="">Tous</option>
+                    <option value="rupture" {% if f.etat == 'rupture' %}selected{% endif %}>En rupture</option>
+                    <option value="alerte" {% if f.etat == 'alerte' %}selected{% endif %}>Sous le seuil</option>
+                    <option value="ok" {% if f.etat == 'ok' %}selected{% endif %}>Stock correct</option>
+                </select>
+            </div>
+        </div>
+        <div class="flex items-center gap-3 mt-3">
+            <label class="flex items-center gap-2 text-sm text-on-surface-muted">
+                <select name="actif" class="input-bro !w-auto">
+                    <option value="1" {% if f.actif == '1' %}selected{% endif %}>Actifs</option>
+                    <option value="0" {% if f.actif == '0' %}selected{% endif %}>Inactifs</option>
+                    <option value="" {% if f.actif == '' %}selected{% endif %}>Tous</option>
+                </select>
+            </label>
+            <button type="submit" class="btn-primary-bro"><i class="fas fa-filter"></i> Filtrer</button>
+            <a href="{% url 'stock:liste_produits' %}" class="text-sm text-on-surface-muted hover:text-on-surface">Réinitialiser</a>
+            <a href="{% url 'stock:ajouter_produit' %}" class="btn-primary-bro ml-auto"><i class="fas fa-plus"></i> Nouveau produit</a>
+        </div>
+    </form>
+
+    <!-- ═══════ TABLE ═══════ -->
+    <div class="card-bro card-bro-static overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm bro-table">
+                <thead>
+                    <tr>
+                        <th>Produit</th>
+                        <th>Catégorie</th>
+                        <th>Type</th>
+                        <th class="text-right">Stock</th>
+                        <th class="text-right">Seuil</th>
+                        <th class="text-right">Prix achat</th>
+                        <th class="text-right">Prix vente</th>
+                        <th class="text-center">État</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for p in produits %}
+                    <tr>
+                        <td>
+                            <a href="{% url 'stock:detail_produit' p.id %}" class="font-medium text-on-surface hover:text-primary transition">{{ p.nom }}</a>
+                            <div class="text-xs text-on-surface-muted font-mono">{{ p.code }}</div>
+                        </td>
+                        <td class="text-on-surface-muted">{{ p.categorie.nom|default:"—" }}</td>
+                        <td class="text-on-surface-muted text-xs">{{ p.get_type_article_display }}</td>
+                        <td class="text-right font-mono font-medium">{{ p.stock_total|floatformat:2 }}</td>
+                        <td class="text-right font-mono text-on-surface-muted">{{ p.seuil_alerte|floatformat:0 }}</td>
+                        <td class="text-right font-mono text-on-surface-muted">{{ p.prix_achat|floatformat:0 }} F</td>
+                        <td class="text-right font-mono">{{ p.prix_vente|floatformat:0 }} F</td>
+                        <td class="text-center">
+                            {% if p.stock_total <= 0 %}
+                            <span class="badge-bro bg-red-100 text-red-700">Rupture</span>
+                            {% elif p.stock_total <= p.seuil_alerte %}
+                            <span class="badge-bro bg-amber-100 text-amber-700">Seuil</span>
+                            {% else %}
+                            <span class="badge-bro bg-emerald-100 text-emerald-700">OK</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="8" class="text-center py-12 text-on-surface-muted">
+                        <i class="fas fa-box-open text-3xl mb-2 block"></i>Aucun produit ne correspond à ces filtres
+                    </td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if produits.paginator.num_pages > 1 %}
+        <div class="flex items-center justify-between px-4 py-3 border-t border-border text-sm">
+            <span class="text-on-surface-muted">Page {{ produits.number }} / {{ produits.paginator.num_pages }}</span>
+            <div class="flex gap-2">
+                {% if produits.has_previous %}
+                <a href="?{% for k, v in f.items %}{% if v %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ produits.previous_page_number }}" class="px-3 py-1.5 rounded-xl bg-surface-soft hover:bg-surface-soft/70"><i class="fas fa-chevron-left"></i></a>
+                {% endif %}
+                {% if produits.has_next %}
+                <a href="?{% for k, v in f.items %}{% if v %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ produits.next_page_number }}" class="px-3 py-1.5 rounded-xl bg-surface-soft hover:bg-surface-soft/70"><i class="fas fa-chevron-right"></i></a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

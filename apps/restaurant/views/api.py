@@ -34,20 +34,25 @@ def api_produits(request):
 @login_required
 def api_statistiques(request):
     """API pour les statistiques (AJAX)"""
-    from apps.restaurant.models import VenteModel, RecetteModel
+    from apps.pos.models import Vente
+    from ..models import RecetteModel
     from datetime import date, timedelta
     
     today = date.today()
     week_ago = today - timedelta(days=7)
     
-    # CA du jour
-    ca_jour = VenteModel.objects.filter(
-        date_vente__date=today
+    # CA du jour (restaurant uniquement)
+    ca_jour = Vente.objects.filter(
+        created_at__date=today,
+        statut='PAYEE',
+        point_vente__type='RESTAURATION'
     ).aggregate(total=models.Sum('montant_total'))['total'] or 0
     
-    # CA semaine
-    ca_semaine = VenteModel.objects.filter(
-        date_vente__date__gte=week_ago
+    # CA semaine (restaurant uniquement)
+    ca_semaine = Vente.objects.filter(
+        created_at__date__gte=week_ago,
+        statut='PAYEE',
+        point_vente__type='RESTAURATION'
     ).aggregate(total=models.Sum('montant_total'))['total'] or 0
     
     # Nombre de recettes
@@ -74,28 +79,38 @@ def api_dashboard(request):
     entrepot_id = request.GET.get('entrepot_id')
     restaurant_entrepot = get_object_or_404(Entrepot, id=entrepot_id) if entrepot_id else None
 
-    # ── Ventes du jour (payées) ──
-    ventes_jour = Vente.objects.filter(created_at__date=today, statut='PAYEE')
+    # ── Ventes du jour (payées, restaurant uniquement) ──
+    ventes_jour = Vente.objects.filter(
+        created_at__date=today, statut='PAYEE',
+        point_vente__type='RESTAURATION'
+    )
     ca_jour = float(ventes_jour.aggregate(total=models.Sum('montant_total'))['total'] or 0)
     nb_ventes_jour = ventes_jour.count()
 
-    # ── Commandes du jour ──
-    commandes_jour = Commande.objects.filter(created_at__date=today)
+    # ── Commandes du jour (restaurant uniquement) ──
+    commandes_jour = Commande.objects.filter(
+        created_at__date=today,
+        point_vente__type='RESTAURATION'
+    )
     nb_commandes_jour = commandes_jour.count()
     commandes_attente = commandes_jour.filter(statut='EN_ATTENTE').count()
     commandes_preparation = commandes_jour.filter(statut='EN_PREPARATION').count()
 
-    # ── CA semaine ──
+    # ── CA semaine (restaurant) ──
     week_ago = today - timedelta(days=7)
-    ca_semaine = float(Vente.objects.filter(created_at__date__gte=week_ago, statut='PAYEE')
-                       .aggregate(total=models.Sum('montant_total'))['total'] or 0)
+    ca_semaine = float(Vente.objects.filter(
+        created_at__date__gte=week_ago, statut='PAYEE',
+        point_vente__type='RESTAURATION'
+    ).aggregate(total=models.Sum('montant_total'))['total'] or 0)
 
-    # ── CA 7 derniers jours (pour mini graphique) ──
+    # ── CA 7 derniers jours (restaurant) ──
     ca_7jours = []
     for i in range(6, -1, -1):
         d = today - timedelta(days=i)
-        total = float(Vente.objects.filter(created_at__date=d, statut='PAYEE')
-                      .aggregate(t=models.Sum('montant_total'))['t'] or 0)
+        total = float(Vente.objects.filter(
+            created_at__date=d, statut='PAYEE',
+            point_vente__type='RESTAURATION'
+        ).aggregate(t=models.Sum('montant_total'))['t'] or 0)
         ca_7jours.append({'date': d.strftime('%a %d/%m'), 'total': total})
 
     # ── Stock alerte ──

@@ -233,9 +233,16 @@ class PaiementEngine:
                 objet.vente = vente
                 objet.statut = 'PAYEE'
                 objet.save()
-                # Déduire le stock de l'entrepôt choisi à la commande
-                from apps.pos.services.pos_service import deduire_stock_commande
-                deduire_stock_commande(objet, objet.entrepot_id)
+                # Déduire le stock via le service centralisé
+                from apps.restaurant.services.consumption_service import RestaurantConsumptionService
+                try:
+                    RestaurantConsumptionService.consommer_commande(
+                        commande=objet,
+                        entrepot=objet.entrepot or objet.point_vente.entrepot,
+                        utilisateur=user.username if hasattr(user, 'username') else str(user),
+                    )
+                except Exception:
+                    pass
             if hasattr(objet, 'facture') and objet.facture:
                 if objet.facture.reste_a_payer <= 0:
                     objet.facture.marquer_payee()

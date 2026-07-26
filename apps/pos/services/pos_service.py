@@ -10,64 +10,22 @@ from apps.hotel.models import UniteModel
 @transaction.atomic
 def deduire_stock_commande(commande, entrepot_id=None):
     """Déduire le stock de l'entrepôt lié au point de vente.
-    Si entrepot_id est fourni, déduire de celui-là précisément.
-    Idempotent : une commande déjà déduite (SERVIE/LIVREE) ne l'est jamais deux fois."""
-    from apps.stock.models import MouvementStock
-    if MouvementStock.objects.filter(
-        reference=commande.numero, type_mouvement='SORTIE', motif='vente'
-    ).exists():
-        return
-
-    pv = commande.point_vente
-    entrepot = pv.entrepot
-
-    if entrepot_id:
-        entrepots_autorises = [entrepot_id]
-    elif entrepot:
-        entrepots_autorises = [entrepot.id]
-    else:
-        entrepots_autorises = PointVenteService.get_entrepot_ids(pv)
-    if not entrepots_autorises:
-        return
-
-    for ligne in commande.lignes.all():
-        if not ligne.produit:
-            continue
-
-        quantite = Decimal(str(ligne.quantite or 0))
-        if quantite <= 0:
-            continue
-
-        # Trier les entrepôts : celui avec le plus de stock en premier
-        stocks_dispo = StockEntrepot.objects.filter(
-            produit=ligne.produit,
-            entrepot_id__in=entrepots_autorises,
-            quantite__gt=0
-        ).select_related('entrepot').order_by('-quantite')
-
-        deduit = False
-        for stock in stocks_dispo:
-            try:
-                qte_a_deduire = min(quantite, stock.quantite)
-                valeur = float(stock.prix_achat or ligne.produit.prix_achat or 0)
-                MouvementStockService.sortie_stock(
-                    produit=ligne.produit,
-                    entrepot=stock.entrepot,
-                    quantite=qte_a_deduire,
-                    valeur_unitaire=valeur,
-                    utilisateur=commande.created_by.user.username if commande.created_by and commande.created_by.user else 'POS',
-                    reference=commande.numero,
-                    raison=f"Vente {commande.numero} - {pv.nom}"
-                )
-                quantite -= qte_a_deduire
-                deduit = True
-                if quantite <= 0:
-                    break
-            except ValueError:
-                continue
-
-        if quantite > 0 and not deduit:
-            raise ValueError(f"Stock insuffisant pour {ligne.produit.nom} dans tous les entrepôts")
+    Délègue au service centralisé RestaurantConsumptionService.
+    Idempotent : une commande déjà déduite ne l'est jamais deux fois."""
+    from apps.restaurant.services.consumption_service import RestaurantConsumptionService
+    entrepot = commande.entrepot
+    if not entrepot and entrepot_id:
+        from apps.stock.models import Entrepot
+        try:
+            entrepot = Entrepot.objects.get(id=entrepot_id)
+        except Exception:
+            pass
+    if not entrepot:
+        entrepot = commande.point_vente.entrepot
+    return RestaurantConsumptionService.consommer_commande(
+        commande=commande, entrepot=entrepot,
+        utilisateur=str(commande.created_by) if commande.created_by else 'POS',
+    )
 
 
 class PointVenteService:

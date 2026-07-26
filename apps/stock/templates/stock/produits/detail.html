@@ -104,11 +104,87 @@
     </div>
     {% endif %}
 
-    <!-- Mouvements récents -->
+    <!-- Répartition du stock par entrepôt -->
+    <div class="card-bro-static">
+        <div class="px-6 py-4 border-b border-border flex items-center justify-between">
+            <h3 class="font-semibold text-on-surface text-sm"><i class="fas fa-warehouse mr-2 text-primary"></i>Stock par entrepôt</h3>
+            <div class="text-sm">
+                <span class="text-on-surface-muted">Total</span>
+                <span class="font-mono font-bold ml-2">{{ stock_total|floatformat:2 }}</span>
+                <span class="text-on-surface-muted mx-2">·</span>
+                <span class="text-on-surface-muted">Valeur</span>
+                <span class="font-mono font-bold text-primary ml-2">{{ valeur_totale|floatformat:0 }} F</span>
+            </div>
+        </div>
+        <div class="overflow-x-auto scrollbar-bro">
+            <table class="bro-table w-full text-sm">
+                <thead>
+                    <tr><th>Entrepôt</th><th>Type</th><th class="text-right">Quantité</th><th class="text-right">Prix d'achat</th><th class="text-right">Valeur</th><th class="text-center">État</th></tr>
+                </thead>
+                <tbody>
+                    {% for s in stocks_par_entrepot %}
+                    <tr>
+                        <td><a href="{% url 'stock:detail_entrepot' s.entrepot.id %}" class="font-medium hover:text-primary transition">{{ s.entrepot.nom }}</a></td>
+                        <td class="text-on-surface-muted text-xs">{{ s.entrepot.get_type_entrepot_display }}</td>
+                        <td class="text-right font-mono font-medium">{{ s.quantite|floatformat:2 }}</td>
+                        <td class="text-right font-mono text-on-surface-muted">{{ s.cout_unitaire|floatformat:0 }} F</td>
+                        <td class="text-right font-mono">{{ s.valeur_ligne|floatformat:0 }} F</td>
+                        <td class="text-center">
+                            {% if s.quantite <= 0 %}<span class="badge-bro bg-red-100 text-red-700">Rupture</span>
+                            {% elif s.quantite <= produit.seuil_alerte %}<span class="badge-bro bg-amber-100 text-amber-700">Seuil</span>
+                            {% else %}<span class="badge-bro bg-emerald-100 text-emerald-700">OK</span>{% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="px-4 py-8 text-center text-on-surface-muted">Ce produit n'est stocké dans aucun entrepôt</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Historique complet des mouvements (filtrable) -->
     <div class="card-bro-static">
         <div class="px-6 py-4 border-b border-border">
-            <h3 class="font-semibold text-on-surface text-sm"><i class="fas fa-history mr-2 text-primary"></i>Derniers mouvements</h3>
+            <h3 class="font-semibold text-on-surface text-sm">
+                <i class="fas fa-history mr-2 text-primary"></i>Historique des mouvements
+                <span class="text-on-surface-muted font-normal ml-1">({{ total_mouvements }})</span>
+            </h3>
         </div>
+
+        <form method="get" class="px-6 py-4 border-b border-border grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
+            <div>
+                <label class="label-bro">Type</label>
+                <select name="type" class="input-bro">
+                    <option value="">Tous</option>
+                    {% for val, lib in types_mouvement %}
+                    <option value="{{ val }}" {% if f.type == val %}selected{% endif %}>{{ lib }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="label-bro">Entrepôt</label>
+                <select name="entrepot" class="input-bro">
+                    <option value="">Tous</option>
+                    {% for e in entrepots %}
+                    <option value="{{ e.id }}" {% if f.entrepot == e.id|stringformat:"s" %}selected{% endif %}>{{ e.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="label-bro">Du</label>
+                <input type="date" name="debut" value="{{ f.debut }}" class="input-bro">
+            </div>
+            <div>
+                <label class="label-bro">Au</label>
+                <input type="date" name="fin" value="{{ f.fin }}" class="input-bro">
+            </div>
+            <div class="flex gap-2">
+                <button type="submit" class="btn-primary-bro"><i class="fas fa-filter"></i> Filtrer</button>
+                <a href="{% url 'stock:detail_produit' produit.id %}" class="text-sm text-on-surface-muted hover:text-on-surface self-center">Réinit.</a>
+            </div>
+        </form>
+
         <div class="overflow-x-auto scrollbar-bro">
             <table class="bro-table w-full text-sm">
                 <thead>
@@ -116,39 +192,59 @@
                         <th>Date</th>
                         <th>Type</th>
                         <th>Motif</th>
+                        <th class="hidden md:table-cell">Source → Destination</th>
                         <th class="text-right">Quantité</th>
+                        <th class="text-right hidden sm:table-cell">Valeur</th>
                         <th class="hidden sm:table-cell">Référence</th>
+                        <th class="hidden lg:table-cell">Par</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for m in mouvements %}
                     <tr>
-                        <td class="text-on-surface-muted text-sm">{{ m.date_mouvement|date:"d/m/Y H:i" }}</td>
+                        <td class="text-on-surface-muted text-sm whitespace-nowrap">{{ m.date_mouvement|date:"d/m/Y H:i" }}</td>
                         <td>
                             <span class="badge-bro
-                                {% if m.type_mouvement == 'ENTREE' %}bg-emerald-100 text-emerald-700
-                                {% elif m.type_mouvement == 'SORTIE' %}bg-red-100 text-red-700
+                                {% if 'ENTREE' in m.type_mouvement or m.type_mouvement == 'AJUSTEMENT_POSITIF' %}bg-emerald-100 text-emerald-700
+                                {% elif 'SORTIE' in m.type_mouvement or m.type_mouvement == 'AJUSTEMENT_NEGATIF' %}bg-red-100 text-red-700
                                 {% else %}bg-blue-100 text-blue-700{% endif %}">
                                 {{ m.get_type_mouvement_display }}
                             </span>
                         </td>
-                        <td class="text-on-surface-muted">{{ m.get_motif_display }}</td>
-                        <td class="text-right font-mono {% if m.type_mouvement == 'ENTREE' %}text-emerald-600{% else %}text-red-500{% endif %}">
-                            {% if m.type_mouvement == 'ENTREE' %}+{% else %}-{% endif %}{{ m.quantite|floatformat:0 }}
+                        <td class="text-on-surface-muted text-xs">{{ m.get_motif_display }}</td>
+                        <td class="text-on-surface-muted text-xs hidden md:table-cell">{{ m.entrepot_source.nom|default:"—" }} → {{ m.entrepot_dest.nom|default:"—" }}</td>
+                        <td class="text-right font-mono font-medium {% if 'ENTREE' in m.type_mouvement or m.type_mouvement == 'AJUSTEMENT_POSITIF' %}text-emerald-600{% else %}text-red-500{% endif %}">
+                            {% if 'ENTREE' in m.type_mouvement or m.type_mouvement == 'AJUSTEMENT_POSITIF' %}+{% else %}-{% endif %}{{ m.quantite|floatformat:2 }}
                         </td>
-                        <td class="text-on-surface-muted text-sm hidden sm:table-cell">{{ m.reference|default:'—' }}</td>
+                        <td class="text-right font-mono text-on-surface-muted hidden sm:table-cell">{{ m.valeur_total|floatformat:0 }} F</td>
+                        <td class="text-on-surface-muted text-xs font-mono hidden sm:table-cell">{{ m.reference|default:'—' }}</td>
+                        <td class="text-on-surface-muted text-xs hidden lg:table-cell">{{ m.utilisateur|default:'—' }}</td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="5" class="px-4 py-12 text-center text-on-surface-muted">
+                        <td colspan="8" class="px-4 py-12 text-center text-on-surface-muted">
                             <i class="fas fa-exchange-alt text-2xl mb-2 block opacity-50"></i>
-                            Aucun mouvement
+                            Aucun mouvement pour ces filtres
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
         </div>
+
+        {% if mouvements.paginator.num_pages > 1 %}
+        <div class="flex items-center justify-between px-6 py-3 border-t border-border text-sm">
+            <span class="text-on-surface-muted">Page {{ mouvements.number }} / {{ mouvements.paginator.num_pages }}</span>
+            <div class="flex gap-2">
+                {% if mouvements.has_previous %}
+                <a href="?{% for k, v in f.items %}{% if v %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ mouvements.previous_page_number }}" class="px-3 py-1.5 rounded-xl bg-surface-soft hover:bg-surface-soft/70"><i class="fas fa-chevron-left"></i></a>
+                {% endif %}
+                {% if mouvements.has_next %}
+                <a href="?{% for k, v in f.items %}{% if v %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ mouvements.next_page_number }}" class="px-3 py-1.5 rounded-xl bg-surface-soft hover:bg-surface-soft/70"><i class="fas fa-chevron-right"></i></a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 
 </div>

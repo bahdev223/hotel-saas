@@ -14,9 +14,62 @@ from ..services.stock_service import StockService
 
 @login_required
 def liste_mouvements(request):
-    """Redirige vers le dashboard"""
-    from django.urls import reverse
-    return redirect(reverse('stock:dashboard') + '?tab=stock')
+    """Journal global des mouvements de stock, filtrable (produit, type,
+    motif, entrepôt, période) — la vue d'audit du moteur de stock."""
+    from ..enums.mouvements import TypeMouvement
+    from ..enums.sources import SourceOperationType
+
+    user_groups = request.user.groups.values_list('name', flat=True)
+    if not any(g in ALLOWED_STOCK_GROUPS for g in user_groups):
+        messages.error(request, "Accès refusé.")
+        return redirect('admin:index')
+
+    mouvements = MouvementStock.objects.select_related(
+        'produit', 'entrepot_source', 'entrepot_dest', 'source_operation',
+    ).order_by('-date_mouvement')
+
+    f_q = request.GET.get('q', '').strip()
+    f_type = request.GET.get('type', '')
+    f_motif = request.GET.get('motif', '')
+    f_entrepot = request.GET.get('entrepot', '')
+    f_debut = request.GET.get('debut', '')
+    f_fin = request.GET.get('fin', '')
+
+    if f_q:
+        mouvements = mouvements.filter(
+            Q(produit__nom__icontains=f_q)
+            | Q(produit__code__icontains=f_q)
+            | Q(reference__icontains=f_q)
+            | Q(raison__icontains=f_q)
+        )
+    if f_type:
+        mouvements = mouvements.filter(type_mouvement=f_type)
+    if f_motif:
+        mouvements = mouvements.filter(motif=f_motif)
+    if f_entrepot:
+        mouvements = mouvements.filter(
+            Q(entrepot_source_id=f_entrepot) | Q(entrepot_dest_id=f_entrepot)
+        )
+    if f_debut:
+        mouvements = mouvements.filter(date_mouvement__date__gte=f_debut)
+    if f_fin:
+        mouvements = mouvements.filter(date_mouvement__date__lte=f_fin)
+
+    paginator = Paginator(mouvements, 50)
+    page = paginator.get_page(request.GET.get('page'))
+
+    context = {
+        'mouvements': page,
+        'total_resultats': paginator.count,
+        'entrepots': Entrepot.objects.filter(actif=True).order_by('nom'),
+        'types_mouvement': TypeMouvement.choices,
+        'motifs': SourceOperationType.choices,
+        'f': {
+            'q': f_q, 'type': f_type, 'motif': f_motif,
+            'entrepot': f_entrepot, 'debut': f_debut, 'fin': f_fin,
+        },
+    }
+    return render(request, 'stock/mouvements/liste.html', context)
 
 
 @login_required

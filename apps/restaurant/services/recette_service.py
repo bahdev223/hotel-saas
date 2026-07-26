@@ -10,25 +10,25 @@ class RecetteService:
     
     @staticmethod
     def calculer_cout_revient(recette, produits_dict=None):
-        """Calcule le coût de revient d'une recette"""
-        produits_dict = produits_dict or {}
-        total = Decimal('0')
-        
-        for ingredient in recette.ingredients.filter(type_ingredient='DEDUIRE'):
-            if ingredient.produit and ingredient.quantite:
-                prix = ingredient.cout_unitaire or ingredient.produit.prix_achat
-                total += ingredient.quantite * prix
-        
-        return total
+        """Calcule le coût de revient total d'une recette (délègue au modèle)"""
+        return recette.cout_total_preparation(produits_dict)
     
     @staticmethod
     def verifier_disponibilite(recette, entrepot):
         """Vérifie si tous les ingrédients sont disponibles"""
+        from apps.stock.services.conversion_unite_service import ConversionUniteService
         manques = []
         
         for ingredient in recette.ingredients.filter(type_ingredient='DEDUIRE'):
             if not ingredient.produit or not ingredient.quantite:
                 continue
+            
+            qte_base = ConversionUniteService.convertir(
+                quantite=ingredient.quantite,
+                unite_source=ingredient.unite_mesure,
+                unite_dest=ingredient.produit.unite_mesure,
+                produit=ingredient.produit
+            )
             
             stock = StockEntrepot.objects.filter(
                 entrepot=entrepot,
@@ -36,13 +36,12 @@ class RecetteService:
             ).first()
             
             stock_qte = stock.quantite if stock else Decimal('0')
-            besoin = ingredient.quantite
             
-            if stock_qte < besoin:
+            if stock_qte < qte_base:
                 manques.append({
                     'produit': ingredient.produit.nom,
-                    'disponible': float(stock_qte),
-                    'besoin': float(besoin),
+                    'disponible': stock_qte,
+                    'besoin': qte_base,
                     'unite': ingredient.unite
                 })
         
@@ -55,6 +54,7 @@ class RecetteService:
     @transaction.atomic
     def dupliquer_recette(recette, nouveau_code, nouveau_nom):
         """Duplique une recette existante"""
+        import uuid
         nouvelle_recette = RecetteModel.objects.create(
             code=nouveau_code,
             nom=nouveau_nom,
@@ -72,7 +72,7 @@ class RecetteService:
                 type_ingredient=ingredient.type_ingredient,
                 nom=ingredient.nom,
                 quantite=ingredient.quantite,
-                unite=ingredient.unite,
+                unite_mesure=ingredient.unite_mesure,
                 cout_unitaire=ingredient.cout_unitaire
             )
         

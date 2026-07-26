@@ -1,0 +1,127 @@
+{% extends 'stock/base_stock.html' %}
+
+{% block title %}Mouvements — Stock{% endblock %}
+{% block header %}Journal des mouvements{% endblock %}
+{% block subtitle %}{{ total_resultats }} mouvement{{ total_resultats|pluralize }}{% endblock %}
+
+{% block content %}
+<div class="max-w-7xl mx-auto space-y-5">
+
+    <!-- ═══════ FILTRES ═══════ -->
+    <form method="get" class="card-bro card-bro-static p-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-3">
+            <div class="lg:col-span-2">
+                <label class="label-bro">Recherche</label>
+                <input type="text" name="q" value="{{ f.q }}" placeholder="Produit, référence, raison…" class="input-bro">
+            </div>
+            <div>
+                <label class="label-bro">Type</label>
+                <select name="type" class="input-bro">
+                    <option value="">Tous</option>
+                    {% for val, lib in types_mouvement %}
+                    <option value="{{ val }}" {% if f.type == val %}selected{% endif %}>{{ lib }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="label-bro">Motif</label>
+                <select name="motif" class="input-bro">
+                    <option value="">Tous</option>
+                    {% for val, lib in motifs %}
+                    <option value="{{ val }}" {% if f.motif == val %}selected{% endif %}>{{ lib }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="label-bro">Entrepôt</label>
+                <select name="entrepot" class="input-bro">
+                    <option value="">Tous</option>
+                    {% for e in entrepots %}
+                    <option value="{{ e.id }}" {% if f.entrepot == e.id|stringformat:"s" %}selected{% endif %}>{{ e.nom }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+                <div>
+                    <label class="label-bro">Du</label>
+                    <input type="date" name="debut" value="{{ f.debut }}" class="input-bro">
+                </div>
+                <div>
+                    <label class="label-bro">Au</label>
+                    <input type="date" name="fin" value="{{ f.fin }}" class="input-bro">
+                </div>
+            </div>
+        </div>
+        <div class="flex items-center gap-3 mt-3">
+            <button type="submit" class="btn-primary-bro"><i class="fas fa-filter"></i> Filtrer</button>
+            <a href="{% url 'stock:liste_mouvements' %}" class="text-sm text-on-surface-muted hover:text-on-surface">Réinitialiser</a>
+        </div>
+    </form>
+
+    <!-- ═══════ TABLE ═══════ -->
+    <div class="card-bro card-bro-static overflow-hidden">
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm bro-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Produit</th>
+                        <th class="text-center">Type</th>
+                        <th>Motif</th>
+                        <th>Provenance → Destination</th>
+                        <th class="text-right">Quantité</th>
+                        <th class="text-right">Valeur</th>
+                        <th>Référence</th>
+                        <th>Par</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for m in mouvements %}
+                    <tr>
+                        <td class="text-xs whitespace-nowrap">{{ m.date_mouvement|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            <a href="{% url 'stock:detail_produit' m.produit.id %}" class="font-medium hover:text-primary transition">{{ m.produit.nom }}</a>
+                            <div class="text-xs text-on-surface-muted font-mono">{{ m.produit.code }}</div>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge-bro
+                                {% if 'ENTREE' in m.type_mouvement or m.type_mouvement == 'AJUSTEMENT_POSITIF' %}bg-emerald-100 text-emerald-700
+                                {% elif 'SORTIE' in m.type_mouvement or m.type_mouvement == 'AJUSTEMENT_NEGATIF' %}bg-red-100 text-red-700
+                                {% else %}bg-surface-soft text-on-surface-muted{% endif %}">
+                                {{ m.get_type_mouvement_display }}
+                            </span>
+                        </td>
+                        <td class="text-xs text-on-surface-muted">{{ m.get_motif_display }}</td>
+                        <td class="text-xs text-on-surface-muted">
+                            {{ m.entrepot_source.nom|default:"—" }} → {{ m.entrepot_dest.nom|default:"—" }}
+                        </td>
+                        <td class="text-right font-mono font-medium">{{ m.quantite|floatformat:2 }}</td>
+                        <td class="text-right font-mono text-on-surface-muted">{{ m.valeur_total|floatformat:0 }} F</td>
+                        <td class="text-xs font-mono text-on-surface-muted">{{ m.reference|default:"—" }}</td>
+                        <td class="text-xs text-on-surface-muted">{{ m.utilisateur|default:"—" }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="9" class="text-center py-12 text-on-surface-muted">
+                        <i class="fas fa-exchange-alt text-3xl mb-2 block"></i>Aucun mouvement pour ces filtres
+                    </td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if mouvements.paginator.num_pages > 1 %}
+        <div class="flex items-center justify-between px-4 py-3 border-t border-border text-sm">
+            <span class="text-on-surface-muted">Page {{ mouvements.number }} / {{ mouvements.paginator.num_pages }}</span>
+            <div class="flex gap-2">
+                {% if mouvements.has_previous %}
+                <a href="?{% for k, v in f.items %}{% if v %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ mouvements.previous_page_number }}" class="px-3 py-1.5 rounded-xl bg-surface-soft hover:bg-surface-soft/70"><i class="fas fa-chevron-left"></i></a>
+                {% endif %}
+                {% if mouvements.has_next %}
+                <a href="?{% for k, v in f.items %}{% if v %}{{ k }}={{ v }}&{% endif %}{% endfor %}page={{ mouvements.next_page_number }}" class="px-3 py-1.5 rounded-xl bg-surface-soft hover:bg-surface-soft/70"><i class="fas fa-chevron-right"></i></a>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

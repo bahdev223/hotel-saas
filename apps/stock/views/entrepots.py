@@ -17,8 +17,53 @@ from ..services.transfert_service import TransfertService
 
 @login_required
 def liste_entrepots(request):
-    """Redirige vers le dashboard"""
-    return redirect('stock:dashboard')
+    """Page dédiée des entrepôts, avec pour chacun le nombre de références,
+    la quantité totale, la valeur du stock et les alertes."""
+    user_groups = request.user.groups.values_list('name', flat=True)
+    if not any(g in ALLOWED_STOCK_GROUPS for g in user_groups):
+        messages.error(request, "Accès refusé.")
+        return redirect('admin:index')
+
+    entrepots = Entrepot.objects.all().order_by('nom')
+
+    f_q = request.GET.get('q', '').strip()
+    f_type = request.GET.get('type', '')
+    f_actif = request.GET.get('actif', '1')
+
+    if f_q:
+        entrepots = entrepots.filter(Q(nom__icontains=f_q) | Q(code__icontains=f_q))
+    if f_type:
+        entrepots = entrepots.filter(type_entrepot=f_type)
+    if f_actif in ('0', '1'):
+        entrepots = entrepots.filter(actif=(f_actif == '1'))
+
+    donnees = []
+    valeur_globale = Decimal('0')
+    for e in entrepots:
+        stocks = StockEntrepot.objects.filter(entrepot=e).select_related('produit')
+        valeur = sum(
+            (s.quantite * (s.prix_achat or s.produit.prix_achat or Decimal('0')) for s in stocks),
+            Decimal('0'),
+        )
+        alertes = sum(1 for s in stocks if 0 < s.quantite <= s.produit.seuil_alerte)
+        ruptures = sum(1 for s in stocks if s.quantite <= 0)
+        valeur_globale += valeur
+        donnees.append({
+            'obj': e,
+            'nb_references': stocks.count(),
+            'quantite_totale': sum((s.quantite for s in stocks), Decimal('0')),
+            'valeur': valeur,
+            'alertes': alertes,
+            'ruptures': ruptures,
+        })
+
+    context = {
+        'entrepots': donnees,
+        'valeur_globale': valeur_globale,
+        'types': Entrepot.TYPE_CHOICES,
+        'f': {'q': f_q, 'type': f_type, 'actif': f_actif},
+    }
+    return render(request, 'stock/entrepots/liste.html', context)
 
 
 @login_required

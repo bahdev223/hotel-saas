@@ -8,6 +8,7 @@ from .production import (
     ProductionLigne, 
     ProductionIngredient
 )
+from .choix import ChoixLigneCommande
 
 __all__ = [    
     'FileAttenteModel',
@@ -19,6 +20,6 @@ __all__ = [
     'LigneMenuModel',
     'Production',
     'ProductionLigne',
-    'ProductionIngredient'
-    
+    'ProductionIngredient',
+    'ChoixLigneCommande',
 ]

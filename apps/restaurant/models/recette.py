@@ -93,29 +93,51 @@ class RecetteModel(models.Model):
     
     @property
     def cout_ingredients(self):
-        return self.cout_revient({})
+        return self.cout_total_preparation({})
 
-    def cout_revient(self, produits: dict) -> Decimal:
+    def cout_total_preparation(self, produits: dict = None) -> Decimal:
+        """
+        Coût total des ingrédients DEDUIRE pour UNE exécution complète de la recette.
+        Lève une erreur si une conversion d'unité échoue.
+        """
         from apps.stock.services.conversion_unite_service import ConversionUniteService
-        from django.core.exceptions import ValidationError
-        
+        from decimal import Decimal
+
+        produits = produits or {}
         total = Decimal('0')
         for ingredient in self.ingredients.all():
             if ingredient.type_ingredient == 'DEDUIRE' and ingredient.produit:
                 cout_unitaire_base = produits.get(ingredient.produit.code, ingredient.produit.prix_achat)
-                try:
-                    qte_en_base = ConversionUniteService.convertir(
-                        quantite=ingredient.quantite,
-                        unite_source=ingredient.unite_mesure,
-                        unite_dest=ingredient.produit.unite_mesure,
-                        produit=ingredient.produit
-                    )
-                    total += qte_en_base * Decimal(str(cout_unitaire_base))
-                except ValidationError:
-                    total += Decimal(str(ingredient.quantite)) * Decimal(str(cout_unitaire_base))
+                if not ingredient.quantite:
+                    continue
+                qte_en_base = ConversionUniteService.convertir(
+                    quantite=ingredient.quantite,
+                    unite_source=ingredient.unite_mesure,
+                    unite_dest=ingredient.produit.unite_mesure,
+                    produit=ingredient.produit
+                )
+                total += qte_en_base * Decimal(str(cout_unitaire_base))
             elif ingredient.cout_unitaire:
+                if not ingredient.quantite:
+                    continue
                 total += Decimal(str(ingredient.quantite)) * ingredient.cout_unitaire
         return total
+
+    def cout_unitaire_rendement(self, produits: dict = None) -> Decimal:
+        """
+        Coût par unité de rendement (ex: coût au litre, au kg, à la pièce).
+        Si rendement_quantite est défini : total / rendement_quantite.
+        Sinon : retourne le coût total (coût par exécution).
+        """
+        from decimal import Decimal
+        total = self.cout_total_preparation(produits)
+        if self.rendement_quantite and self.rendement_quantite > 0:
+            return total / Decimal(str(self.rendement_quantite))
+        return total
+
+    def cout_revient(self, produits: dict = None) -> Decimal:
+        """Alias rétrocompatible – délègue à cout_total_preparation."""
+        return self.cout_total_preparation(produits)
     
 
 

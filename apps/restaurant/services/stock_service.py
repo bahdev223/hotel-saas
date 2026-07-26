@@ -1,5 +1,5 @@
 # apps/restaurant/services/stock_service.py
-from django.db import transaction
+from django.db import models, transaction
 from decimal import Decimal
 from apps.stock.models import Produit, StockEntrepot, MouvementStock, Entrepot
 

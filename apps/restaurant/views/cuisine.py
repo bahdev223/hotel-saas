@@ -90,10 +90,14 @@ def api_cuisine_changer_statut(request, commande_id):
             elif nouveau_statut == 'SERVIE':
                 commande.servir()
             
-            # 🔥 Optionnel : Déstocker les ingrédients quand commande en préparation
+            # Déstocker les ingrédients via le service centralisé
             if nouveau_statut == 'EN_PREPARATION':
-                from ..services.production_service import destocker_commande
-                destocker_commande(commande, entrepot=commande.entrepot)
+                from ..services.consumption_service import RestaurantConsumptionService
+                RestaurantConsumptionService.consommer_commande(
+                    commande=commande,
+                    entrepot=commande.entrepot,
+                    utilisateur=request.user.username,
+                )
 
         return JsonResponse({'success': True, 'statut': commande.statut})
 

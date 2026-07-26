@@ -44,7 +44,7 @@ class MenuModel(models.Model):
         from collections import defaultdict
         
         produits_dict = produits_dict or {}
-        total = 0.0
+        total = Decimal('0')
         groupes_choix = defaultdict(list)
         
         for ligne in self.lignes.all():
@@ -97,7 +97,7 @@ class MenuModel(models.Model):
     @property
     def marge(self):
         if self.prix_vente:
-            return self.prix_vente - Decimal(str(self.get_cout_revient_total()))
+            return self.prix_vente - self.get_cout_revient_total()
         return Decimal('0')
     
     @property
