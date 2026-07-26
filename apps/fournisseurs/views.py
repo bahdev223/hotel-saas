@@ -3,7 +3,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.db.models import Q, Sum
-from .models import Fournisseur
+from .models import Fournisseur, EcheanceFournisseur
 from apps.comptabilite.models import CompteFournisseur, CompteModel
 
 
@@ -170,4 +170,36 @@ def api_detail(request, fournisseur_id):
             }
             for c in comptes
         ],
+    })
+
+
+@login_required
+def api_releve(request, fournisseur_id):
+    """Relevé des échéances d'un fournisseur."""
+    fournisseur = get_object_or_404(Fournisseur, id=fournisseur_id)
+    statut = request.GET.get('statut')
+    echeances = EcheanceFournisseur.objects.filter(fournisseur=fournisseur)
+    if statut:
+        echeances = echeances.filter(statut=statut)
+    echeances = echeances.order_by('-date_echeance')
+
+    return JsonResponse({
+        'success': True,
+        'fournisseur': fournisseur.nom,
+        'echeances': [
+            {
+                'id': e.id,
+                'montant': float(e.montant),
+                'montant_paye': float(e.montant_paye),
+                'solde_restant': float(e.solde_restant),
+                'date_echeance': e.date_echeance.isoformat(),
+                'date_paiement': e.date_paiement.isoformat() if e.date_paiement else None,
+                'statut': e.statut,
+                'est_en_retard': e.est_en_retard,
+                'facture_id': str(e.facture_id) if e.facture_id else None,
+                'bon_entree': e.bon_entree.numero if e.bon_entree else None,
+            }
+            for e in echeances
+        ],
+        'total_du': float(sum(e.solde_restant for e in echeances if e.statut in ('ATTENTE', 'RETARD'))),
     })

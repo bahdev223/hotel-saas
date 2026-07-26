@@ -1,19 +1,19 @@
 # apps/stock/views/achats.py
-from django.shortcuts import render
+from django.shortcuts import render, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.db import transaction
 from django.utils import timezone
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 import json
 import uuid
 
 from ..models import BonEntree, LigneBonEntree, Produit, Entrepot, Domaine
-from ..services import MouvementStockService
-from apps.fournisseurs.models import Fournisseur
+from ..services import MouvementStockService, AchatService
+from apps.fournisseurs.models import Fournisseur, EcheanceFournisseur
 from apps.facturation.models import FactureModel, LigneFactureModel
 from apps.tresorerie.models import Caisse
 from apps.tresorerie.services import MouvementService
@@ -85,7 +85,11 @@ def api_liste_achats(request):
 @login_required
 @require_http_methods(["POST"])
 def api_creer_achat(request):
-    """Crée un achat (ASAR) : BonEntree + Facture fournisseur + MouvementStock + Paiement"""
+    """Crée un achat (ASAR) complet : commande + réception + facture + paiement.
+
+    Utilise AchatService pour la cohérence, puis crée la facture,
+    le paiement ou l'échéance selon le mode.
+    """
     try:
         if request.content_type and 'multipart' in request.content_type:
             data = request.POST.dict()
@@ -100,71 +104,39 @@ def api_creer_achat(request):
         date_achat = data.get('date_achat', date.today().isoformat())
         mode_paiement = data.get('mode_paiement', 'CREDIT')
         notes = data.get('notes', '')
+        echeance_jours = int(data.get('echeance_jours', 30))
         lignes_data = json.loads(data.get('lignes', '[]')) if isinstance(data.get('lignes'), str) else data.get('lignes', [])
 
         if not fournisseur_id or not lignes_data:
             return JsonResponse({'success': False, 'error': 'Fournisseur et lignes requis'})
 
         fournisseur = Fournisseur.objects.get(id=fournisseur_id)
-        entrepot = Entrepot.objects.get(id=entrepot_id) if entrepot_id else Entrepot.objects.filter(type_entrepot='CENTRAL').first()
+        entrepot = Entrepot.objects.get(id=entrepot_id) if entrepot_id else Entrepot.objects.filter(type_entrepot='CENTRAL', actif=True).first()
         if not entrepot:
             return JsonResponse({'success': False, 'error': 'Aucun entrepôt disponible'})
 
         with transaction.atomic():
-            bon = BonEntree.objects.create(
+            # 1. Créer la commande + réception via AchatService
+            bon = AchatService.creer_commande(
                 fournisseur=fournisseur,
+                lignes_data=lignes_data,
                 entrepot=entrepot,
                 reference_fournisseur=reference_fournisseur,
-                date_reception=date_achat,
                 notes=notes,
-                statut='VALIDE',
-                created_by=request.user,
-                valide_by=request.user,
+                user=request.user,
+                date_commande=date_achat,
             )
 
-            total = Decimal('0')
+            # 2. Réception totale immédiate
+            lignes_recues = [
+                {'ligne_id': l.id, 'quantite_recue': l.quantite_commandee}
+                for l in bon.lignes.all()
+            ]
+            AchatService.enregistrer_reception(bon, lignes_recues, user=request.user)
 
-            for ligne_data in lignes_data:
-                produit_id = ligne_data.get('produit_id')
-                quantite = Decimal(str(ligne_data.get('quantite', 1)))
-                prix_achat = Decimal(str(ligne_data.get('prix_achat', 0)))
-                prix_vente = ligne_data.get('prix_vente')
+            total = bon.total
 
-                if quantite <= 0 or prix_achat <= 0:
-                    continue
-
-                produit = Produit.objects.get(id=produit_id)
-
-                LigneBonEntree.objects.create(
-                    bon_entree=bon,
-                    produit=produit,
-                    quantite_commandee=quantite,
-                    quantite_recue=quantite,
-                    prix_achat=prix_achat,
-                )
-                montant_ligne = quantite * prix_achat
-                total += montant_ligne
-
-                MouvementStockService.entree_stock(
-                    produit=produit,
-                    entrepot=entrepot,
-                    quantite=quantite,
-                    utilisateur=request.user.username,
-                    motif='achat',
-                    valeur_unitaire=float(prix_achat),
-                    reference=bon.numero,
-                    raison=f"Achat {fournisseur.nom} - {reference_fournisseur}"
-                )
-
-                champs_maj = {'prix_achat': prix_achat}
-                if prix_vente is not None:
-                    champs_maj['prix_vente'] = Decimal(str(prix_vente))
-                Produit.objects.filter(id=produit_id).update(**champs_maj)
-
-            bon.total = total
-            bon.save()
-
-            # Créer la Facture fournisseur liée
+            # 3. Créer la Facture fournisseur liée
             facture = FactureModel.objects.create(
                 type='FOURNISSEUR',
                 fournisseur=fournisseur,
@@ -179,7 +151,6 @@ def api_creer_achat(request):
                 facture.image = fichier_image
                 facture.save()
 
-            # Ligne de facture récapitulative
             LigneFactureModel.objects.create(
                 facture=facture,
                 description=f"Achat {fournisseur.nom} - {reference_fournisseur or bon.numero}",
@@ -188,8 +159,11 @@ def api_creer_achat(request):
                 tva=0,
             )
 
-            # Paiement
+            # 4. Paiement ou échéance
             paiement_info = None
+            solde_info = None
+            echeance = None
+
             if mode_paiement != 'CREDIT':
                 caisse_id = data.get('caisse_id')
                 caisse = None
@@ -211,10 +185,16 @@ def api_creer_achat(request):
                         'mode': mode_paiement,
                         'caisse': caisse.nom,
                     }
-
-            # Crédit fournisseur
-            solde_info = None
-            if mode_paiement == 'CREDIT':
+                facture.marquer_payee()
+            else:
+                # Crédit : créer échéance + mettre à jour solde
+                echeance = EcheanceFournisseur.objects.create(
+                    fournisseur=fournisseur,
+                    facture=facture,
+                    bon_entree=bon,
+                    montant=total,
+                    date_echeance=date.today() + timedelta(days=echeance_jours),
+                )
                 try:
                     from apps.comptabilite.models import CompteFournisseur, ExerciceModel
                     exercice = ExerciceModel.objects.filter(cloture=False).first()
@@ -233,8 +213,6 @@ def api_creer_achat(request):
                 except Exception:
                     pass
 
-            facture.marquer_payee()
-
             return JsonResponse({
                 'success': True,
                 'facture_id': facture.id,
@@ -248,7 +226,36 @@ def api_creer_achat(request):
                 },
                 'paiement': paiement_info,
                 'solde_fournisseur': solde_info,
+                'echeance_id': echeance.id if echeance else None,
             })
+
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return JsonResponse({'success': False, 'error': str(e)})
+
+
+@csrf_exempt
+@login_required
+@require_http_methods(["POST"])
+def api_enregistrer_reception(request, bon_id):
+    """Enregistre une réception partielle sur un bon d'entrée existant."""
+    try:
+        data = json.loads(request.body)
+        bon = get_object_or_404(BonEntree, id=bon_id)
+
+        lignes_recues = data.get('lignes', [])
+        if not lignes_recues:
+            return JsonResponse({'success': False, 'error': 'Aucune ligne de réception'})
+
+        bon = AchatService.enregistrer_reception(bon, lignes_recues, user=request.user)
+
+        return JsonResponse({
+            'success': True,
+            'bon_id': bon.id,
+            'statut': bon.statut,
+            'total': float(bon.total),
+            'message': f"Réception enregistrée — statut: {bon.get_statut_display()}",
+        })
 
     except Exception as e:
         import traceback; traceback.print_exc()

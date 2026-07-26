@@ -81,6 +81,7 @@ urlpatterns = [
     path('achats/', views.liste_achats, name='liste_achats'),
     path('api/achats/liste/', views.api_liste_achats, name='api_liste_achats'),
     path('api/achats/creer/', views.api_creer_achat, name='api_creer_achat'),
+    path('api/achats/<int:bon_id>/reception/', views.api_enregistrer_reception, name='api_enregistrer_reception'),
 
     # SPA APIs
     path('api/produits/liste/', views.api_liste_produits, name='api_liste_produits'),

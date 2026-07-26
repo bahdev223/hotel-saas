@@ -25,6 +25,7 @@ from .achats import (
     liste_achats,
     api_liste_achats,
     api_creer_achat,
+    api_enregistrer_reception,
 )
 
 from .api import (
@@ -90,6 +91,7 @@ __all__ = [
     'liste_achats',
     'api_liste_achats',
     'api_creer_achat',
+    'api_enregistrer_reception',
     'api_notifications_stock',
     'api_liste_domaines',
     'api_liste_categories',

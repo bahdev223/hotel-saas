@@ -11,8 +11,7 @@ import json
 import uuid
 
 from ..models import Inventaire, LigneInventaire, Produit, StockEntrepot, Entrepot
-from ..services import MouvementStockService
-from ..services.stock_compta_service import StockComptaService
+from ..services import MouvementStockService, InventaireService
 
 
 @login_required
@@ -54,53 +53,24 @@ def liste_inventaires(request):
 
 @login_required
 def creer_inventaire(request, entrepot_id=None):
-    """Créer une nouvelle session d'inventaire"""
+    """Créer une nouvelle session d'inventaire via InventaireService."""
     entrepots = Entrepot.objects.filter(actif=True)
 
     if request.method == 'POST':
         entrepot_id = request.POST.get('entrepot_id')
         entrepot = get_object_or_404(Entrepot, id=entrepot_id)
 
-        with transaction.atomic():
-            if Inventaire.objects.filter(entrepot=entrepot, statut='EN_COURS').exists():
-                messages.error(request, "Un inventaire est déjà en cours pour cet entrepôt.")
-                return redirect('stock:liste_inventaires')
-
-            deja_initialise = Inventaire.objects.filter(entrepot=entrepot, statut='VALIDE').exists()
-
-            code = f"INV-{uuid.uuid4().hex[:8].upper()}"
-
-            inventaire = Inventaire.objects.create(
-                code=code,
+        try:
+            inventaire = InventaireService.creer(
                 entrepot=entrepot,
-                statut='EN_COURS',
+                notes=request.POST.get('notes', ''),
                 realise_par=request.user.username,
-                notes=request.POST.get('notes', '')
             )
-
-            stocks = StockEntrepot.objects.filter(entrepot=entrepot).select_related('produit')
-
-            if not deja_initialise:
-                for stock in stocks:
-                    LigneInventaire.objects.create(
-                        inventaire=inventaire,
-                        produit=stock.produit,
-                        quantite_theorique=0,
-                        quantite_reelle=0,
-                        prix_unitaire=stock.produit.prix_achat or 0,
-                    )
-            else:
-                for stock in stocks:
-                    LigneInventaire.objects.create(
-                        inventaire=inventaire,
-                        produit=stock.produit,
-                        quantite_theorique=stock.quantite,
-                        quantite_reelle=stock.quantite,
-                        prix_unitaire=stock.produit.prix_achat or 0,
-                    )
-
             messages.success(request, f"Inventaire {inventaire.code} créé")
             return redirect('stock:detail_inventaire', inventaire_id=inventaire.id)
+        except Exception as e:
+            messages.error(request, str(e))
+            return redirect('stock:liste_inventaires')
 
     # Vérifier les verrous pour chaque entrepôt
     entrepot_data = []
@@ -157,20 +127,15 @@ def detail_inventaire(request, inventaire_id):
 @login_required
 @require_http_methods(["POST"])
 def api_mettre_a_jour_ligne(request, ligne_id):
-    """API pour mettre à jour la quantité réelle et le prix unitaire d'une ligne"""
+    """API pour mettre à jour la quantité réelle d'une ligne d'inventaire"""
     try:
         data = json.loads(request.body)
-        quantite_reelle = Decimal(str(data.get('quantite_reelle', 0)))
-        if quantite_reelle < 0:
-            return JsonResponse({'success': False, 'error': 'La quantité réelle ne peut pas être négative'})
-        prix_unitaire = data.get('prix_unitaire')
-
         ligne = get_object_or_404(LigneInventaire, id=ligne_id)
-        ligne.quantite_reelle = quantite_reelle
-        if prix_unitaire is not None:
-            ligne.prix_unitaire = Decimal(str(prix_unitaire))
-        ligne.save()
-
+        ligne = InventaireService.mettre_a_jour_ligne(
+            ligne,
+            quantite_reelle=data.get('quantite_reelle', 0),
+            prix_unitaire=data.get('prix_unitaire'),
+        )
         return JsonResponse({
             'success': True,
             'ecart': float(ligne.ecart),
@@ -178,7 +143,6 @@ def api_mettre_a_jour_ligne(request, ligne_id):
             'quantite_theorique': float(ligne.quantite_theorique),
             'prix_unitaire': float(ligne.prix_unitaire),
         })
-
     except Exception as e:
         return JsonResponse({'success': False, 'error': str(e)}, status=400)
 
@@ -208,83 +172,15 @@ def api_lignes_inventaire(request, inventaire_id):
 @require_http_methods(["POST"])
 @transaction.atomic
 def api_valider_inventaire(request, inventaire_id):
-    """Valider l'inventaire via le moteur de mouvements unique"""
+    """Valide un inventaire : ajuste les stocks via InventaireService."""
     try:
         inventaire = get_object_or_404(Inventaire, id=inventaire_id)
-        Inventaire.objects.select_for_update().get(id=inventaire.id)
-
-        if inventaire.statut == 'VALIDE':
-            return JsonResponse({'success': False, 'error': 'Inventaire déjà validé'})
-
-        est_premier = not Inventaire.objects.filter(
-            entrepot=inventaire.entrepot, statut='VALIDE'
-        ).exclude(id=inventaire.id).exists()
-
-        ajustements = []
-
-        for ligne in inventaire.lignes.all().select_related('produit'):
-            try:
-                stock = StockEntrepot.objects.select_for_update().get(
-                    entrepot=inventaire.entrepot, produit=ligne.produit
-                )
-            except StockEntrepot.DoesNotExist:
-                stock = StockEntrepot.objects.create(
-                    entrepot=inventaire.entrepot, produit=ligne.produit, quantite=0
-                )
-                stock = StockEntrepot.objects.select_for_update().get(pk=stock.pk)
-
-            ancienne_quantite = stock.quantite
-            nouvelle_quantite = ligne.quantite_reelle
-            diff = nouvelle_quantite - ancienne_quantite
-            valeur = ligne.prix_unitaire or ligne.produit.prix_achat or Decimal('0')
-
-            if diff > 0:
-                if est_premier:
-                    MouvementStockService.initialiser_stock(
-                        produit=ligne.produit, entrepot=inventaire.entrepot,
-                        quantite=diff, utilisateur=request.user.username,
-                        valeur_unitaire=valeur, reference=inventaire.code,
-                        raison="Stock initial"
-                    )
-                else:
-                    MouvementStockService.entree_stock(
-                        produit=ligne.produit, entrepot=inventaire.entrepot,
-                        quantite=diff, utilisateur=request.user.username,
-                        motif='inventaire', valeur_unitaire=valeur,
-                        reference=inventaire.code, raison="Correction inventaire"
-                    )
-            elif diff < 0:
-                MouvementStockService.sortie_stock(
-                    produit=ligne.produit, entrepot=inventaire.entrepot,
-                    quantite=abs(diff), utilisateur=request.user.username,
-                    motif='inventaire', valeur_unitaire=valeur,
-                    reference=inventaire.code, raison="Correction inventaire"
-                )
-
-            # Mettre à jour le prix d'achat uniquement pour un stock initial
-            if est_premier and ligne.prix_unitaire and ligne.prix_unitaire > 0:
-                produit = Produit.objects.get(id=ligne.produit.id)
-                produit.prix_achat = ligne.prix_unitaire
-                produit.save()
-
-            ajustements.append({
-                'produit': ligne.produit.nom,
-                'avant': float(ancienne_quantite),
-                'apres': float(nouvelle_quantite),
-                'diff': float(diff),
-            })
-
-        inventaire.statut = 'VALIDE'
-        inventaire.date_fin = timezone.now()
-        inventaire.save()
-
+        ajustements = InventaireService.valider(inventaire, user=request.user)
         return JsonResponse({
             'success': True,
             'message': f'Inventaire validé — {len(ajustements)} produit(s) traités',
             'ajustements': ajustements,
-            'est_premier': est_premier,
         })
-
     except Exception as e:
         import traceback; traceback.print_exc()
         return JsonResponse({'success': False, 'error': str(e)}, status=400)
@@ -295,11 +191,10 @@ def api_valider_inventaire(request, inventaire_id):
 def supprimer_inventaire(request, inventaire_id):
     """Supprimer un inventaire non validé"""
     inventaire = get_object_or_404(Inventaire, id=inventaire_id)
-
-    if inventaire.statut == 'VALIDE':
-        messages.error(request, "Impossible de supprimer un inventaire validé.")
+    try:
+        InventaireService.supprimer(inventaire)
+        messages.success(request, f"Inventaire {inventaire.code} supprimé.")
+    except Exception as e:
+        messages.error(request, str(e))
         return redirect('stock:detail_inventaire', inventaire_id=inventaire.id)
-
-    inventaire.delete()
-    messages.success(request, f"Inventaire {inventaire.code} supprimé.")
     return redirect('stock:liste_inventaires')
