@@ -27,7 +27,8 @@ class ProductionService:
                 produit=ingredient.produit
             )
 
-            quantite_requise = qte_base * Decimal(str(quantite)) if qte_base else Decimal('0')
+            rendement = Decimal(str(recette.rendement_quantite or 1))
+            quantite_requise = (qte_base / rendement) * Decimal(str(quantite)) if qte_base else Decimal('0')
 
             stock = StockEntrepot.objects.filter(
                 entrepot=entrepot,
@@ -59,6 +60,7 @@ class ProductionService:
             if not ingredient.quantite:
                 continue
 
+            rendement = Decimal(str(recette.rendement_quantite or 1))
             qte_base = ConversionUniteService.convertir(
                 quantite=ingredient.quantite,
                 unite_source=ingredient.unite_mesure,
@@ -66,7 +68,7 @@ class ProductionService:
                 produit=ingredient.produit
             )
 
-            quantite_sortie = qte_base * Decimal(str(quantite))
+            quantite_sortie = (qte_base / rendement) * Decimal(str(quantite))
 
             MouvementStockService.sortie_stock(
                 produit=ingredient.produit,
@@ -97,13 +99,14 @@ class ProductionService:
                 if not ingredient.quantite:
                     continue
 
+                rendement = Decimal(str(ligne.recette.rendement_quantite or 1))
                 qte_base = ConversionUniteService.convertir(
                     quantite=ingredient.quantite,
                     unite_source=ingredient.unite_mesure,
                     unite_dest=ingredient.produit.unite_mesure,
                     produit=ingredient.produit
                 )
-                quantite_necessaire = qte_base * ligne.quantite
+                quantite_necessaire = (qte_base / rendement) * ligne.quantite
                 stock = StockEntrepot.objects.filter(
                     entrepot=production.entrepot_source,
                     produit=ingredient.produit
@@ -161,13 +164,14 @@ class ProductionService:
                 if not ingredient.quantite:
                     continue
 
+                rendement = Decimal(str(ligne.recette.rendement_quantite or 1))
                 qte_base = ConversionUniteService.convertir(
                     quantite=ingredient.quantite,
                     unite_source=ingredient.unite_mesure,
                     unite_dest=ingredient.produit.unite_mesure,
                     produit=ingredient.produit
                 )
-                quantite_necessaire = qte_base * ligne.quantite
+                quantite_necessaire = (qte_base / rendement) * ligne.quantite
 
                 MouvementStockService.sortie_stock(
                     produit=ingredient.produit,
@@ -245,13 +249,14 @@ def verifier_stock_commande(commande, entrepot=None):
             for ingredient in ligne.recette.ingredients.filter(type_ingredient='DEDUIRE', produit__isnull=False):
                 if not ingredient.quantite:
                     continue
+                rendement = Decimal(str(ligne.recette.rendement_quantite or 1))
                 qte_base = ConversionUniteService.convertir(
                     quantite=ingredient.quantite,
                     unite_source=ingredient.unite_mesure,
                     unite_dest=ingredient.produit.unite_mesure,
                     produit=ingredient.produit
                 )
-                quantite_requise = qte_base * ligne.quantite
+                quantite_requise = (qte_base / rendement) * ligne.quantite
                 stock = StockEntrepot.objects.filter(
                     entrepot=entrepot,
                     produit=ingredient.produit
@@ -273,13 +278,14 @@ def verifier_stock_commande(commande, entrepot=None):
                 for ingredient in ligne_menu.recette.ingredients.filter(produit__isnull=False):
                     if not ingredient.quantite:
                         continue
+                    rendement = Decimal(str(ligne_menu.recette.rendement_quantite or 1))
                     qte_base = ConversionUniteService.convertir(
                         quantite=ingredient.quantite,
                         unite_source=ingredient.unite_mesure,
                         unite_dest=ingredient.produit.unite_mesure,
                         produit=ingredient.produit
                     )
-                    quantite_requise = qte_base * ligne.quantite * ligne_menu.quantite
+                    quantite_requise = (qte_base / rendement) * ligne.quantite * ligne_menu.quantite
                     stock = StockEntrepot.objects.filter(
                         entrepot=entrepot,
                         produit=ingredient.produit

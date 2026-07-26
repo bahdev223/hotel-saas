@@ -15,6 +15,7 @@ from .journal_stock import JournalStock
 from .unite import UniteMesure, ConversionUnite
 from .conditionnement import Conditionnement
 from .transfert import TransfertStock, LigneTransfertStock
+from .politique_stock import PolitiqueStockRestaurant
 
 
 __all__ = [
@@ -41,4 +42,5 @@ __all__ = [
     'Conditionnement',
     'TransfertStock',
     'LigneTransfertStock',
+    'PolitiqueStockRestaurant',
 ]

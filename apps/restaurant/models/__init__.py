@@ -9,6 +9,7 @@ from .production import (
     ProductionIngredient
 )
 from .choix import ChoixLigneCommande
+from .version_recette import VersionRecette
 
 __all__ = [    
     'FileAttenteModel',
@@ -22,4 +23,5 @@ __all__ = [
     'ProductionLigne',
     'ProductionIngredient',
     'ChoixLigneCommande',
+    'VersionRecette',
 ]
