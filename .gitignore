@@ -9,8 +9,11 @@ media/
 apps/staticfiles/
 apps/stock.zip
 *.sqlite3
-!db.sqlite3
 *.db
-fixtures/full_dump.json
+*.sqlite3-wal
+*.sqlite3-shm
+fixtures/
+backup_*.sqlite3
+node_modules/
 
 
