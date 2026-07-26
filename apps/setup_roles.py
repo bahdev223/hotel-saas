@@ -11,6 +11,7 @@ django.setup()
 
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
+from django.db.models import Q
 
 
 # 🔥 Mapping Poste → Groupe
@@ -128,9 +129,10 @@ def create_default_groups():
 
         group = Group.objects.get(name=group_name)
 
-        permissions = Permission.objects.filter(
-            codename__startswith=tuple(actions)
-        )
+        q = Q()
+        for action in actions:
+            q |= Q(codename__startswith=action)
+        permissions = Permission.objects.filter(q)
 
         group.permissions.set(permissions)
 
