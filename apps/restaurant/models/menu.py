@@ -145,8 +145,8 @@ class LigneMenuModel(models.Model):
         return f"[{self.get_type_ligne_display()}] {self.recette.nom} ({self.get_groupe_display()})"
     
     def get_cout(self, produits_dict=None):
-        """Coût de la ligne (pour FIXE et SUPPLEMENT)"""
-        return Decimal(str(self.quantite)) * Decimal(str(self.recette.cout_revient(produits_dict or {})))
+        """Coût de la ligne utilisant le coût unitaire par rendement"""
+        return Decimal(str(self.quantite)) * self.recette.cout_unitaire_rendement(produits_dict or {})
     
     @property
     def est_fixe(self):
