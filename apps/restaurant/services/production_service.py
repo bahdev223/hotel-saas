@@ -173,7 +173,8 @@ class ProductionService:
                 )
                 quantite_necessaire = (qte_base / rendement) * ligne.quantite
 
-                MouvementStockService.sortie_stock(
+                from apps.stock.services.valorisation_stock_service import ValorisationStockService
+                mouvement = MouvementStockService.sortie_stock(
                     produit=ingredient.produit,
                     entrepot=production.entrepot_source,
                     quantite=quantite_necessaire,
@@ -183,12 +184,28 @@ class ProductionService:
                     source_operation=source_op,
                 )
 
+                cout_unit = ValorisationStockService.get_cout_sortie(
+                    produit=ingredient.produit,
+                    entrepot=production.entrepot_source,
+                    quantite=quantite_necessaire
+                )
+
                 ProductionIngredient.objects.create(
                     production=production,
+                    ligne=ligne,
                     produit=ingredient.produit,
                     quantite=quantite_necessaire,
+                    cout_unitaire=cout_unit,
                     unite=ingredient.unite
                 )
+
+            # Mettre à jour le coût réel de la ligne
+            ligne_cout_reel = sum(
+                (pi.quantite or Decimal('0')) * (pi.cout_unitaire or Decimal('0'))
+                for pi in ProductionIngredient.objects.filter(ligne=ligne)
+            )
+            ligne.cout_reel_ligne = ligne_cout_reel
+            ligne.save(update_fields=['cout_reel_ligne'])
 
             # Entrée du produit fini dans l'entrepôt destination
             if ligne.recette.produit_fini:
