@@ -1,4 +1,5 @@
 # apps/restaurant/services/menu_service.py
+from collections import defaultdict
 from django.db import transaction
 from decimal import Decimal
 import uuid
@@ -63,3 +64,44 @@ class MenuService:
             )
         
         return nouveau_menu
+
+    @staticmethod
+    def valider_choix_menu(menu, choix_list):
+        """Valide que les choix respectent les contraintes min/max par groupe.
+
+        choix_list = [{'groupe': 'ENTREE', 'recette_id': '...'}, ...]
+        Retourne {'valid': True} ou {'valid': False, 'errors': [...]}
+        """
+        from collections import Counter
+        choix_par_groupe = Counter(c.get('groupe') for c in choix_list)
+
+        groupes_config = {}
+        for ligne in menu.lignes.filter(type_ligne='CHOIX'):
+            if ligne.groupe not in groupes_config:
+                groupes_config[ligne.groupe] = {
+                    'min': ligne.min_choix,
+                    'max': ligne.max_choix,
+                    'options': set(),
+                }
+            groupes_config[ligne.groupe]['options'].add(ligne.recette_id)
+
+        errors = []
+        for groupe, cfg in groupes_config.items():
+            nb = choix_par_groupe.get(groupe, 0)
+            if nb < cfg['min']:
+                errors.append(
+                    f"{groupe}: minimum {cfg['min']} choix requis, {nb} fourni(s)"
+                )
+            if nb > cfg['max']:
+                errors.append(
+                    f"{groupe}: maximum {cfg['max']} choix autorisé(s), {nb} fourni(s)"
+                )
+            for c in choix_list:
+                if c.get('groupe') == groupe and c.get('recette_id') not in cfg['options']:
+                    errors.append(
+                        f"{groupe}: la recette {c.get('recette_id')} n'est pas une option valide"
+                    )
+
+        if errors:
+            return {'valid': False, 'errors': errors}
+        return {'valid': True}

@@ -477,11 +477,21 @@ def api_creer_commande(request):
                 total += montant_ligne
             elif type_art == 'MENU':
                 menu = get_object_or_404(MenuModel, id=item.get('menu_id'), actif=True)
+                # Validation des choix avant création
+                choix_list = item.get('choix', [])
+                from apps.restaurant.services.menu_service import MenuService
+                validation = MenuService.valider_choix_menu(menu, choix_list)
+                if not validation['valid']:
+                    return JsonResponse({
+                        'success': False,
+                        'error_code': 'CHOIX_INVALIDE',
+                        'error': '; '.join(validation['errors'])
+                    }, status=400)
                 prix = Decimal(str(menu.prix_vente))
                 ligne = LigneCommande.objects.create(commande=commande, menu=menu, quantite=qte, prix_unitaire=prix)
                 # Créer les choix client pour ce menu
                 from apps.restaurant.models import ChoixLigneCommande
-                for choix_data in item.get('choix', []):
+                for choix_data in choix_list:
                     choix_recette_id = choix_data.get('recette_id')
                     if not choix_recette_id:
                         continue

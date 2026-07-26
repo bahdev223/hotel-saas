@@ -134,6 +134,10 @@ class LigneMenuModel(models.Model):
     
     quantite = models.IntegerField(default=1)
     prix_supplement = models.DecimalField(max_digits=10, decimal_places=2, default=0, help_text="Si type SUPPLEMENT")
+
+    # Validation des groupes de choix
+    min_choix = models.IntegerField(default=0, help_text="Nombre minimum de choix requis (pour type_ligne=CHOIX)")
+    max_choix = models.IntegerField(default=1, help_text="Nombre maximum de choix autorisés (pour type_ligne=CHOIX)")
     
     class Meta:
         db_table = 'restaurant_menus_lignes'
