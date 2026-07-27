@@ -1,49 +1,20 @@
-# Git
-.git
-.gitignore
-.gitattributes
-
-# Python
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
 venv/
-env/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Django
-db.sqlite3
-staticfiles/
-media/
-*.mo
-
-# Docker
-.dockerignore
-Dockerfile
-
-# Env
+__pycache__/
+*.pyc
 .env
-.env.local
-
-# Node
-node_modules/
-package-lock.json
-yarn.lock
-
-# Tests
-.coverage
-htmlcov/
-.pytest_cache/
-
-# Project specific
+media/
 *.log
+.idea/
+.vscode/
+apps/staticfiles/
+*.sqlite3-wal
+*.sqlite3-shm
+fixtures/
+backup_*.sqlite3
+.git/
+.gitignore
+node_modules/
+Dockerfile
+.dockerignore
+README.md
+apps/**/migrations/__pycache__/

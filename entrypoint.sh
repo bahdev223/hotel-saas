@@ -14,7 +14,17 @@ if echo "$DB_URL" | grep -qi "^postgres"; then
         sleep 1
     done
 else
-    echo "📁 Base SQLite — aucun attend requis"
+    echo "📁 Base SQLite"
+    # Garde : si db.sqlite3 a été écrasé par un volume vide, on le restaure
+    if [ ! -f db.sqlite3 ] || [ ! -s db.sqlite3 ]; then
+        echo "⚠️  db.sqlite3 vide ou manquant → restauration depuis le backup"
+        if [ -f /app/db.sqlite3.bak ]; then
+            cp /app/db.sqlite3.bak /app/db.sqlite3
+            echo "✅ db.sqlite3 restauré depuis le backup"
+        else
+            echo "❌ Aucun backup disponible — création d'une base vierge"
+        fi
+    fi
 fi
 
 echo "📦 Migration de la base de données..."

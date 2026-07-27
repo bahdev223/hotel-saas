@@ -61,6 +61,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 EXPOSE 8000
 
+# Sauvegarde de la base SQLite trackée (restaurée par entrypoint si volume vide)
+RUN if [ -f db.sqlite3 ]; then cp db.sqlite3 db.sqlite3.bak; fi
+
 RUN chmod +x /app/entrypoint.sh
 
 ENTRYPOINT ["/app/entrypoint.sh"]
