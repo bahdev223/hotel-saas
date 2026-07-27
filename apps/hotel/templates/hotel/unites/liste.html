@@ -3,76 +3,286 @@
 
 {% block title %}Chambres{% endblock %}
 {% block header %}<i class="fas fa-door-open text-secondary mr-2"></i>Chambres{% endblock %}
-{% block subtitle %}Gestion des chambres (Standard et VIP){% endblock %}
+{% block subtitle %}Gestion des chambres et de leurs statuts{% endblock %}
+
+{% block style_extra %}
+.chambre-card {
+    background: #ffffff;
+    border: 1px solid #e5ded2;
+    border-radius: 1.25rem;
+    transition: all 0.2s ease;
+    overflow: hidden;
+}
+.chambre-card:hover {
+    border-color: #b8862c;
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px -10px rgba(0,0,0,0.06);
+}
+.chambre-card .statut-badge {
+    padding: 0.15rem 0.6rem;
+    border-radius: 9999px;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+}
+.chambre-card .statut-badge.disponible { background: #dcfce7; color: #16a34a; }
+.chambre-card .statut-badge.occupee { background: #fee2e2; color: #dc2626; }
+.chambre-card .statut-badge.reservee { background: #fef3c7; color: #d97706; }
+.chambre-card .statut-badge.nettoyage { background: #e0e7ff; color: #4f46e5; }
+.chambre-card .statut-badge.a_nettoyer { background: #fce7f3; color: #db2777; }
+.chambre-card .statut-badge.maintenance { background: #e5e7eb; color: #6b7280; }
+.chambre-card .statut-badge.hors_service { background: #1e1b1a; color: #f8f6f2; }
+
+#modal:empty { display: none; }
+#modal:not(:empty) {
+    position: fixed; inset: 0; z-index: 60;
+    display: flex; align-items: center; justify-content: center;
+    padding: 1rem;
+    background: rgba(30, 27, 26, 0.5);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+}
+.modal-glass {
+    background: rgba(255,255,255,0.98);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.3);
+}
+{% endblock %}
 
 {% block inner_content %}
 <div x-data="chambreManagement()" x-init="init()" class="space-y-6">
 
-    <div class="flex items-center justify-between">
-        <div class="flex gap-2">
-            <a href="?{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-3 py-1.5 rounded-lg text-sm border border-border hover:bg-surface-soft {% if not filtre_type %}bg-primary-soft text-primary border-primary{% endif %}">Tous</a>
-            {% for key, label in type_choices %}
-            <a href="?type={{ key }}{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-3 py-1.5 rounded-lg text-sm border border-border hover:bg-surface-soft {% if filtre_type == key %}bg-primary-soft text-primary border-primary{% endif %}">{{ label }}</a>
-            {% endfor %}
-            <button hx-get="{% url 'hotel:ajouter_unite' %}" hx-target="#modal" class="px-3 py-1.5 rounded-lg text-sm bg-primary text-white font-semibold cursor-pointer hover:opacity-90 {% if est_bloque_hotel %}pointer-events-none opacity-30{% endif %}">
-                <i class="fas fa-plus mr-1"></i>Ajouter
-            </button>
+    <!-- Statistiques -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div class="card-bro p-4 flex items-center gap-3">
+            <div class="stat-icon-bro bg-primary-soft"><i class="fas fa-door-open"></i></div>
+            <div>
+                <p class="text-[10px] uppercase tracking-wider text-on-surface-muted/70">Total</p>
+                <p class="text-sm font-bold text-on-surface" x-text="stats.total || 0"></p>
+            </div>
+        </div>
+        <div class="card-bro p-4 flex items-center gap-3">
+            <div class="stat-icon-bro" style="background:rgba(22,163,74,0.08)"><i class="fas fa-check-circle" style="color:#16a34a"></i></div>
+            <div>
+                <p class="text-[10px] uppercase tracking-wider text-on-surface-muted/70">Disponibles</p>
+                <p class="text-sm font-bold" style="color:#16a34a" x-text="stats.disponibles || 0"></p>
+            </div>
+        </div>
+        <div class="card-bro p-4 flex items-center gap-3">
+            <div class="stat-icon-bro" style="background:rgba(220,38,38,0.08)"><i class="fas fa-bed" style="color:#dc2626"></i></div>
+            <div>
+                <p class="text-[10px] uppercase tracking-wider text-on-surface-muted/70">Occupées</p>
+                <p class="text-sm font-bold" style="color:#dc2626" x-text="stats.occupees || 0"></p>
+            </div>
+        </div>
+        <div class="card-bro p-4 flex items-center gap-3">
+            <div class="stat-icon-bro" style="background:rgba(245,158,11,0.08)"><i class="fas fa-broom" style="color:#f59e0b"></i></div>
+            <div>
+                <p class="text-[10px] uppercase tracking-wider text-on-surface-muted/70">En cours</p>
+                <p class="text-sm font-bold" style="color:#f59e0b" x-text="stats.en_cours || 0"></p>
+            </div>
         </div>
     </div>
 
+    <!-- Filtres -->
+    <div class="flex flex-wrap items-center gap-3 mb-6">
+        <div class="flex gap-1 bg-surface-soft rounded-full p-1">
+            <a href="?" class="px-3 py-1.5 rounded-full text-xs font-medium transition" :class="filtreType === '' ? 'bg-white text-primary shadow-sm' : 'text-on-surface-muted hover:bg-surface-card/50'">Tous</a>
+            {% for key, label in type_choices %}
+            <a href="?type={{ key }}{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-3 py-1.5 rounded-full text-xs font-medium transition" :class="filtreType === '{{ key }}' ? 'bg-white text-primary shadow-sm' : 'text-on-surface-muted hover:bg-surface-card/50'">{{ label }}</a>
+            {% endfor %}
+        </div>
+
+        <div class="flex gap-1 bg-surface-soft rounded-full p-1 ml-0 sm:ml-2">
+            <a href="?statut=DISPONIBLE" class="px-3 py-1.5 rounded-full text-xs font-medium transition" :class="filtreStatut === 'DISPONIBLE' ? 'bg-white text-primary shadow-sm' : 'text-on-surface-muted hover:bg-surface-card/50'">Disponible</a>
+            <a href="?statut=OCCUPEE" class="px-3 py-1.5 rounded-full text-xs font-medium transition" :class="filtreStatut === 'OCCUPEE' ? 'bg-white text-primary shadow-sm' : 'text-on-surface-muted hover:bg-surface-card/50'">Occupée</a>
+            <a href="?statut=RESERVEE" class="px-3 py-1.5 rounded-full text-xs font-medium transition" :class="filtreStatut === 'RESERVEE' ? 'bg-white text-primary shadow-sm' : 'text-on-surface-muted hover:bg-surface-card/50'">Réservée</a>
+            <a href="?statut=NETTOYAGE" class="px-3 py-1.5 rounded-full text-xs font-medium transition" :class="filtreStatut === 'NETTOYAGE' ? 'bg-white text-primary shadow-sm' : 'text-on-surface-muted hover:bg-surface-card/50'">Nettoyage</a>
+        </div>
+
+        <div class="flex-1"></div>
+
+        <div class="relative">
+            <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-muted/40 text-xs"></i>
+            <input type="text" x-model="searchQuery" @input.debounce="rechercher()" placeholder="Rechercher..." class="pl-8 pr-3 py-1.5 text-sm border border-border rounded-full bg-white focus:border-primary focus:outline-none w-full sm:w-48">
+        </div>
+
+        <button hx-get="{% url 'hotel:ajouter_unite' %}" hx-target="#modal" class="btn-primary text-sm flex items-center gap-2">
+            <i class="fas fa-plus-circle"></i> Nouvelle
+        </button>
+    </div>
+
+    <!-- Grille des chambres -->
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {% for unite in unites %}
-        <a href="{% url 'hotel:detail_unite' unite.id %}" class="card-bro overflow-hidden group">
+        <div class="chambre-card" x-data>
             <div class="aspect-video bg-surface-soft relative overflow-hidden">
                 {% if unite.image %}
-                <img src="{{ unite.image.url }}" alt="{{ unite.nom }}" class="w-full h-full object-cover group-hover:scale-105 transition duration-300">
+                <img src="{{ unite.image.url }}" alt="{{ unite.nom }}" class="w-full h-full object-cover hover:scale-105 transition duration-300">
                 {% else %}
                 <div class="w-full h-full flex items-center justify-center text-on-surface-muted">
                     <i class="fas fa-image text-4xl opacity-30"></i>
                 </div>
                 {% endif %}
-                <span class="absolute top-2 right-2 px-2 py-0.5 rounded-full text-[10px] font-medium badge-bro
-                    {% if unite.statut == 'DISPONIBLE' %}bg-emerald-100 text-emerald-700
-                    {% elif unite.statut == 'OCCUPEE' %}bg-red-100 text-red-700
-                    {% elif unite.statut == 'NETTOYAGE' %}bg-amber-100 text-amber-700
-                    {% else %}bg-surface-soft text-on-surface-muted{% endif %}">
-                    {{ unite.get_statut_display }}
+                {% if unite.statut == 'OCCUPEE' %}
+                <span class="absolute top-2 left-2 px-2 py-0.5 rounded-full text-[10px] font-semibold" style="background:rgba(239,68,68,0.9);color:white">
+                    <i class="fas fa-circle text-[6px] mr-1" style="color:#fca5a5"></i> En cours
                 </span>
+                {% endif %}
             </div>
             <div class="p-4">
-                <div class="flex items-center gap-2 mb-1">
-                    <span class="text-xs font-mono text-primary/80">{{ unite.code }}</span>
-                    <span class="text-[10px] px-1.5 py-0.5 rounded bg-surface-soft text-on-surface-muted">{{ unite.get_type_unite_display }}</span>
+                <div class="flex items-start justify-between mb-1">
+                    <div>
+                        <span class="text-xs font-mono text-primary/80">{{ unite.code }}</span>
+                        <span class="text-[10px] px-1.5 py-0.5 rounded bg-surface-soft text-on-surface-muted ml-1">{{ unite.get_type_unite_display }}</span>
+                    </div>
+                    <span class="statut-badge whitespace-nowrap ml-2 {{ unite.statut|lower }}" x-text="'{{ unite.get_statut_display }}'"></span>
                 </div>
-                <h3 class="font-semibold text-on-surface group-hover:text-primary">{{ unite.nom }}</h3>
+                <h3 class="font-semibold text-on-surface hover:text-primary cursor-pointer" @click="voirChambre('{{ unite.id|escapejs }}', '{{ unite.nom|escapejs }}', '{{ unite.code|escapejs }}', '{{ unite.get_type_unite_display|escapejs }}', '{{ unite.statut|escapejs }}', '{{ unite.get_statut_display|escapejs }}', {{ unite.capacite }}, {{ unite.surface_m2|default:'null' }}, {{ unite.prix }}, '{{ unite.description|escapejs }}', '{{ unite.equipements|join:','|escapejs }}')">{{ unite.nom }}</h3>
                 <div class="flex items-center gap-3 mt-2 text-xs text-on-surface-muted">
                     <span><i class="fas fa-users mr-1"></i>{{ unite.capacite }} pers.</span>
                     {% if unite.surface_m2 %}
                     <span><i class="fas fa-vector-square mr-1"></i>{{ unite.surface_m2 }} m²</span>
                     {% endif %}
                 </div>
-                <p class="text-sm font-bold text-primary mt-2">{{ unite.prix|floatformat:0 }} F <span class="text-xs text-on-surface-muted font-normal">/h</span>
-                {% if unite.prix_jour %}<span class="text-sm text-on-surface-muted ml-2">| {{ unite.prix_jour|floatformat:0 }} F <span class="text-xs">/j</span></span>{% endif %}</p>
+                <div class="flex items-center justify-between pt-3 mt-2 border-t border-border">
+                    <div>
+                        <span class="text-xs text-on-surface-muted">Prix/heure</span>
+                        <p class="text-lg font-bold text-primary">{{ unite.prix|floatformat:0 }} F</p>
+                    </div>
+                    <div class="flex gap-1">
+                        <a href="{% url 'hotel:detail_unite' unite.id %}" class="w-8 h-8 rounded-full hover:bg-surface-soft flex items-center justify-center text-on-surface-muted hover:text-primary transition" title="Voir">
+                            <i class="fas fa-eye text-xs"></i>
+                        </a>
+                        <button hx-get="{% url 'hotel:modifier_unite' unite.id %}" hx-target="#modal" class="w-8 h-8 rounded-full hover:bg-surface-soft flex items-center justify-center text-on-surface-muted hover:text-primary transition" title="Modifier">
+                            <i class="fas fa-edit text-xs"></i>
+                        </button>
+                    </div>
+                </div>
             </div>
-        </a>
+        </div>
         {% empty %}
-        <div class="col-span-full text-center py-12 text-on-surface-muted">
+        <div class="col-span-full text-center py-16 text-on-surface-muted">
             <i class="fas fa-door-open text-4xl mb-3 block opacity-30"></i>
             <p class="text-sm">Aucune chambre trouvée</p>
+            <button hx-get="{% url 'hotel:ajouter_unite' %}" hx-target="#modal" class="mt-3 text-sm text-primary hover:underline">Ajouter une chambre</button>
         </div>
         {% endfor %}
     </div>
 
+    <!-- Pagination -->
     {% if unites.has_other_pages %}
-    <div class="flex justify-center gap-2 mt-6">
+    <div class="flex justify-center gap-2 mt-8">
         {% if unites.has_previous %}
-        <a href="?page={{ unites.previous_page_number }}{% if filtre_type %}&type={{ filtre_type }}{% endif %}{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-3 py-1.5 rounded-lg border border-border text-sm hover:bg-surface-soft">&laquo; Précédent</a>
+        <a href="?page={{ unites.previous_page_number }}{% if filtre_type %}&type={{ filtre_type }}{% endif %}{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-4 py-2 rounded-full border border-border text-sm hover:bg-surface-soft transition">&laquo; Précédent</a>
         {% endif %}
-        <span class="px-3 py-1.5 text-sm text-on-surface-muted">Page {{ unites.number }} / {{ unites.paginator.num_pages }}</span>
+        {% for num in unites.paginator.page_range %}
+            {% if num == unites.number %}
+            <span class="px-4 py-2 rounded-full bg-primary text-white text-sm font-medium">{{ num }}</span>
+            {% elif num > unites.number|add:'-3' and num < unites.number|add:'3' %}
+            <a href="?page={{ num }}{% if filtre_type %}&type={{ filtre_type }}{% endif %}{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-4 py-2 rounded-full border border-border text-sm hover:bg-surface-soft transition">{{ num }}</a>
+            {% endif %}
+        {% endfor %}
         {% if unites.has_next %}
-        <a href="?page={{ unites.next_page_number }}{% if filtre_type %}&type={{ filtre_type }}{% endif %}{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-3 py-1.5 rounded-lg border border-border text-sm hover:bg-surface-soft">Suivant &raquo;</a>
+        <a href="?page={{ unites.next_page_number }}{% if filtre_type %}&type={{ filtre_type }}{% endif %}{% if filtre_statut %}&statut={{ filtre_statut }}{% endif %}" class="px-4 py-2 rounded-full border border-border text-sm hover:bg-surface-soft transition">Suivant &raquo;</a>
         {% endif %}
     </div>
     {% endif %}
+
+    <!-- Modal détail (Alpine) -->
+    <div x-show="showDetail" x-cloak class="fixed inset-0 z-[60] flex items-start justify-center pt-12 pb-8 px-4" style="background:rgba(30,27,26,0.6);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)" @click.away="showDetail = false" @keydown.escape.window="showDetail = false">
+        <div class="w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden modal-glass" @click.stop>
+            <div class="flex items-center justify-between px-6 py-4 border-b border-border/60">
+                <h2 class="text-lg font-bold" x-text="detailChambre.nom || 'Chambre'"></h2>
+                <button @click="showDetail = false" class="w-8 h-8 rounded-full hover:bg-surface-soft flex items-center justify-center transition">
+                    <i class="fas fa-times text-sm text-on-surface-muted"></i>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="grid grid-cols-2 gap-4 text-sm">
+                    <div><span class="text-on-surface-muted block text-xs uppercase tracking-wider">Code</span><span x-text="detailChambre.code || '-'" class="font-medium"></span></div>
+                    <div><span class="text-on-surface-muted block text-xs uppercase tracking-wider">Type</span><span x-text="detailChambre.type_display || detailChambre.type" class="font-medium"></span></div>
+                    <div><span class="text-on-surface-muted block text-xs uppercase tracking-wider">Statut</span><span x-text="detailChambre.statut_display || detailChambre.statut" class="font-medium"></span></div>
+                    <div><span class="text-on-surface-muted block text-xs uppercase tracking-wider">Capacité</span><span x-text="(detailChambre.capacite || '?') + ' personnes'" class="font-medium"></span></div>
+                    <div><span class="text-on-surface-muted block text-xs uppercase tracking-wider">Surface</span><span x-text="detailChambre.surface ? detailChambre.surface + ' m²' : '-'" class="font-medium"></span></div>
+                    <div><span class="text-on-surface-muted block text-xs uppercase tracking-wider">Prix / heure</span><span x-text="formatMoney(detailChambre.prix || 0)" class="font-medium text-primary"></span></div>
+                </div>
+                <div x-show="detailChambre.description" class="pt-2 border-t border-border/60">
+                    <p class="text-xs text-on-surface-muted uppercase tracking-wider mb-1">Description</p>
+                    <p class="text-sm" x-text="detailChambre.description"></p>
+                </div>
+                <div x-show="detailChambre.equipements_list?.length">
+                    <p class="text-xs text-on-surface-muted uppercase tracking-wider mb-2">Équipements</p>
+                    <div class="flex flex-wrap gap-1.5">
+                        <template x-for="eq in detailChambre.equipements_list" :key="eq">
+                            <span class="text-xs bg-surface-soft px-3 py-1 rounded-full" x-text="eq"></span>
+                        </template>
+                    </div>
+                </div>
+                <div class="flex gap-2 pt-3 border-t border-border/60">
+                    <a :href="detailChambre.url || '#'" class="flex-1 btn-primary text-sm py-2 text-center block rounded-full no-underline">Voir détails</a>
+                    <button @click="showDetail = false" class="flex-1 btn-outline text-sm py-2 text-center rounded-full cursor-pointer">Fermer</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function chambreManagement() {
+    return {
+        chambres: [],
+        loading: false,
+        showDetail: false,
+        detailChambre: {},
+        searchQuery: '',
+        filtreType: new URLSearchParams(window.location.search).get('type') || '',
+        filtreStatut: new URLSearchParams(window.location.search).get('statut') || '',
+        stats: { total: 0, disponibles: 0, occupees: 0, en_cours: 0 },
+
+        init() {
+            this.calculerStats();
+        },
+
+        calculerStats() {
+            const cards = document.querySelectorAll('.chambre-card');
+            let total = cards.length;
+            let disponibles = 0, occupees = 0, en_cours = 0;
+            cards.forEach(card => {
+                const badge = card.querySelector('.statut-badge');
+                if (!badge) return;
+                const txt = badge.textContent.trim();
+                if (txt === 'Disponible' || txt === 'DISPONIBLE') disponibles++;
+                else if (txt === 'Occupée' || txt === 'OCCUPEE') occupees++;
+                else if (txt === 'À nettoyer' || txt === 'Nettoyage en cours' || txt === 'NETTOYAGE') en_cours++;
+            });
+            this.stats = { total, disponibles, occupees, en_cours };
+        },
+
+        rechercher() {},
+
+        voirChambre(id, nom, code, typeDisplay, statut, statutDisplay, capacite, surface, prix, description, equipementsStr) {
+            this.detailChambre = {
+                id, nom, code,
+                type: statut,
+                type_display: typeDisplay,
+                statut, statut_display: statutDisplay,
+                capacite, surface, prix, description,
+                equipements_list: equipementsStr ? equipementsStr.split(',').filter(Boolean).map(e => e.replace(/_/g, ' ')) : [],
+                url: '/hotel/unites/' + id + '/'
+            };
+            this.showDetail = true;
+        },
+
+        formatMoney(v) {
+            const val = Number(v) || 0;
+            return new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 0, maximumFractionDigits: 0 }).format(val) + ' F';
+        }
+    }
+}
+</script>
 {% endblock %}

@@ -40,11 +40,18 @@ def _is_ajax(request):
 
 @login_required
 def ajouter_client(request):
+    est_dialogue = request.headers.get("HX-Target") == "modal"
+
     if request.method == 'POST':
         nom = (request.POST.get('nom') or '').strip()
         telephone = (request.POST.get('telephone') or '').strip()
         if not nom or not telephone:
             erreur = 'Le nom et le téléphone sont obligatoires.'
+            if est_dialogue:
+                messages.error(request, erreur)
+                return render(request, 'clients/_dialog_ajouter.html', {
+                    'types_client': [t[0] for t in Client.TYPE_CLIENT_CHOICES],
+                })
             if _is_ajax(request):
                 return JsonResponse({'success': False, 'error': erreur}, status=400)
             messages.error(request, erreur)
@@ -77,16 +84,26 @@ def ajouter_client(request):
                         solde=montant,
                     )
 
+            if est_dialogue:
+                messages.success(request, f'Client {client.nom_complet} ajouté avec succès')
+                return render(request, 'clients/_dialog_ajouter.html', {'succes': True, 'unite': client})
             if _is_ajax(request):
                 return JsonResponse({'success': True, 'id': client.id})
             messages.success(request, f'Client {client.nom_complet} ajouté avec succès')
             return redirect('clients:dashboard')
         except Exception as e:
+            if est_dialogue:
+                messages.error(request, f'Erreur: {str(e)}')
+                return render(request, 'clients/_dialog_ajouter.html', {
+                    'types_client': [t[0] for t in Client.TYPE_CLIENT_CHOICES],
+                })
             if _is_ajax(request):
                 return JsonResponse({'success': False, 'error': str(e)}, status=400)
             messages.error(request, f'Erreur: {str(e)}')
 
     types_client = [t[0] for t in Client.TYPE_CLIENT_CHOICES]
+    if est_dialogue:
+        return render(request, 'clients/_dialog_ajouter.html', {'types_client': types_client})
     return render(request, 'clients/ajouter.html', {'types_client': types_client})
 
 

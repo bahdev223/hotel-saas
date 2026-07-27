@@ -12,9 +12,14 @@
             </h1>
             <p class="text-sm text-on-surface-muted mt-1">Gestion des clients</p>
         </div>
-        <button @click="openDialog('liste')" class="rounded-xl bg-primary text-white text-sm px-4 py-2">
-            <i class="fas fa-list mr-1"></i>Tous les clients
-        </button>
+        <div class="flex gap-2">
+            <button hx-get="{% url 'clients:ajouter' %}" hx-target="#modal" class="rounded-xl bg-primary text-white text-sm px-4 py-2 flex items-center gap-2">
+                <i class="fas fa-plus-circle"></i>Nouveau
+            </button>
+            <button @click="openDialog('liste')" class="rounded-xl border border-border text-sm px-4 py-2 hover:bg-surface-soft transition flex items-center gap-2">
+                <i class="fas fa-list mr-1"></i>Tous
+            </button>
+        </div>
     </div>
 
     <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">

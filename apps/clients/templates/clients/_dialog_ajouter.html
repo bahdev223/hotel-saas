@@ -1,0 +1,107 @@
+{% load static %}
+<div class="bg-surface-card rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-border" @click.stop>
+    <div class="flex items-center justify-between px-6 py-4 border-b border-border/60" style="background:rgba(255,255,255,0.7);backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px)">
+        <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                <i class="fas fa-user-plus text-primary"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-bold">
+                    {% if succes %}
+                    <i class="fas fa-check-circle text-green-600 mr-2"></i>Client ajouté
+                    {% else %}
+                    Nouveau client
+                    {% endif %}
+                </h3>
+                <p class="text-xs text-on-surface-muted">Ajouter un client à la base</p>
+            </div>
+        </div>
+        <button onclick="document.getElementById('modal').innerHTML=''" class="w-8 h-8 rounded-full hover:bg-surface-soft flex items-center justify-center text-on-surface-muted hover:text-on-surface transition">
+            <i class="fas fa-times"></i>
+        </button>
+    </div>
+
+    <div class="p-6 overflow-y-auto max-h-[75vh]">
+        {% if messages %}
+        <div class="space-y-2 mb-4">
+            {% for message in messages %}
+            <div class="rounded-xl p-3 border-l-4 text-sm
+                {% if message.tags == 'success' %}bg-emerald-50 border-emerald-500 text-emerald-800
+                {% elif message.tags == 'error' %}bg-red-50 border-red-500 text-red-800
+                {% else %}bg-primary-soft border-primary text-on-surface{% endif %}">
+                {{ message }}
+            </div>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        {% if succes %}
+        <div class="text-center py-6 space-y-4">
+            <div class="w-16 h-16 rounded-full bg-green-50 mx-auto flex items-center justify-center">
+                <i class="fas fa-check text-2xl text-green-600"></i>
+            </div>
+            <p class="text-on-surface">Le client <span class="font-semibold">{{ unite.nom_complet }}</span> a été créé avec succès.</p>
+            <div class="flex gap-3 justify-center pt-2">
+                <button onclick="document.getElementById('modal').innerHTML=''; window.location.reload()"
+                    class="px-4 py-2 rounded-xl bg-primary text-white text-sm font-medium hover:bg-primary/90 transition">
+                    Voir la liste
+                </button>
+                <button onclick="document.getElementById('modal').innerHTML=''"
+                    class="px-4 py-2 text-sm font-medium text-on-surface-muted hover:text-on-surface transition">
+                    Fermer
+                </button>
+            </div>
+        </div>
+        {% else %}
+        <form method="post" enctype="multipart/form-data"
+              hx-post="{% url 'clients:ajouter' %}"
+              hx-target="#modal" hx-swap="innerHTML"
+              class="space-y-4">
+            {% csrf_token %}
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="text-xs font-medium text-on-surface-muted">Nom <span class="text-error">*</span></label>
+                    <input type="text" name="nom" required class="border border-border bg-surface-card rounded-xl px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="Nom">
+                </div>
+                <div>
+                    <label class="text-xs font-medium text-on-surface-muted">Prénom</label>
+                    <input type="text" name="prenom" class="border border-border bg-surface-card rounded-xl px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="Prénom">
+                </div>
+            </div>
+            <div>
+                <label class="text-xs font-medium text-on-surface-muted">Téléphone <span class="text-red-400">*</span></label>
+                <input type="text" name="telephone" required class="border border-border bg-surface-card rounded-xl px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="+221 77 123 45 67">
+            </div>
+            <div>
+                <label class="text-xs font-medium text-on-surface-muted">Email</label>
+                <input type="email" name="email" class="border border-border bg-surface-card rounded-xl px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="client@email.com">
+            </div>
+            <div>
+                <label class="text-xs font-medium text-on-surface-muted">Adresse</label>
+                <textarea name="adresse" class="border border-border bg-surface-card rounded-xl px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-primary/30" rows="2" placeholder="Adresse complète"></textarea>
+            </div>
+            <div>
+                <label class="text-xs font-medium text-on-surface-muted">Type de client</label>
+                <select name="type_client" class="border border-border bg-surface-card rounded-xl px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-primary/30">
+                    <option value="PARTICULIER">Particulier</option>
+                    <option value="ENTREPRISE">Entreprise</option>
+                    <option value="AGENCE">Agence de voyage</option>
+                </select>
+            </div>
+            <div>
+                <label class="text-xs font-medium text-on-surface-muted">Solde initial (FCFA)</label>
+                <input type="number" step="1" name="solde_initial" class="border border-border bg-surface-card rounded-xl px-3 py-2 text-sm w-full focus:outline-none focus:ring-2 focus:ring-primary/30" placeholder="0 (optionnel)">
+                <p class="text-xs text-on-surface-muted mt-1">Solde de départ si le client a déjà une avance ou une créance</p>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button type="submit" class="flex-1 rounded-xl bg-primary text-white py-2 text-sm font-medium hover:bg-primary/90 transition flex items-center justify-center gap-2">
+                    <i class="fas fa-save"></i> Enregistrer
+                </button>
+                <button type="button" onclick="document.getElementById('modal').innerHTML=''" class="flex-1 border border-border py-2 rounded-xl text-sm hover:bg-surface-soft transition">
+                    Annuler
+                </button>
+            </div>
+        </form>
+        {% endif %}
+    </div>
+</div>
