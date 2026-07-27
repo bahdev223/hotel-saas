@@ -3,6 +3,13 @@
 
 {% block title %}Tableau de bord{% endblock %}
 
+{% block style_extra %}
+.kpi-card { transition: all 0.2s ease; }
+.kpi-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px -10px rgba(0,0,0,0.08); }
+td { border-bottom: 1px solid rgba(229,222,210,0.4); }
+tr:last-child td { border-bottom: none; }
+{% endblock %}
+
 {% block subnav %}
 <nav class="bg-white/50 backdrop-blur-sm border-b border-border overflow-x-auto scrollbar-bro">
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
@@ -14,10 +21,9 @@
             <a href="{% url 'clients:liste' %}"><i class="fas fa-users mr-1.5"></i>Clients</a>
             <a href="{% url 'pos:liste_points_vente' %}"><i class="fas fa-cash-register mr-1.5"></i>POS</a>
             <a href="{% url 'facturation:dashboard' %}"><i class="fas fa-file-invoice-dollar mr-1.5"></i>Facturation</a>
-            <a href="{% url 'comptabilite:dashboard' %}"><i class="fas fa-calculator mr-1.5"></i>Comptabilité</a>
+            <a href="{% url 'comptabilite:dashboard' %}"><i class="fas fa-calculator mr-1.5"></i>Compta</a>
             <a href="{% url 'fournisseurs:dashboard' %}"><i class="fas fa-truck mr-1.5"></i>Fournisseurs</a>
             <a href="{% url 'stock:dashboard' %}"><i class="fas fa-boxes mr-1.5"></i>Stock</a>
-            <a href="{% url 'catalogue:index' %}"><i class="fas fa-book mr-1.5"></i>Catalogue</a>
             <a href="{% url 'rh:dashboard' %}"><i class="fas fa-user-tie mr-1.5"></i>RH</a>
         </div>
     </div>
@@ -25,160 +31,321 @@
 {% endblock %}
 
 {% block content %}
+<div x-data="dashboardData()" x-init="init()" class="space-y-6">
 
-<!-- Page Header -->
-<div class="flex items-center justify-between mb-6">
-    <div>
-        <h1 class="text-2xl font-bold text-on-surface tracking-tight">Tableau de bord</h1>
-        <p class="text-sm text-on-surface-muted">Bienvenue, {{ user.username }}. Voici un aperçu de votre activité.</p>
-    </div>
-    <div class="flex items-center gap-2 text-xs text-on-surface-muted/60">
-        <i class="far fa-clock"></i>
-        <span id="clock"></span>
-    </div>
-</div>
-
-<!-- Stats Cards -->
-<div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-8">
-    {% for card in cards %}
-    <a href="{{ card.link }}" class="card-bro p-4 flex items-center gap-3">
-        <div class="stat-icon-bro {{ card.bg_color }}">
-            <i class="fas {{ card.icon }} text-{{ card.color }}"></i>
+    <!-- En-tête -->
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-on-surface tracking-tight">
+                <i class="fas fa-chart-pie text-primary mr-2"></i>Tableau de bord
+            </h1>
+            <p class="text-sm text-on-surface-muted">Vue d'ensemble de votre établissement</p>
         </div>
-        <div class="min-w-0">
-            <p class="text-[10px] uppercase tracking-wider text-on-surface-muted/70 truncate">{{ card.title }}</p>
-            <p class="text-sm font-bold text-on-surface font-mono truncate">{{ card.value }}</p>
-            <p class="text-[10px] text-on-surface-muted/60 truncate">{{ card.subtitle }}</p>
+        <div class="flex gap-2">
+            <a href="?periode=jour" class="px-4 py-1.5 text-sm rounded-full transition-all {% if periode == 'jour' or not periode %}bg-primary text-white font-semibold{% else %}bg-surface-soft text-on-surface-muted hover:bg-surface-card/50{% endif %}">Aujourd'hui</a>
+            <a href="?periode=semaine" class="px-4 py-1.5 text-sm rounded-full transition-all {% if periode == 'semaine' %}bg-primary text-white font-semibold{% else %}bg-surface-soft text-on-surface-muted hover:bg-surface-card/50{% endif %}">Semaine</a>
+            <a href="?periode=mois" class="px-4 py-1.5 text-sm rounded-full transition-all {% if periode == 'mois' %}bg-primary text-white font-semibold{% else %}bg-surface-soft text-on-surface-muted hover:bg-surface-card/50{% endif %}">Mois</a>
         </div>
-    </a>
-    {% endfor %}
-</div>
-
-<!-- Module Cards -->
-<h2 class="text-base font-bold text-on-surface mb-4">
-    <i class="fas fa-th-large text-primary mr-2"></i>Modules
-</h2>
-<div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3 mb-8">
-    <a href="{% url 'hotel:dashboard' %}" class="module-btn">
-        <div class="module-icon"><i class="fas fa-hotel"></i></div>
-        <span class="text-[11px] font-semibold text-center">Hôtel</span>
-    </a>
-    <a href="{% url 'restaurant:dashboard' %}" class="module-btn">
-        <div class="module-icon"><i class="fas fa-utensils"></i></div>
-        <span class="text-[11px] font-semibold text-center">Restaurant</span>
-    </a>
-    <a href="{% url 'dashboard:brasserie' %}" class="module-btn">
-        <div class="module-icon"><i class="fas fa-beer"></i></div>
-        <span class="text-[11px] font-semibold text-center">Brasserie</span>
-    </a>
-    <a href="{% url 'clients:liste' %}" class="module-btn">
-        <div class="module-icon"><i class="fas fa-users"></i></div>
-        <span class="text-[11px] font-semibold text-center">Clients</span>
-    </a>
-    <a href="{% url 'pos:liste_points_vente' %}" class="module-btn">
-        <div class="module-icon"><i class="fas fa-cash-register"></i></div>
-        <span class="text-[11px] font-semibold text-center">Point de vente</span>
-    </a>
-    <a href="{% url 'pos:dashboard_commandes' %}" class="module-btn">
-        <div class="module-icon"><i class="fas fa-shopping-cart"></i></div>
-        <span class="text-[11px] font-semibold text-center">Commandes</span>
-    </a>
-    <a href="{% url 'facturation:dashboard' %}" class="module-btn">
-        <div class="module-icon"><i class="fas fa-file-invoice-dollar"></i></div>
-        <span class="text-[11px] font-semibold text-center">Facturation</span>
-    </a>
-    <a href="{% url 'comptabilite:dashboard' %}" class="module-btn">
-        <div class="module-icon"><i class="fas fa-calculator"></i></div>
-        <span class="text-[11px] font-semibold text-center">Comptabilité</span>
-    </a>
-    <a href="{% url 'fournisseurs:dashboard' %}" class="module-btn">
-        <div class="module-icon"><i class="fas fa-truck"></i></div>
-        <span class="text-[11px] font-semibold text-center">Fournisseurs</span>
-    </a>
-    <a href="{% url 'stock:dashboard' %}" class="module-btn">
-        <div class="module-icon"><i class="fas fa-boxes"></i></div>
-        <span class="text-[11px] font-semibold text-center">Stock</span>
-    </a>
-    <a href="{% url 'catalogue:index' %}" class="module-btn">
-        <div class="module-icon"><i class="fas fa-book"></i></div>
-        <span class="text-[11px] font-semibold text-center">Catalogue</span>
-    </a>
-    <a href="{% url 'rh:dashboard' %}" class="module-btn">
-        <div class="module-icon"><i class="fas fa-user-tie"></i></div>
-        <span class="text-[11px] font-semibold text-center">Ressources Humaines</span>
-    </a>
-</div>
-
-<!-- Derniers Clients -->
-<div class="card-bro p-5 card-bro-static">
-    <div class="flex items-center justify-between mb-4">
-        <h3 class="text-sm font-semibold text-on-surface">
-            <i class="fas fa-users text-primary mr-1.5"></i>Derniers clients
-        </h3>
-        <a href="{% url 'clients:liste' %}" class="text-xs text-primary hover:underline font-medium">Voir tous →</a>
     </div>
-    <div class="overflow-x-auto">
-        <table class="w-full text-sm bro-table">
-            <thead>
-                <tr>
-                    <th>Client</th>
-                    <th class="hidden sm:table-cell">Téléphone</th>
-                    <th>Type</th>
-                    <th>Statut</th>
-                    <th class="text-right">Solde</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for c in derniers_clients %}
-                <tr>
-                    <td>
-                        <a href="{% url 'clients:detail' c.id %}" class="font-medium text-on-surface hover:text-primary transition text-sm">{{ c.nom_complet }}</a>
-                        <span class="block text-[11px] text-on-surface-muted">{{ c.code_client }}</span>
-                    </td>
-                    <td class="text-on-surface-muted text-xs hidden sm:table-cell">{{ c.telephone|default:"—" }}</td>
-                    <td>
-                        <span class="badge-bro {% if c.type_client == 'PARTICULIER' %}bg-blue-100 text-blue-700{% elif c.type_client == 'ENTREPRISE' %}bg-purple-100 text-purple-700{% else %}bg-green-100 text-green-700{% endif %}">
-                            {{ c.get_type_client_display }}
-                        </span>
-                    </td>
-                    <td>
-                        <span class="badge-bro {% if c.statut == 'ACTIF' %}bg-emerald-100 text-emerald-700{% else %}bg-red-100 text-red-700{% endif %}">
-                            {{ c.get_statut_display }}
-                        </span>
-                    </td>
-                    <td class="text-right font-mono text-sm {% if c.compte.solde > 0 %}text-emerald-600{% elif c.compte.solde < 0 %}text-red-600{% endif %}">
-                        {{ c.compte.solde|floatformat:0 }} F
-                    </td>
-                </tr>
+
+    <!-- KPIs -->
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="card-bro p-5 kpi-card">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-on-surface-muted uppercase tracking-wider">CA {{ periode_label|lower }}</p>
+                    <p class="text-2xl font-bold text-primary mt-1">{{ ca_total|floatformat:0 }} F</p>
+                    <div class="flex gap-3 text-xs text-on-surface-muted mt-1">
+                        <span>Hôtel <strong class="text-info">{{ ca_hotel|floatformat:0 }}</strong></span>
+                        <span>Restaurant <strong class="text-success">{{ ca_restaurant|floatformat:0 }}</strong></span>
+                        <span>Bar <strong class="text-warning">{{ ca_brasserie|floatformat:0 }}</strong></span>
+                    </div>
+                </div>
+                <div class="stat-icon-bro"><i class="fas fa-chart-line"></i></div>
+            </div>
+        </div>
+
+        <div class="card-bro p-5 kpi-card" style="border-left:3px solid #f59e0b">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-on-surface-muted uppercase tracking-wider">Commandes en cours</p>
+                    <p class="text-2xl font-bold text-warning mt-1">{{ total_commandes_en_cours }}</p>
+                    <div class="flex gap-3 text-xs text-on-surface-muted mt-1">
+                        <span>Restaurant <strong>{{ commandes_restaurant }}</strong></span>
+                        <span>Bar <strong>{{ commandes_bar }}</strong></span>
+                        <span>Room <strong>{{ commandes_room }}</strong></span>
+                    </div>
+                </div>
+                <div class="stat-icon-bro" style="background:rgba(245,158,11,0.1)"><i class="fas fa-clipboard-list text-warning"></i></div>
+            </div>
+        </div>
+
+        <div class="card-bro p-5 kpi-card" style="border-left:3px solid #16a34a">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-on-surface-muted uppercase tracking-wider">Taux d'occupation</p>
+                    <p class="text-2xl font-bold text-success mt-1">{{ taux_occupation }}%</p>
+                    <div class="text-xs text-on-surface-muted mt-1">
+                        <span><strong>{{ chambres_occupees }}</strong> / <strong>{{ total_chambres }}</strong> chambres</span>
+                    </div>
+                </div>
+                <div class="stat-icon-bro" style="background:rgba(22,163,74,0.1)"><i class="fas fa-hotel text-success"></i></div>
+            </div>
+        </div>
+
+        <div class="card-bro p-5 kpi-card" style="border-left:3px solid #0284c7">
+            <div class="flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-on-surface-muted uppercase tracking-wider">Réservations</p>
+                    <p class="text-2xl font-bold text-info mt-1">{{ reservations_aujourdhui }}</p>
+                    <div class="text-xs text-on-surface-muted mt-1">
+                        <span>Aujourd'hui <strong>{{ alertes_stock }}</strong> alerte(s) stock</span>
+                    </div>
+                </div>
+                <div class="stat-icon-bro" style="background:rgba(2,132,199,0.1)"><i class="fas fa-calendar-check text-info"></i></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Résultats par domaine -->
+    <div class="card-bro overflow-hidden">
+        <div class="px-6 py-4 border-b border-border">
+            <h3 class="text-sm font-semibold"><i class="fas fa-chart-simple text-primary mr-2"></i>Résultats par domaine — {{ periode_label }}</h3>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-on-surface-muted text-xs uppercase border-b border-border">
+                        <th class="px-6 py-3 text-left font-semibold bg-surface-soft">Domaine</th>
+                        <th class="px-6 py-3 text-right font-semibold bg-surface-soft">CA</th>
+                        <th class="px-6 py-3 text-right font-semibold bg-surface-soft">Dépenses</th>
+                        <th class="px-6 py-3 text-right font-semibold bg-surface-soft">Résultat</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr class="hover:bg-surface-soft/50 transition">
+                        <td class="px-6 py-3"><span class="inline-block w-2 h-2 rounded-full bg-info mr-2"></span>Hôtel</td>
+                        <td class="px-6 py-3 text-right font-mono text-success">{{ charges_par_domaine.hotel.ca|floatformat:0 }} F</td>
+                        <td class="px-6 py-3 text-right font-mono text-error">{{ charges_par_domaine.hotel.charges|floatformat:0 }} F</td>
+                        <td class="px-6 py-3 text-right font-mono {% if charges_par_domaine.hotel.resultat >= 0 %}text-success{% else %}text-error{% endif %}">{{ charges_par_domaine.hotel.resultat|floatformat:0 }} F</td>
+                    </tr>
+                    <tr class="hover:bg-surface-soft/50 transition">
+                        <td class="px-6 py-3"><span class="inline-block w-2 h-2 rounded-full bg-warning mr-2"></span>Brasserie</td>
+                        <td class="px-6 py-3 text-right font-mono text-success">{{ charges_par_domaine.brasserie.ca|floatformat:0 }} F</td>
+                        <td class="px-6 py-3 text-right font-mono text-error">{{ charges_par_domaine.brasserie.charges|floatformat:0 }} F</td>
+                        <td class="px-6 py-3 text-right font-mono {% if charges_par_domaine.brasserie.resultat >= 0 %}text-success{% else %}text-error{% endif %}">{{ charges_par_domaine.brasserie.resultat|floatformat:0 }} F</td>
+                    </tr>
+                    <tr class="hover:bg-surface-soft/50 transition">
+                        <td class="px-6 py-3"><span class="inline-block w-2 h-2 rounded-full bg-success mr-2"></span>Restaurant</td>
+                        <td class="px-6 py-3 text-right font-mono text-success">{{ charges_par_domaine.restaurant.ca|floatformat:0 }} F</td>
+                        <td class="px-6 py-3 text-right font-mono text-error">{{ charges_par_domaine.restaurant.charges|floatformat:0 }} F</td>
+                        <td class="px-6 py-3 text-right font-mono {% if charges_par_domaine.restaurant.resultat >= 0 %}text-success{% else %}text-error{% endif %}">{{ charges_par_domaine.restaurant.resultat|floatformat:0 }} F</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Graphiques -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="card-bro lg:col-span-2">
+            <div class="px-6 py-4 border-b border-border">
+                <h3 class="text-sm font-semibold"><i class="fas fa-chart-line text-primary mr-2"></i>Évolution du CA (30 jours)</h3>
+            </div>
+            <div class="p-6">
+                <canvas id="caChart" height="100"></canvas>
+            </div>
+        </div>
+
+        <div class="card-bro">
+            <div class="px-6 py-4 border-b border-border">
+                <h3 class="text-sm font-semibold"><i class="fas fa-chart-pie text-primary mr-2"></i>Répartition (7 jours)</h3>
+            </div>
+            <div class="p-6">
+                <canvas id="repartitionChart" height="200"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top produits & Activités -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="card-bro overflow-hidden">
+            <div class="px-6 py-4 border-b border-border">
+                <h3 class="text-sm font-semibold"><i class="fas fa-crown text-primary mr-2"></i>Top 5 produits</h3>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full">
+                    <thead>
+                        <tr class="text-xs text-on-surface-muted uppercase border-b border-border">
+                            <th class="px-6 py-3 text-left font-medium">Produit</th>
+                            <th class="px-6 py-3 text-right font-medium">Qté</th>
+                            <th class="px-6 py-3 text-right font-medium">Montant</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-border/40">
+                        {% for p in top_produits %}
+                        <tr class="hover:bg-surface-soft/50 transition">
+                            <td class="px-6 py-3 text-sm">{{ p.nom }}</td>
+                            <td class="px-6 py-3 text-right text-sm">{{ p.quantite }}</td>
+                            <td class="px-6 py-3 text-right text-sm font-mono">{{ p.montant|floatformat:0 }} F</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="px-6 py-8 text-center text-on-surface-muted/60 text-sm">Aucune donnée</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="card-bro overflow-hidden">
+            <div class="px-6 py-4 border-b border-border">
+                <h3 class="text-sm font-semibold"><i class="fas fa-clock text-primary mr-2"></i>Activités récentes</h3>
+            </div>
+            <div class="divide-y divide-border/40 max-h-[300px] overflow-y-auto scrollbar-bro">
+                {% for act in activites_recentes %}
+                <div class="px-6 py-3 hover:bg-surface-soft/50 transition flex items-start gap-3">
+                    <div class="w-8 h-8 rounded-full flex items-center justify-center shrink-0
+                        {% if act.type == 'checkin' %}bg-success/10 text-success{% elif act.type == 'checkout' %}bg-info/10 text-info{% else %}bg-warning/10 text-warning{% endif %}">
+                        <i class="fas {% if act.type == 'checkin' %}fa-sign-in-alt{% elif act.type == 'checkout' %}fa-sign-out-alt{% else %}fa-plus-circle{% endif %}"></i>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <p class="text-sm">{{ act.message }}</p>
+                        <p class="text-[10px] text-on-surface-muted">{{ act.date }}</p>
+                    </div>
+                </div>
                 {% empty %}
-                <tr>
-                    <td colspan="5" class="text-center py-8 text-on-surface-muted/60 text-xs">
-                        <i class="fas fa-users text-xl block mb-2 opacity-50"></i>
-                        Aucun client
-                    </td>
-                </tr>
+                <div class="px-6 py-8 text-center text-on-surface-muted/60 text-sm">
+                    <i class="fas fa-inbox text-2xl block mb-2 opacity-30"></i>
+                    Aucune activité récente
+                </div>
                 {% endfor %}
-            </tbody>
-        </table>
+            </div>
+        </div>
     </div>
-</div>
 
+    <!-- Derniers clients -->
+    <div class="card-bro overflow-hidden">
+        <div class="px-6 py-4 border-b border-border flex items-center justify-between">
+            <h3 class="text-sm font-semibold"><i class="fas fa-users text-primary mr-2"></i>Derniers clients</h3>
+            <a href="{% url 'clients:liste' %}" class="text-xs text-primary hover:underline font-medium">Voir tous →</a>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead>
+                    <tr class="text-xs text-on-surface-muted uppercase border-b border-border">
+                        <th class="px-6 py-3 text-left font-medium">Client</th>
+                        <th class="px-6 py-3 text-left font-medium hidden sm:table-cell">Téléphone</th>
+                        <th class="px-6 py-3 text-left font-medium">Type</th>
+                        <th class="px-6 py-3 text-center font-medium">Statut</th>
+                        <th class="px-6 py-3 text-right font-medium">Solde</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-border/40">
+                    {% for c in derniers_clients %}
+                    <tr class="hover:bg-surface-soft/50 transition">
+                        <td class="px-6 py-3">
+                            <a href="{% url 'clients:detail' c.id %}" class="font-medium text-on-surface hover:text-primary transition">{{ c.nom_complet }}</a>
+                        </td>
+                        <td class="px-6 py-3 text-on-surface-muted text-xs hidden sm:table-cell">{{ c.telephone|default:"—" }}</td>
+                        <td class="px-6 py-3">
+                            <span class="badge-bro {% if c.type_client == 'PARTICULIER' %}bg-blue-100 text-blue-700{% elif c.type_client == 'ENTREPRISE' %}bg-purple-100 text-purple-700{% else %}bg-green-100 text-green-700{% endif %}">
+                                {{ c.get_type_client_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-3 text-center">
+                            <span class="badge-bro {% if c.statut == 'ACTIF' %}bg-emerald-100 text-emerald-700{% else %}bg-red-100 text-red-700{% endif %}">
+                                {{ c.get_statut_display }}
+                            </span>
+                        </td>
+                        <td class="px-6 py-3 text-right font-mono text-sm">
+                            {{ c.compte.solde|floatformat:0 }} F
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="px-6 py-8 text-center text-on-surface-muted/60 text-sm">Aucun client</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
 {% endblock %}
 
 {% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
-(function() {
-    function updateClock() {
-        const el = document.getElementById('clock');
-        if (!el) return;
-        const now = new Date();
-        el.textContent = now.toLocaleDateString('fr-FR', {
-            weekday: 'short', day: 'numeric', month: 'short',
-            hour: '2-digit', minute: '2-digit'
-        });
+function dashboardData() {
+    return {
+        init() {
+            this.initCharts();
+        },
+        initCharts() {
+            const ctx = document.getElementById('caChart');
+            if (ctx) {
+                const existing = Chart.getChart(ctx);
+                if (existing) existing.destroy();
+                new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: {{ ca_7_jours.labels|safe }},
+                        datasets: [
+                            { label: 'Hôtel', data: {{ ca_7_jours.hotel|safe }}, borderColor: '#0284c7', backgroundColor: 'rgba(2,132,199,0.05)', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: true },
+                            { label: 'Restaurant', data: {{ ca_7_jours.restaurant|safe }}, borderColor: '#16a34a', backgroundColor: 'rgba(22,163,74,0.05)', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: true },
+                            { label: 'Bar', data: {{ ca_7_jours.brasserie|safe }}, borderColor: '#f59e0b', backgroundColor: 'rgba(245,158,11,0.05)', borderWidth: 2, pointRadius: 0, tension: 0.3, fill: true },
+                        ]
+                    },
+                    options: {
+                        responsive: true, maintainAspectRatio: true,
+                        plugins: {
+                            legend: { position: 'top', labels: { boxWidth: 10, usePointStyle: true, padding: 12, font: { size: 10 } } },
+                            tooltip: { callbacks: { label: function(ctx) { return ctx.dataset.label + ': ' + ctx.parsed.y.toLocaleString() + ' F'; } } }
+                        },
+                        scales: {
+                            x: { ticks: { maxTicksLimit: 6, maxRotation: 0, font: { size: 9 } }, grid: { display: false } },
+                            y: { beginAtZero: true, ticks: { callback: function(v) { return v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'k' : v; }, font: { size: 9 } }, grid: { color: 'rgba(0,0,0,0.03)' } }
+                        },
+                        interaction: { intersect: false, mode: 'index' },
+                    }
+                });
+            }
+
+            const ctx2 = document.getElementById('repartitionChart');
+            if (ctx2) {
+                const existing = Chart.getChart(ctx2);
+                if (existing) existing.destroy();
+                new Chart(ctx2, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Hôtel', 'Restaurant', 'Bar'],
+                        datasets: [{
+                            data: [{{ repartition_ca.hotel }}, {{ repartition_ca.restaurant }}, {{ repartition_ca.brasserie }}],
+                            backgroundColor: ['#0284c7', '#16a34a', '#f59e0b'],
+                            borderWidth: 0,
+                        }]
+                    },
+                    options: {
+                        cutout: '65%', responsive: true, maintainAspectRatio: true,
+                        plugins: {
+                            legend: { position: 'bottom', labels: { boxWidth: 10, usePointStyle: true, padding: 10, font: { size: 10 } } },
+                            tooltip: {
+                                callbacks: {
+                                    label: function(ctx) {
+                                        const total = ctx.dataset.data.reduce((a,b) => a + b, 0);
+                                        return ctx.label + ': ' + ctx.parsed.toLocaleString() + ' F (' + ((ctx.parsed/total)*100).toFixed(1) + '%)';
+                                    }
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        }
     }
-    updateClock();
-    setInterval(updateClock, 30000);
-})();
+}
 </script>
 {% endblock %}
