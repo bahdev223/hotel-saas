@@ -33,6 +33,9 @@ python manage.py migrate --noinput
 echo "🌱 Seed des données de base (admin/admin123)..."
 python manage.py seed_data 2>/dev/null || echo "ℹ️  seed_data ignoré"
 
+echo "🏦 Configuration des caisses (Banque, Orange Money, Moov Money)..."
+python manage.py setup_caisses 2>/dev/null || echo "ℹ️  setup_caisses ignoré"
+
 echo "📂 Collecte des fichiers statiques..."
 python manage.py collectstatic --noinput --clear 2>/dev/null || echo "ℹ️  collectstatic ignoré"
 
