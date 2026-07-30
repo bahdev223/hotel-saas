@@ -12,26 +12,52 @@ from apps.comptabilite.services.ecriture_comptable import EcritureComptableServi
 
 @login_required
 def dashboard(request):
-    clients = Client.objects.exclude(id=Client.PASSAGER_ID)
-    total_clients = clients.count()
-    actifs = clients.filter(statut='ACTIF').count()
+    """Page liste dédiée des clients : stats + tableau filtrable paginé
+    (server-side). Chaque ligne mène à la fiche client 360°."""
+    from django.core.paginator import Paginator
+    from django.db.models import Sum
 
-    stats_par_type = {}
-    for type_value, _ in Client.TYPE_CLIENT_CHOICES:
-        stats_par_type[type_value] = clients.filter(type_client=type_value).count()
+    base = Client.objects.exclude(id=Client.PASSAGER_ID)
 
-    stats_par_statut = {}
-    for statut_value, _ in Client.STATUT_CHOICES:
-        stats_par_statut[statut_value] = clients.filter(statut=statut_value).count()
+    # Stats globales (sur l'ensemble, indépendamment des filtres)
+    total_clients = base.count()
+    actifs = base.filter(statut='ACTIF').count()
+    entreprises = base.filter(type_client='ENTREPRISE').count()
+    agences = base.filter(type_client='AGENCE').count()
+
+    # Filtres
+    q = request.GET.get('q', '').strip()
+    type_filter = request.GET.get('type', '')
+    statut_filter = request.GET.get('statut', '')
+
+    clients = base
+    if q:
+        clients = clients.filter(
+            Q(nom__icontains=q) | Q(prenom__icontains=q)
+            | Q(telephone__icontains=q) | Q(email__icontains=q) | Q(id__icontains=q)
+        )
+    if type_filter:
+        clients = clients.filter(type_client=type_filter)
+    if statut_filter:
+        clients = clients.filter(statut=statut_filter)
+
+    clients = clients.annotate(solde_total=Sum('comptes__solde')).order_by('nom', 'prenom')
+
+    paginator = Paginator(clients, 30)
+    page = paginator.get_page(request.GET.get('page'))
 
     context = {
         'total_clients': total_clients,
         'actifs': actifs,
-        'stats_par_type': stats_par_type,
-        'stats_par_statut': stats_par_statut,
-        'clients_recents': clients.order_by('-created_at')[:5],
+        'entreprises': entreprises,
+        'agences': agences,
+        'clients': page,
+        'total_resultats': paginator.count,
+        'types_client': Client.TYPE_CLIENT_CHOICES,
+        'statuts': Client.STATUT_CHOICES,
+        'f': {'q': q, 'type': type_filter, 'statut': statut_filter},
     }
-    return render(request, 'clients/dashboard.html', context)
+    return render(request, 'clients/liste.html', context)
 
 
 def _is_ajax(request):
