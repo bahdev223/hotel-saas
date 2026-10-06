@@ -321,12 +321,10 @@ class POSAccessService:
         )
 
         for horaire in horaires:
-            if not cls._horaire_dans_periode(horaire, today):
-                continue
-
             if not horaire.traverse_minuit:
                 if (
-                    horaire.jour_semaine == today.weekday()
+                    cls._horaire_dans_periode(horaire, today)
+                    and horaire.jour_semaine == today.weekday()
                     and horaire.heure_debut <= local_time <= horaire.heure_fin
                 ):
                     expiration = cls._datetime_local(today, horaire.heure_fin, moment)
@@ -335,7 +333,8 @@ class POSAccessService:
 
             # Partie du créneau située le jour de départ.
             if (
-                horaire.jour_semaine == today.weekday()
+                cls._horaire_dans_periode(horaire, today)
+                and horaire.jour_semaine == today.weekday()
                 and local_time >= horaire.heure_debut
             ):
                 expiration = cls._datetime_local(
@@ -345,12 +344,13 @@ class POSAccessService:
                 )
                 return horaire, expiration
 
-            # Partie après minuit d'un créneau commencé la veille.
+            # Partie après minuit d'un créneau commencé la veille. La validité
+            # de date porte sur le jour de DÉPART, pas sur le jour après minuit.
             yesterday = today - timedelta(days=1)
             if (
-                horaire.jour_semaine == yesterday.weekday()
+                cls._horaire_dans_periode(horaire, yesterday)
+                and horaire.jour_semaine == yesterday.weekday()
                 and local_time <= horaire.heure_fin
-                and cls._horaire_dans_periode(horaire, yesterday)
             ):
                 expiration = cls._datetime_local(today, horaire.heure_fin, moment)
                 return horaire, expiration
