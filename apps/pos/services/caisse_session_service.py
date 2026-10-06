@@ -340,6 +340,20 @@ class CaisseSessionService:
         cheque_val = Decimal(str(montant_cheque)) if montant_cheque is not None else Decimal(str(total_cheque))
         depot_val = Decimal(str(depot)) if depot is not None else Decimal('0')
 
+        for label, value in (
+            ("espèces comptées", especes_comptees_val),
+            ("carte constatée", carte_val),
+            ("mobile money constaté", mobile_val),
+            ("chèque constaté", cheque_val),
+            ("dépôt", depot_val),
+        ):
+            if value < 0:
+                raise ValueError(f"{label}: le montant ne peut pas être négatif.")
+        if depot_val > especes_comptees_val:
+            raise ValueError(
+                "Le dépôt ne peut pas dépasser les espèces réellement comptées."
+            )
+
         ecart_especes = especes_comptees_val - especes_attendues
         ecart_carte = carte_val - Decimal(str(total_carte))
         ecart_mobile = mobile_val - Decimal(str(total_mobile))
@@ -382,11 +396,25 @@ class CaisseSessionService:
         session.date_fermeture = timezone.now()
         session.statut = 'FERMEE'
         session.notes = notes
+
+        # Compatibilité avec les rapports V1 : ces champs représentent désormais
+        # explicitement la composante physique espèces de la session.
+        session.solde_attendu = especes_attendues
+        session.solde_reel = especes_comptees_val
+        session.depot = depot_val
+        session.difference = ecart_especes
+        session.solde_restant = especes_comptees_val - depot_val
+
         session.save(update_fields=[
             'fermee_par',
             'date_fermeture',
             'statut',
             'notes',
+            'solde_attendu',
+            'solde_reel',
+            'depot',
+            'difference',
+            'solde_restant',
             'updated_at',
         ])
 
