@@ -55,17 +55,9 @@ class CommandeSettlementService:
                 "Le règlement POS est limité aux points de vente Bar / Restaurant actifs."
             )
 
-        # Le service vérifie lui-même le droit d'encaisser : une vue ou une
-        # intégration future ne peut pas contourner POSAccessService.
-        decision = POSAccessService.check(
-            user=utilisateur,
-            point_vente=pv,
-            action=ActionPOS.ENCAISSER,
-        )
-        if not decision.allowed:
-            raise CommandeSettlementError(
-                f"Encaissement non autorisé ({decision.reason})."
-            )
+        # L'autorité d'encaissement est vérifiée plus bas avec la session
+        # financière elle-même. Cela permet la grâce EN_PASSATION tout en
+        # interdisant d'encaisser dans la session d'un autre caissier.
 
         from apps.rh.models import Employe
         encaisseur = Employe.objects.filter(
