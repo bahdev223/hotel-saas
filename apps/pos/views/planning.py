@@ -38,8 +38,11 @@ def _intervalle_planning(debut_dt, fin_dt):
 
 
 def _conflits_planning(affectation, debut_prevu, fin_prevue, exclude_id=None):
+    # Un employé ne peut pas être planifié simultanément sur deux POS différents.
+    # Le conflit porte donc sur l'employé, pas seulement sur l'affectation/PV.
     qs = ShiftEmploye.objects.filter(
-        affectation=affectation,
+        affectation__employe=affectation.employe,
+        affectation__point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
     ).exclude(statut='ANNULE').filter(
         Q(debut_prevu__lt=fin_prevue) & Q(fin_prevue__gt=debut_prevu)
     )
