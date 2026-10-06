@@ -212,7 +212,10 @@ def employe_dashboard(request):
         'ventes_par_mode_ajd': ventes_par_mode_ajd,
         'nb_sessions': len(sessions),
         'nb_fermees': sum(1 for s in sessions if s.statut == 'FERMEE'),
-        'nb_ouvertes': sum(1 for s in sessions if s.statut == 'OUVERTE'),
+        'nb_ouvertes': sum(
+            1 for s in sessions
+            if s.statut in ('OUVERTE', 'EN_PASSATION', 'EN_COMPTAGE')
+        ),
         'is_raf': 'RAF' in user_groups,
         'a_un_acces_pos': a_un_acces_pos,
         'pv_unique': pv_unique,
