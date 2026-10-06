@@ -212,46 +212,49 @@ class RestaurantConsumptionService:
             )
 
     @staticmethod
-    def verifier_disponibilite_commande(commande, entrepot=None):
-        """
-        Vérifie si tous les ingrédients sont disponibles pour une commande.
-        Agrège les besoins par produit avant de comparer au stock.
-        Retourne {'disponible': bool, 'manques': [...]}
-        """
-        if not entrepot:
-            return {'disponible': False, 'manques': ['Entrepôt requis']}
-
+    def calculer_besoins_commande(commande):
+        """Agrège les besoins stock réels d'une commande par produit."""
         from collections import defaultdict
-        besoins = defaultdict(Decimal)
 
+        besoins = defaultdict(Decimal)
         for ligne in commande.lignes.all():
             if ligne.recette:
                 RestaurantConsumptionService._agreger_besoins_recette(
-                    besoins, ligne.recette, ligne.quantite
+                    besoins,
+                    ligne.recette,
+                    ligne.quantite,
                 )
-
             elif ligne.menu:
                 for ligne_menu in ligne.menu.lignes.filter(type_ligne='FIXE'):
                     if ligne_menu.recette:
                         RestaurantConsumptionService._agreger_besoins_recette(
-                            besoins, ligne_menu.recette,
-                            ligne.quantite * ligne_menu.quantite
+                            besoins,
+                            ligne_menu.recette,
+                            ligne.quantite * ligne_menu.quantite,
                         )
-
                 for choix in ligne.choix_menu.select_related('recette'):
                     if choix.recette:
                         RestaurantConsumptionService._agreger_besoins_recette(
-                            besoins, choix.recette,
-                            ligne.quantite * choix.quantite
+                            besoins,
+                            choix.recette,
+                            ligne.quantite * choix.quantite,
                         )
-
             elif ligne.produit:
-                besoins[ligne.produit_id] += ligne.quantite
+                besoins[ligne.produit_id] += Decimal(str(ligne.quantite))
+        return dict(besoins)
 
+    @staticmethod
+    def verifier_disponibilite_commande(commande, entrepot=None):
+        """Vérifie les besoins agrégés d'une commande contre le stock."""
+        if not entrepot:
+            return {'disponible': False, 'manques': ['Entrepôt requis']}
+
+        besoins = RestaurantConsumptionService.calculer_besoins_commande(commande)
         manques = []
         for produit_id, quantite_requise in besoins.items():
             stock = StockEntrepot.objects.filter(
-                entrepot=entrepot, produit_id=produit_id
+                entrepot=entrepot,
+                produit_id=produit_id,
             ).first()
             quantite_dispo = stock.quantite if stock else Decimal('0')
             if quantite_dispo < quantite_requise:
@@ -261,12 +264,12 @@ class RestaurantConsumptionService:
                     'produit': produit.nom if produit else 'Inconnu',
                     'requis': quantite_requise,
                     'disponible': quantite_dispo,
-                    'unite': produit.unite_base if produit else ''
+                    'unite': produit.unite_base if produit else '',
                 })
 
         return {
             'disponible': len(manques) == 0,
-            'manques': manques
+            'manques': manques,
         }
 
     @staticmethod
