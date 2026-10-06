@@ -68,7 +68,16 @@ def api_point_vente_dashboard(request):
     for p in points:
         cpv = CaissePointVente.objects.filter(point_vente=p, actif=True).select_related('caisse').first()
         caisse = cpv.caisse if cpv else None
-        session = SessionCaisse.objects.filter(caisse=caisse, statut='OUVERTE').select_related('ouverte_par').first() if caisse else None
+        session = (
+            SessionCaisse.objects.filter(
+                caisse=caisse,
+                statut__in=('OUVERTE', 'EN_PASSATION', 'EN_COMPTAGE'),
+            )
+            .select_related('ouverte_par')
+            .order_by('-date_ouverture')
+            .first()
+            if caisse else None
+        )
         today_sales = Vente.objects.filter(point_vente=p, created_at__date=today, statut='PAYEE').aggregate(t=Sum('montant_total'))['t'] or 0
         employes_planifies = ShiftEmploye.objects.filter(
             affectation__point_vente=p, debut_prevu__date=today
@@ -85,6 +94,7 @@ def api_point_vente_dashboard(request):
                 'id': session.id,
                 'caissier': session.ouverte_par.nom_complet if session.ouverte_par else None,
                 'date_ouverture': session.date_ouverture.strftime('%d/%m %H:%M'),
+                'statut': session.statut,
                 'total_ventes': float(session.total_ventes),
             } if session else None,
             'employes_planifies': employes_planifies,
