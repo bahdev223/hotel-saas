@@ -25,6 +25,13 @@ class SessionCaisse(models.Model):
     date_ouverture = models.DateTimeField(auto_now_add=True)
     date_passation = models.DateTimeField(null=True, blank=True)
     passation_jusqua = models.DateTimeField(null=True, blank=True)
+    passation_par = models.ForeignKey(
+        Employe,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='sessions_passation',
+    )
     date_fermeture = models.DateTimeField(null=True, blank=True)
     date_validation = models.DateTimeField(null=True, blank=True)
 
