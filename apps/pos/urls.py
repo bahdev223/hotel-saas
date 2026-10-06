@@ -68,6 +68,7 @@ urlpatterns = [
     path('mon-espace/paiement-clients/', views.employe_paiement_clients, name='employe_paiement_clients'),
     
     # ========== ACCÈS POS ==========
+    path('acces/', views.acces_view, name='acces'),
     path('api/acces/', views.api_acces_liste, name='api_acces_liste'),
     path('api/acces/etat/<int:point_vente_id>/', views.api_acces_etat, name='api_acces_etat'),
     path('api/acces/affectations/enregistrer/', views.api_affectation_enregistrer, name='api_affectation_enregistrer'),
