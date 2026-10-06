@@ -493,8 +493,12 @@
                         <span class="font-medium" x-text="session.point_vente"></span>
                     </div>
                     <div class="flex justify-between text-sm">
-                        <span class="text-on-surface-variant">Planning</span>
-                        <span class="font-medium" x-text="session.planning_date + ' ' + session.planning_debut + ' - ' + session.planning_fin"></span>
+                        <span class="text-on-surface-variant">État</span>
+                        <span class="font-medium" x-text="session.statut || 'Passation'"></span>
+                    </div>
+                    <div class="flex justify-between gap-4 text-sm">
+                        <span class="text-on-surface-variant">Motif</span>
+                        <span class="font-medium text-right" x-text="session.raison || '-'"></span>
                     </div>
                     <div class="flex justify-between text-sm pt-2 border-t border-outline/10">
                         <span class="text-on-surface-variant">Total ventes</span>
