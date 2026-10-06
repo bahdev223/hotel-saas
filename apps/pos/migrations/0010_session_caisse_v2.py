@@ -120,7 +120,7 @@ class Migration(migrations.Migration):
             constraint=models.UniqueConstraint(
                 fields=("caisse",),
                 condition=django.db.models.Q(
-                    ("statut__in", ["OUVERTE", "EN_PASSATION", "EN_COMPTAGE"])
+                    statut__in=["OUVERTE", "EN_PASSATION", "EN_COMPTAGE"]
                 ),
                 name="unique_session_active_par_caisse",
             ),
