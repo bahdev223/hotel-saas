@@ -140,13 +140,13 @@ class CaisseSessionService:
         caisse_verrouillee = Caisse.objects.select_for_update().get(pk=caisse.pk)
         session_active = SessionCaisse.objects.select_for_update().filter(
             caisse=caisse_verrouillee,
-            statut__in=['OUVERTE', 'EN_COMPTAGE'],
+            statut__in=['OUVERTE', 'EN_PASSATION', 'EN_COMPTAGE'],
         ).first()
 
         if session_active:
             raise ValueError(
                 "La caisse poss\u00e8de d\u00e9j\u00e0 une session non finalis\u00e9e. "
-                "Fermez ou validez la session pr\u00e9c\u00e9dente."
+                "Finalisez la session précédente avant d'en ouvrir une nouvelle."
             )
 
         permissions_snapshot = {}
@@ -168,7 +168,13 @@ class CaisseSessionService:
         else:
             permissions_snapshot = {
                 "scope": "DIRECTION_TOTAL",
+                "peut_vendre": True,
+                "peut_encaisser": True,
                 "peut_ouvrir_caisse": True,
+                "peut_fermer_caisse": True,
+                "peut_annuler_vente": True,
+                "peut_accorder_remise": True,
+                "peut_consulter_rapports": True,
             }
 
         session = SessionCaisse.objects.create(
@@ -186,6 +192,17 @@ class CaisseSessionService:
             permissions_ouverture=permissions_snapshot,
         )
         return session
+
+    @staticmethod
+    def autoriser_finalisation_session(session, employe):
+        """Autorise uniquement le propriétaire financier selon le snapshot d'ouverture."""
+        if not session or not employe or session.ouverte_par_id != employe.id:
+            return False, "SESSION_APPARTIENT_A_UN_AUTRE_CAISSIER"
+        if not employe.actif:
+            return False, "EMPLOYE_INACTIF"
+        if bool((session.permissions_ouverture or {}).get("peut_fermer_caisse")):
+            return True, "SNAPSHOT_FERMETURE_AUTORISEE"
+        return False, "PERMISSION_FERMETURE_ABSENTE_A_OUVERTURE"
 
     @staticmethod
     @transaction.atomic
@@ -250,16 +267,11 @@ class CaisseSessionService:
             ):
                 return False, "COMMANDE_APRES_PASSATION"
 
-            decision = POSAccessService.check_capability(
-                user=encaisseur.user,
-                employe=encaisseur,
-                point_vente=session.point_vente,
-                action=ActionPOS.ENCAISSER,
-                moment=now,
-            )
-            return decision.allowed, (
-                "PASSATION_GRACE_ACTIVE" if decision.allowed else decision.reason
-            )
+            if not encaisseur.actif:
+                return False, "EMPLOYE_INACTIF"
+            if not bool((session.permissions_ouverture or {}).get("peut_encaisser")):
+                return False, "PERMISSION_ENCAISSEMENT_ABSENTE_A_OUVERTURE"
+            return True, "PASSATION_GRACE_ACTIVE"
 
         return False, "SESSION_NON_ENCAISSABLE"
 
