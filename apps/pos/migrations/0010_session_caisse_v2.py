@@ -1,5 +1,6 @@
 from django.db import migrations, models
 import django.db.models
+import django.db.models.deletion
 
 
 class Migration(migrations.Migration):
@@ -41,6 +42,17 @@ class Migration(migrations.Migration):
             model_name="sessioncaisse",
             name="passation_jusqua",
             field=models.DateTimeField(blank=True, null=True),
+        ),
+        migrations.AddField(
+            model_name="sessioncaisse",
+            name="passation_par",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="sessions_passation",
+                to="rh.employe",
+            ),
         ),
         migrations.AddField(
             model_name="sessioncaisse",
