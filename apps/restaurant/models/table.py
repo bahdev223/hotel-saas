@@ -14,7 +14,7 @@ class TableModel(models.Model):
         ('HORS_SERVICE', 'Hors service'),
     ]
 
-    numero = models.CharField(max_length=10, unique=True)
+    numero = models.CharField(max_length=10)
     salle = models.ForeignKey(
         'restaurant.SalleModel',
         on_delete=models.PROTECT,
@@ -48,6 +48,12 @@ class TableModel(models.Model):
         verbose_name = 'Table'
         verbose_name_plural = 'Tables'
         ordering = ['numero']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['salle', 'numero'],
+                name='unique_table_numero_par_salle',
+            ),
+        ]
 
     def __str__(self):
         salle = f" · {self.salle.nom}" if self.salle_id else ""
