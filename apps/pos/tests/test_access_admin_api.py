@@ -1,4 +1,5 @@
 import json
+from datetime import time
 
 from django.contrib.auth.models import Group, User
 from django.test import TestCase
@@ -175,22 +176,8 @@ class POSAccessAdminAPITests(TestCase):
                 .values_list("heure_debut", "heure_fin")
             ),
             [
-                (
-                    HoraireAffectation.objects.get(
-                        affectation=affectation, heure_debut="08:00"
-                    ).heure_debut,
-                    HoraireAffectation.objects.get(
-                        affectation=affectation, heure_debut="08:00"
-                    ).heure_fin,
-                ),
-                (
-                    HoraireAffectation.objects.get(
-                        affectation=affectation, heure_debut="13:00"
-                    ).heure_debut,
-                    HoraireAffectation.objects.get(
-                        affectation=affectation, heure_debut="13:00"
-                    ).heure_fin,
-                ),
+                (time(8, 0), time(12, 0)),
+                (time(13, 0), time(18, 0)),
             ],
         )
 
