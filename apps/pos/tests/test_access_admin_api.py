@@ -14,11 +14,11 @@ from apps.rh.models import Employe
 class POSAccessAdminAPITests(TestCase):
     def setUp(self):
         self.manager_user = User.objects.create_user(username="manager")
-        self.manager_group = Group.objects.create(name=MANAGER)
+        self.manager_group, _ = Group.objects.get_or_create(name=MANAGER)
         self.manager_user.groups.add(self.manager_group)
 
         self.patron_user = User.objects.create_user(username="patron")
-        self.patron_group = Group.objects.create(name=PATRON)
+        self.patron_group, _ = Group.objects.get_or_create(name=PATRON)
         self.patron_user.groups.add(self.patron_group)
 
         self.employee_user = User.objects.create_user(username="amadou")
