@@ -54,8 +54,9 @@ def a_vue_globale_commandes(user):
 
 
 def get_pv_courant_id(request):
-    # Ne jamais faire confiance à un ancien PV stocké en session : un horaire
-    # ou un shift peut avoir expiré depuis la dernière page chargée.
+    # Ne jamais faire confiance aveuglément au PV stocké en session : un horaire
+    # ou un shift peut avoir expiré. Exception contrôlée : le propriétaire d'une
+    # session financière non finalisée garde ce PV comme contexte de finalisation.
     pv_id = request.session.get('point_vente_courant_id')
     if pv_id:
         point = PointVente.objects.filter(pk=pv_id, actif=True).first()
@@ -65,6 +66,30 @@ def get_pv_courant_id(request):
             action=ActionPOS.ACCEDER,
         ):
             return point.id
+
+        employe = getattr(request.user, 'employe', None)
+        if point and employe:
+            cpv = (
+                CaissePointVente.objects
+                .filter(point_vente=point, actif=True)
+                .select_related('caisse')
+                .order_by('-principale', 'id')
+                .first()
+            )
+            session = (
+                get_session_non_finalisee_caisse(cpv.caisse)
+                if cpv else None
+            )
+            if session and session.ouverte_par_id == employe.id:
+                can_finalize, _ = (
+                    CaisseSessionService.autoriser_finalisation_session(
+                        session,
+                        employe,
+                    )
+                )
+                if can_finalize:
+                    return point.id
+
         request.session.pop('point_vente_courant_id', None)
 
     point = POSAccessService.points_accessibles(
