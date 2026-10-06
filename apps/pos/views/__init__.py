@@ -59,6 +59,14 @@ from .commandes import (
 from .employe_dashboard import employe_dashboard, employe_paiement_clients, api_paiement_clients_processer
 from .raf_dashboard import raf_dashboard, raf_dashboard_data_api
 from .api_mon_espace import api_mon_espace
+from .access_admin import (
+    api_acces_liste,
+    api_affectation_enregistrer,
+    api_affectation_desactiver,
+    api_horaires_affectation,
+    api_horaires_remplacer,
+    api_acces_etat,
+)
 from .raf_collecte import (
     raf_collecte,
     raf_transferts,
@@ -69,6 +77,12 @@ from .raf_collecte import (
 )
 
 __all__ = [
+    'api_acces_liste',
+    'api_affectation_enregistrer',
+    'api_affectation_desactiver',
+    'api_horaires_affectation',
+    'api_horaires_remplacer',
+    'api_acces_etat',
     'planning_view',
     'api_planning_liste',
     'api_planning_creer',
