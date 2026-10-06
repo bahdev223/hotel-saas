@@ -12,7 +12,7 @@ from ..services.access_service import POSAccessService
 from ..constants import ActionPOS, ModeAccesPOS
 from apps.tresorerie.models import Caisse
 from apps.stock.models import Produit, StockEntrepot, Domaine, Entrepot
-from apps.restaurant.models import MenuModel
+from apps.restaurant.models import MenuModel, TableModel
 from apps.authentication.groups import PATRON, MANAGER, BAR, RESTAURANT, CAISSIER, RAF
 from apps.pos.models import AffectationPointVente, ShiftEmploye
 from apps.entreprises.models import Entreprise
@@ -368,6 +368,34 @@ def pos_by_slug(request, slug):
             ),
         }
 
+    selected_table = None
+    table_id = request.GET.get('table_id')
+    if table_id and point_vente.type == 'RESTAURATION' and not finalisation_only:
+        selected_table = (
+            TableModel.objects
+            .filter(
+                id=table_id,
+                actif=True,
+                salle__point_vente=point_vente,
+            )
+            .select_related('salle')
+            .first()
+        )
+        if selected_table is None:
+            messages.error(request, "Table introuvable pour ce Restaurant.")
+            return redirect('restaurant:salle_dashboard')
+
+    commande_a_encaisser_id = request.GET.get('commande_id')
+    if commande_a_encaisser_id and selected_table:
+        from apps.pos.models import Commande
+        if not Commande.objects.filter(
+            id=commande_a_encaisser_id,
+            table=selected_table,
+            point_vente=point_vente,
+            vente__isnull=True,
+        ).exclude(statut='ANNULEE').exists():
+            commande_a_encaisser_id = None
+
     entreprise = Entreprise.objects.filter(actif=True).first()
     entreprise_nom = (
         entreprise.nom_commercial
@@ -418,6 +446,14 @@ def pos_by_slug(request, slug):
             if session_non_finalisee and session_non_finalisee.ouverte_par
             else None
         ),
+        'selected_table': ({
+            'id': selected_table.id,
+            'numero': selected_table.numero,
+            'salle': selected_table.salle.nom if selected_table.salle else '',
+            'capacite': selected_table.capacite,
+            'nombre_couverts': selected_table.nombre_couverts,
+        } if selected_table else None),
+        'commande_a_encaisser_id': commande_a_encaisser_id,
     }
 
     context = {
