@@ -146,13 +146,16 @@ def api_planning_creer(request):
             employe=employe,
             point_vente=point_vente,
             defaults={
-                'role': 'CAISSIER',
+                # Le planning organise le travail ; il n'accorde jamais des
+                # privilèges de caisse implicitement. Les droits de caisse se
+                # configurent dans l'espace Accès POS.
+                'role': 'SERVEUR',
                 'mode_acces': ModeAccesPOS.PLANNING,
                 'actif': True,
                 'peut_vendre': True,
-                'peut_encaisser': True,
-                'peut_ouvrir_caisse': True,
-                'peut_fermer_caisse': True,
+                'peut_encaisser': False,
+                'peut_ouvrir_caisse': False,
+                'peut_fermer_caisse': False,
             },
         )
 
@@ -255,13 +258,16 @@ def api_planning_creer_masse(request):
             employe=employe,
             point_vente=point_vente,
             defaults={
-                'role': 'CAISSIER',
+                # Le planning organise le travail ; il n'accorde jamais des
+                # privilèges de caisse implicitement. Les droits de caisse se
+                # configurent dans l'espace Accès POS.
+                'role': 'SERVEUR',
                 'mode_acces': ModeAccesPOS.PLANNING,
                 'actif': True,
                 'peut_vendre': True,
-                'peut_encaisser': True,
-                'peut_ouvrir_caisse': True,
-                'peut_fermer_caisse': True,
+                'peut_encaisser': False,
+                'peut_ouvrir_caisse': False,
+                'peut_fermer_caisse': False,
             },
         )
 
