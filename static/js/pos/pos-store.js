@@ -34,6 +34,8 @@ export function createPosStore() {
         searchTerm: '',
         pointVenteId: null,
         requiresCashSession: false,
+        cashPaymentAvailable: false,
+        cashSessionOwner: null,
 
         async init() {
             const c = window.PAGE_CONFIG || {};
@@ -47,6 +49,8 @@ export function createPosStore() {
             this.planningFinHeure = c.planning_fin_heure || null;
             this.pointVenteId = c.point_vente_id;
             this.requiresCashSession = !!c.requires_cash_session;
+            this.cashPaymentAvailable = !!c.cash_payment_available;
+            this.cashSessionOwner = c.cash_session_owner || null;
 
             this.selectedClient = null;
             await this.chargerClients();
@@ -362,7 +366,14 @@ export function createPosStore() {
             if (c.statut_code === 'EN_ATTENTE') {
                 btns += `<button onclick="modifierCommande(${c.id})" title="Modifier" class="text-xs bg-blue-600 text-white w-7 h-7 rounded-full hover:bg-blue-700"><i class="fas fa-edit"></i></button>`;
                 btns += `<button onclick="supprimerCommande(${c.id})" title="Supprimer" class="text-xs bg-red-600 text-white w-7 h-7 rounded-full hover:bg-red-700"><i class="fas fa-trash"></i></button>`;
-                btns += `<button onclick="payerCommande(${c.id})" class="text-xs bg-secondary text-black px-3 py-1.5 rounded hover:bg-secondary/80 font-bold">Payer</button>`;
+                if (this.cashPaymentAvailable) {
+                    btns += `<button onclick="payerCommande(${c.id})" class="text-xs bg-secondary text-black px-3 py-1.5 rounded hover:bg-secondary/80 font-bold">Payer</button>`;
+                } else {
+                    const owner = this.cashSessionOwner
+                        ? `Caisse: ${this.cashSessionOwner}`
+                        : 'Ouvrez votre caisse';
+                    btns += `<span class="text-[11px] text-on-surface-muted px-2 py-1">${owner}</span>`;
+                }
             }
             return btns;
         },
