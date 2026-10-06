@@ -14,6 +14,7 @@ export function posSessionDialog() {
         employeId: null,
         requiresCashSession: false,
         nowTs: Date.now(),
+        manualCounting: false,
         comptage: {
             especes_comptees: '',
             montant_carte: '',
@@ -71,9 +72,13 @@ export function posSessionDialog() {
             this.comptage.montant_mobile = String(session.total_mobile_money ?? '');
             this.comptage.montant_cheque = String(session.total_cheque ?? '');
 
-            this.step = this.passationGraceActive(session)
-                ? 'passation'
-                : 'cloture';
+            this.step = (
+                this.manualCounting
+                ? 'cloture'
+                : this.passationGraceActive(session)
+                    ? 'passation'
+                    : 'cloture'
+            );
         },
 
         passationGraceActive(session) {
@@ -93,6 +98,7 @@ export function posSessionDialog() {
         },
 
         ouvrirComptage() {
+            this.manualCounting = true;
             this.step = 'cloture';
         },
 
