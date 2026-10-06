@@ -711,7 +711,23 @@ def api_creer_commande(request):
 def api_vente_recu(request, vente_id):
     """API : retourne les données d'une vente pour réimpression du ticket"""
     from ..models import Vente
-    v = get_object_or_404(Vente, id=vente_id)
+    v = get_object_or_404(
+        Vente.objects.select_related("point_vente"),
+        id=vente_id,
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+    )
+    if not a_vue_globale_commandes(request.user):
+        decision = POSAccessService.check(
+            user=request.user,
+            point_vente=v.point_vente,
+            action=ActionPOS.ACCEDER,
+        )
+        if not decision.allowed:
+            return JsonResponse({
+                'success': False,
+                'error_code': decision.reason,
+                'error': f"Accès au ticket refusé ({decision.reason}).",
+            }, status=403)
     lignes = []
     for l in v.lignes.select_related('produit', 'menu').all():
         lignes.append({
@@ -751,6 +767,7 @@ def api_raf_liste_commandes_payees(request):
     commandes = Commande.objects.filter(
         statut='PAYEE',
         vente__isnull=False,
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
     ).select_related('point_vente', 'vente', 'client').order_by('-date_commande')[:50]
 
     result = []
