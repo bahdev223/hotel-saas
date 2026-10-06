@@ -12,18 +12,35 @@ from apps.tresorerie.models import Caisse
 def get_session_autorisee(session_id, user, require_open=False):
     from django.core.exceptions import PermissionDenied
     from apps.authentication.groups import PATRON, MANAGER, COMPTABLE, RAF
-    qs = SessionCaisse.objects.filter(id=session_id)
-    if not user.is_superuser and not user.groups.filter(name__in=[PATRON, MANAGER, COMPTABLE, RAF]).exists():
-        employe = getattr(user, 'employe', None)
-        if not employe:
-            raise PermissionDenied("Aucun employ\u00e9 associ\u00e9")
-        pv_ids = AffectationPointVente.objects.filter(employe=employe, actif=True).values_list('point_vente_id', flat=True)
-        qs = qs.filter(point_vente_id__in=pv_ids)
-    session = qs.first()
+    from apps.pos.constants import ActionPOS, POINTS_VENTE_OPERATIONNELS
+    from apps.pos.services.access_service import POSAccessService
+
+    session = (
+        SessionCaisse.objects
+        .filter(id=session_id, point_vente__type__in=POINTS_VENTE_OPERATIONNELS)
+        .select_related("point_vente", "ouverte_par")
+        .first()
+    )
     if session is None:
-        raise PermissionDenied("Session introuvable ou acc\u00e8s non autoris\u00e9")
-    if require_open and session.statut not in ('OUVERTE', 'EN_COMPTAGE'):
-        raise PermissionDenied("Cette session n'est plus ouverte")
+        raise PermissionDenied("Session introuvable ou hors périmètre Bar/Restaurant.")
+
+    est_supervision = (
+        user.is_superuser
+        or user.groups.filter(name__in=[PATRON, MANAGER, COMPTABLE, RAF]).exists()
+    )
+    if not est_supervision:
+        decision = POSAccessService.check(
+            user=user,
+            point_vente=session.point_vente,
+            action=ActionPOS.ACCEDER,
+        )
+        if not decision.allowed:
+            raise PermissionDenied(
+                f"Session non autorisée pour ce profil ({decision.reason})."
+            )
+
+    if require_open and session.statut not in ("OUVERTE", "EN_COMPTAGE"):
+        raise PermissionDenied("Cette session n'est plus ouverte.")
     return session
 
 
