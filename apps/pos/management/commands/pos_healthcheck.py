@@ -33,7 +33,7 @@ class Command(BaseCommand):
         self.stdout.write("=" * 60)
 
         # 1. Sessions orphelines
-        sessions = SessionCaisse.objects.filter(statut='OUVERTE').filter(
+        sessions = SessionCaisse.objects.filter(statut__in=['OUVERTE', 'EN_COMPTAGE']).filter(
             Q(ouverte_par__isnull=True) | Q(point_vente__isnull=True) | Q(caisse__isnull=True)
         )
         details = [f"#{s.id} cav={s.ouverte_par_id} pv={s.point_vente_id} cai={s.caisse_id}" for s in sessions]
@@ -42,7 +42,7 @@ class Command(BaseCommand):
         # 2. Doublons sur même caisse
         doublons = []
         par_caisse = defaultdict(list)
-        for s in SessionCaisse.objects.filter(statut='OUVERTE').order_by('-date_ouverture'):
+        for s in SessionCaisse.objects.filter(statut__in=['OUVERTE', 'EN_COMPTAGE']).order_by('-date_ouverture'):
             par_caisse[s.caisse_id].append(s)
         for cid, slist in par_caisse.items():
             if len(slist) > 1:
