@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from apps.pos.constants import ActionPOS, TypePointVente
 from apps.pos.services.access_service import POSAccessService
@@ -96,7 +97,7 @@ def file_attente(request):
             messages.error(request, str(exc))
 
         return redirect(
-            f"{redirect('restaurant:file_attente').url}?point_vente={point.id}"
+            f"{reverse('restaurant:file_attente')}?point_vente={point.id}"
         )
 
     file_attente = FileAttenteModel.objects.filter(
