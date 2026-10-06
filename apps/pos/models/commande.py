@@ -1,5 +1,6 @@
 # apps/pos/models/commande.py
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 import uuid
 
@@ -86,6 +87,17 @@ class Commande(models.Model):
             models.Index(fields=['point_vente', 'statut']),
             models.Index(fields=['numero']),
             models.Index(fields=['type_commande']),
+            models.Index(fields=['table', 'statut'], name='pos_cmd_table_stat_idx'),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=['table'],
+                condition=Q(
+                    table__isnull=False,
+                    statut__in=['EN_ATTENTE', 'EN_PREPARATION', 'PRETE', 'SERVIE'],
+                ),
+                name='unique_active_order_per_table',
+            ),
         ]
 
     def save(self, *args, **kwargs):
