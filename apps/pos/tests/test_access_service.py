@@ -160,6 +160,34 @@ class POSAccessServiceTests(TestCase):
             moment=self.at(2026, 10, 10, 1, 0),
         ))
 
+    def test_dated_overnight_window_remains_valid_after_midnight(self):
+        affectation = self.affectation(
+            self.bar,
+            mode=ModeAccesPOS.HORAIRES,
+            peut_vendre=True,
+        )
+        HoraireAffectation.objects.create(
+            affectation=affectation,
+            jour_semaine=4,
+            heure_debut=time(18, 0),
+            heure_fin=time(2, 0),
+            date_debut=self.at(2026, 10, 9, 0, 0).date(),
+            date_fin=self.at(2026, 10, 9, 0, 0).date(),
+        )
+
+        self.assertTrue(POSAccessService.can(
+            user=self.user,
+            point_vente=self.bar,
+            action=ActionPOS.VENDRE,
+            moment=self.at(2026, 10, 10, 1, 0),
+        ))
+        self.assertFalse(POSAccessService.can(
+            user=self.user,
+            point_vente=self.bar,
+            action=ActionPOS.VENDRE,
+            moment=self.at(2026, 10, 10, 3, 0),
+        ))
+
     def test_planning_requires_active_shift(self):
         affectation = self.affectation(
             self.restaurant,
