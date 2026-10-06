@@ -298,9 +298,11 @@
             
             <!-- Type de commande -->
             <div class="flex gap-2 mt-3">
-                <button @click="typeCommande = 'SUR_PLACE'" 
+                <button
+                        @click="if (pointVenteType !== 'RESTAURATION' || selectedTable) typeCommande = 'SUR_PLACE'"
+                        :disabled="pointVenteType === 'RESTAURATION' && !selectedTable"
                         class="flex-1 py-2 text-sm font-medium rounded-lg transition"
-                        :class="typeCommande === 'SUR_PLACE' ? 'bg-secondary text-white' : 'bg-surface-container-high text-on-surface-variant'">
+                        :class="(pointVenteType === 'RESTAURATION' && !selectedTable) ? 'opacity-40 cursor-not-allowed bg-surface-container-high text-on-surface-variant' : (typeCommande === 'SUR_PLACE' ? 'bg-secondary text-white' : 'bg-surface-container-high text-on-surface-variant')">
                     <i class="fas fa-chair mr-1"></i> Sur place
                 </button>
                 <button @click="if (!selectedTable) typeCommande = 'EMPORTER'"
@@ -315,6 +317,12 @@
                         :class="selectedTable ? 'opacity-40 cursor-not-allowed bg-surface-container-high text-on-surface-variant' : (typeCommande === 'LIVRAISON' ? 'bg-secondary text-white' : 'bg-surface-container-high text-on-surface-variant')">
                     <i class="fas fa-truck mr-1"></i> Livraison
                 </button>
+            </div>
+            <div x-show="pointVenteType === 'RESTAURATION' && !selectedTable"
+                 x-cloak class="mt-2 text-xs text-amber-600">
+                <i class="fas fa-circle-info mr-1"></i>
+                Pour une commande sur place,
+                <a href="/restaurant/salle/" class="font-semibold underline">choisissez d'abord une table dans la Salle</a>.
             </div>
             
             <!-- Client (si emporter ou livraison) -->
