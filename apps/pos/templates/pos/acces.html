@@ -1,0 +1,588 @@
+{% extends 'pos/base_pos.html' %}
+
+{% block title %}Accès POS — Bar & Restaurant{% endblock %}
+
+{% block content %}
+<div x-data="accessPosApp()" x-init="init()" class="space-y-6">
+    <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+            <h1 class="text-2xl font-bold text-on-surface">
+                <i class="fas fa-user-shield text-primary mr-2"></i>Accès POS
+            </h1>
+            <p class="text-sm text-on-surface-muted mt-1">
+                Qui peut travailler au Bar ou au Restaurant, quand, et avec quelles permissions.
+            </p>
+        </div>
+        <button @click="nouvelleAffectation()"
+                class="bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90">
+            <i class="fas fa-plus mr-1"></i>Nouvelle affectation
+        </button>
+    </div>
+
+    <div class="card-bro card-bro-static p-4">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div>
+                <label class="text-xs text-on-surface-muted">Point de vente</label>
+                <select x-model="filters.point_vente" @change="charger()"
+                        class="w-full border border-border rounded-lg bg-surface-card px-3 py-2 text-sm mt-1">
+                    <option value="">Tous</option>
+                    {% for p in points %}
+                    <option value="{{ p.id }}">{{ p.nom }} · {{ p.get_type_display }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div>
+                <label class="text-xs text-on-surface-muted">Employé</label>
+                <select x-model="filters.employe" @change="charger()"
+                        class="w-full border border-border rounded-lg bg-surface-card px-3 py-2 text-sm mt-1">
+                    <option value="">Tous</option>
+                    {% for e in employes %}
+                    <option value="{{ e.id }}">{{ e.nom_complet }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="flex items-end">
+                <button @click="filters={point_vente:'',employe:''}; charger()"
+                        class="w-full border border-border rounded-lg px-3 py-2 text-sm hover:bg-surface-soft">
+                    <i class="fas fa-rotate-left mr-1"></i>Réinitialiser
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div x-show="loading" class="card-bro card-bro-static p-10 text-center text-on-surface-muted">
+        <i class="fas fa-spinner fa-spin mr-2"></i>Chargement des accès...
+    </div>
+
+    <div x-show="!loading" class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <template x-for="a in affectations" :key="a.id">
+            <div class="card-bro card-bro-static p-5">
+                <div class="flex items-start justify-between gap-3">
+                    <div>
+                        <div class="font-semibold text-on-surface" x-text="a.employe.nom"></div>
+                        <div class="text-xs text-on-surface-muted mt-0.5">
+                            <span x-text="a.employe.matricule"></span>
+                            <span class="mx-1">·</span>
+                            <span x-text="a.point_vente.nom"></span>
+                            <span class="mx-1">·</span>
+                            <span x-text="a.point_vente.type === 'BAR' ? 'Bar' : 'Restaurant'"></span>
+                        </div>
+                    </div>
+                    <span class="px-2 py-1 rounded-full text-xs font-medium"
+                          :class="a.acces_actuel?.allowed ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-red-50 text-red-700 border border-red-200'"
+                          x-text="a.acces_actuel?.allowed ? 'Accès actif' : 'Hors accès'">
+                    </span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 mt-4">
+                    <div>
+                        <div class="text-xs text-on-surface-muted">Rôle</div>
+                        <div class="text-sm font-medium mt-0.5" x-text="a.role_label"></div>
+                    </div>
+                    <div>
+                        <div class="text-xs text-on-surface-muted">Mode</div>
+                        <div class="text-sm font-medium mt-0.5" x-text="a.mode_acces_label"></div>
+                    </div>
+                </div>
+
+                <div class="mt-3 p-3 rounded-lg bg-surface-soft text-xs">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-on-surface-muted">Décision actuelle</span>
+                        <span class="font-medium" x-text="labelReason(a.acces_actuel?.reason)"></span>
+                    </div>
+                    <div x-show="a.acces_actuel?.expires_at" class="mt-1 text-on-surface-muted">
+                        Valide jusqu'à <span class="font-medium text-on-surface" x-text="formatDateTime(a.acces_actuel?.expires_at)"></span>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-1.5 mt-3">
+                    <template x-for="p in permissionLabels" :key="p.field">
+                        <span x-show="a.permissions[p.field]"
+                              class="px-2 py-1 rounded-md bg-primary/10 text-primary text-[11px] font-medium"
+                              x-text="p.label"></span>
+                    </template>
+                    <span x-show="!Object.values(a.permissions).some(Boolean)"
+                          class="text-xs text-on-surface-muted">Aucune permission métier</span>
+                </div>
+
+                <div x-show="a.mode_acces === 'HORAIRES'" class="mt-3 text-xs text-on-surface-muted">
+                    <i class="fas fa-clock mr-1"></i>
+                    <span x-text="a.horaires.length + ' créneau(x) récurrent(s)'"></span>
+                </div>
+
+                <div class="flex flex-wrap gap-2 mt-4 pt-3 border-t border-border">
+                    <button @click="modifierAffectation(a)"
+                            class="px-3 py-1.5 rounded-lg border border-border text-xs hover:bg-surface-soft">
+                        <i class="fas fa-pen mr-1"></i>Modifier
+                    </button>
+                    <button @click="ouvrirHoraires(a)"
+                            class="px-3 py-1.5 rounded-lg border border-border text-xs hover:bg-surface-soft">
+                        <i class="fas fa-clock mr-1"></i>Horaires
+                    </button>
+                    <button @click="desactiver(a)"
+                            class="px-3 py-1.5 rounded-lg text-xs text-red-600 hover:bg-red-50">
+                        <i class="fas fa-ban mr-1"></i>Désactiver
+                    </button>
+                </div>
+            </div>
+        </template>
+    </div>
+
+    <div x-show="!loading && affectations.length === 0"
+         class="card-bro card-bro-static p-12 text-center text-on-surface-muted">
+        <i class="fas fa-user-shield text-4xl mb-3 block"></i>
+        <p class="font-medium">Aucune affectation active</p>
+        <p class="text-sm mt-1">Créez une affectation pour autoriser un employé au Bar ou au Restaurant.</p>
+    </div>
+
+    <!-- Modal affectation -->
+    <div x-show="modalAffectation" x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="bg-surface-card rounded-xl shadow-xl w-full max-w-2xl mx-4 max-h-[90vh] overflow-y-auto"
+             @click.outside="modalAffectation=false">
+            <div class="flex items-center justify-between p-5 border-b border-border">
+                <div>
+                    <h2 class="font-bold" x-text="form.id ? 'Modifier l\'affectation' : 'Nouvelle affectation'"></h2>
+                    <p class="text-xs text-on-surface-muted">Accès et permissions sont deux règles séparées.</p>
+                </div>
+                <button @click="modalAffectation=false" class="text-on-surface-muted text-xl">×</button>
+            </div>
+
+            <form @submit.prevent="sauvegarderAffectation()" class="p-5 space-y-4">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div>
+                        <label class="text-xs text-on-surface-muted">Employé *</label>
+                        <select x-model="form.employe_id" required
+                                class="w-full border border-border rounded-lg bg-surface-card px-3 py-2 text-sm mt-1">
+                            <option value="">Choisir...</option>
+                            {% for e in employes %}
+                            <option value="{{ e.id }}">{{ e.nom_complet }} · {{ e.matricule }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-on-surface-muted">Point de vente *</label>
+                        <select x-model="form.point_vente_id" required
+                                class="w-full border border-border rounded-lg bg-surface-card px-3 py-2 text-sm mt-1">
+                            <option value="">Choisir...</option>
+                            {% for p in points %}
+                            <option value="{{ p.id }}">{{ p.nom }} · {{ p.get_type_display }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-on-surface-muted">Rôle *</label>
+                        <div class="flex gap-2 mt-1">
+                            <select x-model="form.role" required
+                                    class="flex-1 border border-border rounded-lg bg-surface-card px-3 py-2 text-sm">
+                                {% for value, label in roles %}
+                                <option value="{{ value }}">{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" @click="appliquerPreset()"
+                                    class="px-3 border border-border rounded-lg text-xs hover:bg-surface-soft">
+                                Preset
+                            </button>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="text-xs text-on-surface-muted">Mode d'accès *</label>
+                        <select x-model="form.mode_acces" required
+                                class="w-full border border-border rounded-lg bg-surface-card px-3 py-2 text-sm mt-1">
+                            {% for value, label in modes_acces %}
+                                {% if value != 'TOTAL' or can_grant_total %}
+                                <option value="{{ value }}">{{ label }}</option>
+                                {% endif %}
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="text-xs text-on-surface-muted">Début de validité</label>
+                        <input type="date" x-model="form.date_debut"
+                               class="w-full border border-border rounded-lg bg-surface-card px-3 py-2 text-sm mt-1">
+                    </div>
+                    <div>
+                        <label class="text-xs text-on-surface-muted">Fin de validité</label>
+                        <input type="date" x-model="form.date_fin"
+                               class="w-full border border-border rounded-lg bg-surface-card px-3 py-2 text-sm mt-1">
+                    </div>
+                </div>
+
+                <div class="border border-border rounded-xl p-4">
+                    <div class="font-semibold text-sm mb-3">Permissions métier</div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {% for field, label in permission_labels %}
+                        <label class="flex items-center gap-2 p-2 rounded-lg hover:bg-surface-soft cursor-pointer">
+                            <input type="checkbox" x-model="form.permissions['{{ field }}']"
+                                   class="w-4 h-4 rounded border-border text-primary">
+                            <span class="text-sm">{{ label }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-4">
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="checkbox" x-model="form.principal"
+                               class="w-4 h-4 rounded border-border text-primary">
+                        Affectation principale
+                    </label>
+                    <label class="flex items-center gap-2 text-sm">
+                        <input type="checkbox" x-model="form.actif"
+                               class="w-4 h-4 rounded border-border text-primary">
+                        Active
+                    </label>
+                </div>
+
+                <div x-show="form.mode_acces === 'HORAIRES'"
+                     class="rounded-lg bg-amber-50 border border-amber-200 p-3 text-xs text-amber-800">
+                    Après l'enregistrement, ouvrez <strong>Horaires</strong> pour définir les créneaux hebdomadaires.
+                </div>
+
+                <div x-show="erreurAffectation" class="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700"
+                     x-text="erreurAffectation"></div>
+
+                <div class="flex gap-2 pt-2">
+                    <button type="submit" :disabled="savingAffectation"
+                            class="flex-1 bg-primary text-white py-2 rounded-lg text-sm font-medium disabled:opacity-50">
+                        <i x-show="savingAffectation" class="fas fa-spinner fa-spin mr-1"></i>
+                        Enregistrer
+                    </button>
+                    <button type="button" @click="modalAffectation=false"
+                            class="flex-1 border border-border py-2 rounded-lg text-sm">
+                        Annuler
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal horaires -->
+    <div x-show="modalHoraires" x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
+        <div class="bg-surface-card rounded-xl shadow-xl w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto"
+             @click.outside="modalHoraires=false">
+            <div class="flex items-center justify-between p-5 border-b border-border">
+                <div>
+                    <h2 class="font-bold">Horaires récurrents</h2>
+                    <p class="text-xs text-on-surface-muted" x-text="horaireTitre"></p>
+                </div>
+                <button @click="modalHoraires=false" class="text-on-surface-muted text-xl">×</button>
+            </div>
+
+            <div class="p-5 space-y-3">
+                <template x-for="(h, idx) in horairesForm" :key="idx">
+                    <div class="grid grid-cols-2 md:grid-cols-6 gap-2 items-end p-3 border border-border rounded-lg">
+                        <div>
+                            <label class="text-[11px] text-on-surface-muted">Jour</label>
+                            <select x-model.number="h.jour_semaine"
+                                    class="w-full border border-border rounded-lg bg-surface-card px-2 py-2 text-sm mt-1">
+                                <template x-for="(jour, j) in joursSemaine" :key="j">
+                                    <option :value="j" x-text="jour"></option>
+                                </template>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="text-[11px] text-on-surface-muted">Début</label>
+                            <input type="time" x-model="h.heure_debut"
+                                   class="w-full border border-border rounded-lg bg-surface-card px-2 py-2 text-sm mt-1">
+                        </div>
+                        <div>
+                            <label class="text-[11px] text-on-surface-muted">Fin</label>
+                            <input type="time" x-model="h.heure_fin"
+                                   class="w-full border border-border rounded-lg bg-surface-card px-2 py-2 text-sm mt-1">
+                        </div>
+                        <div>
+                            <label class="text-[11px] text-on-surface-muted">Valide du</label>
+                            <input type="date" x-model="h.date_debut"
+                                   class="w-full border border-border rounded-lg bg-surface-card px-2 py-2 text-xs mt-1">
+                        </div>
+                        <div>
+                            <label class="text-[11px] text-on-surface-muted">Au</label>
+                            <input type="date" x-model="h.date_fin"
+                                   class="w-full border border-border rounded-lg bg-surface-card px-2 py-2 text-xs mt-1">
+                        </div>
+                        <button @click="horairesForm.splice(idx,1)"
+                                class="border border-red-200 text-red-600 rounded-lg px-2 py-2 text-xs hover:bg-red-50">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                </template>
+
+                <button @click="ajouterHoraire()"
+                        class="border border-border rounded-lg px-3 py-2 text-sm hover:bg-surface-soft">
+                    <i class="fas fa-plus mr-1"></i>Ajouter un créneau
+                </button>
+
+                <div x-show="erreurHoraires" class="rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700"
+                     x-text="erreurHoraires"></div>
+
+                <div class="flex gap-2 pt-2">
+                    <button @click="sauvegarderHoraires()" :disabled="savingHoraires"
+                            class="flex-1 bg-primary text-white py-2 rounded-lg text-sm font-medium disabled:opacity-50">
+                        <i x-show="savingHoraires" class="fas fa-spinner fa-spin mr-1"></i>
+                        Enregistrer les horaires
+                    </button>
+                    <button @click="modalHoraires=false"
+                            class="flex-1 border border-border py-2 rounded-lg text-sm">
+                        Fermer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function accessPosApp() {
+    return {
+        affectations: [],
+        loading: false,
+        filters: { point_vente: '', employe: '' },
+        permissionLabels: [
+            {% for field, label in permission_labels %}
+            { field: '{{ field }}', label: '{{ label|escapejs }}' },
+            {% endfor %}
+        ],
+        presets: {
+            CAISSIER: {
+                peut_vendre:true, peut_encaisser:true, peut_ouvrir_caisse:true,
+                peut_fermer_caisse:true, peut_annuler_vente:false,
+                peut_accorder_remise:false, peut_consulter_rapports:false
+            },
+            SERVEUR: {
+                peut_vendre:true, peut_encaisser:false, peut_ouvrir_caisse:false,
+                peut_fermer_caisse:false, peut_annuler_vente:false,
+                peut_accorder_remise:false, peut_consulter_rapports:false
+            },
+            RESPONSABLE: {
+                peut_vendre:true, peut_encaisser:true, peut_ouvrir_caisse:true,
+                peut_fermer_caisse:true, peut_annuler_vente:true,
+                peut_accorder_remise:true, peut_consulter_rapports:true
+            },
+            SUPERVISEUR: {
+                peut_vendre:true, peut_encaisser:true, peut_ouvrir_caisse:true,
+                peut_fermer_caisse:true, peut_annuler_vente:true,
+                peut_accorder_remise:true, peut_consulter_rapports:true
+            },
+            PREPARATEUR: {
+                peut_vendre:false, peut_encaisser:false, peut_ouvrir_caisse:false,
+                peut_fermer_caisse:false, peut_annuler_vente:false,
+                peut_accorder_remise:false, peut_consulter_rapports:false
+            }
+        },
+        modalAffectation: false,
+        savingAffectation: false,
+        erreurAffectation: '',
+        form: {},
+        modalHoraires: false,
+        horairesForm: [],
+        horaireAffectationId: null,
+        horaireTitre: '',
+        savingHoraires: false,
+        erreurHoraires: '',
+        joursSemaine: ['Lundi','Mardi','Mercredi','Jeudi','Vendredi','Samedi','Dimanche'],
+
+        init() {
+            this.nouvelleForm();
+            this.charger();
+        },
+
+        async charger() {
+            this.loading = true;
+            const params = new URLSearchParams({ actif: '1' });
+            if (this.filters.point_vente) params.set('point_vente', this.filters.point_vente);
+            if (this.filters.employe) params.set('employe', this.filters.employe);
+            try {
+                const r = await fetch('/pos/api/acces/?' + params.toString());
+                const d = await r.json();
+                this.affectations = d.success ? (d.affectations || []) : [];
+            } catch(e) {
+                this.affectations = [];
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        nouvelleForm() {
+            this.form = {
+                id: null,
+                employe_id: '',
+                point_vente_id: '',
+                role: 'CAISSIER',
+                mode_acces: 'PERMANENT',
+                date_debut: '',
+                date_fin: '',
+                principal: false,
+                actif: true,
+                permissions: {}
+            };
+            this.appliquerPreset();
+        },
+
+        nouvelleAffectation() {
+            this.nouvelleForm();
+            this.erreurAffectation = '';
+            this.modalAffectation = true;
+        },
+
+        modifierAffectation(a) {
+            this.form = {
+                id: a.id,
+                employe_id: String(a.employe.id),
+                point_vente_id: String(a.point_vente.id),
+                role: a.role,
+                mode_acces: a.mode_acces,
+                date_debut: a.date_debut || '',
+                date_fin: a.date_fin || '',
+                principal: !!a.principal,
+                actif: !!a.actif,
+                permissions: { ...a.permissions }
+            };
+            this.erreurAffectation = '';
+            this.modalAffectation = true;
+        },
+
+        appliquerPreset() {
+            this.form.permissions = {
+                ...(this.presets[this.form.role] || this.presets.PREPARATEUR)
+            };
+        },
+
+        async sauvegarderAffectation() {
+            this.savingAffectation = true;
+            this.erreurAffectation = '';
+            try {
+                const r = await fetch('/pos/api/acces/affectations/enregistrer/', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.csrf()
+                    },
+                    body: JSON.stringify(this.form)
+                });
+                const d = await r.json();
+                if (!d.success) {
+                    this.erreurAffectation = d.error || 'Enregistrement impossible.';
+                    return;
+                }
+                this.modalAffectation = false;
+                await this.charger();
+                if (d.affectation.mode_acces === 'HORAIRES') {
+                    this.ouvrirHoraires(d.affectation);
+                }
+            } catch(e) {
+                this.erreurAffectation = 'Erreur réseau.';
+            } finally {
+                this.savingAffectation = false;
+            }
+        },
+
+        async desactiver(a) {
+            if (!confirm('Désactiver cet accès ?')) return;
+            const r = await fetch('/pos/api/acces/affectations/' + a.id + '/desactiver/', {
+                method: 'POST',
+                headers: { 'X-CSRFToken': this.csrf() }
+            });
+            const d = await r.json();
+            if (!d.success) {
+                alert(d.error || 'Désactivation impossible.');
+                return;
+            }
+            await this.charger();
+        },
+
+        ouvrirHoraires(a) {
+            this.horaireAffectationId = a.id;
+            this.horaireTitre = a.employe.nom + ' · ' + a.point_vente.nom;
+            this.horairesForm = (a.horaires || []).map(h => ({
+                jour_semaine: h.jour_semaine,
+                heure_debut: h.heure_debut,
+                heure_fin: h.heure_fin,
+                date_debut: h.date_debut || '',
+                date_fin: h.date_fin || '',
+                actif: h.actif
+            }));
+            if (!this.horairesForm.length) this.ajouterHoraire();
+            this.erreurHoraires = '';
+            this.modalHoraires = true;
+        },
+
+        ajouterHoraire() {
+            this.horairesForm.push({
+                jour_semaine: 0,
+                heure_debut: '08:00',
+                heure_fin: '18:00',
+                date_debut: '',
+                date_fin: '',
+                actif: true
+            });
+        },
+
+        async sauvegarderHoraires() {
+            this.savingHoraires = true;
+            this.erreurHoraires = '';
+            try {
+                const r = await fetch(
+                    '/pos/api/acces/affectations/' + this.horaireAffectationId + '/horaires/remplacer/',
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': this.csrf()
+                        },
+                        body: JSON.stringify({
+                            horaires: this.horairesForm,
+                            activer_mode_horaires: true
+                        })
+                    }
+                );
+                const d = await r.json();
+                if (!d.success) {
+                    this.erreurHoraires = d.error || 'Horaires invalides.';
+                    return;
+                }
+                this.modalHoraires = false;
+                await this.charger();
+            } catch(e) {
+                this.erreurHoraires = 'Erreur réseau.';
+            } finally {
+                this.savingHoraires = false;
+            }
+        },
+
+        labelReason(reason) {
+            const labels = {
+                ACCES_TOTAL_DIRECTION: 'Accès total direction',
+                ACCES_TOTAL_AFFECTATION: 'Accès total',
+                ACCES_PERMANENT: 'Accès permanent',
+                HORAIRE_ACTIF: 'Horaire actif',
+                PLANNING_ACTIF: 'Planning actif',
+                HORS_CRENEAU_AUTORISE: 'Hors créneau',
+                PERMISSION_METIER_REFUSEE: 'Permission refusée',
+                AUCUNE_AFFECTATION_POS: 'Non affecté',
+                EMPLOYE_INACTIF: 'Employé inactif'
+            };
+            return labels[reason] || reason || '—';
+        },
+
+        formatDateTime(value) {
+            if (!value) return '';
+            try {
+                return new Intl.DateTimeFormat('fr-FR', {
+                    dateStyle: 'short',
+                    timeStyle: 'short'
+                }).format(new Date(value));
+            } catch(e) {
+                return value;
+            }
+        },
+
+        csrf() {
+            const value = ('; ' + document.cookie).split('; csrftoken=');
+            return value.length === 2 ? value.pop().split(';').shift() : '';
+        }
+    };
+}
+</script>
+{% endblock %}
