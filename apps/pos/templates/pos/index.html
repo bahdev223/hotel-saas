@@ -284,6 +284,17 @@
                     </button>
                 </div>
                     </div>
+
+            <div x-show="selectedTable" x-cloak
+                 class="mt-3 flex items-center justify-between rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-2">
+                <div class="text-sm">
+                    <i class="fas fa-chair text-emerald-500 mr-1"></i>
+                    <strong x-text="'Table ' + selectedTable?.numero"></strong>
+                    <span class="text-on-surface-variant"
+                          x-text="' · ' + (selectedTable?.salle || 'Salle') + ' · ' + (selectedTable?.nombre_couverts || 1) + ' couvert(s)'"></span>
+                </div>
+                <a href="/restaurant/salle/" class="text-xs text-primary hover:underline">Changer</a>
+            </div>
             
             <!-- Type de commande -->
             <div class="flex gap-2 mt-3">
@@ -292,14 +303,16 @@
                         :class="typeCommande === 'SUR_PLACE' ? 'bg-secondary text-white' : 'bg-surface-container-high text-on-surface-variant'">
                     <i class="fas fa-chair mr-1"></i> Sur place
                 </button>
-                <button @click="typeCommande = 'EMPORTER'" 
+                <button @click="if (!selectedTable) typeCommande = 'EMPORTER'"
+                        :disabled="!!selectedTable"
                         class="flex-1 py-2 text-sm font-medium rounded-lg transition"
-                        :class="typeCommande === 'EMPORTER' ? 'bg-secondary text-white' : 'bg-surface-container-high text-on-surface-variant'">
+                        :class="selectedTable ? 'opacity-40 cursor-not-allowed bg-surface-container-high text-on-surface-variant' : (typeCommande === 'EMPORTER' ? 'bg-secondary text-white' : 'bg-surface-container-high text-on-surface-variant')">
                     <i class="fas fa-bag-shopping mr-1"></i> Emporter
                 </button>
-                <button @click="typeCommande = 'LIVRAISON'" 
+                <button @click="if (!selectedTable) typeCommande = 'LIVRAISON'"
+                        :disabled="!!selectedTable"
                         class="flex-1 py-2 text-sm font-medium rounded-lg transition"
-                        :class="typeCommande === 'LIVRAISON' ? 'bg-secondary text-white' : 'bg-surface-container-high text-on-surface-variant'">
+                        :class="selectedTable ? 'opacity-40 cursor-not-allowed bg-surface-container-high text-on-surface-variant' : (typeCommande === 'LIVRAISON' ? 'bg-secondary text-white' : 'bg-surface-container-high text-on-surface-variant')">
                     <i class="fas fa-truck mr-1"></i> Livraison
                 </button>
             </div>
