@@ -506,6 +506,16 @@ def api_horaires_remplacer(request, affectation_id):
     except (ValueError, TypeError) as exc:
         return JsonResponse({"success": False, "error": str(exc)}, status=400)
 
+    if (
+        bool(data.get("activer_mode_horaires", True))
+        and affectation.mode_acces == ModeAccesPOS.TOTAL
+        and not _can_grant_total(request.user)
+    ):
+        return JsonResponse({
+            "success": False,
+            "error": "Vous ne pouvez pas modifier un accès TOTAL.",
+        }, status=403)
+
     affectation.horaires.all().delete()
     HoraireAffectation.objects.bulk_create([
         HoraireAffectation(affectation=affectation, **item)
@@ -513,11 +523,6 @@ def api_horaires_remplacer(request, affectation_id):
     ])
 
     if bool(data.get("activer_mode_horaires", True)):
-        if affectation.mode_acces == ModeAccesPOS.TOTAL and not _can_grant_total(request.user):
-            return JsonResponse({
-                "success": False,
-                "error": "Vous ne pouvez pas modifier un accès TOTAL.",
-            }, status=403)
         affectation.mode_acces = ModeAccesPOS.HORAIRES
         affectation.save(update_fields=["mode_acces"])
 
@@ -541,9 +546,15 @@ def api_acces_etat(request, point_vente_id):
         actif=True,
         type__in=POINTS_VENTE_OPERATIONNELS,
     )
+    action = request.GET.get("action") or ActionPOS.ACCEDER
+    if action not in ACTION_PERMISSION_FIELDS:
+        return JsonResponse({
+            "success": False,
+            "error": "Action POS inconnue.",
+        }, status=400)
     decision = POSAccessService.check(
         user=request.user,
         point_vente=point_vente,
-        action=request.GET.get("action") or ActionPOS.ACCEDER,
+        action=action,
     )
     return JsonResponse({"success": True, "acces": decision.to_dict()})
