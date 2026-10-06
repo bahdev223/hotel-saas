@@ -13,6 +13,8 @@ from apps.stock.models import Produit
 from apps.restaurant.models import MenuModel
 from apps.clients.models import Client
 from apps.authentication.groups import PATRON, MANAGER, COMPTABLE, RAF
+from ..constants import ActionPOS, POINTS_VENTE_OPERATIONNELS, TypePointVente
+from ..services.access_service import POSAccessService
 
 
 @login_required
@@ -23,7 +25,23 @@ def api_produits(request):
     entrepot_id_param = request.GET.get('entrepot_id')
     stocks_dict = {}
     if pv_slug:
-        pv = get_object_or_404(PointVente, code__iexact=pv_slug, actif=True)
+        pv = get_object_or_404(
+            PointVente,
+            code__iexact=pv_slug,
+            actif=True,
+            type__in=POINTS_VENTE_OPERATIONNELS,
+        )
+        decision = POSAccessService.check(
+            user=request.user,
+            point_vente=pv,
+            action=ActionPOS.ACCEDER,
+        )
+        if not decision.allowed:
+            return JsonResponse({
+                'success': False,
+                'error_code': decision.reason,
+                'error': f"Accès refusé ({decision.reason}).",
+            }, status=403)
         entrepot_ids = PointVenteService.get_entrepot_ids(pv)
         stocks_dict = PointVenteService.get_stocks_dict(entrepot_ids, entrepot_id_param)
 
@@ -66,9 +84,13 @@ def api_ajouter_point_vente(request):
         data = json.loads(request.body)
         nom = data.get('nom', '').strip()
         caisse_id = data.get('caisse_id')
+        type_point = data.get('type')
 
-        if not nom or not caisse_id:
-            return JsonResponse({'success': False, 'error': 'Le nom et le compte sont obligatoires'})
+        if not nom or not caisse_id or type_point not in POINTS_VENTE_OPERATIONNELS:
+            return JsonResponse({
+                'success': False,
+                'error': 'Le nom, le compte et le type Bar/Restaurant sont obligatoires.',
+            }, status=400)
 
         from django.shortcuts import get_object_or_404
         from ..models import PointVente
@@ -89,7 +111,10 @@ def api_ajouter_point_vente(request):
 
         with db_transaction.atomic():
             point = PointVente.objects.create(
-                code=code, nom=nom, type='AUTRE', actif=True,
+                code=code,
+                nom=nom,
+                type=type_point,
+                actif=True,
             )
             CaissePointVente.objects.create(point_vente=point, caisse=caisse, principale=True)
 
@@ -121,12 +146,29 @@ def api_liste_ventes(request):
     produit_id = request.GET.get('produit_id')
 
     DOMAINE_MAP = {
-        'brasserie': ['BAR', 'AUTRE'],
-        'restaurant': ['RESTAURATION', 'ROOM_SERVICE'],
-        'hotel': ['RECEPTION'],
+        'bar': [TypePointVente.BAR],
+        'brasserie': [TypePointVente.BAR],  # alias historique
+        'restaurant': [TypePointVente.RESTAURATION],
     }
 
-    ventes_qs = Vente.objects.all().order_by('-created_at')
+    ventes_qs = Vente.objects.filter(
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+    ).order_by('-created_at')
+    est_supervision = (
+        request.user.is_superuser
+        or request.user.groups.filter(
+            name__in=[PATRON, MANAGER, COMPTABLE, RAF]
+        ).exists()
+    )
+    if not est_supervision:
+        ids_autorises = list(
+            POSAccessService.points_accessibles(
+                user=request.user,
+                action=ActionPOS.ACCEDER,
+            ).values_list("id", flat=True)
+        )
+        ventes_qs = ventes_qs.filter(point_vente_id__in=ids_autorises)
+
     if pv:
         ventes_qs = ventes_qs.filter(point_vente_id=pv)
     if domaine and domaine in DOMAINE_MAP:
@@ -147,8 +189,12 @@ def api_liste_ventes(request):
         ventes_qs = ventes_qs.filter(lignes__produit_id=produit_id).distinct()
 
     cmd_qs = Commande.objects.filter(
-        Q(statut='SERVIE') | Q(statut='LIVREE'), vente__isnull=True
+        Q(statut='SERVIE') | Q(statut='LIVREE'),
+        vente__isnull=True,
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
     ).select_related('point_vente', 'created_by').order_by('-date_commande')
+    if not est_supervision:
+        cmd_qs = cmd_qs.filter(point_vente_id__in=ids_autorises)
     if pv:
         cmd_qs = cmd_qs.filter(point_vente_id=pv)
     if dd:
