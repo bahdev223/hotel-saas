@@ -66,6 +66,15 @@ def get_session_active_caisse(caisse):
     return SessionCaisse.objects.filter(caisse=caisse, statut='OUVERTE').first()
 
 
+def get_session_non_finalisee_caisse(caisse):
+    if not caisse:
+        return None
+    return SessionCaisse.objects.filter(
+        caisse=caisse,
+        statut__in=("OUVERTE", "EN_COMPTAGE"),
+    ).order_by("-date_ouverture").first()
+
+
 def get_session_active_pv(point_vente):
     if not point_vente:
         return None
