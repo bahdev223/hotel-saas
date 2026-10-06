@@ -42,13 +42,12 @@ def get_session_autorisee(session_id, user, require_open=False, allow_owner_fina
                 and employe is not None
                 and session.ouverte_par_id == employe.id
             ):
-                finalisation = POSAccessService.check_capability(
-                    user=user,
-                    employe=employe,
-                    point_vente=session.point_vente,
-                    action=ActionPOS.FERMER_CAISSE,
+                owner_can_finalize, _ = (
+                    CaisseSessionService.autoriser_finalisation_session(
+                        session,
+                        employe,
+                    )
                 )
-                owner_can_finalize = finalisation.allowed
 
             if not owner_can_finalize:
                 raise PermissionDenied(
