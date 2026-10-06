@@ -288,6 +288,8 @@ def liste_commandes_api(request):
             'statut': c.get_statut_display(),
             'statut_code': c.statut,
             'client': c.client_nom or 'Anonyme',
+            'table': c.table.numero if c.table else None,
+            'table_id': c.table_id,
             'montant': float(c.montant_total),
             'frais_livraison': float(c.frais_livraison),
             'adresse_livraison': c.adresse_livraison,
