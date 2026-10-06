@@ -19,8 +19,6 @@ from ..services.access_service import POSAccessService
 
 @login_required
 def api_produits(request):
-    from apps.hotel.models import UniteModel
-
     pv_slug = request.GET.get('point_vente_slug')
     entrepot_id_param = request.GET.get('entrepot_id')
     stocks_dict = {}
@@ -47,9 +45,10 @@ def api_produits(request):
 
     produits = Produit.objects.filter(actif=True, est_vendable=True).select_related('categorie', 'domaine')
     menus = MenuModel.objects.filter(actif=True, visible_dans_pos=True).order_by('ordre_affichage', 'nom').distinct()
-    unites = UniteModel.objects.filter(actif=True).order_by('type_unite', 'code').distinct()
 
-    categories = PointVenteService.build_categories_dict(produits, menus, unites, stocks_dict)
+    # Bar/Restaurant uniquement : les unités hôtelières restent dans le
+    # domaine Hébergement et ne sont pas vendables depuis le POS.
+    categories = PointVenteService.build_categories_dict(produits, menus, [], stocks_dict)
     sous_categories = PointVenteService.build_sous_categories(categories)
 
     return JsonResponse({'success': True, 'categories': categories, 'sous_categories': sous_categories})
