@@ -32,6 +32,10 @@ class PointVente(models.Model):
     impression_auto = models.BooleanField(default=True)
     exiger_planning_pour_acces = models.BooleanField(default=True)
     exiger_planning_pour_caisse = models.BooleanField(default=True)
+    delai_passation_minutes = models.PositiveSmallIntegerField(
+        default=15,
+        help_text="Délai de grâce avant comptage lors d'une passation de caisse.",
+    )
     mode_prelevement_stock = models.CharField(
         max_length=20, choices=ModePrelevement.choices, default=ModePrelevement.STRICT,
     )
