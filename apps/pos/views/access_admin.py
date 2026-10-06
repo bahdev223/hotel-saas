@@ -103,7 +103,7 @@ def _weekly_interval(item):
     start = item["jour_semaine"] * 1440 + start_minutes
     end = item["jour_semaine"] * 1440 + end_minutes
     if end <= start:
-        end += 7 * 1440 if item["jour_semaine"] == 6 else 1440
+        end += 1440
     return start, end
 
 
