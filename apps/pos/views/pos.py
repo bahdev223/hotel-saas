@@ -345,7 +345,10 @@ def pos_by_slug(request, slug):
             'id': session_non_finalisee.id,
             'statut': session_non_finalisee.statut,
             'point_vente': point_vente.nom,
-            'raison': access_decision.reason,
+            'raison': (
+                session_non_finalisee.motif_passation
+                or access_decision.reason
+            ),
             'solde_initial': float(session_non_finalisee.solde_initial),
             'total_ventes': float(session_non_finalisee.total_ventes),
             'especes_attendues': float(
