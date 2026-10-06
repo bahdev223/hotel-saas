@@ -258,10 +258,27 @@ def pos_by_slug(request, slug):
         session_non_finalisee
         and session_non_finalisee.ouverte_par_id == employe.id
     )
+    passation_payment_available = bool(
+        session_non_finalisee
+        and session_non_finalisee.statut == 'EN_PASSATION'
+        and session_non_finalisee.ouverte_par_id == employe.id
+        and employe.actif
+        and bool(
+            (session_non_finalisee.permissions_ouverture or {})
+            .get('peut_encaisser')
+        )
+        and (
+            session_non_finalisee.passation_jusqua is None
+            or timezone.now() <= session_non_finalisee.passation_jusqua
+        )
+    )
     cash_payment_available = bool(
-        can_cash
-        and session_active
-        and session_active.ouverte_par_id == employe.id
+        (
+            can_cash
+            and session_active
+            and session_active.ouverte_par_id == employe.id
+        )
+        or passation_payment_available
     )
     planning_actif = (
         ShiftEmploye.objects.filter(pk=access_decision.shift_id).first()
