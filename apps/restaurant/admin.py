@@ -1,7 +1,7 @@
 from django.contrib import admin
 from unfold.admin import ModelAdmin, TabularInline, StackedInline
 
-from .models import FileAttenteModel, TableModel, RecetteModel, IngredientModel, EtapePreparationModel, MenuModel, LigneMenuModel, Production, ProductionLigne, ProductionIngredient
+from .models import FileAttenteModel, SalleModel, TableModel, RecetteModel, IngredientModel, EtapePreparationModel, MenuModel, LigneMenuModel, Production, ProductionLigne, ProductionIngredient
 
 
 class IngredientInline(TabularInline):
@@ -41,11 +41,20 @@ class FileAttenteAdmin(ModelAdmin):
     list_filter = ['statut']
 
 
+@admin.register(SalleModel)
+class SalleAdmin(ModelAdmin):
+    list_display = ['code', 'nom', 'point_vente', 'ordre', 'actif']
+    list_filter = ['actif', 'point_vente']
+    search_fields = ['code', 'nom', 'point_vente__nom']
+    autocomplete_fields = ['point_vente']
+
+
 @admin.register(TableModel)
 class TableAdmin(ModelAdmin):
-    list_display = ['numero', 'capacite', 'statut', 'zone', 'nombre_couverts']
-    list_filter = ['statut', 'zone']
-    search_fields = ['numero']
+    list_display = ['numero', 'salle', 'capacite', 'statut', 'serveur_actuel', 'nombre_couverts', 'actif']
+    list_filter = ['statut', 'salle', 'actif']
+    search_fields = ['numero', 'salle__nom']
+    autocomplete_fields = ['salle', 'serveur_actuel']
 
 
 @admin.register(RecetteModel)
