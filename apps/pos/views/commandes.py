@@ -96,10 +96,16 @@ def dashboard_commandes(request):
     if a_vue_globale_commandes(request.user):
         # Patron / Manager / RAF : vue globale (avec sélecteur de PV optionnel)
         if point_vente_id:
-            commandes = Commande.objects.filter(point_vente_id=point_vente_id)
-            point_vente_selected = get_object_or_404(PointVente, id=point_vente_id)
+            point_vente_selected = get_object_or_404(
+                PointVente,
+                id=point_vente_id,
+                type__in=POINTS_VENTE_OPERATIONNELS,
+            )
+            commandes = Commande.objects.filter(point_vente=point_vente_selected)
         else:
-            commandes = Commande.objects.all()
+            commandes = Commande.objects.filter(
+                point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+            )
             point_vente_selected = None
     else:
         # Employé simple : uniquement SES commandes, dans SON PV courant
@@ -116,7 +122,10 @@ def dashboard_commandes(request):
     commandes_prete = commandes.filter(statut='PRETE')
     commandes_terminees = commandes.filter(statut__in=['SERVIE', 'LIVREE', 'ANNULEE'])[:50]
     
-    points_vente = PointVente.objects.filter(actif=True)
+    points_vente = PointVente.objects.filter(
+        actif=True,
+        type__in=POINTS_VENTE_OPERATIONNELS,
+    )
     
     context = {
         'points_vente': points_vente,
@@ -131,10 +140,21 @@ def dashboard_commandes(request):
 
 @login_required
 def cuisine_dashboard(request):
-    """Interface dédiée à la cuisine - affiche uniquement les commandes à préparer"""
+    """Interface cuisine : commandes Restaurant uniquement."""
     commandes = Commande.objects.filter(
-        statut__in=['EN_ATTENTE', 'EN_PREPARATION', 'PRETE']
+        statut__in=['EN_ATTENTE', 'EN_PREPARATION', 'PRETE'],
+        point_vente__type='RESTAURATION',
     ).order_by('-created_at')
+    if not a_vue_globale_commandes(request.user):
+        pv_ids = list(
+            POSAccessService.points_accessibles(
+                user=request.user,
+                action=ActionPOS.ACCEDER,
+            )
+            .filter(type='RESTAURATION')
+            .values_list('id', flat=True)
+        )
+        commandes = commandes.filter(point_vente_id__in=pv_ids)
     
     context = {
         'commandes_attente': commandes.filter(statut='EN_ATTENTE'),
@@ -147,7 +167,23 @@ def cuisine_dashboard(request):
 @login_required
 def detail_commande(request, commande_id):
     """Détail d'une commande (API)"""
-    commande = get_object_or_404(Commande, id=commande_id)
+    commande = get_object_or_404(
+        Commande.objects.select_related("point_vente"),
+        id=commande_id,
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+    )
+    if not a_vue_globale_commandes(request.user):
+        decision = POSAccessService.check(
+            user=request.user,
+            point_vente=commande.point_vente,
+            action=ActionPOS.ACCEDER,
+        )
+        if not decision.allowed:
+            return JsonResponse({
+                'success': False,
+                'error_code': decision.reason,
+                'error': f"Accès refusé ({decision.reason}).",
+            }, status=403)
     lignes = commande.lignes.all()
     
     data = {
@@ -191,7 +227,9 @@ def liste_commandes_api(request):
     date_debut = request.GET.get('date_debut')
     date_fin = request.GET.get('date_fin')
     
-    commandes = Commande.objects.all().select_related('point_vente', 'facture')
+    commandes = Commande.objects.filter(
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+    ).select_related('point_vente', 'facture')
 
     # Exclure les commandes déjà payées (liées à une vente) ou annulées
     commandes = commandes.filter(vente__isnull=True).exclude(statut='ANNULEE')
