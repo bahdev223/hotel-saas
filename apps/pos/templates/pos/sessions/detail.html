@@ -23,10 +23,10 @@
                     <span class="text-on-surface-muted">Caisse:</span>
                     <span class="font-medium">{{ session.caisse.nom|default:"-" }}</span>
                 </div>
-                {% if session.planning %}
+                {% if session.shift %}
                 <div class="flex justify-between">
                     <span class="text-on-surface-muted">Planning:</span>
-                    <span class="font-medium">{{ session.planning.employe.nom_complet }} {{ session.planning.heure_debut|time:"H:i" }}-{{ session.planning.heure_fin|time:"H:i" }}</span>
+                    <span class="font-medium">{{ session.shift.employe.nom_complet }} {{ session.shift.heure_debut|time:"H:i" }}-{{ session.shift.heure_fin|time:"H:i" }}</span>
                 </div>
                 {% endif %}
                 <div class="flex justify-between">
@@ -38,11 +38,37 @@
                     <span>{{ session.date_fermeture|date:"d/m/Y H:i"|default:"-" }}</span>
                 </div>
                 <div class="flex justify-between">
+                    <span class="text-on-surface-muted">Accès à l'ouverture:</span>
+                    <span class="font-medium">{{ session.get_mode_acces_ouverture_display|default:"-" }}</span>
+                </div>
+                <div class="flex justify-between">
+                    <span class="text-on-surface-muted">Origine autorisation:</span>
+                    <span class="font-medium text-xs">{{ session.raison_acces_ouverture|default:"-" }}</span>
+                </div>
+                {% if session.date_passation %}
+                <div class="flex justify-between">
+                    <span class="text-on-surface-muted">Passation:</span>
+                    <span>{{ session.date_passation|date:"d/m/Y H:i" }}</span>
+                </div>
+                {% endif %}
+                {% if session.passation_jusqua %}
+                <div class="flex justify-between">
+                    <span class="text-on-surface-muted">Grâce jusqu'à:</span>
+                    <span>{{ session.passation_jusqua|date:"d/m/Y H:i" }}</span>
+                </div>
+                {% endif %}
+                <div class="flex justify-between">
                     <span class="text-on-surface-muted">Statut:</span>
                     {% if session.statut == 'OUVERTE' %}
                     <span class="badge-bro bg-emerald-100 text-emerald-800">Ouverte</span>
+                    {% elif session.statut == 'EN_PASSATION' %}
+                    <span class="badge-bro bg-amber-100 text-amber-800">En passation</span>
+                    {% elif session.statut == 'EN_COMPTAGE' %}
+                    <span class="badge-bro bg-orange-100 text-orange-800">En comptage</span>
                     {% elif session.statut == 'FERMEE' %}
                     <span class="badge-bro bg-surface-soft text-on-surface-muted">Fermée</span>
+                    {% elif session.statut == 'VALIDEE' %}
+                    <span class="badge-bro bg-blue-100 text-blue-800">Validée</span>
                     {% else %}
                     <span class="badge-bro bg-yellow-100 text-yellow-800">{{ session.get_statut_display }}</span>
                     {% endif %}
@@ -64,25 +90,23 @@
                 </div>
                 <div class="flex justify-between border-t border-border pt-2">
                     <span class="font-medium">Solde attendu:</span>
-                    <span class="font-mono font-bold">{{ session.solde_attendu|floatformat:0 }} F</span>
+                    <span class="font-mono font-bold">{{ especes_attendues|floatformat:0 }} F</span>
                 </div>
-                {% if session.solde_reel %}
+                {% if comptage %}
                 <div class="flex justify-between">
-                    <span class="text-on-surface-muted">Solde réel:</span>
-                    <span class="font-mono">{{ session.solde_reel|floatformat:0 }} F</span>
-                </div>
-                <div class="flex justify-between">
-                    <span class="text-on-surface-muted">Dépôt:</span>
-                    <span class="font-mono text-amber-600">{{ session.depot|floatformat:0|default:"0" }} F</span>
+                    <span class="text-on-surface-muted">Espèces comptées:</span>
+                    <span class="font-mono">{{ comptage.especes_comptees|floatformat:0 }} F</span>
                 </div>
                 <div class="flex justify-between">
-                    <span class="text-on-surface-muted">Solde restant:</span>
-                    <span class="font-mono text-blue-600">{{ session.solde_restant|floatformat:0|default:"0" }} F</span>
+                    <span class="text-on-surface-muted">Écart espèces:</span>
+                    <span class="font-mono {% if comptage.ecart_especes > 0 %}text-emerald-600{% elif comptage.ecart_especes < 0 %}text-red-600{% endif %}">
+                        {{ comptage.ecart_especes|floatformat:0 }} F
+                    </span>
                 </div>
                 <div class="flex justify-between">
-                    <span class="text-on-surface-muted">Écart:</span>
-                    <span class="font-mono {% if session.difference > 0 %}text-emerald-600{% elif session.difference < 0 %}text-red-600{% endif %}">
-                        {{ session.difference|floatformat:0 }} F
+                    <span class="text-on-surface-muted">Écart global:</span>
+                    <span class="font-mono font-bold {% if comptage.ecart_total > 0 %}text-emerald-600{% elif comptage.ecart_total < 0 %}text-red-600{% endif %}">
+                        {{ comptage.ecart_total|floatformat:0 }} F
                     </span>
                 </div>
                 {% endif %}
@@ -98,9 +122,9 @@
             <h3 class="font-semibold text-lg mb-4">
                 <i class="fas fa-user-check text-emerald-600 mr-2"></i>Caissier ouverture
             </h3>
-            {% if session.caissier_ouverture %}
-            <p class="font-medium">{{ session.caissier_ouverture.nom }} {{ session.caissier_ouverture.prenom }}</p>
-            <p class="text-sm text-on-surface-muted">Matricule: {{ session.caissier_ouverture.matricule }}</p>
+            {% if session.ouverte_par %}
+            <p class="font-medium">{{ session.ouverte_par.nom }} {{ session.ouverte_par.prenom }}</p>
+            <p class="text-sm text-on-surface-muted">Matricule: {{ session.ouverte_par.matricule }}</p>
             {% else %}
             <p class="text-on-surface-muted">Non défini</p>
             {% endif %}
@@ -111,9 +135,9 @@
             <h3 class="font-semibold text-lg mb-4">
                 <i class="fas fa-user-times text-red-600 mr-2"></i>Caissier fermeture
             </h3>
-            {% if session.caissier_fermeture %}
-            <p class="font-medium">{{ session.caissier_fermeture.nom }} {{ session.caissier_fermeture.prenom }}</p>
-            <p class="text-sm text-on-surface-muted">Matricule: {{ session.caissier_fermeture.matricule }}</p>
+            {% if session.fermee_par %}
+            <p class="font-medium">{{ session.fermee_par.nom }} {{ session.fermee_par.prenom }}</p>
+            <p class="text-sm text-on-surface-muted">Matricule: {{ session.fermee_par.matricule }}</p>
             {% else %}
             <p class="text-on-surface-muted">Non fermée</p>
             {% endif %}
@@ -297,16 +321,20 @@
         <a href="{% url 'pos:sessions_liste' %}" class="border border-border px-4 py-2 rounded-lg hover:bg-surface-soft">
             ← Retour
         </a>
-        {% if session.statut == 'OUVERTE' %}
+        {% if session.statut == 'OUVERTE' or session.statut == 'EN_PASSATION' or session.statut == 'EN_COMPTAGE' %}
         <button onclick="showFermetureModal()" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 font-medium">
-            <i class="fas fa-lock mr-2"></i> Fermer la session
+            <i class="fas fa-scale-balanced mr-2"></i> Compter & fermer
+        </button>
+        {% elif session.statut == 'FERMEE' and can_manage_sessions %}
+        <button onclick="validerSession()" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 font-medium">
+            <i class="fas fa-check-double mr-2"></i> Valider la session
         </button>
         {% endif %}
     </div>
 </div>
 
 <!-- Modal fermeture session -->
-{% if session.statut == 'OUVERTE' %}
+{% if session.statut == 'OUVERTE' or session.statut == 'EN_PASSATION' or session.statut == 'EN_COMPTAGE' %}
 <div id="fermetureModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/60 backdrop-blur-sm">
     <div class="bg-surface-card rounded-xl shadow-xl w-full max-w-md mx-4">
         <div class="flex justify-between items-center p-4 border-b border-border">
@@ -316,16 +344,33 @@
         <form id="fermetureForm" class="p-4 space-y-3">
             {% csrf_token %}
             <div>
-                <label class="text-xs text-on-surface-muted">Solde réel (FCFA) *</label>
-                <input type="number" name="solde_reel" id="soldeReel" required step="100"
+                <label class="text-xs text-on-surface-muted">Espèces comptées (FCFA) *</label>
+                <input type="number" name="especes_comptees" id="especesComptees" required step="100"
+                       value="{{ especes_attendues|floatformat:0 }}"
                        class="w-full border border-border rounded-lg text-sm mt-1 bg-surface-card px-3 py-2" placeholder="0">
-                <p class="text-xs text-on-surface-muted mt-1">Attendu: <strong>{{ session.solde_attendu|floatformat:0 }} F</strong></p>
+                <p class="text-xs text-on-surface-muted mt-1">Attendu: <strong>{{ especes_attendues|floatformat:0 }} F</strong></p>
+            </div>
+            <div class="grid grid-cols-3 gap-2">
+                <div>
+                    <label class="text-[11px] text-on-surface-muted">Carte constatée</label>
+                    <input type="number" id="montantCarte" step="100" value="{{ stats_paiement.CARTE|floatformat:0 }}"
+                           class="w-full border border-border rounded-lg text-xs mt-1 bg-surface-card px-2 py-2">
+                </div>
+                <div>
+                    <label class="text-[11px] text-on-surface-muted">Mobile Money</label>
+                    <input type="number" id="montantMobile" step="100" value="{{ stats_paiement.MOBILE_MONEY|floatformat:0 }}"
+                           class="w-full border border-border rounded-lg text-xs mt-1 bg-surface-card px-2 py-2">
+                </div>
+                <div>
+                    <label class="text-[11px] text-on-surface-muted">Chèque</label>
+                    <input type="number" id="montantCheque" step="100" value="0"
+                           class="w-full border border-border rounded-lg text-xs mt-1 bg-surface-card px-2 py-2">
+                </div>
             </div>
             <div>
                 <label class="text-xs text-on-surface-muted">Montant à déposer (FCFA)</label>
                 <input type="number" name="depot" id="depot" step="100"
                        class="w-full border border-border rounded-lg text-sm mt-1 bg-surface-card px-3 py-2" placeholder="0">
-                <p class="text-xs text-on-surface-muted mt-1">Solde restant dans la caisse = réel — dépôt</p>
             </div>
             <div>
                 <textarea name="notes" rows="2" class="w-full border border-border rounded-lg text-sm bg-surface-card px-3 py-2" placeholder="Notes (écart)..."></textarea>
@@ -347,6 +392,25 @@ function closeFermetureModal() { closeModal('fermetureModal'); }
 function openModal(id) { const el = document.getElementById(id); el.classList.remove('hidden'); el.classList.add('flex'); }
 function closeModal(id) { const el = document.getElementById(id); el.classList.add('hidden'); el.classList.remove('flex'); }
 
+async function validerSession() {
+    if (!confirm('Valider définitivement cette session ?')) return;
+    try {
+        const r = await fetch('/pos/api/sessions/valider/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
+            },
+            body: JSON.stringify({ session_id: {{ session.id }} })
+        });
+        const d = await r.json();
+        if (d.success) window.location.reload();
+        else notifyError(d.error || 'Validation impossible');
+    } catch (e) {
+        notifyError('Erreur réseau');
+    }
+}
+
 document.getElementById('fermetureForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const btn = this.querySelector('button[type="submit"]');
@@ -363,9 +427,12 @@ document.getElementById('fermetureForm').addEventListener('submit', async functi
             headers: { 'Content-Type': 'application/json', 'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value },
             body: JSON.stringify({
                 session_id: {{ session.id }},
-                solde_reel: document.getElementById('soldeReel').value,
+                especes_comptees: document.getElementById('especesComptees').value,
+                montant_carte: document.getElementById('montantCarte').value || null,
+                montant_mobile: document.getElementById('montantMobile').value || null,
+                montant_cheque: document.getElementById('montantCheque').value || null,
                 depot: depot || null,
-                caissier_fermeture_id: caissierId,
+                fermee_par_id: caissierId,
                 notes: document.querySelector('textarea[name="notes"]').value
             })
         });
