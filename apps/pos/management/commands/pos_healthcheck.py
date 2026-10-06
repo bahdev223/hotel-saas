@@ -33,7 +33,7 @@ class Command(BaseCommand):
         self.stdout.write("=" * 60)
 
         # 1. Sessions orphelines
-        sessions = SessionCaisse.objects.filter(statut__in=['OUVERTE', 'EN_COMPTAGE']).filter(
+        sessions = SessionCaisse.objects.filter(statut__in=['OUVERTE', 'EN_PASSATION', 'EN_COMPTAGE']).filter(
             Q(ouverte_par__isnull=True) | Q(point_vente__isnull=True) | Q(caisse__isnull=True)
         )
         details = [f"#{s.id} cav={s.ouverte_par_id} pv={s.point_vente_id} cai={s.caisse_id}" for s in sessions]
@@ -42,7 +42,7 @@ class Command(BaseCommand):
         # 2. Doublons sur même caisse
         doublons = []
         par_caisse = defaultdict(list)
-        for s in SessionCaisse.objects.filter(statut__in=['OUVERTE', 'EN_COMPTAGE']).order_by('-date_ouverture'):
+        for s in SessionCaisse.objects.filter(statut__in=['OUVERTE', 'EN_PASSATION', 'EN_COMPTAGE']).order_by('-date_ouverture'):
             par_caisse[s.caisse_id].append(s)
         for cid, slist in par_caisse.items():
             if len(slist) > 1:
@@ -63,7 +63,10 @@ class Command(BaseCommand):
         # 4. Sessions très anciennes (≥48h)
         anciennes = []
         seuil_48h = now - timedelta(hours=48)
-        for s in SessionCaisse.objects.filter(statut='OUVERTE', date_ouverture__isnull=False):
+        for s in SessionCaisse.objects.filter(
+            statut__in=['OUVERTE', 'EN_PASSATION', 'EN_COMPTAGE'],
+            date_ouverture__isnull=False,
+        ):
             if s.date_ouverture < seuil_48h:
                 anciennes.append(f"#{s.id} ouverte depuis {s.date_ouverture.strftime('%d/%m/%Y %H:%M')}")
         check(4, "Sessions tres anciennes (+48h)", len(anciennes) == 0, len(anciennes), anciennes)
@@ -79,10 +82,12 @@ class Command(BaseCommand):
 
         # 6. Sessions ouvertes sans aucun mouvement
         sans_mvt = []
-        for s in SessionCaisse.objects.filter(statut='OUVERTE').annotate(nb_ventes=Count('ventes')):
+        for s in SessionCaisse.objects.filter(
+            statut__in=['OUVERTE', 'EN_PASSATION', 'EN_COMPTAGE']
+        ).annotate(nb_ventes=Count('ventes')):
             if s.nb_ventes == 0:
                 sans_mvt.append(f"#{s.id} caisse #{s.caisse_id} ouverte depuis {s.date_ouverture.strftime('%d/%m/%Y %H:%M') if s.date_ouverture else '?'}")
-        check(6, "Sessions ouvertes sans aucun mouvement", len(sans_mvt) == 0, len(sans_mvt), sans_mvt)
+        check(6, "Sessions non finalisées sans aucun mouvement", len(sans_mvt) == 0, len(sans_mvt), sans_mvt)
 
         # 7. Employés actifs sans affectation PV
         affectes = AffectationPointVente.objects.filter(actif=True).values_list('employe_id', flat=True).distinct()
