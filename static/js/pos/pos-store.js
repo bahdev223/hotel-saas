@@ -36,6 +36,8 @@ export function createPosStore() {
         requiresCashSession: false,
         cashPaymentAvailable: false,
         cashSessionOwner: null,
+        selectedTable: null,
+        commandeAEncaisserId: null,
 
         async init() {
             const c = window.PAGE_CONFIG || {};
@@ -51,11 +53,17 @@ export function createPosStore() {
             this.requiresCashSession = !!c.requires_cash_session;
             this.cashPaymentAvailable = !!c.cash_payment_available;
             this.cashSessionOwner = c.cash_session_owner || null;
+            this.selectedTable = c.selected_table || null;
+            this.commandeAEncaisserId = c.commande_a_encaisser_id || null;
+            if (this.selectedTable) this.typeCommande = 'SUR_PLACE';
 
             this.selectedClient = null;
             await this.chargerClients();
             await this.chargerProduits();
             await this.chargerCommandes();
+            if (this.commandeAEncaisserId && window.payerCommande) {
+                setTimeout(() => window.payerCommande(this.commandeAEncaisserId), 150);
+            }
             setInterval(() => { this.chargerCommandes(); }, 15000);
             setInterval(() => this.rafraichirStock(), 30000);
             setInterval(() => this.verifierSession(), 35000);
@@ -484,6 +492,8 @@ export function createPosStore() {
                     body: JSON.stringify({
                         point_vente_slug: this.pointVenteSlug,
                         type_commande: this.typeCommande,
+                        table_id: this.typeCommande === 'SUR_PLACE' ? (this.selectedTable?.id || null) : null,
+                        nombre_couverts: this.typeCommande === 'SUR_PLACE' ? (this.selectedTable?.nombre_couverts || 1) : 0,
                         client_id: this.clientId || null,
                         client_nom: this.clientNom || '',
                         client_telephone: this.clientTelephone || '',
