@@ -10,7 +10,12 @@ import json
 from decimal import Decimal
 
 from ..models import PointVente, SessionCaisse, LigneVente, AffectationPointVente, CaissePointVente
-from ..services.caisse_session_service import CaisseSessionService, get_session_autorisee, get_session_active_caisse
+from ..services.caisse_session_service import (
+    CaisseSessionService,
+    get_session_autorisee,
+    get_session_active_caisse,
+    get_session_non_finalisee_caisse,
+)
 from ..services.access_service import POSAccessService
 from ..constants import ActionPOS, ModeAccesPOS, POINTS_VENTE_OPERATIONNELS
 from apps.rh.models import Employe
@@ -372,12 +377,23 @@ def api_session_active(request, point_vente_id):
 
 @login_required
 def api_verifier_etat_pos(request, point_vente_id):
-    point_vente = get_object_or_404(PointVente, id=point_vente_id, actif=True)
+    point_vente = get_object_or_404(
+        PointVente,
+        id=point_vente_id,
+        actif=True,
+        type__in=POINTS_VENTE_OPERATIONNELS,
+    )
     employe = getattr(request.user, 'employe', None)
 
-    cpv = CaissePointVente.objects.filter(point_vente=point_vente, actif=True).select_related('caisse').first()
+    cpv = CaissePointVente.objects.filter(
+        point_vente=point_vente,
+        actif=True,
+    ).select_related('caisse').order_by("-principale", "id").first()
     if not employe or not cpv:
-        return JsonResponse({'success': False, 'error': 'Employ\u00e9 ou caisse non trouv\u00e9'})
+        return JsonResponse({
+            'success': False,
+            'error': 'Employé ou caisse non trouvé',
+        }, status=400)
     caisse = cpv.caisse
 
     decision = POSAccessService.check(
@@ -386,14 +402,51 @@ def api_verifier_etat_pos(request, point_vente_id):
         point_vente=point_vente,
         action=ActionPOS.ACCEDER,
     )
-    if not decision.allowed and not _user_can_gerer_sessions(request.user):
+    session_non_finalisee = get_session_non_finalisee_caisse(caisse)
+    est_proprietaire = bool(
+        session_non_finalisee
+        and session_non_finalisee.ouverte_par_id == employe.id
+    )
+    peut_finaliser = False
+    if est_proprietaire:
+        peut_finaliser = POSAccessService.check_capability(
+            user=request.user,
+            employe=employe,
+            point_vente=point_vente,
+            action=ActionPOS.FERMER_CAISSE,
+        ).allowed
+
+    # Quand le créneau vient d'expirer, le caissier propriétaire doit encore
+    # recevoir l'état de la session afin d'effectuer son comptage de sortie.
+    if (
+        not decision.allowed
+        and not _user_can_gerer_sessions(request.user)
+        and not (est_proprietaire and peut_finaliser)
+    ):
         return JsonResponse({
             'success': False,
             'error_code': decision.reason,
             'error': f"Accès refusé ({decision.reason}).",
+            'acces': decision.to_dict(),
         }, status=403)
 
-    session_active = get_session_active_caisse(caisse)
+    session_active = (
+        session_non_finalisee
+        if session_non_finalisee and session_non_finalisee.statut == 'OUVERTE'
+        else None
+    )
+    session_a_fermer = (
+        session_non_finalisee
+        if session_non_finalisee
+        and (
+            session_non_finalisee.statut == 'EN_COMPTAGE'
+            or not decision.allowed
+        )
+        and est_proprietaire
+        and peut_finaliser
+        else None
+    )
+
     from ..models import ShiftEmploye
     planning_actif = (
         ShiftEmploye.objects.filter(pk=decision.shift_id).first()
@@ -403,14 +456,19 @@ def api_verifier_etat_pos(request, point_vente_id):
     return JsonResponse({
         'success': True,
         'session_active': session_active.id if session_active else None,
-        'planning_expire': False,
-        'session_a_fermer': None,
+        'planning_expire': bool(not decision.allowed and est_proprietaire),
+        'session_a_fermer': {
+            'id': session_a_fermer.id,
+            'statut': session_a_fermer.statut,
+            'point_vente': point_vente.nom,
+            'raison': decision.reason,
+        } if session_a_fermer else None,
         'nouveau_planning': {
             'debut': planning_actif.debut_prevu.strftime('%H:%M'),
             'fin': planning_actif.fin_prevue.strftime('%H:%M'),
             'solde_initial': float(caisse.solde),
             'point_vente': point_vente.nom,
-        } if planning_actif and not session_active else None,
+        } if planning_actif and not session_non_finalisee else None,
         'planning_actif': {
             'debut': planning_actif.debut_prevu.strftime('%H:%M'),
             'fin': planning_actif.fin_prevue.strftime('%H:%M'),
