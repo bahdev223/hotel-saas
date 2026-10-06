@@ -211,6 +211,7 @@ def pos_by_slug(request, slug):
         session_non_finalisee = CaisseSessionService.demarrer_passation(
             session_non_finalisee,
             motif=f"Accès expiré: {access_decision.reason}",
+            par=employe,
         )
 
     request.session['point_vente_courant_id'] = point_vente.id
