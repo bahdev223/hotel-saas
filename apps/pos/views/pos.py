@@ -148,8 +148,6 @@ def pos_by_slug(request, slug):
         messages.error(request, "Ce point de vente n'est li\u00e9 \u00e0 aucun entrep\u00f4t. Contactez l'administrateur.")
         return redirect('pos:liste_points_vente')
 
-    from apps.hotel.models import UniteModel
-
     produits = Produit.objects.filter(actif=True, est_vendable=True).select_related('categorie', 'domaine')
     entrepots_disponibles = list(Entrepot.objects.filter(
         id__in=entrepot_ids, actif=True
@@ -157,8 +155,9 @@ def pos_by_slug(request, slug):
     stocks_par_entrepot = PointVenteService.get_stocks_par_entrepot(entrepot_ids)
     stocks_dict = PointVenteService.get_stocks_dict(entrepot_ids)
     menus = MenuModel.objects.filter(actif=True, visible_dans_pos=True).order_by('ordre_affichage', 'nom')
-    unites = UniteModel.objects.filter(actif=True).order_by('type_unite', 'code')
-    categories = PointVenteService.build_categories_dict(produits, menus, unites, stocks_dict)
+    # Le POS opérationnel est limité à Bar/Restaurant : aucune chambre,
+    # unité hôtelière ou location n'entre dans le catalogue de vente.
+    categories = PointVenteService.build_categories_dict(produits, menus, [], stocks_dict)
     sous_categories = PointVenteService.build_sous_categories(categories)
 
     session_active = CaisseSessionService.get_session_active(caisse)
