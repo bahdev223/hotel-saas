@@ -89,6 +89,15 @@ export async function creerClientDepuisSelector() {
 
 export function payerCommande(id) {
     const config = window.PAGE_CONFIG || {};
+    if (!config.cash_payment_available) {
+        const owner = config.cash_session_owner;
+        notifyWarning(
+            owner
+                ? `Cette caisse est sous la responsabilité de ${owner}.`
+                : 'Ouvrez votre propre session de caisse pour encaisser.'
+        );
+        return;
+    }
     window.dispatchEvent(new CustomEvent('open-paiement-dialog', {
         detail: { commande_id: id, caisse_id: config.caisse_id }
     }));
