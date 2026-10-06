@@ -1,5 +1,6 @@
 # apps/restaurant/models/__init__.py
 from .file_attente import FileAttenteModel
+from .salle import SalleModel
 from .table import TableModel
 from .recette import RecetteModel, IngredientModel, EtapePreparationModel
 from .menu import MenuModel, LigneMenuModel
@@ -13,6 +14,7 @@ from .version_recette import VersionRecette
 
 __all__ = [    
     'FileAttenteModel',
+    'SalleModel',
     'TableModel',
     'RecetteModel',
     'IngredientModel',
