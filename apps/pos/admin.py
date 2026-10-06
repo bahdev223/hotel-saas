@@ -4,7 +4,7 @@ from unfold.admin import ModelAdmin, TabularInline
 from .models import (
     PointVente, Vente, LigneVente, SessionCaisse,
     Commande, LigneCommande, CaissePointVente, ShiftEmploye,
-    AffectationPointVente, ComptageSession,
+    AffectationPointVente, ComptageSession, HoraireAffectation,
 )
 
 
@@ -23,6 +23,11 @@ class LigneCommandeInline(TabularInline):
 class AffectationInline(TabularInline):
     model = AffectationPointVente
     extra = 1
+
+
+class HoraireAffectationInline(TabularInline):
+    model = HoraireAffectation
+    extra = 0
 
 
 class CaissePointVenteInline(TabularInline):
@@ -76,10 +81,30 @@ class ShiftEmployeAdmin(ModelAdmin):
 
 @admin.register(AffectationPointVente)
 class AffectationPointVenteAdmin(ModelAdmin):
-    list_display = ['employe', 'point_vente', 'role', 'peut_vendre', 'peut_encaisser', 'actif']
-    list_filter = ['role', 'actif']
+    list_display = [
+        'employe', 'point_vente', 'role', 'mode_acces',
+        'peut_vendre', 'peut_encaisser', 'peut_ouvrir_caisse',
+        'peut_fermer_caisse', 'actif',
+    ]
+    list_filter = ['role', 'mode_acces', 'actif']
     search_fields = ['employe__nom', 'employe__prenom', 'point_vente__nom', 'point_vente__code']
     autocomplete_fields = ['employe', 'point_vente']
+    inlines = [HoraireAffectationInline]
+
+
+@admin.register(HoraireAffectation)
+class HoraireAffectationAdmin(ModelAdmin):
+    list_display = [
+        'affectation', 'jour_semaine', 'heure_debut', 'heure_fin',
+        'date_debut', 'date_fin', 'actif',
+    ]
+    list_filter = ['jour_semaine', 'actif']
+    search_fields = [
+        'affectation__employe__nom',
+        'affectation__employe__prenom',
+        'affectation__point_vente__nom',
+    ]
+    autocomplete_fields = ['affectation']
 
 
 @admin.register(CaissePointVente)
