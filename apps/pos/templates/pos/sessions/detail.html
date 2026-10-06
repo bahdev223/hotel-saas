@@ -50,6 +50,16 @@
                     <span class="text-on-surface-muted">Passation:</span>
                     <span>{{ session.date_passation|date:"d/m/Y H:i" }}</span>
                 </div>
+                <div class="flex justify-between">
+                    <span class="text-on-surface-muted">Déclenchée par:</span>
+                    <span>
+                        {% if session.passation_par %}
+                            {{ session.passation_par.nom_complet }}
+                        {% else %}
+                            Automatique
+                        {% endif %}
+                    </span>
+                </div>
                 {% endif %}
                 {% if session.passation_jusqua %}
                 <div class="flex justify-between">
