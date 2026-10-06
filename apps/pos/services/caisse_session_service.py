@@ -163,6 +163,9 @@ class CaisseSessionService:
                     "peut_annuler_vente": affectation.peut_annuler_vente,
                     "peut_accorder_remise": affectation.peut_accorder_remise,
                     "peut_consulter_rapports": affectation.peut_consulter_rapports,
+                    "peut_gerer_salle": affectation.peut_gerer_salle,
+                    "peut_gerer_cuisine": affectation.peut_gerer_cuisine,
+                    "peut_servir_commande": affectation.peut_servir_commande,
                 }
         else:
             permissions_snapshot = {
@@ -174,6 +177,9 @@ class CaisseSessionService:
                 "peut_annuler_vente": True,
                 "peut_accorder_remise": True,
                 "peut_consulter_rapports": True,
+                "peut_gerer_salle": True,
+                "peut_gerer_cuisine": True,
+                "peut_servir_commande": True,
             }
 
         session = SessionCaisse.objects.create(
