@@ -19,6 +19,11 @@ class ComptageSession(models.Model):
     cheque_attendu = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     cheque_constate = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
+    ecart_carte = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    ecart_mobile = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    ecart_cheque = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    ecart_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+
     motif_ecart = models.TextField(blank=True)
     compte_par = models.ForeignKey(Employe, on_delete=models.PROTECT, related_name='comptages_effectues')
     compte_le = models.DateTimeField(auto_now_add=True)
