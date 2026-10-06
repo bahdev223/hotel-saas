@@ -107,7 +107,15 @@ class AnnulationService:
 
     @staticmethod
     def _reverser_stock(commande, vente, user):
-        """Remet le stock (entree) pour chaque ligne de la commande."""
+        """Remet le stock consommé par la commande."""
+        if getattr(commande.point_vente, "type", None) == "RESTAURATION":
+            from apps.restaurant.services.consumption_service import RestaurantConsumptionService
+            RestaurantConsumptionService.annuler_consommation_commande(
+                commande,
+                utilisateur=user,
+            )
+            return
+
         from apps.stock.services.mouvement_service import MouvementStockService
         from apps.restaurant.models import MenuModel
         from apps.hotel.models import UniteModel
