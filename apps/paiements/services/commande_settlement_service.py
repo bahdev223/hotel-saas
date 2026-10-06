@@ -10,7 +10,7 @@ class CommandeSettlementError(ValueError):
 
 class CommandeSettlementService:
     """
-    Service unique et obligatoire pour régler une commande restaurant.
+    Service unique et obligatoire pour régler une commande Bar / Restaurant.
 
     Parcours :
       1. Verrouiller la commande (select_for_update)
@@ -36,13 +36,48 @@ class CommandeSettlementService:
         utilisateur,
         notes='',
     ):
-        from apps.pos.models import Commande
+        from apps.pos.models import Commande, CaissePointVente
+        from apps.pos.constants import ActionPOS, POINTS_VENTE_OPERATIONNELS
+        from apps.pos.services.access_service import POSAccessService
         from apps.paiements.models import Paiement
         from apps.tresorerie.services.mouvement_service import MouvementService
         from apps.restaurant.services.consumption_service import RestaurantConsumptionService
 
-        # 1. Verrouiller la commande
-        commande = Commande.objects.select_for_update().get(pk=commande.pk)
+        # 1. Verrouiller la commande et figer le point de vente.
+        commande = (
+            Commande.objects.select_for_update()
+            .select_related("point_vente", "created_by")
+            .get(pk=commande.pk)
+        )
+        pv = commande.point_vente
+        if not pv or pv.type not in POINTS_VENTE_OPERATIONNELS or not pv.actif:
+            raise CommandeSettlementError(
+                "Le règlement POS est limité aux points de vente Bar / Restaurant actifs."
+            )
+
+        # Le service vérifie lui-même le droit d'encaisser : une vue ou une
+        # intégration future ne peut pas contourner POSAccessService.
+        decision = POSAccessService.check(
+            user=utilisateur,
+            point_vente=pv,
+            action=ActionPOS.ENCAISSER,
+        )
+        if not decision.allowed:
+            raise CommandeSettlementError(
+                f"Encaissement non autorisé ({decision.reason})."
+            )
+
+        from apps.rh.models import Employe
+        encaisseur = Employe.objects.filter(
+            user=utilisateur,
+            actif=True,
+        ).first()
+        if encaisseur is None:
+            raise CommandeSettlementError(
+                "Aucun profil employé actif n'est associé à l'utilisateur qui encaisse."
+            )
+
+        vendeur = commande.created_by or encaisseur
 
         # 2. Vérifier qu'elle n'est pas déjà réglée
         if commande.statut == 'PAYEE' or commande.vente_id:
@@ -68,31 +103,37 @@ class CommandeSettlementService:
         if _montant <= 0:
             raise CommandeSettlementError("Le montant doit être supérieur à 0")
 
-        # 3. Caisse : automatique depuis le point de vente
-        pv = commande.point_vente
+        # 3. Caisse : l'autorité de liaison est CaissePointVente.
+        # Le champ historique Caisse.point_vente n'est pas utilisé comme vérité.
         from apps.tresorerie.models import Caisse as CaisseModel
-        _caisse = caisse or CaisseModel.objects.filter(point_vente=pv, actif=True).first()
-        if not _caisse:
-            raise CommandeSettlementError(
-                f"Aucune caisse active configurée sur le point de vente {pv}"
-            )
-        _caisse = CaisseModel.objects.select_for_update().get(pk=_caisse.pk)
+        liaison_qs = CaissePointVente.objects.filter(
+            point_vente=pv,
+            actif=True,
+            caisse__actif=True,
+        ).select_related("caisse")
+        if caisse is not None:
+            liaison_qs = liaison_qs.filter(caisse_id=caisse.pk)
 
-        # 4. Session obligatoire
-        from apps.pos.services.caisse_session_service import get_session_active_pv
-        session = get_session_active_pv(pv)
-        if not session:
+        liaison = liaison_qs.order_by("-principale", "id").first()
+        if liaison is None:
+            raise CommandeSettlementError(
+                f"Aucune caisse active rattachée au point de vente {pv.nom}."
+            )
+        _caisse = CaisseModel.objects.select_for_update().get(pk=liaison.caisse_id)
+
+        # 4. Session obligatoire SUR CETTE caisse.
+        from apps.pos.services.caisse_session_service import get_session_active_caisse
+        session = get_session_active_caisse(_caisse)
+        if not session or session.point_vente_id != pv.id:
             from apps.paiements.services.paiement_engine import SessionRequiseError
             raise SessionRequiseError(
                 f"Aucune session de caisse ouverte sur {pv.nom} "
                 f"— ouvrez une session pour encaisser."
             )
 
-        # 5. Résoudre l'employé
-        employe = getattr(commande, 'created_by', None)
-        if not employe:
-            from apps.rh.models import Employe
-            employe = Employe.objects.filter(user=utilisateur).first()
+        # 5. Les responsabilités restent distinctes :
+        # vendeur = créateur de la commande ; encaisseur = utilisateur courant.
+        # Cela permet serveur A -> caissier B sans falsifier l'audit.
 
         # 6. Créer le Paiement (directement VALIDE)
         from django.contrib.contenttypes.models import ContentType
@@ -133,8 +174,8 @@ class CommandeSettlementService:
             client_nom=commande.client_nom,
             mode_paiement=mode_paiement,
             montant_total=_montant,
-            caissier=employe,
-            encaisse_par=employe,
+            caissier=vendeur,
+            encaisse_par=encaisseur,
             statut='PAYEE',
         )
 
