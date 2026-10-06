@@ -48,6 +48,9 @@ class ActionPOS:
     ANNULER_VENTE = "ANNULER_VENTE"
     ACCORDER_REMISE = "ACCORDER_REMISE"
     CONSULTER_RAPPORTS = "CONSULTER_RAPPORTS"
+    GERER_SALLE = "GERER_SALLE"
+    GERER_CUISINE = "GERER_CUISINE"
+    SERVIR_COMMANDE = "SERVIR_COMMANDE"
 
 
 ROLE_PERMISSION_PRESETS = {
@@ -59,6 +62,8 @@ ROLE_PERMISSION_PRESETS = {
     },
     RolePOS.SERVEUR: {
         ActionPOS.VENDRE: True,
+        ActionPOS.GERER_SALLE: True,
+        ActionPOS.SERVIR_COMMANDE: True,
     },
     RolePOS.RESPONSABLE: {
         ActionPOS.VENDRE: True,
@@ -68,6 +73,9 @@ ROLE_PERMISSION_PRESETS = {
         ActionPOS.ANNULER_VENTE: True,
         ActionPOS.ACCORDER_REMISE: True,
         ActionPOS.CONSULTER_RAPPORTS: True,
+        ActionPOS.GERER_SALLE: True,
+        ActionPOS.GERER_CUISINE: True,
+        ActionPOS.SERVIR_COMMANDE: True,
     },
     RolePOS.SUPERVISEUR: {
         ActionPOS.VENDRE: True,
@@ -77,8 +85,13 @@ ROLE_PERMISSION_PRESETS = {
         ActionPOS.ANNULER_VENTE: True,
         ActionPOS.ACCORDER_REMISE: True,
         ActionPOS.CONSULTER_RAPPORTS: True,
+        ActionPOS.GERER_SALLE: True,
+        ActionPOS.GERER_CUISINE: True,
+        ActionPOS.SERVIR_COMMANDE: True,
     },
-    RolePOS.PREPARATEUR: {},
+    RolePOS.PREPARATEUR: {
+        ActionPOS.GERER_CUISINE: True,
+    },
 }
 
 
