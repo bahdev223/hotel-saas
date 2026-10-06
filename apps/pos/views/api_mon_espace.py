@@ -4,7 +4,9 @@ from django.db.models import Sum, Count, Q
 from django.utils import timezone
 from collections import defaultdict
 
-from ..models import SessionCaisse, Vente, Commande, PointVente, ShiftEmploye, AffectationPointVente, CaissePointVente
+from ..models import SessionCaisse, Vente, Commande, ShiftEmploye, CaissePointVente
+from ..constants import ActionPOS, POINTS_VENTE_OPERATIONNELS
+from ..services.access_service import POSAccessService
 
 
 @login_required
@@ -25,12 +27,20 @@ def api_mon_espace(request):
         'salaire_base': float(employe.salaire_base) if hasattr(employe, 'salaire_base') and employe.salaire_base else None,
     }
 
-    ventes_ajd = Vente.objects.filter(caissier=employe, created_at__date=aujourdhui)
+    ventes_ajd = Vente.objects.filter(
+        caissier=employe,
+        created_at__date=aujourdhui,
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+    )
     ventes_ajd_payee = ventes_ajd.filter(statut='PAYEE')
     ca_aujourdhui = float(ventes_ajd_payee.aggregate(t=Sum('montant_total'))['t'] or 0)
     nb_ventes_aujourdhui = ventes_ajd_payee.count()
     nb_annulations_ajd = ventes_ajd.filter(statut='ANNULEE').count()
-    commandes_ajd = Commande.objects.filter(created_by=employe, date_commande__date=aujourdhui)
+    commandes_ajd = Commande.objects.filter(
+        created_by=employe,
+        date_commande__date=aujourdhui,
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+    )
     nb_commandes_ajd = commandes_ajd.count()
     nb_commandes_encours = commandes_ajd.exclude(statut__in=['SERVIE', 'LIVREE', 'ANNULEE']).count()
 
@@ -44,7 +54,8 @@ def api_mon_espace(request):
         }
 
     sessions = SessionCaisse.objects.filter(
-        Q(ouverte_par=employe) | Q(fermee_par=employe)
+        Q(ouverte_par=employe) | Q(fermee_par=employe),
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
     ).select_related('point_vente', 'caisse').order_by('-date_ouverture')[:20]
 
     sessions_data = []
@@ -59,9 +70,9 @@ def api_mon_espace(request):
             'validee': s.statut == 'VALIDEE',
         })
 
-    affectations = AffectationPointVente.objects.filter(employe=employe, actif=True).values_list('point_vente_id', flat=True)
     shifts = ShiftEmploye.objects.filter(
         affectation__employe=employe,
+        affectation__point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
     ).exclude(statut='ANNULE').select_related('affectation__point_vente').order_by('-debut_prevu')[:30]
 
     plannings_data = []
@@ -80,27 +91,48 @@ def api_mon_espace(request):
         if s.debut_prevu.date() == aujourdhui:
             planning_aujourdhui.append(pd)
 
-    pv_ids = set(affectations)
-    pvs = PointVente.objects.filter(id__in=pv_ids, actif=True)
+    pvs = POSAccessService.points_accessibles(
+        user=request.user,
+        action=ActionPOS.ACCEDER,
+    )
     pv_access = []
     for pv in pvs:
+        decision = POSAccessService.check(
+            user=request.user,
+            employe=employe,
+            point_vente=pv,
+            action=ActionPOS.ACCEDER,
+        )
         cpv = CaissePointVente.objects.filter(point_vente=pv, actif=True).select_related('caisse').first()
         caisse = cpv.caisse if cpv else None
         session = SessionCaisse.objects.filter(caisse=caisse, statut='OUVERTE').first() if caisse else None
         pv_access.append({
-            'id': pv.id, 'code': pv.code, 'nom': pv.nom,
+            'id': pv.id,
+            'code': pv.code,
+            'nom': pv.nom,
+            'type': pv.type,
+            'mode_acces': decision.mode,
+            'access_reason': decision.reason,
+            'expires_at': decision.expires_at.isoformat() if decision.expires_at else None,
             'session_active': session.ouverte_par.nom_complet if session and session.ouverte_par else None,
         })
 
     timeline = []
-    for v in Vente.objects.filter(caissier=employe, statut='PAYEE').select_related('point_vente').order_by('-created_at')[:8]:
+    for v in Vente.objects.filter(
+        caissier=employe,
+        statut='PAYEE',
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+    ).select_related('point_vente').order_by('-created_at')[:8]:
         timeline.append({
             'date': v.created_at.strftime('%d/%m %H:%M'), 'type': 'vente',
             'icon': 'fa-cash-register', 'color': '#4ade80',
             'text': f"Vente {v.numero} \u2014 {float(v.montant_total):,.0f} F",
             'detail': v.get_mode_paiement_display(), 'pv': v.point_vente.nom if v.point_vente else '',
         })
-    for c in Commande.objects.filter(created_by=employe).select_related('point_vente').order_by('-date_commande')[:8]:
+    for c in Commande.objects.filter(
+        created_by=employe,
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+    ).select_related('point_vente').order_by('-date_commande')[:8]:
         timeline.append({
             'date': c.date_commande.strftime('%d/%m %H:%M'), 'type': 'commande',
             'icon': 'fa-clipboard-list', 'color': '#fb923c',
