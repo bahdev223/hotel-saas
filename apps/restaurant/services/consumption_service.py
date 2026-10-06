@@ -101,6 +101,57 @@ class RestaurantConsumptionService:
 
     @staticmethod
     @transaction.atomic
+    def annuler_consommation_commande(commande, utilisateur="Restaurant"):
+        """Réintègre exactement les sorties de stock liées à une commande.
+
+        La source de vérité est le journal des mouvements réellement créés lors
+        de la préparation, pas un recalcul de recette qui pourrait avoir changé.
+        Idempotent : une deuxième annulation ne recrée aucun mouvement.
+        """
+        reference_annulation = f"ANN-{commande.numero}"
+        if MouvementStock.objects.filter(
+            reference=reference_annulation,
+            motif=SourceOperationType.ANNULATION,
+        ).exists():
+            return {"success": True, "idempotent": True}
+
+        mouvements = list(
+            MouvementStock.objects.filter(
+                reference=commande.numero,
+                motif__iexact="consommation",
+                entrepot_source__isnull=False,
+            ).select_related("produit", "entrepot_source")
+        )
+        if not mouvements:
+            return {"success": True, "idempotent": True, "mouvements": 0}
+
+        source_op = SourceOperation.objects.create(
+            type_source=SourceOperationType.ANNULATION,
+            reference=reference_annulation,
+            notes=f"Annulation consommation commande #{commande.numero}",
+        )
+
+        for mouvement in mouvements:
+            MouvementStockService.entree_stock(
+                produit=mouvement.produit,
+                entrepot=mouvement.entrepot_source,
+                quantite=mouvement.quantite,
+                utilisateur=utilisateur,
+                motif=SourceOperationType.ANNULATION,
+                valeur_unitaire=mouvement.valeur_unitaire,
+                reference=reference_annulation,
+                raison=f"Annulation consommation commande #{commande.numero}",
+                source_operation=source_op,
+            )
+
+        return {
+            "success": True,
+            "idempotent": False,
+            "mouvements": len(mouvements),
+        }
+
+    @staticmethod
+    @transaction.atomic
     def consommer_recette(recette, quantite=1, entrepot=None, utilisateur="Cuisine",
                           reference="", raison=""):
         """
