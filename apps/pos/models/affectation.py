@@ -1,12 +1,21 @@
 from django.db import models
 from apps.rh.models import Employe
-from ..constants import RolePOS
+from ..constants import ModeAccesPOS, RolePOS
 
 
 class AffectationPointVente(models.Model):
     employe = models.ForeignKey(Employe, on_delete=models.CASCADE, related_name='affectations_points_vente')
     point_vente = models.ForeignKey('PointVente', on_delete=models.CASCADE, related_name='affectations_employes')
     role = models.CharField(max_length=30, choices=RolePOS.choices, default=RolePOS.CAISSIER)
+    mode_acces = models.CharField(
+        max_length=20,
+        choices=ModeAccesPOS.choices,
+        default=ModeAccesPOS.PERMANENT,
+        help_text=(
+            "TOTAL=tous les Bar/Restaurant ; PERMANENT=ce point de vente ; "
+            "HORAIRES=créneaux hebdomadaires ; PLANNING=shift actif obligatoire."
+        ),
+    )
 
     peut_vendre = models.BooleanField(default=False)
     peut_encaisser = models.BooleanField(default=False)
