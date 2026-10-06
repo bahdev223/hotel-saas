@@ -392,7 +392,13 @@ def api_valider_session(request):
             point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
         )
         validateur = getattr(request.user, "employe", None)
-        if validateur is None and data.get("validee_par_id"):
+        if (
+            validateur is None
+            and request.user.is_superuser
+            and data.get("validee_par_id")
+        ):
+            # Seul un compte technique superuser sans profil RH peut fournir
+            # explicitement l'acteur métier de validation.
             validateur = get_object_or_404(
                 Employe,
                 id=data.get("validee_par_id"),
