@@ -9,6 +9,13 @@ urlpatterns = [
     # Dashboard
     path('', views.dashboard, name='dashboard'),
     
+    # ========== SALLE / TABLES ==========
+    path('salle/', views.salle_dashboard, name='salle_dashboard'),
+    path('api/salle/etat/', views.api_salle_etat, name='api_salle_etat'),
+    path('api/tables/<int:table_id>/occuper/', views.api_table_occuper, name='api_table_occuper'),
+    path('api/tables/<int:table_id>/liberer/', views.api_table_liberer, name='api_table_liberer'),
+    path('api/commandes/<int:commande_id>/servir/', views.api_servir_commande, name='api_servir_commande'),
+
     # ========== FILE D'ATTENTE ==========
     path('file-attente/', views.file_attente, name='file_attente'),
     
