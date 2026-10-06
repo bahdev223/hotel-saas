@@ -225,7 +225,7 @@ def api_cuisine_commande_detail(request, commande_id):
 
 @login_required
 def api_commande_ingredients(request, commande_id):
-    """Récupère les ingrédients nécessaires pour une commande"""
+    """Besoins stock agrégés de la commande pour le KDS."""
     commande = get_object_or_404(
         Commande.objects.select_related("point_vente", "entrepot"),
         id=commande_id,
@@ -238,93 +238,67 @@ def api_commande_ingredients(request, commande_id):
     )
     if not decision.allowed:
         return JsonResponse(
-            {'success': False, 'error': f"Accès cuisine refusé ({decision.reason})."},
+            {
+                "success": False,
+                "error": f"Accès cuisine refusé ({decision.reason}).",
+            },
             status=403,
         )
-    entrepot = commande.entrepot
+    if commande.entrepot_id is None:
+        return JsonResponse(
+            {
+                "success": False,
+                "error": "Aucun entrepôt de préparation n'est lié à la commande.",
+            },
+            status=400,
+        )
+
+    from ..services.consumption_service import RestaurantConsumptionService
+
+    besoins = RestaurantConsumptionService.calculer_besoins_commande(commande)
+    stocks = {
+        row.produit_id: row.quantite
+        for row in StockEntrepot.objects.filter(
+            entrepot=commande.entrepot,
+            produit_id__in=list(besoins.keys()),
+        )
+    }
+    produits = {
+        produit.id: produit
+        for produit in Produit.objects.filter(id__in=list(besoins.keys()))
+    }
 
     ingredients = []
-    stock_manquant = []
+    for produit_id, quantite_requise in besoins.items():
+        produit = produits.get(produit_id)
+        quantite_dispo = stocks.get(produit_id, Decimal("0"))
+        ingredients.append({
+            "id": produit_id,
+            "nom": produit.nom if produit else "Inconnu",
+            "quantite": float(quantite_requise),
+            "unite": produit.unite_base if produit else "",
+            "stock": float(quantite_dispo),
+            "disponible": quantite_dispo >= quantite_requise,
+        })
 
-    for ligne in commande.lignes.all():
-        if ligne.recette:
-            for ingredient in ligne.recette.ingredients.filter(type_ingredient='DEDUIRE', produit__isnull=False):
-                if not ingredient.quantite:
-                    continue
-                quantite = ingredient.quantite * ligne.quantite
-                stock = StockEntrepot.objects.filter(
-                    entrepot=entrepot,
-                    produit=ingredient.produit
-                ).first() if entrepot else None
-                stock_qte = stock.quantite if stock else Decimal('0')
+    verification = RestaurantConsumptionService.verifier_disponibilite_commande(
+        commande,
+        commande.entrepot,
+    )
+    return JsonResponse({
+        "success": True,
+        "commande_id": commande.id,
+        "disponible": verification["disponible"],
+        "ingredients": ingredients,
+        "stock_manquant": verification["manques"],
+    })
 
-                ingredients.append({
-                    'id': ingredient.produit.id,
-                    'nom': ingredient.produit.nom,
-                    'quantite': float(quantite),
-                    'unite': ingredient.produit.unite_base,
-                    'stock': float(stock_qte),
-                    'disponible': stock_qte >= quantite
-                })
 
-                if stock_qte < quantite:
-                    stock_manquant.append({
-                        'produit': ingredient.produit.nom,
-                        'requis': float(quantite),
-                        'disponible': float(stock_qte),
-                        'unite': ingredient.produit.unite_base
-                    })
-
-        elif ligne.menu:
-            for ligne_menu in ligne.menu.lignes.filter(type_ligne='FIXE'):
-                if not ligne_menu.recette:
-                    continue
-                for ingredient in ligne_menu.recette.ingredients.filter(type_ingredient='DEDUIRE', produit__isnull=False):
-                    if not ingredient.quantite:
-                        continue
-                    quantite = ingredient.quantite * ligne.quantite * ligne_menu.quantite
-                    stock = StockEntrepot.objects.filter(
-                        entrepot=entrepot,
-                        produit=ingredient.produit
-                    ).first() if entrepot else None
-                    stock_qte = stock.quantite if stock else Decimal('0')
-
-                    ingredients.append({
-                        'id': ingredient.produit.id,
-                        'nom': ingredient.produit.nom,
-                        'quantite': float(quantite),
-                        'unite': ingredient.produit.unite_base,
-                        'stock': float(stock_qte),
-                        'disponible': stock_qte >= quantite
-                    })
-
-                    if stock_qte < quantite:
-                        stock_manquant.append({
-                            'produit': ingredient.produit.nom,
-                            'requis': float(quantite),
-                            'disponible': float(stock_qte),
-                            'unite': ingredient.produit.unite_base
-                        })
-
-        elif ligne.produit:
-            quantite = ligne.quantite
-            stock = StockEntrepot.objects.filter(
-                entrepot=entrepot,
-                produit=ligne.produit
-            ).first() if entrepot else None
-            stock_qte = stock.quantite if stock else Decimal('0')
-
-            ingredients.append({
-                'id': ligne.produit.id,
-                'nom': ligne.produit.nom,
-                'quantite': float(quantite),
-                'unite': ligne.produit.unite_base,
-                'stock': float(stock_qte),
-                'disponible': stock_qte >= q@login_required
+@login_required
 @csrf_exempt
 @require_http_methods(["POST"])
 def api_lancer_cuisson(request, commande_id):
-    """Compatibilité ancienne UI : délègue désormais au workflow KDS unique."""
+    """Compatibilité ancienne UI : délègue au workflow KDS unique."""
     try:
         commande = get_object_or_404(
             Commande.objects.select_related("point_vente", "entrepot"),
@@ -333,13 +307,16 @@ def api_lancer_cuisson(request, commande_id):
         )
         data = json.loads(request.body or "{}")
         if data.get("mode", "auto") != "auto":
-            return JsonResponse({
-                "success": False,
-                "error": (
-                    "Le déstockage manuel par cette route est désactivé. "
-                    "Corrigez la recette/commande puis relancez la préparation."
-                ),
-            }, status=400)
+            return JsonResponse(
+                {
+                    "success": False,
+                    "error": (
+                        "Le déstockage manuel est désactivé. "
+                        "Corrigez la recette/commande puis relancez la préparation."
+                    ),
+                },
+                status=400,
+            )
 
         commande = RestaurantService.demarrer_preparation(
             commande=commande,
@@ -355,4 +332,3 @@ def api_lancer_cuisson(request, commande_id):
         return JsonResponse({"success": False, "error": str(exc)}, status=409)
     except Exception as exc:
         return JsonResponse({"success": False, "error": str(exc)}, status=400)
-
