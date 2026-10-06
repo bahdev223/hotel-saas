@@ -37,8 +37,16 @@ class ProductionIngredientInline(TabularInline):
 
 @admin.register(FileAttenteModel)
 class FileAttenteAdmin(ModelAdmin):
-    list_display = ['nom_client', 'telephone', 'nombre_personnes', 'date_entree', 'statut']
-    list_filter = ['statut']
+    list_display = [
+        'nom_client', 'point_vente', 'nombre_personnes',
+        'date_entree', 'table', 'statut',
+    ]
+    list_filter = ['statut', 'point_vente', 'date_entree']
+    search_fields = [
+        'nom_client', 'telephone', 'point_vente__nom',
+        'table__numero', 'table__salle__nom',
+    ]
+    autocomplete_fields = ['point_vente', 'table']
 
 
 @admin.register(SalleModel)
