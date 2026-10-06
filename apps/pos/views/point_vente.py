@@ -299,13 +299,57 @@ def changer_responsable(request, point_id):
         responsable_id = request.POST.get('responsable_id')
         if responsable_id:
             responsable = get_object_or_404(Employe, id=responsable_id)
-            AffectationPointVente.objects.get_or_create(
-                employe=responsable, point_vente=point,
-                defaults={'role': 'RESPONSABLE', 'peut_vendre': True, 'peut_encaisser': True,
-                          'peut_ouvrir_caisse': True, 'peut_fermer_caisse': True,
-                          'peut_annuler_vente': True, 'peut_consulter_rapports': True,
-                          'principal': True, 'actif': True},
+            affectation = (
+                AffectationPointVente.objects
+                .filter(
+                    employe=responsable,
+                    point_vente=point,
+                    actif=True,
+                )
+                .order_by("-principal", "id")
+                .first()
             )
+            if affectation is None:
+                affectation = AffectationPointVente.objects.create(
+                    employe=responsable,
+                    point_vente=point,
+                    role='RESPONSABLE',
+                    mode_acces='PERMANENT',
+                    peut_vendre=True,
+                    peut_encaisser=True,
+                    peut_ouvrir_caisse=True,
+                    peut_fermer_caisse=True,
+                    peut_annuler_vente=True,
+                    peut_accorder_remise=True,
+                    peut_consulter_rapports=True,
+                    principal=True,
+                    actif=True,
+                )
+            else:
+                affectation.role = 'RESPONSABLE'
+                affectation.peut_vendre = True
+                affectation.peut_encaisser = True
+                affectation.peut_ouvrir_caisse = True
+                affectation.peut_fermer_caisse = True
+                affectation.peut_annuler_vente = True
+                affectation.peut_accorder_remise = True
+                affectation.peut_consulter_rapports = True
+                affectation.principal = True
+                affectation.save(update_fields=[
+                    'role',
+                    'peut_vendre',
+                    'peut_encaisser',
+                    'peut_ouvrir_caisse',
+                    'peut_fermer_caisse',
+                    'peut_annuler_vente',
+                    'peut_accorder_remise',
+                    'peut_consulter_rapports',
+                    'principal',
+                ])
+            AffectationPointVente.objects.filter(
+                employe=responsable,
+                actif=True,
+            ).exclude(pk=affectation.pk).update(principal=False)
             messages.success(request, f'\u2705 Responsable: {responsable.prenom} {responsable.nom}')
         else:
             messages.error(request, 'Veuillez s\u00e9lectionner un employ\u00e9')
