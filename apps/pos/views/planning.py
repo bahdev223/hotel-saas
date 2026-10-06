@@ -1,4 +1,5 @@
-from django.shortcuts import render, get_object_or_404
+from django.shortcuts import render, get_object_or_404, redirect
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -97,7 +98,11 @@ def _message_conflits(conflits):
 @login_required
 def planning_view(request):
     if not _can_manage_planning(request.user):
-        return _refus_planning()
+        messages.error(
+            request,
+            "Le planning POS est réservé à la direction et au manager.",
+        )
+        return redirect("pos:employe_dashboard")
     points = PointVente.objects.filter(
         actif=True,
         type__in=POINTS_VENTE_OPERATIONNELS,
