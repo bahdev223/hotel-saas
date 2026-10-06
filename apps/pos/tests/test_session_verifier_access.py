@@ -59,7 +59,7 @@ class SessionVerifierAccessTests(TestCase):
         cmd.corrections = []
         return cmd
 
-    def test_expired_hours_move_open_session_to_counting(self):
+    def test_expired_hours_move_open_session_to_handover(self):
         affectation = AffectationPointVente.objects.create(
             employe=self.employe,
             point_vente=self.point,
@@ -82,10 +82,13 @@ class SessionVerifierAccessTests(TestCase):
         cmd._checker_acces_expire(self.at(2026, 10, 5, 10, 0))
 
         self.session.refresh_from_db()
-        self.assertEqual(self.session.statut, "EN_COMPTAGE")
+        self.assertEqual(self.session.statut, "EN_PASSATION")
+        self.assertIsNotNone(self.session.date_passation)
+        self.assertIsNotNone(self.session.passation_jusqua)
         self.assertEqual(len(cmd.anomalies), 1)
         self.assertTrue(cmd.anomalies[0]["corrigee"])
-        self.assertIn("HORS_CRENEAU_AUTORISE", self.session.notes)
+        self.assertEqual(cmd.anomalies[0]["type"], "ACCES_CAISSE_EXPIRE")
+        self.assertIn("HORS_CRENEAU_AUTORISE", self.session.motif_passation)
 
     def test_permanent_access_keeps_session_open(self):
         AffectationPointVente.objects.create(
