@@ -119,7 +119,7 @@ def pos_by_slug(request, slug):
 
     employe = getattr(request.user, 'employe', None)
     if not employe:
-        messages.error(request, "Aucun profil employ\u00e9 trouv\u00e9.")
+        messages.error(request, "Aucun profil employé trouvé.")
         return redirect('pos:liste_points_vente')
 
     access_decision = POSAccessService.check(
@@ -128,32 +128,18 @@ def pos_by_slug(request, slug):
         point_vente=point_vente,
         action=ActionPOS.ACCEDER,
     )
-    if not access_decision.allowed:
-        messages.error(
-            request,
-            f"Accès refusé à {point_vente.nom} ({access_decision.reason}).",
-        )
-        return redirect('pos:liste_points_vente')
 
-    request.session['point_vente_courant_id'] = point_vente.id
-
-    can_sell = POSAccessService.can(
-        user=request.user,
-        employe=employe,
-        point_vente=point_vente,
-        action=ActionPOS.VENDRE,
+    cpv = (
+        CaissePointVente.objects
+        .filter(point_vente=point_vente, actif=True)
+        .select_related('caisse')
+        .order_by('-principale', 'id')
+        .first()
     )
-    can_cash = POSAccessService.can(
-        user=request.user,
-        employe=employe,
-        point_vente=point_vente,
-        action=ActionPOS.ENCAISSER,
-    )
-    can_open_cash = POSAccessService.can(
-        user=request.user,
-        employe=employe,
-        point_vente=point_vente,
-        action=ActionPOS.OUVRIR_CAISSE,
+    caisse = cpv.caisse if cpv else None
+    session_non_finalisee = (
+        get_session_non_finalisee_caisse(caisse)
+        if caisse else None
     )
     can_close_cash = POSAccessService.check_capability(
         user=request.user,
@@ -161,31 +147,95 @@ def pos_by_slug(request, slug):
         point_vente=point_vente,
         action=ActionPOS.FERMER_CAISSE,
     ).allowed
+    finalisation_only = bool(
+        not access_decision.allowed
+        and session_non_finalisee
+        and session_non_finalisee.ouverte_par_id == employe.id
+        and can_close_cash
+    )
 
-    cpv = CaissePointVente.objects.filter(point_vente=point_vente, actif=True).select_related('caisse').first()
-    caisse = cpv.caisse if cpv else None
-    if not caisse or not caisse.actif:
-        messages.error(request, "Caisse non configur\u00e9e ou inactive")
+    if not access_decision.allowed and not finalisation_only:
+        messages.error(
+            request,
+            f"Accès refusé à {point_vente.nom} ({access_decision.reason}).",
+        )
         return redirect('pos:liste_points_vente')
+
+    if not caisse or not caisse.actif:
+        messages.error(request, "Caisse non configurée ou inactive")
+        return redirect('pos:liste_points_vente')
+
+    if (
+        finalisation_only
+        and session_non_finalisee
+        and session_non_finalisee.statut == 'OUVERTE'
+    ):
+        session_non_finalisee = CaisseSessionService.demarrer_passation(
+            session_non_finalisee,
+            motif=f"Accès expiré: {access_decision.reason}",
+        )
+
+    request.session['point_vente_courant_id'] = point_vente.id
+
+    can_sell = False if finalisation_only else POSAccessService.can(
+        user=request.user,
+        employe=employe,
+        point_vente=point_vente,
+        action=ActionPOS.VENDRE,
+    )
+    can_cash = False if finalisation_only else POSAccessService.can(
+        user=request.user,
+        employe=employe,
+        point_vente=point_vente,
+        action=ActionPOS.ENCAISSER,
+    )
+    can_open_cash = False if finalisation_only else POSAccessService.can(
+        user=request.user,
+        employe=employe,
+        point_vente=point_vente,
+        action=ActionPOS.OUVRIR_CAISSE,
+    )
 
     entrepot_ids = PointVenteService.get_entrepot_ids(point_vente)
-    if not entrepot_ids:
-        messages.error(request, "Ce point de vente n'est li\u00e9 \u00e0 aucun entrep\u00f4t. Contactez l'administrateur.")
+    if not entrepot_ids and not finalisation_only:
+        messages.error(
+            request,
+            "Ce point de vente n'est lié à aucun entrepôt. Contactez l'administrateur.",
+        )
         return redirect('pos:liste_points_vente')
 
-    produits = Produit.objects.filter(actif=True, est_vendable=True).select_related('categorie', 'domaine')
-    entrepots_disponibles = list(Entrepot.objects.filter(
-        id__in=entrepot_ids, actif=True
-    ).values('id', 'nom', 'type_entrepot'))
-    stocks_par_entrepot = PointVenteService.get_stocks_par_entrepot(entrepot_ids)
-    stocks_dict = PointVenteService.get_stocks_dict(entrepot_ids)
-    menus = MenuModel.objects.filter(actif=True, visible_dans_pos=True).order_by('ordre_affichage', 'nom')
-    # Le POS opérationnel est limité à Bar/Restaurant : aucune chambre,
-    # unité hôtelière ou location n'entre dans le catalogue de vente.
-    categories = PointVenteService.build_categories_dict(produits, menus, [], stocks_dict)
+    produits = (
+        Produit.objects.filter(actif=True, est_vendable=True)
+        .select_related('categorie', 'domaine')
+        if not finalisation_only
+        else Produit.objects.none()
+    )
+    entrepots_disponibles = list(
+        Entrepot.objects.filter(id__in=entrepot_ids, actif=True)
+        .values('id', 'nom', 'type_entrepot')
+    )
+    stocks_par_entrepot = (
+        PointVenteService.get_stocks_par_entrepot(entrepot_ids)
+        if entrepot_ids else {}
+    )
+    stocks_dict = (
+        PointVenteService.get_stocks_dict(entrepot_ids)
+        if entrepot_ids else {}
+    )
+    menus = (
+        MenuModel.objects.filter(actif=True, visible_dans_pos=True)
+        .order_by('ordre_affichage', 'nom')
+        if not finalisation_only
+        else MenuModel.objects.none()
+    )
+    categories = PointVenteService.build_categories_dict(
+        produits,
+        menus,
+        [],
+        stocks_dict,
+    )
     sous_categories = PointVenteService.build_sous_categories(categories)
 
-    session_non_finalisee = get_session_non_finalisee_caisse(caisse)
     session_active = (
         session_non_finalisee
         if session_non_finalisee and session_non_finalisee.statut == 'OUVERTE'
@@ -193,7 +243,7 @@ def pos_by_slug(request, slug):
     )
     planning_actif = (
         ShiftEmploye.objects.filter(pk=access_decision.shift_id).first()
-        if access_decision.shift_id
+        if access_decision.allowed and access_decision.shift_id
         else None
     )
 
@@ -219,8 +269,42 @@ def pos_by_slug(request, slug):
             'point_vente': point_vente.nom,
         }
 
+    session_a_fermer = None
+    if (
+        session_non_finalisee
+        and session_non_finalisee.ouverte_par_id == employe.id
+        and can_close_cash
+        and session_non_finalisee.statut in ('EN_PASSATION', 'EN_COMPTAGE')
+    ):
+        session_a_fermer = {
+            'id': session_non_finalisee.id,
+            'statut': session_non_finalisee.statut,
+            'point_vente': point_vente.nom,
+            'raison': access_decision.reason,
+            'solde_initial': float(session_non_finalisee.solde_initial),
+            'total_ventes': float(session_non_finalisee.total_ventes),
+            'especes_attendues': float(
+                session_non_finalisee.solde_initial
+                + session_non_finalisee.total_especes
+            ),
+            'total_carte': float(session_non_finalisee.total_carte),
+            'total_mobile_money': float(session_non_finalisee.total_mobile_money),
+            'date_passation': (
+                session_non_finalisee.date_passation.isoformat()
+                if session_non_finalisee.date_passation else None
+            ),
+            'passation_jusqua': (
+                session_non_finalisee.passation_jusqua.isoformat()
+                if session_non_finalisee.passation_jusqua else None
+            ),
+        }
+
     entreprise = Entreprise.objects.filter(actif=True).first()
-    entreprise_nom = entreprise.nom_commercial if entreprise and entreprise.nom_commercial else (entreprise.nom if entreprise else 'ERP Hôtelier')
+    entreprise_nom = (
+        entreprise.nom_commercial
+        if entreprise and entreprise.nom_commercial
+        else (entreprise.nom if entreprise else 'ERP Hôtelier')
+    )
 
     page_config = {
         'categories': categories,
@@ -232,21 +316,32 @@ def pos_by_slug(request, slug):
         'point_vente_slug': point_vente.code,
         'point_vente_id': point_vente.id,
         'caisse_id': caisse.id,
-        'employe_id': employe.id if employe else None,
-        'planning_fin_heure': planning_actif.fin_prevue.strftime('%H:%M') if planning_actif else None,
-        'raf_depot_requis': can_open_cash and caisse.solde == 0 and not session_non_finalisee,
+        'employe_id': employe.id,
+        'planning_fin_heure': (
+            planning_actif.fin_prevue.strftime('%H:%M')
+            if planning_actif else None
+        ),
+        'raf_depot_requis': (
+            can_open_cash and caisse.solde == 0 and not session_non_finalisee
+        ),
         'caisse_ouverte': session_active is not None,
-        'session_a_fermer': None,
+        'session_a_fermer': session_a_fermer,
         'nouveau_planning': nouveau_planning,
         'entreprise_nom': entreprise_nom,
         'access_mode': access_decision.mode,
         'access_reason': access_decision.reason,
-        'access_expires_at': access_decision.expires_at.isoformat() if access_decision.expires_at else None,
+        'access_expires_at': (
+            access_decision.expires_at.isoformat()
+            if access_decision.expires_at else None
+        ),
         'can_sell': can_sell,
         'can_cash': can_cash,
         'can_open_cash': can_open_cash,
         'can_close_cash': can_close_cash,
-        'requires_cash_session': bool(can_cash or can_open_cash),
+        'requires_cash_session': bool(
+            can_cash or can_open_cash or finalisation_only
+        ),
+        'finalisation_only': finalisation_only,
     }
 
     context = {
@@ -255,17 +350,32 @@ def pos_by_slug(request, slug):
         'sous_categories_json': json.dumps(sous_categories, ensure_ascii=False),
         'caisse_ouverte': session_active is not None,
         'session_active': session_active,
-        'planning_expire': False,
-        'session_a_fermer_json': 'null',
-        'nouveau_planning_json': json.dumps(nouveau_planning, ensure_ascii=False) if nouveau_planning else 'null',
+        'planning_expire': finalisation_only,
+        'session_a_fermer_json': (
+            json.dumps(session_a_fermer, ensure_ascii=False)
+            if session_a_fermer else 'null'
+        ),
+        'nouveau_planning_json': (
+            json.dumps(nouveau_planning, ensure_ascii=False)
+            if nouveau_planning else 'null'
+        ),
         'tables': [],
-        'entrepots_disponibles_json': json.dumps(entrepots_disponibles, ensure_ascii=False),
+        'entrepots_disponibles_json': json.dumps(
+            entrepots_disponibles,
+            ensure_ascii=False,
+        ),
         'entrepot_par_defaut': entrepot_par_defaut,
-        'stocks_par_entrepot_json': json.dumps(stocks_par_entrepot, ensure_ascii=False),
-        'raf_depot_requis': can_open_cash and caisse.solde == 0 and not session_non_finalisee,
+        'stocks_par_entrepot_json': json.dumps(
+            stocks_par_entrepot,
+            ensure_ascii=False,
+        ),
+        'raf_depot_requis': page_config['raf_depot_requis'],
         'session_active_id': session_active.id if session_active else None,
-        'planning_fin_heure': planning_actif.fin_prevue.strftime('%H:%M') if planning_actif else None,
-        'planning_debut_heure': planning_actif.debut_prevu.strftime('%H:%M') if planning_actif else None,
+        'planning_fin_heure': page_config['planning_fin_heure'],
+        'planning_debut_heure': (
+            planning_actif.debut_prevu.strftime('%H:%M')
+            if planning_actif else None
+        ),
         'page_config': json.dumps(page_config, ensure_ascii=False),
         'access_mode': access_decision.mode,
         'access_reason': access_decision.reason,
@@ -274,6 +384,7 @@ def pos_by_slug(request, slug):
         'can_cash': can_cash,
         'can_open_cash': can_open_cash,
         'can_close_cash': can_close_cash,
+        'finalisation_only': finalisation_only,
     }
     return render(request, 'pos/index.html', context)
 
