@@ -416,7 +416,23 @@ def api_valider_session(request):
 
 @login_required
 def api_session_active(request, point_vente_id):
-    point_vente = get_object_or_404(PointVente, id=point_vente_id)
+    point_vente = get_object_or_404(
+        PointVente,
+        id=point_vente_id,
+        actif=True,
+        type__in=POINTS_VENTE_OPERATIONNELS,
+    )
+    cpv = (
+        CaissePointVente.objects
+        .filter(point_vente=point_vente, actif=True)
+        .select_related('caisse')
+        .order_by('-principale', 'id')
+        .first()
+    )
+    if not cpv:
+        return JsonResponse({'success': False, 'error': 'Aucune caisse associée'})
+
+    session = get_session_non_finalisee_caisse(cpv.caisse)
 
     if not _user_can_gerer_sessions(request.user):
         decision = POSAccessService.check(
@@ -425,17 +441,25 @@ def api_session_active(request, point_vente_id):
             action=ActionPOS.ACCEDER,
         )
         if not decision.allowed:
-            return JsonResponse({
-                'success': False,
-                'error_code': decision.reason,
-                'error': f"Accès refusé ({decision.reason}).",
-            }, status=403)
-
-    cpv = CaissePointVente.objects.filter(point_vente=point_vente, actif=True).select_related('caisse').first()
-    if not cpv:
-        return JsonResponse({'success': False, 'error': 'Aucune caisse associ\u00e9e'})
-
-    session = get_session_non_finalisee_caisse(cpv.caisse)
+            employe = getattr(request.user, "employe", None)
+            owner_finalize = False
+            if (
+                session
+                and employe
+                and session.ouverte_par_id == employe.id
+            ):
+                owner_finalize, _ = (
+                    CaisseSessionService.autoriser_finalisation_session(
+                        session,
+                        employe,
+                    )
+                )
+            if not owner_finalize:
+                return JsonResponse({
+                    'success': False,
+                    'error_code': decision.reason,
+                    'error': f"Accès refusé ({decision.reason}).",
+                }, status=403)
 
     if session:
         return JsonResponse({
@@ -458,6 +482,10 @@ def api_session_active(request, point_vente_id):
                 'passation_jusqua': session.passation_jusqua.isoformat() if session.passation_jusqua else None,
                 'total_ventes': float(session.total_ventes),
                 'nombre_ventes': session.nombre_ventes,
+                'proprietaire': (
+                    getattr(request.user, 'employe', None) is not None
+                    and session.ouverte_par_id == request.user.employe.id
+                ),
             }
         })
 
