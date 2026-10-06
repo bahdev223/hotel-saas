@@ -36,6 +36,7 @@ export function posSessionDialog() {
                 );
                 this.comptage.montant_carte = String(this.session.total_carte ?? '');
                 this.comptage.montant_mobile = String(this.session.total_mobile_money ?? '');
+                this.comptage.montant_cheque = String(this.session.total_cheque ?? '');
             }
             this.nouveauPlanning = config.nouveau_planning || this.nouveauPlanning;
 
