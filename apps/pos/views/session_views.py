@@ -508,7 +508,7 @@ def api_verifier_etat_pos(request, point_vente_id):
                 user=owner.user,
                 employe=owner,
                 point_vente=point_vente,
-                action=ActionPOS.ACCEDER,
+                action=ActionPOS.ENCAISSER,
             )
 
     if (
@@ -519,7 +519,7 @@ def api_verifier_etat_pos(request, point_vente_id):
     ):
         session_non_finalisee = CaisseSessionService.demarrer_passation(
             session_non_finalisee,
-            motif=f"Accès propriétaire expiré: {owner_decision.reason}",
+            motif=f"Droit d'encaisser expiré: {owner_decision.reason}",
         )
 
     if (
