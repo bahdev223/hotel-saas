@@ -8,6 +8,8 @@ from django.utils import timezone
 from ..models import PointVente, PointVenteEntrepot, CaissePointVente
 from ..services.pos_service import PointVenteService
 from ..services.caisse_session_service import CaisseSessionService
+from ..services.access_service import POSAccessService
+from ..constants import ActionPOS, ModeAccesPOS
 from apps.tresorerie.models import Caisse
 from apps.stock.models import Produit, StockEntrepot, Domaine, Entrepot
 from apps.restaurant.models import MenuModel
@@ -16,20 +18,16 @@ from apps.pos.models import AffectationPointVente, ShiftEmploye
 from apps.entreprises.models import Entreprise
 
 def __get_planning_actif(employe, point_vente):
-    from django.utils import timezone
     if not employe or not point_vente:
         return None
-    now = timezone.localtime()
-    affectation = AffectationPointVente.objects.filter(
-        employe=employe, point_vente=point_vente, actif=True,
-    ).first()
-    if not affectation:
+    decision = POSAccessService.check(
+        employe=employe,
+        point_vente=point_vente,
+        action=ActionPOS.ACCEDER,
+    )
+    if not decision.allowed or not decision.shift_id:
         return None
-    return ShiftEmploye.objects.filter(
-        affectation=affectation,
-        debut_prevu__lte=now, fin_prevue__gte=now,
-        statut__in=('PLANIFIE', 'CONFIRME', 'EN_COURS'),
-    ).first()
+    return ShiftEmploye.objects.filter(pk=decision.shift_id).first()
 
 
 RAF_MODES = [
@@ -40,9 +38,12 @@ RAF_MODES = [
 
 
 def get_employe_pv_ids(employe):
-    if not employe:
+    if not employe or not getattr(employe, "user", None):
         return []
-    return list(AffectationPointVente.objects.filter(employe=employe, actif=True).values_list('point_vente_id', flat=True))
+    return list(
+        POSAccessService.points_accessibles(user=employe.user)
+        .values_list("id", flat=True)
+    )
 
 
 GROUPES_VUE_GLOBALE = [PATRON, MANAGER, RAF]
@@ -73,34 +74,23 @@ def a_planning_aujourdhui(employe, point_vente):
 
 
 def a_acces_pos(employe, point_vente):
-    if not employe or not point_vente:
-        return False
-    pv_ids = get_employe_pv_ids(employe)
-    if point_vente.id in pv_ids:
-        return True
-    return __get_planning_actif(employe, point_vente) is not None
+    return POSAccessService.can(
+        employe=employe,
+        point_vente=point_vente,
+        action=ActionPOS.ACCEDER,
+    )
 
 
 @login_required
 def liste_points_vente(request):
-    employe = getattr(request.user, 'employe', None)
-    if not employe:
-        messages.error(request, "Aucun profil employ\u00e9 trouv\u00e9.")
+    points = POSAccessService.points_accessibles(user=request.user)
+    if not points.exists():
+        messages.error(
+            request,
+            "Aucun Bar ou Restaurant n'est accessible actuellement pour votre profil.",
+        )
         return redirect('dashboard:index')
 
-    pv_ids = get_employe_pv_ids(employe)
-    for s in ShiftEmploye.objects.filter(
-        affectation__employe=employe
-    ).exclude(statut='ANNULE').select_related('affectation'):
-        if s.affectation and s.affectation.point_vente_id:
-            pv_ids.append(s.affectation.point_vente_id)
-
-    pv_ids = list(set(pv_ids))
-    if not pv_ids:
-        messages.error(request, "Aucun point de vente trouv\u00e9 pour acc\u00e9der au POS.")
-        return redirect('dashboard:index')
-
-    points = PointVente.objects.filter(id__in=pv_ids, actif=True).distinct()
     context = {'points': points}
     return render(request, 'pos/selection.html', context)
 
@@ -114,8 +104,17 @@ def pos_by_slug(request, slug):
         messages.error(request, "Aucun profil employ\u00e9 trouv\u00e9.")
         return redirect('pos:liste_points_vente')
 
-    if not a_acces_pos(employe, point_vente):
-        messages.error(request, f"Non autoris\u00e9 \u2014 vous n'avez pas de planning pour {point_vente.nom}")
+    access_decision = POSAccessService.check(
+        user=request.user,
+        employe=employe,
+        point_vente=point_vente,
+        action=ActionPOS.ACCEDER,
+    )
+    if not access_decision.allowed:
+        messages.error(
+            request,
+            f"Accès refusé à {point_vente.nom} ({access_decision.reason}).",
+        )
         return redirect('pos:liste_points_vente')
 
     request.session['point_vente_courant_id'] = point_vente.id
@@ -145,7 +144,11 @@ def pos_by_slug(request, slug):
     sous_categories = PointVenteService.build_sous_categories(categories)
 
     session_active = CaisseSessionService.get_session_active(caisse)
-    planning_actif = _get_planning_actif(employe, point_vente)
+    planning_actif = (
+        ShiftEmploye.objects.filter(pk=access_decision.shift_id).first()
+        if access_decision.shift_id
+        else None
+    )
 
     entrepot_par_defaut = entrepot_ids[0] if entrepot_ids else None
 
@@ -176,6 +179,9 @@ def pos_by_slug(request, slug):
         'session_a_fermer': None,
         'nouveau_planning': nouveau_planning,
         'entreprise_nom': entreprise_nom,
+        'access_mode': access_decision.mode,
+        'access_reason': access_decision.reason,
+        'access_expires_at': access_decision.expires_at.isoformat() if access_decision.expires_at else None,
     }
 
     context = {
@@ -196,6 +202,9 @@ def pos_by_slug(request, slug):
         'planning_fin_heure': planning_actif.fin_prevue.strftime('%H:%M') if planning_actif else None,
         'planning_debut_heure': planning_actif.debut_prevu.strftime('%H:%M') if planning_actif else None,
         'page_config': json.dumps(page_config, ensure_ascii=False),
+        'access_mode': access_decision.mode,
+        'access_reason': access_decision.reason,
+        'access_expires_at': access_decision.expires_at,
     }
     return render(request, 'pos/index.html', context)
 
@@ -209,8 +218,11 @@ def pos_raf(request):
 
     point_vente = get_object_or_404(PointVente, code__iexact='RAF', actif=True)
 
-    if not a_acces_pos(employe, point_vente):
-        messages.error(request, "Non autoris\u00e9 \u2014 vous n'avez pas de planning pour le Guichet RAF")
+    if not (
+        request.user.is_superuser
+        or request.user.groups.filter(name=RAF).exists()
+    ):
+        messages.error(request, "Non autorisé — le Guichet RAF reste hors du moteur POS Bar/Restaurant.")
         return redirect('dashboard:index')
 
     request.session['point_vente_courant_id'] = point_vente.id
