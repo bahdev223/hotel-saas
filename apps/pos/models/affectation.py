@@ -24,6 +24,9 @@ class AffectationPointVente(models.Model):
     peut_annuler_vente = models.BooleanField(default=False)
     peut_accorder_remise = models.BooleanField(default=False)
     peut_consulter_rapports = models.BooleanField(default=False)
+    peut_gerer_salle = models.BooleanField(default=False)
+    peut_gerer_cuisine = models.BooleanField(default=False)
+    peut_servir_commande = models.BooleanField(default=False)
 
     date_debut = models.DateField(null=True, blank=True)
     date_fin = models.DateField(null=True, blank=True)
