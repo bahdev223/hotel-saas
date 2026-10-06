@@ -116,6 +116,8 @@ def api_planning_liste(request):
             'heure_fin': s.fin_prevue.strftime('%H:%M'),
             'statut': s.statut,
             'notes': s.notes or '',
+            'role': s.affectation.role if s.affectation else '',
+            'mode_acces': s.affectation.mode_acces if s.affectation else '',
             'session_id': session.id if session else None,
         })
 
@@ -170,6 +172,7 @@ def api_planning_creer(request):
 
         if shift_id:
             shift = get_object_or_404(ShiftEmploye, id=shift_id)
+            shift.affectation = affectation
             shift.debut_prevu = debut_dt
             shift.fin_prevue = fin_dt
             shift.statut = statut
@@ -197,6 +200,8 @@ def api_planning_creer(request):
                 'heure_debut': debut_dt.strftime('%H:%M'),
                 'heure_fin': fin_dt.strftime('%H:%M'),
                 'statut': shift.statut,
+                'role': affectation.role,
+                'mode_acces': affectation.mode_acces,
                 'notes': shift.notes or '',
             }
         })
