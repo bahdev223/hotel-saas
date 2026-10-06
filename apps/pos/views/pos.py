@@ -54,12 +54,24 @@ def a_vue_globale_commandes(user):
 
 
 def get_pv_courant_id(request):
+    # Ne jamais faire confiance à un ancien PV stocké en session : un horaire
+    # ou un shift peut avoir expiré depuis la dernière page chargée.
     pv_id = request.session.get('point_vente_courant_id')
     if pv_id:
-        return pv_id
-    employe = getattr(request.user, 'employe', None)
-    pv_ids = get_employe_pv_ids(employe)
-    return pv_ids[0] if pv_ids else None
+        point = PointVente.objects.filter(pk=pv_id, actif=True).first()
+        if point and POSAccessService.can(
+            user=request.user,
+            point_vente=point,
+            action=ActionPOS.ACCEDER,
+        ):
+            return point.id
+        request.session.pop('point_vente_courant_id', None)
+
+    point = POSAccessService.points_accessibles(
+        user=request.user,
+        action=ActionPOS.ACCEDER,
+    ).first()
+    return point.id if point else None
 
 
 def a_planning_aujourdhui(employe, point_vente):
