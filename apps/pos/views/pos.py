@@ -17,7 +17,7 @@ from apps.authentication.groups import PATRON, MANAGER, BAR, RESTAURANT, CAISSIE
 from apps.pos.models import AffectationPointVente, ShiftEmploye
 from apps.entreprises.models import Entreprise
 
-def __get_planning_actif(employe, point_vente):
+def _get_planning_actif(employe, point_vente):
     if not employe or not point_vente:
         return None
     decision = POSAccessService.check(
@@ -97,7 +97,13 @@ def liste_points_vente(request):
 
 @login_required
 def pos_by_slug(request, slug):
-    point_vente = get_object_or_404(PointVente, code__iexact=slug, actif=True)
+    from ..constants import POINTS_VENTE_OPERATIONNELS
+    point_vente = get_object_or_404(
+        PointVente,
+        code__iexact=slug,
+        actif=True,
+        type__in=POINTS_VENTE_OPERATIONNELS,
+    )
 
     employe = getattr(request.user, 'employe', None)
     if not employe:
