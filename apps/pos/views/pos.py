@@ -7,7 +7,7 @@ from django.db.models import Sum
 from django.utils import timezone
 from ..models import PointVente, PointVenteEntrepot, CaissePointVente
 from ..services.pos_service import PointVenteService
-from ..services.caisse_session_service import CaisseSessionService
+from ..services.caisse_session_service import CaisseSessionService, get_session_non_finalisee_caisse
 from ..services.access_service import POSAccessService
 from ..constants import ActionPOS, ModeAccesPOS
 from apps.tresorerie.models import Caisse
@@ -185,7 +185,12 @@ def pos_by_slug(request, slug):
     categories = PointVenteService.build_categories_dict(produits, menus, [], stocks_dict)
     sous_categories = PointVenteService.build_sous_categories(categories)
 
-    session_active = CaisseSessionService.get_session_active(caisse)
+    session_non_finalisee = get_session_non_finalisee_caisse(caisse)
+    session_active = (
+        session_non_finalisee
+        if session_non_finalisee and session_non_finalisee.statut == 'OUVERTE'
+        else None
+    )
     planning_actif = (
         ShiftEmploye.objects.filter(pk=access_decision.shift_id).first()
         if access_decision.shift_id
@@ -194,12 +199,25 @@ def pos_by_slug(request, slug):
 
     entrepot_par_defaut = entrepot_ids[0] if entrepot_ids else None
 
-    nouveau_planning = {
-        'debut': planning_actif.debut_prevu.strftime('%H:%M'),
-        'fin': planning_actif.fin_prevue.strftime('%H:%M'),
-        'solde_initial': float(caisse.solde),
-        'point_vente': point_vente.nom,
-    } if planning_actif and not session_active else None
+    nouveau_planning = None
+    if can_open_cash and not session_non_finalisee:
+        expiration = access_decision.expires_at
+        nouveau_planning = {
+            'date': timezone.localdate().strftime('%d/%m/%Y'),
+            'debut': (
+                planning_actif.debut_prevu.strftime('%H:%M')
+                if planning_actif else timezone.localtime().strftime('%H:%M')
+            ),
+            'fin': (
+                planning_actif.fin_prevue.strftime('%H:%M')
+                if planning_actif
+                else expiration.strftime('%H:%M') if expiration
+                else 'Sans limite'
+            ),
+            'mode_acces': access_decision.mode,
+            'solde_initial': float(caisse.solde),
+            'point_vente': point_vente.nom,
+        }
 
     entreprise = Entreprise.objects.filter(actif=True).first()
     entreprise_nom = entreprise.nom_commercial if entreprise and entreprise.nom_commercial else (entreprise.nom if entreprise else 'ERP Hôtelier')
@@ -216,7 +234,7 @@ def pos_by_slug(request, slug):
         'caisse_id': caisse.id,
         'employe_id': employe.id if employe else None,
         'planning_fin_heure': planning_actif.fin_prevue.strftime('%H:%M') if planning_actif else None,
-        'raf_depot_requis': planning_actif is not None and caisse.solde == 0 and not session_active,
+        'raf_depot_requis': can_open_cash and caisse.solde == 0 and not session_non_finalisee,
         'caisse_ouverte': session_active is not None,
         'session_a_fermer': None,
         'nouveau_planning': nouveau_planning,
@@ -244,7 +262,7 @@ def pos_by_slug(request, slug):
         'entrepots_disponibles_json': json.dumps(entrepots_disponibles, ensure_ascii=False),
         'entrepot_par_defaut': entrepot_par_defaut,
         'stocks_par_entrepot_json': json.dumps(stocks_par_entrepot, ensure_ascii=False),
-        'raf_depot_requis': planning_actif is not None and caisse.solde == 0 and not session_active,
+        'raf_depot_requis': can_open_cash and caisse.solde == 0 and not session_non_finalisee,
         'session_active_id': session_active.id if session_active else None,
         'planning_fin_heure': planning_actif.fin_prevue.strftime('%H:%M') if planning_actif else None,
         'planning_debut_heure': planning_actif.debut_prevu.strftime('%H:%M') if planning_actif else None,
