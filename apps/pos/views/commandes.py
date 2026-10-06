@@ -22,6 +22,8 @@ from apps.restaurant.models import MenuModel
 from apps.rh.models import Employe
 from .pos import a_vue_globale_commandes, get_pv_courant_id
 from ..services.caisse_session_service import get_session_active_pv
+from ..services.access_service import POSAccessService
+from ..constants import ActionPOS, POINTS_VENTE_OPERATIONNELS
 
 
 def deduire_stock_commande(commande, entrepot_id=None):
@@ -278,8 +280,24 @@ def changer_statut_commande(request, commande_id):
     """Changer le statut d'une commande"""
     try:
         data = json.loads(request.body)
-        commande = get_object_or_404(Commande, id=commande_id)
+        commande = get_object_or_404(
+            Commande.objects.select_related("point_vente"),
+            id=commande_id,
+            point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+        )
         nouveau_statut = data.get('statut')
+
+        decision = POSAccessService.check(
+            user=request.user,
+            point_vente=commande.point_vente,
+            action=ActionPOS.ACCEDER,
+        )
+        if not decision.allowed:
+            return JsonResponse({
+                'success': False,
+                'error_code': decision.reason,
+                'error': f"Accès refusé ({decision.reason}).",
+            }, status=403)
 
         # Verrou : servir/livrer sort le stock et facture — session obligatoire
         if nouveau_statut in ('SERVIE', 'LIVREE') and not get_session_active_pv(commande.point_vente):
@@ -336,9 +354,25 @@ def changer_statut_commande(request, commande_id):
 def api_payer_commande(request, commande_id):
     """Payer une commande — délègue à CommandeSettlementService"""
     try:
-        commande = get_object_or_404(Commande, id=commande_id)
+        commande = get_object_or_404(
+            Commande.objects.select_related("point_vente"),
+            id=commande_id,
+            point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+        )
         data = json.loads(request.body)
         mode_paiement = data.get('mode_paiement', 'ESPECES')
+
+        decision = POSAccessService.check(
+            user=request.user,
+            point_vente=commande.point_vente,
+            action=ActionPOS.ENCAISSER,
+        )
+        if not decision.allowed:
+            return JsonResponse({
+                'success': False,
+                'error_code': decision.reason,
+                'error': f"Encaissement refusé ({decision.reason}).",
+            }, status=403)
 
         from apps.paiements.services.commande_settlement_service import (
             CommandeSettlementService,
@@ -381,7 +415,25 @@ def api_creer_commande(request):
         from apps.clients.models import Client
         data = json.loads(request.body)
         
-        point_vente = get_object_or_404(PointVente, code__iexact=data.get('point_vente_slug'))
+        point_vente = get_object_or_404(
+            PointVente,
+            code__iexact=data.get('point_vente_slug'),
+            actif=True,
+            type__in=POINTS_VENTE_OPERATIONNELS,
+        )
+        employe = Employe.objects.filter(user=request.user, actif=True).first()
+        decision = POSAccessService.check(
+            user=request.user,
+            employe=employe,
+            point_vente=point_vente,
+            action=ActionPOS.VENDRE,
+        )
+        if not decision.allowed:
+            return JsonResponse({
+                'success': False,
+                'error_code': decision.reason,
+                'error': f"Création de commande refusée ({decision.reason}).",
+            }, status=403)
 
         # Verrou : aucune commande sans session de caisse ouverte sur ce PV
         if not get_session_active_pv(point_vente):
@@ -390,8 +442,6 @@ def api_creer_commande(request):
                 'error_code': 'SESSION_REQUISE',
                 'error': f"Aucune session de caisse ouverte sur {point_vente.nom}. Ouvrez une session avant de commander."
             }, status=403)
-
-        employe = Employe.objects.filter(user=request.user).first()
 
         # R2 : entrepôt sélectionné (ou premier disponible)
         from django.db.models import Sum
@@ -625,11 +675,24 @@ def api_raf_annuler_commande(request, commande_id):
     from apps.pos.models import Commande
     from apps.paiements.services.annulation_service import AnnulationService
 
-    if not request.user.groups.filter(name='RAF').exists():
-        return JsonResponse({'success': False, 'error': 'Accès refusé. Réservé au RAF.'})
-
     try:
-        commande = Commande.objects.get(id=commande_id)
+        commande = Commande.objects.select_related("point_vente").get(
+            id=commande_id,
+            point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+        )
+        est_raf = request.user.groups.filter(name='RAF').exists()
+        decision = POSAccessService.check(
+            user=request.user,
+            point_vente=commande.point_vente,
+            action=ActionPOS.ANNULER_VENTE,
+        )
+        if not est_raf and not decision.allowed:
+            return JsonResponse({
+                'success': False,
+                'error_code': decision.reason,
+                'error': f"Annulation refusée ({decision.reason}).",
+            }, status=403)
+
         commande = AnnulationService.annuler_commande(commande, request.user)
         return JsonResponse({
             'success': True,
