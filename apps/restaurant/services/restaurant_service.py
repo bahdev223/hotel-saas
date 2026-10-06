@@ -72,7 +72,12 @@ class RestaurantService:
         table.serveur_actuel = employe
         table.heure_arrivee = table.heure_arrivee or timezone.now()
         if nombre_couverts is not None:
-            table.nombre_couverts = max(0, int(nombre_couverts))
+            couverts = max(1, int(nombre_couverts))
+            if couverts > table.capacite:
+                raise RestaurantWorkflowError(
+                    f"Table {table.numero}: capacité maximale {table.capacite}."
+                )
+            table.nombre_couverts = couverts
         table.save(update_fields=[
             "statut", "serveur_actuel", "heure_arrivee",
             "nombre_couverts", "updated_at",
