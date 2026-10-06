@@ -121,6 +121,47 @@ def _weekly_overlap(a, b):
     return False
 
 
+def _horaire_model_to_item(horaire):
+    return {
+        "jour_semaine": horaire.jour_semaine,
+        "heure_debut": horaire.heure_debut,
+        "heure_fin": horaire.heure_fin,
+        "date_debut": horaire.date_debut,
+        "date_fin": horaire.date_fin,
+        "actif": horaire.actif,
+    }
+
+
+def _conflit_horaires_autres_affectations(employe, affectation_id, horaires):
+    actifs = [h for h in horaires if h.get("actif", True)]
+    if not actifs:
+        return None
+
+    autres = (
+        HoraireAffectation.objects
+        .filter(
+            affectation__employe=employe,
+            affectation__actif=True,
+            affectation__mode_acces=ModeAccesPOS.HORAIRES,
+            affectation__point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+            actif=True,
+        )
+        .select_related("affectation__point_vente")
+    )
+    if affectation_id:
+        autres = autres.exclude(affectation_id=affectation_id)
+
+    for autre in autres:
+        autre_item = _horaire_model_to_item(autre)
+        for item in actifs:
+            if (
+                _date_ranges_overlap(item, autre_item)
+                and _weekly_overlap(item, autre_item)
+            ):
+                return autre
+    return None
+
+
 def _normaliser_horaires(raw_horaires):
     if not isinstance(raw_horaires, list):
         raise ValueError("horaires doit être une liste.")
@@ -365,6 +406,26 @@ def api_affectation_enregistrer(request):
                 }, status=409)
 
         permissions = _permissions_for_payload(data, role=role, existing=existing)
+
+        if mode == ModeAccesPOS.HORAIRES and existing is not None:
+            horaires_existants = [
+                _horaire_model_to_item(h)
+                for h in existing.horaires.filter(actif=True)
+            ]
+            conflit = _conflit_horaires_autres_affectations(
+                employe,
+                existing.id,
+                horaires_existants,
+            )
+            if conflit:
+                return JsonResponse({
+                    "success": False,
+                    "error": (
+                        "Conflit d'horaires avec "
+                        f"{conflit.affectation.point_vente.nom}."
+                    ),
+                }, status=409)
+
         date_debut = _parse_date(data.get("date_debut"), "date_debut")
         date_fin = _parse_date(data.get("date_fin"), "date_fin")
         if date_debut and date_fin and date_debut > date_fin:
@@ -505,6 +566,20 @@ def api_horaires_remplacer(request, affectation_id):
         horaires = _normaliser_horaires(data.get("horaires", []))
     except (ValueError, TypeError) as exc:
         return JsonResponse({"success": False, "error": str(exc)}, status=400)
+
+    conflit = _conflit_horaires_autres_affectations(
+        affectation.employe,
+        affectation.id,
+        horaires,
+    )
+    if conflit:
+        return JsonResponse({
+            "success": False,
+            "error": (
+                "Conflit d'horaires avec "
+                f"{conflit.affectation.point_vente.nom}."
+            ),
+        }, status=409)
 
     if (
         bool(data.get("activer_mode_horaires", True))
