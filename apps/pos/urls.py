@@ -67,6 +67,14 @@ urlpatterns = [
     path('api/paiement-clients/processer/', views.api_paiement_clients_processer, name='api_paiement_clients_processer'),
     path('mon-espace/paiement-clients/', views.employe_paiement_clients, name='employe_paiement_clients'),
     
+    # ========== ACCÈS POS ==========
+    path('api/acces/', views.api_acces_liste, name='api_acces_liste'),
+    path('api/acces/etat/<int:point_vente_id>/', views.api_acces_etat, name='api_acces_etat'),
+    path('api/acces/affectations/enregistrer/', views.api_affectation_enregistrer, name='api_affectation_enregistrer'),
+    path('api/acces/affectations/<int:affectation_id>/desactiver/', views.api_affectation_desactiver, name='api_affectation_desactiver'),
+    path('api/acces/affectations/<int:affectation_id>/horaires/', views.api_horaires_affectation, name='api_horaires_affectation'),
+    path('api/acces/affectations/<int:affectation_id>/horaires/remplacer/', views.api_horaires_remplacer, name='api_horaires_remplacer'),
+
     # ========== PLANNING SESSIONS ==========
     path('planning/', views.planning_view, name='planning'),
     path('api/planning/liste/', views.api_planning_liste, name='api_planning_liste'),
