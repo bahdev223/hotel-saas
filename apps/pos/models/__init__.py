@@ -1,6 +1,7 @@
 from .point_vente import PointVente, PointVenteEntrepot
 from .affectation import AffectationPointVente
 from .shift import ShiftEmploye
+from .horaire import HoraireAffectation
 from .caisse_point_vente import CaissePointVente
 from .session_caisse import SessionCaisse
 from .comptage import ComptageSession
@@ -16,6 +17,7 @@ __all__ = [
     'PointVente', 'PointVenteEntrepot',
     'AffectationPointVente',
     'ShiftEmploye',
+    'HoraireAffectation',
     'CaissePointVente',
     'SessionCaisse', 'ComptageSession',
     'Vente', 'LigneVente',
