@@ -73,12 +73,21 @@ class LigneVenteAdmin(ModelAdmin):
 
 @admin.register(SessionCaisse)
 class SessionCaisseAdmin(ModelAdmin):
-    list_display = ['caisse', 'point_vente', 'date_ouverture', 'date_fermeture',
-                    'solde_initial', 'statut']
-    list_filter = ['statut', 'date_ouverture']
+    list_display = [
+        'caisse', 'point_vente', 'ouverte_par', 'date_ouverture',
+        'mode_acces_ouverture', 'statut', 'date_passation',
+        'date_fermeture', 'validee_par',
+    ]
+    list_filter = ['statut', 'mode_acces_ouverture', 'date_ouverture']
     search_fields = ['caisse__nom', 'point_vente__nom']
     autocomplete_fields = ['caisse', 'point_vente', 'ouverte_par', 'fermee_par', 'validee_par', 'shift']
-    readonly_fields = ['date_ouverture', 'created_at', 'updated_at']
+    readonly_fields = [
+        'date_ouverture', 'date_passation', 'passation_jusqua',
+        'date_fermeture', 'date_validation', 'mode_acces_ouverture',
+        'raison_acces_ouverture', 'affectation_ouverture_id',
+        'shift_ouverture_id', 'acces_expire_le', 'permissions_ouverture',
+        'created_at', 'updated_at',
+    ]
 
 
 @admin.register(ShiftEmploye)
@@ -126,7 +135,11 @@ class CaissePointVenteAdmin(ModelAdmin):
 
 @admin.register(ComptageSession)
 class ComptageSessionAdmin(ModelAdmin):
-    list_display = ['session', 'especes_attendues', 'especes_comptees', 'ecart_especes', 'compte_par']
+    list_display = [
+        'session', 'especes_attendues', 'especes_comptees',
+        'ecart_especes', 'ecart_carte', 'ecart_mobile',
+        'ecart_cheque', 'ecart_total', 'compte_par',
+    ]
     autocomplete_fields = ['session', 'compte_par']
 
 
