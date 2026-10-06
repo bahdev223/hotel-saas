@@ -221,7 +221,7 @@ class CaisseSessionService:
 
     @staticmethod
     @transaction.atomic
-    def demarrer_passation(session, motif="", moment=None):
+    def demarrer_passation(session, motif="", moment=None, par=None):
         session = (
             SessionCaisse.objects.select_for_update()
             .select_related("point_vente")
@@ -237,11 +237,13 @@ class CaisseSessionService:
         session.statut = "EN_PASSATION"
         session.date_passation = now
         session.passation_jusqua = now + timedelta(minutes=max(0, delai))
+        session.passation_par = par if par and par.actif else None
         session.motif_passation = (motif or "Fin de créneau / passation")[:255]
         session.save(update_fields=[
             "statut",
             "date_passation",
             "passation_jusqua",
+            "passation_par",
             "motif_passation",
             "updated_at",
         ])
