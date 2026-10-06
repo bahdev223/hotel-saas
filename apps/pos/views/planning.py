@@ -33,6 +33,39 @@ def _refus_planning():
     )
 
 
+def _planning_affectation(employe, point_vente):
+    """Retourne l'affectation à utiliser pour un shift sans créer de privilège.
+
+    Si plusieurs rôles existent sur le même POS, on privilégie l'affectation
+    principale puis la première. Si aucune n'existe, on crée une affectation
+    SERVEUR/PLANNING minimale.
+    """
+    affectation = (
+        AffectationPointVente.objects
+        .filter(
+            employe=employe,
+            point_vente=point_vente,
+            actif=True,
+        )
+        .order_by("-principal", "id")
+        .first()
+    )
+    if affectation is not None:
+        return affectation
+
+    return AffectationPointVente.objects.create(
+        employe=employe,
+        point_vente=point_vente,
+        role="SERVEUR",
+        mode_acces=ModeAccesPOS.PLANNING,
+        actif=True,
+        peut_vendre=True,
+        peut_encaisser=False,
+        peut_ouvrir_caisse=False,
+        peut_fermer_caisse=False,
+    )
+
+
 def _intervalle_planning(debut_dt, fin_dt):
     return debut_dt, fin_dt
 
@@ -142,22 +175,7 @@ def api_planning_creer(request):
         )
         employe = get_object_or_404(Employe, id=data['employe_id'], actif=True)
 
-        affectation, _ = AffectationPointVente.objects.get_or_create(
-            employe=employe,
-            point_vente=point_vente,
-            defaults={
-                # Le planning organise le travail ; il n'accorde jamais des
-                # privilèges de caisse implicitement. Les droits de caisse se
-                # configurent dans l'espace Accès POS.
-                'role': 'SERVEUR',
-                'mode_acces': ModeAccesPOS.PLANNING,
-                'actif': True,
-                'peut_vendre': True,
-                'peut_encaisser': False,
-                'peut_ouvrir_caisse': False,
-                'peut_fermer_caisse': False,
-            },
-        )
+        affectation = _planning_affectation(employe, point_vente)
 
         p_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
         h_debut = datetime.strptime(data['heure_debut'], '%H:%M').time()
@@ -254,22 +272,7 @@ def api_planning_creer_masse(request):
             type__in=POINTS_VENTE_OPERATIONNELS,
         )
 
-        affectation, _ = AffectationPointVente.objects.get_or_create(
-            employe=employe,
-            point_vente=point_vente,
-            defaults={
-                # Le planning organise le travail ; il n'accorde jamais des
-                # privilèges de caisse implicitement. Les droits de caisse se
-                # configurent dans l'espace Accès POS.
-                'role': 'SERVEUR',
-                'mode_acces': ModeAccesPOS.PLANNING,
-                'actif': True,
-                'peut_vendre': True,
-                'peut_encaisser': False,
-                'peut_ouvrir_caisse': False,
-                'peut_fermer_caisse': False,
-            },
-        )
+        affectation = _planning_affectation(employe, point_vente)
 
         if date_debut_d > date_fin_d:
             return JsonResponse({'success': False, 'error': 'La date de d\u00e9but doit \u00eatre avant la date de fin'})
