@@ -174,7 +174,8 @@ class CommandeSettlementService:
             client_nom=commande.client_nom,
             mode_paiement=mode_paiement,
             montant_total=_montant,
-            caissier=vendeur,
+            serveur=vendeur,
+            caissier=encaisseur,
             encaisse_par=encaisseur,
             statut='PAYEE',
         )
