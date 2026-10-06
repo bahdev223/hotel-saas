@@ -60,6 +60,7 @@ from .employe_dashboard import employe_dashboard, employe_paiement_clients, api_
 from .raf_dashboard import raf_dashboard, raf_dashboard_data_api
 from .api_mon_espace import api_mon_espace
 from .access_admin import (
+    acces_view,
     api_acces_liste,
     api_affectation_enregistrer,
     api_affectation_desactiver,
@@ -77,6 +78,7 @@ from .raf_collecte import (
 )
 
 __all__ = [
+    'acces_view',
     'api_acces_liste',
     'api_affectation_enregistrer',
     'api_affectation_desactiver',
