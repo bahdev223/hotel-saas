@@ -46,5 +46,26 @@ class PointVente(models.Model):
         verbose_name = 'Point de vente'
         verbose_name_plural = 'Points de vente'
 
+    @property
+    def entrepot(self):
+        """Compatibilité métier : retourne l'entrepôt de vente prioritaire.
+
+        La source de vérité reste PointVenteEntrepot ; aucun FK historique
+        n'est réintroduit sur PointVente.
+        """
+        liaison = (
+            self.entrepots_autorises
+            .filter(actif=True, autorise_vente=True)
+            .select_related('entrepot')
+            .order_by('-principal', 'priorite', 'id')
+            .first()
+        )
+        return liaison.entrepot if liaison else None
+
+    @property
+    def entrepot_id(self):
+        entrepot = self.entrepot
+        return entrepot.id if entrepot else None
+
     def __str__(self):
         return f"{self.nom} ({self.get_type_display()})"
