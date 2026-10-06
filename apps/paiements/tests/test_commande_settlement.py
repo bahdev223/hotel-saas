@@ -2,6 +2,7 @@ from decimal import Decimal
 from django.test import TestCase
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
+from django.utils import timezone
 from apps.stock.models import Produit, Entrepot, UniteMesure, StockEntrepot
 from apps.restaurant.models.recette import RecetteModel, IngredientModel
 from apps.pos.models import Commande, LigneCommande, PointVente, AffectationPointVente
@@ -212,3 +213,50 @@ class CommandeSettlementServiceTest(TestCase):
         self.assertEqual(ligne_vente.cout_revient, Decimal('100'))
         self.assertIsNotNone(vente.cout_revient_total)
         self.assertIsNotNone(vente.marge_totale)
+
+    def test_owner_can_settle_existing_order_during_handover_grace(self):
+        session = self.caisse.sessions_pos.get(statut="OUVERTE")
+        now = timezone.now()
+        self.commande.date_commande = now
+        self.commande.save()
+        session = CaisseSessionService.demarrer_passation(
+            session,
+            motif="Fin de créneau",
+            moment=now + timezone.timedelta(minutes=1),
+        )
+
+        result = CommandeSettlementService.regler(
+            commande=self.commande,
+            montant=2000,
+            mode_paiement="ESPECES",
+            utilisateur=self.user,
+        )
+
+        self.assertEqual(result["vente"].session_caisse_id, session.id)
+        self.assertEqual(result["vente"].encaisse_par_id, self.employe.id)
+
+    def test_order_created_after_handover_cannot_be_settled(self):
+        session = self.caisse.sessions_pos.get(statut="OUVERTE")
+        now = timezone.now()
+        session = CaisseSessionService.demarrer_passation(
+            session,
+            motif="Fin de créneau",
+            moment=now,
+        )
+        # auto_now_add n'est pas modifiable via save(); update permet de simuler
+        # une commande créée après le début de la passation.
+        type(self.commande).objects.filter(pk=self.commande.pk).update(
+            date_commande=now + timezone.timedelta(minutes=1)
+        )
+        self.commande.refresh_from_db()
+
+        with self.assertRaises(CommandeSettlementError) as ctx:
+            CommandeSettlementService.regler(
+                commande=self.commande,
+                montant=2000,
+                mode_paiement="ESPECES",
+                utilisateur=self.user,
+            )
+
+        self.assertIn("COMMANDE_APRES_PASSATION", str(ctx.exception))
+
