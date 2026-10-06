@@ -901,6 +901,8 @@ def api_raf_annuler_commande(request, commande_id):
             }, status=403)
 
         commande = AnnulationService.annuler_commande(commande, request.user)
+        if commande.point_vente.type == 'RESTAURATION' and commande.table_id:
+            RestaurantService.liberer_table_si_terminee(commande)
         return JsonResponse({
             'success': True,
             'message': f'Commande #{commande.numero} annulée avec succès',
