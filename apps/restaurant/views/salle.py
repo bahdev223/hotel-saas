@@ -1,6 +1,7 @@
 import json
 
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404, render
 from django.urls import reverse
@@ -84,25 +85,17 @@ def api_salle_etat(request):
         tables = []
         for table in salle.tables.filter(actif=True).order_by("numero"):
             commande = RestaurantService.commande_active_table(table)
+            statut_effectif = table.statut
             if commande:
-                if commande.statut == "SERVIE" and table.statut != "A_ENCAISSER":
-                    table.statut = "A_ENCAISSER"
-                    table.save(update_fields=["statut", "updated_at"])
-                elif (
-                    commande.statut in ("EN_ATTENTE", "EN_PREPARATION", "PRETE")
-                    and table.statut != "COMMANDE_EN_COURS"
-                ):
-                    table.statut = "COMMANDE_EN_COURS"
-                    table.save(update_fields=["statut", "updated_at"])
+                if commande.statut == "SERVIE":
+                    statut_effectif = "A_ENCAISSER"
+                elif commande.statut in ("EN_ATTENTE", "EN_PREPARATION", "PRETE"):
+                    statut_effectif = "COMMANDE_EN_COURS"
             elif table.statut in ("COMMANDE_EN_COURS", "A_ENCAISSER"):
-                table.statut = "LIBRE"
-                table.serveur_actuel = None
-                table.heure_arrivee = None
-                table.nombre_couverts = 0
-                table.save(update_fields=[
-                    "statut", "serveur_actuel", "heure_arrivee",
-                    "nombre_couverts", "updated_at",
-                ])
+                # Les écritures normales sont faites par RestaurantService.
+                # Ce fallback d'affichage évite qu'un ancien état incohérent
+                # rende la salle inutilisable sans muter la base dans une requête GET.
+                statut_effectif = "LIBRE"
 
             tables.append({
                 "id": table.id,
@@ -110,8 +103,11 @@ def api_salle_etat(request):
                 "numero": table.numero,
                 "capacite": table.capacite,
                 "actif": table.actif,
-                "statut": table.statut,
-                "statut_label": table.get_statut_display(),
+                "statut": statut_effectif,
+                "statut_label": dict(TableModel.STATUT_CHOICES).get(
+                    statut_effectif,
+                    statut_effectif,
+                ),
                 "nombre_couverts": table.nombre_couverts,
                 "serveur": (
                     table.serveur_actuel.nom_complet
@@ -192,6 +188,7 @@ def api_table_occuper(request, table_id):
 @csrf_exempt
 @login_required
 @require_http_methods(["POST"])
+@transaction.atomic
 def api_table_liberer(request, table_id):
     try:
         table = get_object_or_404(
@@ -326,6 +323,7 @@ def api_salle_enregistrer(request):
 @csrf_exempt
 @login_required
 @require_http_methods(["POST"])
+@transaction.atomic
 def api_table_enregistrer(request):
     if not _can_configure_salle(request.user):
         return JsonResponse(
@@ -420,6 +418,7 @@ def api_table_enregistrer(request):
 @csrf_exempt
 @login_required
 @require_http_methods(["POST"])
+@transaction.atomic
 def api_table_desactiver(request, table_id):
     if not _can_configure_salle(request.user):
         return JsonResponse(
