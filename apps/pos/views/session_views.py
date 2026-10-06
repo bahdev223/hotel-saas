@@ -239,6 +239,9 @@ def api_fermeture_session(request):
         fermee_par_id = data.get('fermee_par_id')
         notes = data.get('notes', '')
         depot = data.get('depot')
+        montant_carte = data.get('montant_carte')
+        montant_mobile = data.get('montant_mobile')
+        montant_cheque = data.get('montant_cheque')
 
         session = get_session_autorisee(
             session_id,
@@ -250,6 +253,12 @@ def api_fermeture_session(request):
         est_supervision = _user_can_gerer_sessions(request.user)
 
         if not est_supervision:
+            if not demandeur or session.ouverte_par_id != demandeur.id:
+                return JsonResponse({
+                    "success": False,
+                    "error_code": "SESSION_APPARTIENT_A_UN_AUTRE_CAISSIER",
+                    "error": "Seul le caissier propriétaire peut clôturer sa session.",
+                }, status=403)
             decision = POSAccessService.check_capability(
                 user=request.user,
                 employe=demandeur,
@@ -269,8 +278,14 @@ def api_fermeture_session(request):
             fermee_par = demandeur or session.ouverte_par
 
         resultat = CaisseSessionService.fermeture_session(
-            session=session, especes_comptees=especes_comptees,
-            fermee_par=fermee_par, notes=notes, depot=depot,
+            session=session,
+            especes_comptees=especes_comptees,
+            fermee_par=fermee_par,
+            notes=notes,
+            depot=depot,
+            montant_carte=montant_carte,
+            montant_mobile=montant_mobile,
+            montant_cheque=montant_cheque,
         )
 
         message = f"Session ferm\u00e9e. \u00c9cart: {resultat['ecart']} F"
@@ -278,8 +293,14 @@ def api_fermeture_session(request):
             message += " (Attention: \u00e9cart important)"
 
         return JsonResponse({
-            'success': True, 'message': message,
+            'success': True,
+            'message': message,
             'ecart': float(resultat['ecart']),
+            'ecart_especes': float(resultat['ecart_especes']),
+            'ecart_carte': float(resultat['ecart_carte']),
+            'ecart_mobile': float(resultat['ecart_mobile']),
+            'ecart_cheque': float(resultat['ecart_cheque']),
+            'especes_attendues': float(resultat['especes_attendues']),
             'total_ventes': float(resultat['total_ventes']),
         })
 
@@ -293,42 +314,94 @@ def api_fermeture_session(request):
 @login_required
 @require_http_methods(["POST"])
 def api_cloturer_et_rouvrir(request):
+    return JsonResponse({
+        'success': False,
+        'error_code': 'FLOW_SESSION_V2',
+        'error': (
+            "La clôture automatique sans comptage est désactivée. "
+            "Effectuez le comptage, fermez la session, puis ouvrez la suivante."
+        ),
+    }, status=409)
+
+
+@csrf_exempt
+@login_required
+@require_http_methods(["POST"])
+def api_demarrer_passation(request):
     try:
-        data = json.loads(request.body)
-        session_id = data.get('session_id')
-        employe = getattr(request.user, 'employe', None)
-        if not employe:
-            return JsonResponse({'success': False, 'error': 'Aucun profil employ\u00e9'}, status=400)
+        data = json.loads(request.body or "{}")
+        session = get_session_autorisee(
+            data.get("session_id"),
+            request.user,
+            require_open=True,
+            allow_owner_finalize=True,
+        )
+        demandeur = getattr(request.user, "employe", None)
+        if not _user_can_gerer_sessions(request.user):
+            if not demandeur or session.ouverte_par_id != demandeur.id:
+                return JsonResponse({
+                    "success": False,
+                    "error_code": "SESSION_APPARTIENT_A_UN_AUTRE_CAISSIER",
+                    "error": "Seul le caissier propriétaire peut démarrer la passation.",
+                }, status=403)
+        session = CaisseSessionService.demarrer_passation(
+            session,
+            motif=data.get("motif", "Passation manuelle"),
+        )
+        return JsonResponse({
+            "success": True,
+            "session": {
+                "id": session.id,
+                "statut": session.statut,
+                "date_passation": session.date_passation.isoformat() if session.date_passation else None,
+                "passation_jusqua": session.passation_jusqua.isoformat() if session.passation_jusqua else None,
+                "motif": session.motif_passation,
+            },
+        })
+    except PermissionDenied as exc:
+        return JsonResponse({"success": False, "error": str(exc)}, status=403)
+    except Exception as exc:
+        return JsonResponse({"success": False, "error": str(exc)}, status=400)
 
-        session = get_session_autorisee(session_id, request.user, require_open=True)
-        if not session.point_vente:
-            return JsonResponse({'success': False, 'error': 'Session sans point de vente'}, status=400)
 
-        CaisseSessionService.annuler_session(session)
-
-        reponse = {
-            'success': True,
-            'session_fermee': {'id': session.id},
-            'nouvelle_session': None,
-        }
-
-        nouveau_shift = _get_planning_actif(employe, session.point_vente)
-        if nouveau_shift:
-            ns = CaisseSessionService.ouverture_session(
-                caisse=session.caisse, point_vente=session.point_vente,
-                caissier=employe, shift=nouveau_shift,
+@csrf_exempt
+@login_required
+@require_http_methods(["POST"])
+def api_valider_session(request):
+    if not _user_can_gerer_sessions(request.user):
+        return JsonResponse({
+            "success": False,
+            "error": "Validation réservée à la direction, comptabilité ou RAF.",
+        }, status=403)
+    try:
+        data = json.loads(request.body or "{}")
+        session = get_object_or_404(
+            SessionCaisse,
+            id=data.get("session_id"),
+            point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+        )
+        validateur = getattr(request.user, "employe", None)
+        if validateur is None and data.get("validee_par_id"):
+            validateur = get_object_or_404(
+                Employe,
+                id=data.get("validee_par_id"),
+                actif=True,
             )
-            reponse['nouvelle_session'] = {
-                'id': ns.id, 'solde_initial': float(ns.solde_initial),
-                'date_ouverture': ns.date_ouverture.strftime('%d/%m/%Y %H:%M'),
-            }
-
-        return JsonResponse(reponse)
-
-    except PermissionDenied as e:
-        return JsonResponse({'success': False, 'error': str(e)}, status=403)
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)})
+        if validateur is None:
+            return JsonResponse({
+                "success": False,
+                "error": "Un profil employé validateur est obligatoire.",
+            }, status=400)
+        session = CaisseSessionService.valider_session(session, validateur)
+        return JsonResponse({
+            "success": True,
+            "session_id": session.id,
+            "statut": session.statut,
+            "date_validation": session.date_validation.isoformat(),
+            "validee_par": validateur.nom_complet,
+        })
+    except Exception as exc:
+        return JsonResponse({"success": False, "error": str(exc)}, status=400)
 
 
 @login_required
@@ -352,7 +425,7 @@ def api_session_active(request, point_vente_id):
     if not cpv:
         return JsonResponse({'success': False, 'error': 'Aucune caisse associ\u00e9e'})
 
-    session = get_session_active_caisse(cpv.caisse)
+    session = get_session_non_finalisee_caisse(cpv.caisse)
 
     if session:
         return JsonResponse({
@@ -367,6 +440,12 @@ def api_session_active(request, point_vente_id):
                 } if session.ouverte_par else None,
                 'solde_initial': float(session.solde_initial),
                 'date_ouverture': session.date_ouverture.strftime('%d/%m/%Y %H:%M'),
+                'statut': session.statut,
+                'mode_acces_ouverture': session.mode_acces_ouverture,
+                'raison_acces_ouverture': session.raison_acces_ouverture,
+                'acces_expire_le': session.acces_expire_le.isoformat() if session.acces_expire_le else None,
+                'date_passation': session.date_passation.isoformat() if session.date_passation else None,
+                'passation_jusqua': session.passation_jusqua.isoformat() if session.passation_jusqua else None,
                 'total_ventes': float(session.total_ventes),
                 'nombre_ventes': session.nombre_ventes,
             }
@@ -403,6 +482,24 @@ def api_verifier_etat_pos(request, point_vente_id):
         action=ActionPOS.ACCEDER,
     )
     session_non_finalisee = get_session_non_finalisee_caisse(caisse)
+    if (
+        session_non_finalisee
+        and session_non_finalisee.statut == 'OUVERTE'
+        and not decision.allowed
+    ):
+        session_non_finalisee = CaisseSessionService.demarrer_passation(
+            session_non_finalisee,
+            motif=f"Accès expiré: {decision.reason}",
+        )
+    if (
+        session_non_finalisee
+        and session_non_finalisee.statut == 'EN_PASSATION'
+        and session_non_finalisee.passation_jusqua
+        and timezone.now() > session_non_finalisee.passation_jusqua
+    ):
+        session_non_finalisee.statut = 'EN_COMPTAGE'
+        session_non_finalisee.save(update_fields=['statut', 'updated_at'])
+
     est_proprietaire = bool(
         session_non_finalisee
         and session_non_finalisee.ouverte_par_id == employe.id
@@ -439,7 +536,7 @@ def api_verifier_etat_pos(request, point_vente_id):
         session_non_finalisee
         if session_non_finalisee
         and (
-            session_non_finalisee.statut == 'EN_COMPTAGE'
+            session_non_finalisee.statut in ('EN_PASSATION', 'EN_COMPTAGE')
             or not decision.allowed
         )
         and est_proprietaire
@@ -462,6 +559,22 @@ def api_verifier_etat_pos(request, point_vente_id):
             'statut': session_a_fermer.statut,
             'point_vente': point_vente.nom,
             'raison': decision.reason,
+            'solde_initial': float(session_a_fermer.solde_initial),
+            'total_especes': float(session_a_fermer.total_especes),
+            'especes_attendues': float(
+                Decimal(str(session_a_fermer.solde_initial or 0))
+                + Decimal(str(session_a_fermer.total_especes or 0))
+            ),
+            'total_carte': float(session_a_fermer.total_carte),
+            'total_mobile_money': float(session_a_fermer.total_mobile_money),
+            'date_passation': (
+                session_a_fermer.date_passation.isoformat()
+                if session_a_fermer.date_passation else None
+            ),
+            'passation_jusqua': (
+                session_a_fermer.passation_jusqua.isoformat()
+                if session_a_fermer.passation_jusqua else None
+            ),
         } if session_a_fermer else None,
         'nouveau_planning': {
             'debut': planning_actif.debut_prevu.strftime('%H:%M'),
