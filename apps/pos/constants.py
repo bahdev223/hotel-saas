@@ -84,10 +84,11 @@ ROLE_PERMISSION_PRESETS = {
 
 class StatutSession(models.TextChoices):
     OUVERTE = "OUVERTE", "Ouverte"
+    EN_PASSATION = "EN_PASSATION", "En passation"
     EN_COMPTAGE = "EN_COMPTAGE", "En comptage"
-    FERMEE = "FERMEE", "Ferm\u00e9e"
-    VALIDEE = "VALIDEE", "Valid\u00e9e"
-    ANNULEE = "ANNULEE", "Annul\u00e9e"
+    FERMEE = "FERMEE", "Fermée"
+    VALIDEE = "VALIDEE", "Validée"
+    ANNULEE = "ANNULEE", "Annulée"
 
 
 class StatutShift(models.TextChoices):
