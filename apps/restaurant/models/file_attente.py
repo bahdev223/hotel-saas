@@ -15,6 +15,13 @@ class FileAttenteModel(models.Model):
     nom_client = models.CharField(max_length=100, blank=True, null=True)
     telephone = models.CharField(max_length=20, blank=True, null=True)
     date_entree = models.DateTimeField(auto_now_add=True)
+    point_vente = models.ForeignKey(
+        'pos.PointVente',
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='file_attente_restaurant',
+    )
     table_assigned = models.CharField(max_length=10, blank=True, null=True)
     table = models.ForeignKey(
         'restaurant.TableModel',
