@@ -42,10 +42,13 @@ class Command(BaseCommand):
 
         now = timezone.localtime()
 
-        # 1. Sessions OUVERTE > 24h
+        # 1. Accès POS expiré/révoqué pendant une session ouverte.
+        self._checker_acces_expire(now)
+
+        # 2. Sessions OUVERTE > 24h
         self._checker_session_orpheline(now)
 
-        # 2. Multiples sessions OUVERTE sur m\u00eame caisse
+        # 3. Multiples sessions OUVERTE sur même caisse
         self._checker_multi_sessions()
 
         # Bilan
@@ -75,6 +78,8 @@ class Command(BaseCommand):
         self.anomalies.append(entry)
         self.stdout.write(f"  [{type_anomalie}] Session #{session.id} ({session.point_vente or '?'}) \u2014 {message}")
 
+        return entry
+
     def _corriger(self, entry, action):
         entry['corrigee'] = True
         self.corrections.append(action)
@@ -83,6 +88,50 @@ class Command(BaseCommand):
     def _apply(self, savecallback):
         if self.fix and not self.dry_run:
             savecallback()
+
+    def _checker_acces_expire(self, now):
+        from apps.pos.constants import ActionPOS, POINTS_VENTE_OPERATIONNELS
+        from apps.pos.models import SessionCaisse
+        from apps.pos.services.access_service import POSAccessService
+
+        sessions = (
+            SessionCaisse.objects
+            .filter(
+                statut='OUVERTE',
+                point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+            )
+            .select_related('point_vente', 'ouverte_par', 'ouverte_par__user')
+        )
+
+        for session in sessions:
+            employe = session.ouverte_par
+            if employe is None:
+                continue
+
+            decision = POSAccessService.check(
+                user=employe.user,
+                employe=employe,
+                point_vente=session.point_vente,
+                action=ActionPOS.ACCEDER,
+                moment=now,
+            )
+            if decision.allowed:
+                continue
+
+            entry = self._log_anomalie(
+                session,
+                'ACCES_POS_EXPIRE',
+                f"Accès POS non valide ({decision.reason}) — comptage requis",
+            )
+
+            def fix(sess=session, reason=decision.reason):
+                sess.statut = 'EN_COMPTAGE'
+                suffix = f"Accès POS expiré/révoqué: {reason}"
+                sess.notes = f"{sess.notes} | {suffix}" if sess.notes else suffix
+                sess.save(update_fields=['statut', 'notes'])
+
+            self._apply(fix)
+            self._corriger(entry, "Session passée en EN_COMPTAGE")
 
     def _checker_session_orpheline(self, now):
         from apps.pos.models import SessionCaisse
@@ -96,10 +145,10 @@ class Command(BaseCommand):
                 )
 
                 def fix():
-                    s.statut = 'SUSPENDUE'
+                    s.statut = 'EN_COMPTAGE'
                     s.save(update_fields=['statut'])
                 self._apply(fix)
-                self._corriger(entry, "Session suspendue")
+                self._corriger(entry, "Session passée en EN_COMPTAGE")
 
     def _checker_multi_sessions(self):
         from apps.pos.models import SessionCaisse
@@ -120,7 +169,7 @@ class Command(BaseCommand):
                 )
 
                 def fix(sess=s):
-                    sess.statut = 'SUSPENDUE'
+                    sess.statut = 'EN_COMPTAGE'
                     sess.save(update_fields=['statut'])
                 self._apply(fix)
-                self._corriger(entry, "Session suspendue (conflit)")
+                self._corriger(entry, "Session passée en EN_COMPTAGE (conflit)")
