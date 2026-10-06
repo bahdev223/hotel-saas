@@ -313,17 +313,15 @@ class POSAccessService:
                 point_vente=point_vente,
             )
 
+        # Finalisation d'une session déjà engagée : on conserve la
+        # capacité métier historique même si l'affectation vient d'expirer ou
+        # d'être désactivée. Ce chemin ne permet ni vente ni encaissement.
         affectations = list(
             AffectationPointVente.objects.filter(
                 employe=employe,
-                actif=True,
-            )
-            .filter(
-                Q(date_debut__isnull=True) | Q(date_debut__lte=moment.date()),
-                Q(date_fin__isnull=True) | Q(date_fin__gte=moment.date()),
             )
             .select_related("point_vente")
-            .order_by("-principal", "id")
+            .order_by("-actif", "-principal", "id")
         )
         candidates = [
             a
