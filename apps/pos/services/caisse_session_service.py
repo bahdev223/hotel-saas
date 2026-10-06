@@ -9,7 +9,7 @@ from apps.rh.models import Employe
 from apps.tresorerie.models import Caisse
 
 
-def get_session_autorisee(session_id, user, require_open=False):
+def get_session_autorisee(session_id, user, require_open=False, allow_owner_finalize=False):
     from django.core.exceptions import PermissionDenied
     from apps.authentication.groups import PATRON, MANAGER, COMPTABLE, RAF
     from apps.pos.constants import ActionPOS, POINTS_VENTE_OPERATIONNELS
@@ -35,9 +35,25 @@ def get_session_autorisee(session_id, user, require_open=False):
             action=ActionPOS.ACCEDER,
         )
         if not decision.allowed:
-            raise PermissionDenied(
-                f"Session non autorisée pour ce profil ({decision.reason})."
-            )
+            employe = getattr(user, "employe", None)
+            owner_can_finalize = False
+            if (
+                allow_owner_finalize
+                and employe is not None
+                and session.ouverte_par_id == employe.id
+            ):
+                finalisation = POSAccessService.check_capability(
+                    user=user,
+                    employe=employe,
+                    point_vente=session.point_vente,
+                    action=ActionPOS.FERMER_CAISSE,
+                )
+                owner_can_finalize = finalisation.allowed
+
+            if not owner_can_finalize:
+                raise PermissionDenied(
+                    f"Session non autorisée pour ce profil ({decision.reason})."
+                )
 
     if require_open and session.statut not in ("OUVERTE", "EN_COMPTAGE"):
         raise PermissionDenied("Cette session n'est plus ouverte.")
