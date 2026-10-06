@@ -402,6 +402,21 @@ def api_affectation_enregistrer(request):
                 AffectationPointVente.objects.select_for_update(),
                 id=affectation_id,
             )
+        else:
+            # Réutiliser une ancienne affectation identique désactivée plutôt
+            # que heurter la contrainte (employé, point de vente, rôle).
+            existing = (
+                AffectationPointVente.objects.select_for_update()
+                .filter(
+                    employe=employe,
+                    point_vente=point_vente,
+                    role=role,
+                )
+                .order_by("-actif", "-principal", "id")
+                .first()
+            )
+
+        if existing is not None:
             if existing.mode_acces == ModeAccesPOS.TOTAL and not _can_grant_total(request.user):
                 return JsonResponse({
                     "success": False,
