@@ -425,7 +425,7 @@ def api_affectation_enregistrer(request):
 
             sessions_existantes = SessionCaisse.objects.filter(
                 ouverte_par=existing.employe,
-                statut__in=("OUVERTE", "EN_COMPTAGE"),
+                statut__in=("OUVERTE", "EN_PASSATION", "EN_COMPTAGE"),
                 point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
             )
             if existing.mode_acces != ModeAccesPOS.TOTAL:
