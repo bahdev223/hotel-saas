@@ -133,6 +133,18 @@
                            placeholder="Ex: Restaurant principal, Bar piscine">
                 </div>
                 <div>
+                    <label class="block text-sm font-medium text-on-surface mb-1">Type *</label>
+                    <select x-model="ajoutType" required
+                            class="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 bg-surface-card">
+                        <option value="">Sélectionner...</option>
+                        <option value="BAR">Bar</option>
+                        <option value="RESTAURATION">Restaurant</option>
+                    </select>
+                    <p class="text-xs text-on-surface-muted mt-1">
+                        Le POS Hôtel est limité au Bar et au Restaurant.
+                    </p>
+                </div>
+                <div>
                     <label class="block text-sm font-medium text-on-surface mb-1">Compte associé *</label>
                     <select x-model="ajoutCaisseId" required class="w-full px-3 py-2 border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 bg-surface-card">
                         <option value="">Sélectionner un compte...</option>
@@ -143,9 +155,8 @@
                 </div>
                 <div x-show="ajoutSuccess" class="bg-emerald-50 border border-emerald-300 rounded-lg p-4 text-sm text-emerald-800">
                     <i class="fas fa-check-circle mr-2"></i>
-                    Point de vente créé. <span class="font-semibold" x-text="ajoutSuccessNom"></span><br>
-                    Login: <strong x-text="ajoutSuccessUser"></strong><br>
-                    Mot de passe: <strong x-text="ajoutSuccessPass"></strong>
+                    Point de vente créé :
+                    <span class="font-semibold" x-text="ajoutSuccessNom"></span>.
                 </div>
                 <div x-show="ajoutErreur" class="bg-red-50 border border-red-300 rounded-lg p-3 text-sm text-red-700" x-text="ajoutErreur"></div>
                 <div class="flex gap-3 pt-2" x-show="!ajoutSuccess">
@@ -176,11 +187,10 @@ function posDashboard() {
         loading: true,
         modalAjouter: false,
         ajoutNom: '',
+        ajoutType: '',
         ajoutCaisseId: '',
         ajoutSuccess: false,
         ajoutSuccessNom: '',
-        ajoutSuccessUser: '',
-        ajoutSuccessPass: '',
         ajoutErreur: '',
         saving: false,
         caissesDisponibles: [],
@@ -213,15 +223,17 @@ function posDashboard() {
                 const r = await fetch('/pos/api/point-vente/ajouter/', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json', 'X-CSRFToken': '{{ csrf_token }}'},
-                    body: JSON.stringify({nom: this.ajoutNom, caisse_id: this.ajoutCaisseId})
+                    body: JSON.stringify({
+                        nom: this.ajoutNom,
+                        type: this.ajoutType,
+                        caisse_id: this.ajoutCaisseId
+                    })
                 });
                 const d = await r.json();
                 this.saving = false;
                 if (d.success) {
                     this.ajoutSuccess = true;
                     this.ajoutSuccessNom = d.point.nom;
-                    this.ajoutSuccessUser = d.point.username;
-                    this.ajoutSuccessPass = d.point.password;
                 } else {
                     this.ajoutErreur = d.error;
                 }
