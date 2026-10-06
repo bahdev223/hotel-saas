@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import F, Q
 
 
 class HoraireAffectation(models.Model):
@@ -33,6 +34,10 @@ class HoraireAffectation(models.Model):
             models.UniqueConstraint(
                 fields=["affectation", "jour_semaine", "heure_debut", "heure_fin"],
                 name="unique_horaire_pos_affectation",
+            ),
+            models.CheckConstraint(
+                condition=~Q(heure_debut=F("heure_fin")),
+                name="horaire_pos_debut_fin_differents",
             ),
         ]
 
