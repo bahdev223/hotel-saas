@@ -2,12 +2,21 @@ from django.db import models
 
 
 class TypePointVente(models.TextChoices):
-    RESTAURATION = "RESTAURATION", "Restauration"
+    RESTAURATION = "RESTAURATION", "Restaurant"
     BAR = "BAR", "Bar"
-    BOUTIQUE = "BOUTIQUE", "Boutique"
-    RECEPTION = "RECEPTION", "R\u00e9ception"
-    ROOM_SERVICE = "ROOM_SERVICE", "Room service"
-    AUTRE = "AUTRE", "Autre"
+
+    # Valeurs historiques : elles restent lisibles en base mais ne font plus
+    # partie du périmètre opérationnel Vente/POS V2.
+    BOUTIQUE = "BOUTIQUE", "Hors périmètre POS - Boutique"
+    RECEPTION = "RECEPTION", "Hors périmètre POS - Réception"
+    ROOM_SERVICE = "ROOM_SERVICE", "Hors périmètre POS - Room service"
+    AUTRE = "AUTRE", "Hors périmètre POS - Autre"
+
+
+POINTS_VENTE_OPERATIONNELS = frozenset({
+    TypePointVente.RESTAURATION,
+    TypePointVente.BAR,
+})
 
 
 class ModePrelevement(models.TextChoices):
@@ -21,6 +30,24 @@ class RolePOS(models.TextChoices):
     RESPONSABLE = "RESPONSABLE", "Responsable"
     SUPERVISEUR = "SUPERVISEUR", "Superviseur"
     PREPARATEUR = "PREPARATEUR", "Pr\u00e9parateur"
+
+
+class ModeAccesPOS(models.TextChoices):
+    TOTAL = "TOTAL", "Accès total"
+    PERMANENT = "PERMANENT", "Accès permanent"
+    HORAIRES = "HORAIRES", "Accès selon horaires"
+    PLANNING = "PLANNING", "Accès selon planning"
+
+
+class ActionPOS:
+    ACCEDER = "ACCEDER"
+    VENDRE = "VENDRE"
+    ENCAISSER = "ENCAISSER"
+    OUVRIR_CAISSE = "OUVRIR_CAISSE"
+    FERMER_CAISSE = "FERMER_CAISSE"
+    ANNULER_VENTE = "ANNULER_VENTE"
+    ACCORDER_REMISE = "ACCORDER_REMISE"
+    CONSULTER_RAPPORTS = "CONSULTER_RAPPORTS"
 
 
 class StatutSession(models.TextChoices):
