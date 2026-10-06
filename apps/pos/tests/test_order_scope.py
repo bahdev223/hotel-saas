@@ -123,6 +123,8 @@ class POSOrderScopeTests(TestCase):
         entrepot = Entrepot.objects.create(
             code="BAR-NO-CASH-STOCK",
             nom="Stock Bar sans caisse",
+            type_entrepot="BAR",
+            actif=True,
         )
         produit = Produit.objects.create(
             code="EAU-NO-CASH",
