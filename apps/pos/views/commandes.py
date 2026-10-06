@@ -321,11 +321,23 @@ def changer_statut_commande(request, commande_id):
             point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
         )
         nouveau_statut = data.get('statut')
+        statuts_valides = {value for value, _ in Commande.STATUT_CHOICES}
+        if nouveau_statut not in statuts_valides:
+            return JsonResponse({
+                'success': False,
+                'error_code': 'STATUT_COMMANDE_INVALIDE',
+                'error': "Statut de commande invalide.",
+            }, status=400)
 
+        action_requise = (
+            ActionPOS.ANNULER_VENTE
+            if nouveau_statut == 'ANNULEE'
+            else ActionPOS.ACCEDER
+        )
         decision = POSAccessService.check(
             user=request.user,
             point_vente=commande.point_vente,
-            action=ActionPOS.ACCEDER,
+            action=action_requise,
         )
         if not decision.allowed:
             return JsonResponse({
