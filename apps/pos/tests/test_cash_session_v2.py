@@ -195,6 +195,9 @@ class CashSessionV2Tests(TestCase):
         session.refresh_from_db()
         self.assertEqual(session.statut, "FERMEE")
         self.assertEqual(session.comptage.ecart_total, Decimal("0"))
+        self.assertEqual(session.solde_attendu, Decimal("12000"))
+        self.assertEqual(session.solde_reel, Decimal("12000"))
+        self.assertEqual(session.difference, Decimal("0"))
 
     def test_large_gap_requires_reason(self):
         session = self.open_session()
@@ -370,4 +373,42 @@ class CashSessionV2Tests(TestCase):
         session.refresh_from_db()
         self.assertEqual(session.statut, "EN_PASSATION")
         self.assertTrue(response.json()["planning_expire"])
+
+    def test_deposit_cannot_exceed_counted_cash(self):
+        session = self.open_session()
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "Le dépôt ne peut pas dépasser",
+        ):
+            CaisseSessionService.fermeture_session(
+                session=session,
+                especes_comptees=Decimal("10000"),
+                fermee_par=self.cashier,
+                depot=Decimal("11000"),
+            )
+
+    def test_negative_reconciliation_amount_is_rejected(self):
+        session = self.open_session()
+
+        with self.assertRaisesMessage(
+            ValueError,
+            "ne peut pas être négatif",
+        ):
+            CaisseSessionService.fermeture_session(
+                session=session,
+                especes_comptees=Decimal("-1"),
+                fermee_par=self.cashier,
+            )
+
+    def test_manual_handover_records_actor(self):
+        session = self.open_session()
+        session = CaisseSessionService.demarrer_passation(
+            session,
+            motif="Relève équipe soir",
+            par=self.cashier,
+        )
+
+        self.assertEqual(session.passation_par_id, self.cashier.id)
+        self.assertEqual(session.motif_passation, "Relève équipe soir")
 
