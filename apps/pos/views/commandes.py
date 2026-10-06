@@ -39,7 +39,19 @@ def deduire_stock_commande(commande, entrepot_id=None):
         except Exception:
             pass
     if not entrepot:
-        entrepot = commande.point_vente.entrepot
+        liaison = (
+            PointVenteEntrepot.objects
+            .filter(
+                point_vente=commande.point_vente,
+                actif=True,
+                autorise_vente=True,
+                entrepot__actif=True,
+            )
+            .select_related("entrepot")
+            .order_by("-principal", "priorite", "id")
+            .first()
+        )
+        entrepot = liaison.entrepot if liaison else None
     return RestaurantConsumptionService.consommer_commande(
         commande=commande, entrepot=entrepot,
         utilisateur=str(commande.created_by) if commande.created_by else 'POS',
@@ -60,13 +72,23 @@ def _deduire_emballage(commande):
     """Déduire 1 emballage du stock pour une commande à emporter"""
     try:
         pv = commande.point_vente
-        entrepot = pv.entrepot
+        entrepot = commande.entrepot
         if not entrepot:
-            ep = PointVenteEntrepot.objects.filter(point_vente=pv).first()
-            if ep:
-                entrepot = ep.entrepot
-            else:
-                return
+            ep = (
+                PointVenteEntrepot.objects
+                .filter(
+                    point_vente=pv,
+                    actif=True,
+                    autorise_vente=True,
+                    entrepot__actif=True,
+                )
+                .select_related("entrepot")
+                .order_by("-principal", "priorite", "id")
+                .first()
+            )
+            entrepot = ep.entrepot if ep else None
+        if not entrepot:
+            return
         emballage = Produit.objects.filter(
             actif=True,
             domaine__nom='RESTAURANT'
@@ -776,8 +798,13 @@ def api_creer_commande(request):
         
         # Déduire l'emballage si la commande est EMPORTER
         if commande.type_commande == 'EMPORTER' and (
-            commande.point_vente.entrepot or
-            PointVenteEntrepot.objects.filter(point_vente=commande.point_vente).exists()
+            commande.entrepot_id
+            or PointVenteEntrepot.objects.filter(
+                point_vente=commande.point_vente,
+                actif=True,
+                autorise_vente=True,
+                entrepot__actif=True,
+            ).exists()
         ):
             _deduire_emballage(commande)
         
