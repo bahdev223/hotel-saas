@@ -6,10 +6,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 import json
+from decimal import Decimal
 
 from apps.pos.models import Commande, LigneCommande
 from apps.pos.constants import ActionPOS, TypePointVente
 from apps.pos.services.access_service import POSAccessService
+from apps.stock.models import StockEntrepot, Produit
 from ..services.restaurant_service import RestaurantService, RestaurantWorkflowError
 
 
@@ -224,7 +226,21 @@ def api_cuisine_commande_detail(request, commande_id):
 @login_required
 def api_commande_ingredients(request, commande_id):
     """Récupère les ingrédients nécessaires pour une commande"""
-    commande = get_object_or_404(Commande, id=commande_id)
+    commande = get_object_or_404(
+        Commande.objects.select_related("point_vente", "entrepot"),
+        id=commande_id,
+        point_vente__type=TypePointVente.RESTAURATION,
+    )
+    decision = POSAccessService.check(
+        user=request.user,
+        point_vente=commande.point_vente,
+        action=ActionPOS.GERER_CUISINE,
+    )
+    if not decision.allowed:
+        return JsonResponse(
+            {'success': False, 'error': f"Accès cuisine refusé ({decision.reason})."},
+            status=403,
+        )
     entrepot = commande.entrepot
 
     ingredients = []
@@ -304,133 +320,39 @@ def api_commande_ingredients(request, commande_id):
                 'quantite': float(quantite),
                 'unite': ligne.produit.unite_base,
                 'stock': float(stock_qte),
-                'disponible': stock_qte >= quantite
-            })
-
-            if stock_qte < quantite:
-                stock_manquant.append({
-                    'produit': ligne.produit.nom,
-                    'requis': float(quantite),
-                    'disponible': float(stock_qte),
-                    'unite': ligne.produit.unite_base
-                })
-
-    return JsonResponse({
-        'success': True,
-        'ingredients': ingredients,
-        'stock_manquant': stock_manquant
-    })
-
-
-@login_required
+                'disponible': stock_qte >= q@login_required
 @csrf_exempt
+@require_http_methods(["POST"])
 def api_lancer_cuisson(request, commande_id):
-    """Lance la cuisson - déstockage via MouvementStockService"""
-    from apps.stock.services.mouvement_service import MouvementStockService
-
+    """Compatibilité ancienne UI : délègue désormais au workflow KDS unique."""
     try:
-        commande = get_object_or_404(Commande, id=commande_id)
-        entrepot = commande.entrepot
-        if not entrepot:
-            return JsonResponse({'success': False, 'error': 'Commande sans entrepôt associé'})
-
-        data = json.loads(request.body)
-        mode = data.get('mode', 'auto')
-        ingredients_manuels = data.get('ingredients', [])
-
-        # Récupérer les ingrédients à déstocker
-        ingredients_a_destock = []
-
-        if mode == 'manuel':
-            for ing in ingredients_manuels:
-                produit = get_object_or_404(Produit, id=ing['id'])
-                ingredients_a_destock.append({
-                    'produit': produit,
-                    'quantite': Decimal(str(ing['quantite'])),
-                    'nom': produit.nom
-                })
-        else:
-            for ligne in commande.lignes.all():
-                if ligne.recette:
-                    for ingredient in ligne.recette.ingredients.filter(type_ingredient='DEDUIRE', produit__isnull=False):
-                        if not ingredient.quantite:
-                            continue
-                        ingredients_a_destock.append({
-                            'produit': ingredient.produit,
-                            'quantite': ingredient.quantite * ligne.quantite,
-                            'nom': ingredient.produit.nom
-                        })
-
-                elif ligne.menu:
-                    for ligne_menu in ligne.menu.lignes.filter(type_ligne='FIXE'):
-                        if not ligne_menu.recette:
-                            continue
-                        for ingredient in ligne_menu.recette.ingredients.filter(type_ingredient='DEDUIRE', produit__isnull=False):
-                            if not ingredient.quantite:
-                                continue
-                            ingredients_a_destock.append({
-                                'produit': ingredient.produit,
-                                'quantite': ingredient.quantite * ligne.quantite * ligne_menu.quantite,
-                                'nom': ingredient.produit.nom
-                            })
-
-                elif ligne.produit:
-                    ingredients_a_destock.append({
-                        'produit': ligne.produit,
-                        'quantite': ligne.quantite,
-                        'nom': ligne.produit.nom
-                    })
-
-        # Grouper par produit
-        grouped = {}
-        for ing in ingredients_a_destock:
-            key = ing['produit'].id
-            if key not in grouped:
-                grouped[key] = {'produit': ing['produit'], 'quantite': Decimal('0'), 'nom': ing['nom']}
-            grouped[key]['quantite'] += ing['quantite']
-
-        # Vérifier le stock
-        stock_insuffisant = []
-        for ing in grouped.values():
-            stock = StockEntrepot.objects.filter(entrepot=entrepot, produit=ing['produit']).first()
-            stock_qte = stock.quantite if stock else Decimal('0')
-            if stock_qte < ing['quantite']:
-                stock_insuffisant.append({
-                    'produit': ing['nom'],
-                    'requis': float(ing['quantite']),
-                    'disponible': float(stock_qte)
-                })
-
-        if stock_insuffisant:
+        commande = get_object_or_404(
+            Commande.objects.select_related("point_vente", "entrepot"),
+            id=commande_id,
+            point_vente__type=TypePointVente.RESTAURATION,
+        )
+        data = json.loads(request.body or "{}")
+        if data.get("mode", "auto") != "auto":
             return JsonResponse({
-                'success': False,
-                'error': 'Stock insuffisant',
-                'details': stock_insuffisant
-            })
+                "success": False,
+                "error": (
+                    "Le déstockage manuel par cette route est désactivé. "
+                    "Corrigez la recette/commande puis relancez la préparation."
+                ),
+            }, status=400)
 
-        # Déstocker via MouvementStockService
-        for ing in grouped.values():
-            MouvementStockService.sortie_stock(
-                produit=ing['produit'],
-                entrepot=entrepot,
-                quantite=ing['quantite'],
-                utilisateur=request.user.username,
-                motif='consommation',
-                raison=f"Préparation commande #{commande.numero}",
-            )
-
-        commande.passer_en_preparation()
-
+        commande = RestaurantService.demarrer_preparation(
+            commande=commande,
+            user=request.user,
+        )
         return JsonResponse({
-            'success': True,
-            'message': f'Cuisson lancée pour commande #{commande.numero}',
-            'mouvements': [
-                {'produit': ing['nom'], 'quantite': float(ing['quantite'])}
-                for ing in grouped.values()
-            ]
+            "success": True,
+            "message": f"Préparation lancée pour commande #{commande.numero}",
+            "statut": commande.statut,
+            "statut_display": commande.get_statut_display(),
         })
+    except RestaurantWorkflowError as exc:
+        return JsonResponse({"success": False, "error": str(exc)}, status=409)
+    except Exception as exc:
+        return JsonResponse({"success": False, "error": str(exc)}, status=400)
 
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)})
-    
-    
