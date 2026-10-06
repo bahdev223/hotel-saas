@@ -106,8 +106,10 @@ def api_salle_etat(request):
 
             tables.append({
                 "id": table.id,
+                "salle_id": table.salle_id,
                 "numero": table.numero,
                 "capacite": table.capacite,
+                "actif": table.actif,
                 "statut": table.statut,
                 "statut_label": table.get_statut_display(),
                 "nombre_couverts": table.nombre_couverts,
@@ -137,6 +139,8 @@ def api_salle_etat(request):
             "id": salle.id,
             "code": salle.code,
             "nom": salle.nom,
+            "ordre": salle.ordre,
+            "actif": salle.actif,
             "tables": tables,
         })
 
