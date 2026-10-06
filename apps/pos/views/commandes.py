@@ -401,17 +401,8 @@ def api_payer_commande(request, commande_id):
         data = json.loads(request.body)
         mode_paiement = data.get('mode_paiement', 'ESPECES')
 
-        decision = POSAccessService.check(
-            user=request.user,
-            point_vente=commande.point_vente,
-            action=ActionPOS.ENCAISSER,
-        )
-        if not decision.allowed:
-            return JsonResponse({
-                'success': False,
-                'error_code': decision.reason,
-                'error': f"Encaissement refusé ({decision.reason}).",
-            }, status=403)
+        # Le service de règlement vérifie la session financière, son
+        # propriétaire et l'éventuelle fenêtre de passation.
 
         from apps.paiements.services.commande_settlement_service import (
             CommandeSettlementService,
