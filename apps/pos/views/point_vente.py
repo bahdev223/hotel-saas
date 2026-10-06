@@ -10,12 +10,17 @@ from apps.tresorerie.models import Caisse
 from apps.rh.models import Employe
 from apps.stock.models import Entrepot
 from apps.authentication.groups import PATRON, MANAGER, COMPTABLE, RAF
+from ..constants import ActionPOS, POINTS_VENTE_OPERATIONNELS, TypePointVente
+from ..services.access_service import POSAccessService
 
 
 def _get_employe_pv_ids(employe):
-    if not employe:
+    if not employe or not getattr(employe, "user", None):
         return []
-    return list(AffectationPointVente.objects.filter(employe=employe, actif=True).values_list('point_vente_id', flat=True))
+    return list(
+        POSAccessService.points_accessibles(user=employe.user)
+        .values_list("id", flat=True)
+    )
 
 
 @login_required
@@ -24,21 +29,13 @@ def liste_points_vente(request):
     is_admin = any(g in ['PATRON', 'MANAGER', 'COMPTABLE', 'RAF'] for g in user_groups)
 
     if not is_admin:
-        employe = getattr(request.user, 'employe', None)
-        if not employe:
-            messages.error(request, "Aucun profil employ\u00e9 trouv\u00e9.")
-            return redirect('dashboard:index')
-        pv_ids = _get_employe_pv_ids(employe)
-        for s in ShiftEmploye.objects.filter(
-            affectation__employe=employe
-        ).exclude(statut='ANNULE').select_related('affectation'):
-            if s.affectation and s.affectation.point_vente_id:
-                pv_ids.append(s.affectation.point_vente_id)
-        pv_ids = list(set(pv_ids))
-        if not pv_ids:
-            messages.error(request, "Aucun point de vente trouv\u00e9.")
+        points = POSAccessService.points_accessibles(
+            user=request.user,
+            action=ActionPOS.ACCEDER,
+        )
+        if not points.exists():
+            messages.error(request, "Aucun Bar ou Restaurant accessible actuellement.")
             return redirect('pos:employe_dashboard')
-        points = PointVente.objects.filter(id__in=pv_ids, actif=True).distinct()
         return render(request, 'pos/selection.html', {'points': points})
 
     context = {'is_admin': is_admin}
@@ -57,16 +54,15 @@ def api_point_vente_dashboard(request):
     today = date.today()
 
     if is_admin:
-        points = PointVente.objects.filter(actif=True).order_by('nom')
+        points = PointVente.objects.filter(
+            actif=True,
+            type__in=POINTS_VENTE_OPERATIONNELS,
+        ).order_by('nom')
     else:
-        pv_ids = _get_employe_pv_ids(employe)
-        for s in ShiftEmploye.objects.filter(
-            affectation__employe=employe, debut_prevu__date=today
-        ).exclude(statut='ANNULE').select_related('affectation'):
-            if s.affectation and s.affectation.point_vente_id:
-                pv_ids.append(s.affectation.point_vente_id)
-        pv_ids = list(set(pv_ids))
-        points = PointVente.objects.filter(id__in=pv_ids, actif=True).order_by('nom')
+        points = POSAccessService.points_accessibles(
+            user=request.user,
+            action=ActionPOS.ACCEDER,
+        ).order_by('nom')
 
     points_data = []
     for p in points:
@@ -96,7 +92,11 @@ def api_point_vente_dashboard(request):
         })
 
     total_points = points.count()
-    total_sales_today = Vente.objects.filter(created_at__date=today, statut='PAYEE').aggregate(t=Sum('montant_total'))['t'] or 0
+    total_sales_today = Vente.objects.filter(
+        created_at__date=today,
+        statut='PAYEE',
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+    ).aggregate(t=Sum('montant_total'))['t'] or 0
     caisses_ids = CaissePointVente.objects.filter(actif=True).values_list('caisse_id', flat=True)
     caisses_libres = Caisse.objects.exclude(id__in=caisses_ids).filter(actif=True)
     caisses_disponibles = list(caisses_libres.order_by('nom').values('id', 'nom', 'solde'))
@@ -118,8 +118,12 @@ def ajouter_point_vente(request):
         try:
             nom = request.POST.get('nom')
             caisse_id = request.POST.get('caisse_id')
-            if not nom or not caisse_id:
-                messages.error(request, 'Le nom et la caisse sont obligatoires')
+            type_point = request.POST.get('type')
+            if not nom or not caisse_id or type_point not in POINTS_VENTE_OPERATIONNELS:
+                messages.error(
+                    request,
+                    'Le nom, la caisse et le type Bar/Restaurant sont obligatoires.',
+                )
                 return redirect('pos:ajouter_point_vente')
             caisse = get_object_or_404(Caisse, id=caisse_id)
             prefixe = 'PV'
@@ -132,7 +136,12 @@ def ajouter_point_vente(request):
             else:
                 num = 1
             code = f"{prefixe}-{num:03d}"
-            point = PointVente.objects.create(code=code, nom=nom, type='AUTRE', actif=True)
+            point = PointVente.objects.create(
+                code=code,
+                nom=nom,
+                type=type_point,
+                actif=True,
+            )
             CaissePointVente.objects.create(point_vente=point, caisse=caisse, principale=True)
             messages.success(request, f'\u2705 Point de vente "{point.nom}" cr\u00e9\u00e9.')
             return redirect('pos:detail_point_vente', point_id=point.id)
@@ -141,7 +150,13 @@ def ajouter_point_vente(request):
 
     caisses_ids = CaissePointVente.objects.filter(actif=True).values_list('caisse_id', flat=True)
     caisses_disponibles = Caisse.objects.exclude(id__in=caisses_ids).filter(actif=True).order_by('nom')
-    context = {'caisses_disponibles': caisses_disponibles}
+    context = {
+        'caisses_disponibles': caisses_disponibles,
+        'type_choices': [
+            (TypePointVente.BAR, 'Bar'),
+            (TypePointVente.RESTAURATION, 'Restaurant'),
+        ],
+    }
     return render(request, 'pos/ajouter.html', context)
 
 
@@ -231,7 +246,10 @@ def modifier_point_vente(request, point_id):
     if request.method == 'POST':
         try:
             point.nom = request.POST.get('nom')
-            point.type = request.POST.get('type', point.type)
+            type_point = request.POST.get('type', point.type)
+            if type_point not in POINTS_VENTE_OPERATIONNELS:
+                raise ValueError("Le POS Hôtel gère uniquement Bar et Restaurant.")
+            point.type = type_point
             point.actif = request.POST.get('actif') == 'on'
             point.save()
             messages.success(request, f'Point de vente "{point.nom}" modifi\u00e9')
@@ -239,10 +257,12 @@ def modifier_point_vente(request, point_id):
         except Exception as e:
             messages.error(request, f'Erreur: {str(e)}')
 
-    from ..constants import TypePointVente
     context = {
         'point': point,
-        'type_choices': TypePointVente.choices,
+        'type_choices': [
+            (TypePointVente.BAR, 'Bar'),
+            (TypePointVente.RESTAURATION, 'Restaurant'),
+        ],
     }
     return render(request, 'pos/modifier.html', context)
 
@@ -299,7 +319,10 @@ def liste_ventes(request):
     from ..models import Vente as VenteM, SessionCaisse as SC
     from apps.stock.models import Produit as Prod
 
-    points_vente = PointVente.objects.filter(actif=True)
+    points_vente = PointVente.objects.filter(
+        actif=True,
+        type__in=POINTS_VENTE_OPERATIONNELS,
+    )
     employe_ids = VenteM.objects.filter(caissier__isnull=False).values_list('caissier_id', flat=True).union(
         VenteM.objects.filter(encaisse_par__isnull=False).values_list('encaisse_par_id', flat=True)
     )
