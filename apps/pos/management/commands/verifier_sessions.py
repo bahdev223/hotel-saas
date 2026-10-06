@@ -96,6 +96,7 @@ class Command(BaseCommand):
         from apps.pos.constants import ActionPOS, POINTS_VENTE_OPERATIONNELS
         from apps.pos.models import SessionCaisse
         from apps.pos.services.access_service import POSAccessService
+        from apps.pos.services.caisse_session_service import CaisseSessionService
 
         sessions = (
             SessionCaisse.objects
