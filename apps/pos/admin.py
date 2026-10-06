@@ -42,6 +42,7 @@ class PointVenteAdmin(ModelAdmin):
     list_filter = ['type', 'actif']
     search_fields = ['code', 'nom']
     autocomplete_fields = []
+    exclude = ['exiger_planning_pour_acces', 'exiger_planning_pour_caisse']
     inlines = [CaissePointVenteInline, AffectationInline]
 
     def formfield_for_choice_field(self, db_field, request, **kwargs):
