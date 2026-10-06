@@ -141,17 +141,30 @@ def pos_by_slug(request, slug):
         get_session_non_finalisee_caisse(caisse)
         if caisse else None
     )
-    can_close_cash = POSAccessService.check_capability(
-        user=request.user,
-        employe=employe,
-        point_vente=point_vente,
-        action=ActionPOS.FERMER_CAISSE,
-    ).allowed
+    session_close_allowed = False
+    if (
+        session_non_finalisee
+        and session_non_finalisee.ouverte_par_id == employe.id
+    ):
+        session_close_allowed, _ = (
+            CaisseSessionService.autoriser_finalisation_session(
+                session_non_finalisee,
+                employe,
+            )
+        )
+    current_close_allowed = (
+        POSAccessService.can(
+            user=request.user,
+            employe=employe,
+            point_vente=point_vente,
+            action=ActionPOS.FERMER_CAISSE,
+        )
+        if access_decision.allowed else False
+    )
+    can_close_cash = bool(session_close_allowed or current_close_allowed)
     finalisation_only = bool(
         not access_decision.allowed
-        and session_non_finalisee
-        and session_non_finalisee.ouverte_par_id == employe.id
-        and can_close_cash
+        and session_close_allowed
     )
 
     if not access_decision.allowed and not finalisation_only:
