@@ -5,6 +5,7 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
         <div class="pill-nav">
             <a href="{% url 'restaurant:dashboard' %}" class="{% if request.resolver_match.view_name == 'restaurant:dashboard' %}active{% endif %}"><i class="fas fa-chart-pie mr-1.5"></i>Dashboard</a>
+            <a href="{% url 'restaurant:salle_dashboard' %}" class="{% if 'salle' in request.resolver_match.view_name or 'table' in request.resolver_match.view_name %}active{% endif %}"><i class="fas fa-chair mr-1.5"></i>Salle</a>
             <a href="{% url 'restaurant:cuisine_dashboard' %}" class="{% if 'cuisine' in request.resolver_match.view_name %}active{% endif %}"><i class="fas fa-fire mr-1.5"></i>Cuisine</a>
             <a href="{% url 'restaurant:produits_stock' %}" class="{% if 'produits' in request.resolver_match.view_name %}active{% endif %}"><i class="fas fa-box mr-1.5"></i>Produits</a>
             <a href="{% url 'restaurant:recettes' %}" class="{% if 'recettes' in request.resolver_match.view_name %}active{% endif %}"><i class="fas fa-utensil-spoon mr-1.5"></i>Recettes</a>
