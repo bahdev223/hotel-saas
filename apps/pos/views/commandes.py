@@ -485,29 +485,110 @@ def api_creer_commande(request):
                 'error': f"Aucune session de caisse ouverte sur {point_vente.nom}. Ouvrez une session avant de commander."
             }, status=403)
 
-        # R2 : entrepôt sélectionné (ou premier disponible)
+        # Prévalidation complète AVANT toute écriture SQL.
         from django.db.models import Sum
+        from apps.restaurant.services.menu_service import MenuService
+
         entrepot_utilise = PointVenteService.get_entrepot_utilise(
             point_vente, data.get('entrepot_id')
         )
-        for item in data.get('lignes', []):
-            if item.get('type_article') == 'PRODUIT':
-                produit_id = item.get('produit_id')
-                if not produit_id:
-                    continue
+        lignes_payload = data.get('lignes', [])
+        if not isinstance(lignes_payload, list) or not lignes_payload:
+            return JsonResponse({
+                'success': False,
+                'error_code': 'LIGNES_REQUISES',
+                'error': "La commande doit contenir au moins un article.",
+            }, status=400)
+
+        for index, item in enumerate(lignes_payload, start=1):
+            type_art = item.get('type_article', 'PRODUIT')
+            if type_art not in ('PRODUIT', 'MENU', 'LOCATION'):
+                return JsonResponse({
+                    'success': False,
+                    'error_code': 'TYPE_ARTICLE_INVALIDE',
+                    'error': f"Ligne #{index}: type d'article inconnu ({type_art}).",
+                }, status=400)
+
+            try:
                 qte = Decimal(str(item.get('quantite', 1)))
-                stock_total = Decimal('0')
-                if entrepot_utilise:
-                    stock_total = StockEntrepot.objects.filter(
-                        entrepot_id=entrepot_utilise, produit_id=produit_id
-                    ).aggregate(total=Sum('quantite'))['total'] or Decimal('0')
-                if stock_total < qte:
-                    produit = Produit.objects.filter(id=produit_id).first()
-                    nom = produit.nom if produit else 'Inconnu'
+            except Exception:
+                return JsonResponse({
+                    'success': False,
+                    'error_code': 'QUANTITE_INVALIDE',
+                    'error': f"Ligne #{index}: quantité invalide.",
+                }, status=400)
+            if qte <= 0:
+                return JsonResponse({
+                    'success': False,
+                    'error_code': 'QUANTITE_INVALIDE',
+                    'error': f"Ligne #{index}: la quantité doit être strictement positive.",
+                }, status=400)
+
+            if type_art == 'LOCATION':
+                return JsonResponse({
+                    'success': False,
+                    'error_code': 'HORS_PERIMETRE_POS',
+                    'error': (
+                        "Le POS Bar/Restaurant ne gère pas les chambres ou locations. "
+                        "Utilisez le domaine Hébergement."
+                    ),
+                }, status=400)
+
+            if type_art == 'PRODUIT':
+                produit_id = item.get('produit_id')
+                produit = Produit.objects.filter(
+                    id=produit_id,
+                    actif=True,
+                ).first()
+                if produit is None:
                     return JsonResponse({
                         'success': False,
-                        'error': f"Stock insuffisant pour {nom} dans cet entrepôt: {float(stock_total)} disponible(s), {float(qte)} demandé(s)"
-                    })
+                        'error_code': 'PRODUIT_INVALIDE',
+                        'error': f"Ligne #{index}: produit introuvable ou inactif.",
+                    }, status=400)
+
+                stock_total = Decimal('0')
+                if entrepot_utilise:
+                    stock_total = (
+                        StockEntrepot.objects.filter(
+                            entrepot_id=entrepot_utilise,
+                            produit_id=produit_id,
+                        ).aggregate(total=Sum('quantite'))['total']
+                        or Decimal('0')
+                    )
+                if stock_total < qte:
+                    return JsonResponse({
+                        'success': False,
+                        'error_code': 'STOCK_INSUFFISANT',
+                        'error': (
+                            f"Stock insuffisant pour {produit.nom} : "
+                            f"{float(stock_total)} disponible(s), "
+                            f"{float(qte)} demandé(s)."
+                        ),
+                    }, status=400)
+
+            elif type_art == 'MENU':
+                menu = MenuModel.objects.filter(
+                    id=item.get('menu_id'),
+                    actif=True,
+                ).first()
+                if menu is None:
+                    return JsonResponse({
+                        'success': False,
+                        'error_code': 'MENU_INVALIDE',
+                        'error': f"Ligne #{index}: menu introuvable ou inactif.",
+                    }, status=400)
+
+                validation = MenuService.valider_choix_menu(
+                    menu,
+                    item.get('choix', []),
+                )
+                if not validation['valid']:
+                    return JsonResponse({
+                        'success': False,
+                        'error_code': 'CHOIX_INVALIDE',
+                        'error': '; '.join(validation['errors']),
+                    }, status=400)
 
         type_commande = data.get('type_commande', 'SUR_PLACE')
         if type_commande not in dict(Commande.TYPE_CHOICES):
@@ -541,43 +622,17 @@ def api_creer_commande(request):
         
         total = Decimal('0')
         
-        for item in data.get('lignes', []):
+        for item in lignes_payload:
             type_art = item.get('type_article', 'PRODUIT')
-            if type_art not in ('PRODUIT', 'MENU', 'LOCATION'):
-                return JsonResponse({
-                    'success': False,
-                    'error_code': 'TYPE_ARTICLE_INVALIDE',
-                    'error': f"Type d'article POS inconnu : {type_art}.",
-                }, status=400)
             qte = Decimal(str(item.get('quantite', 1)))
-            if qte <= 0:
-                return JsonResponse({
-                    'success': False,
-                    'error_code': 'QUANTITE_INVALIDE',
-                    'error': "La quantité doit être strictement positive.",
-                }, status=400)
-            
+
             if type_art == 'LOCATION':
-                return JsonResponse({
-                    'success': False,
-                    'error_code': 'HORS_PERIMETRE_POS',
-                    'error': (
-                        "Le POS Bar/Restaurant ne gère pas les chambres ou locations. "
-                        "Utilisez le domaine Hébergement."
-                    ),
-                }, status=400)
+                # Impossible après prévalidation ; garde-fou transactionnel.
+                raise ValueError("Une ligne Hébergement a atteint le moteur POS.")
             elif type_art == 'MENU':
                 menu = get_object_or_404(MenuModel, id=item.get('menu_id'), actif=True)
-                # Validation des choix avant création
+                # Les choix ont déjà été validés avant toute écriture.
                 choix_list = item.get('choix', [])
-                from apps.restaurant.services.menu_service import MenuService
-                validation = MenuService.valider_choix_menu(menu, choix_list)
-                if not validation['valid']:
-                    return JsonResponse({
-                        'success': False,
-                        'error_code': 'CHOIX_INVALIDE',
-                        'error': '; '.join(validation['errors'])
-                    }, status=400)
                 prix = Decimal(str(menu.prix_vente))
                 ligne = LigneCommande.objects.create(commande=commande, menu=menu, quantite=qte, prix_unitaire=prix)
                 # Créer les choix client pour ce menu
@@ -643,7 +698,13 @@ def api_creer_commande(request):
         })
         
     except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)})
+        # La vue est sous @transaction.atomic : toute erreur survenue après le
+        # début des écritures doit invalider explicitement la transaction.
+        transaction.set_rollback(True)
+        return JsonResponse(
+            {'success': False, 'error': str(e)},
+            status=400,
+        )
 
 
 @login_required
