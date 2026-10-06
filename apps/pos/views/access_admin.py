@@ -3,8 +3,9 @@ from datetime import date, time
 
 from django.contrib.auth.decorators import login_required
 from django.db import IntegrityError, transaction
+from django.contrib import messages
 from django.http import JsonResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_GET, require_http_methods
 
@@ -234,6 +235,41 @@ def _serialize_affectation(affectation, *, include_decision=True):
         )
         data["acces_actuel"] = decision.to_dict()
     return data
+
+
+@login_required
+def acces_view(request):
+    if not _can_manage_access(request.user):
+        messages.error(
+            request,
+            "La gestion des accès POS est réservée à la direction et au manager.",
+        )
+        return redirect("pos:employe_dashboard")
+
+    points = PointVente.objects.filter(
+        actif=True,
+        type__in=POINTS_VENTE_OPERATIONNELS,
+    ).order_by("type", "nom")
+    employes = Employe.objects.filter(actif=True).order_by("nom", "prenom")
+
+    permission_labels = [
+        ("peut_vendre", "Vendre"),
+        ("peut_encaisser", "Encaisser"),
+        ("peut_ouvrir_caisse", "Ouvrir la caisse"),
+        ("peut_fermer_caisse", "Fermer la caisse"),
+        ("peut_annuler_vente", "Annuler une vente"),
+        ("peut_accorder_remise", "Accorder une remise"),
+        ("peut_consulter_rapports", "Consulter les rapports"),
+    ]
+
+    return render(request, "pos/acces.html", {
+        "points": points,
+        "employes": employes,
+        "roles": RolePOS.choices,
+        "modes_acces": ModeAccesPOS.choices,
+        "permission_labels": permission_labels,
+        "can_grant_total": _can_grant_total(request.user),
+    })
 
 
 @login_required
