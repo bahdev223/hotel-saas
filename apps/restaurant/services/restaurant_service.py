@@ -65,6 +65,10 @@ class RestaurantService:
         cls._assert_action(user, point, ActionPOS.GERER_SALLE)
         if not table.actif or table.statut == "HORS_SERVICE":
             raise RestaurantWorkflowError("Cette table est hors service.")
+        if table.statut != "LIBRE":
+            raise RestaurantWorkflowError(
+                f"Table {table.numero} indisponible ({table.get_statut_display()})."
+            )
         if cls.commande_active_table(table):
             raise RestaurantWorkflowError("Cette table possède déjà une commande active.")
 
@@ -107,6 +111,10 @@ class RestaurantService:
 
         if not table.actif or table.statut == "HORS_SERVICE":
             raise RestaurantWorkflowError("Table indisponible.")
+        if table.statut not in ("LIBRE", "OCCUPEE"):
+            raise RestaurantWorkflowError(
+                f"Table {table.numero} indisponible ({table.get_statut_display()})."
+            )
         if not table.salle_id or table.salle.point_vente_id != point.id:
             raise RestaurantWorkflowError(
                 "La table n'appartient pas à ce point de vente Restaurant."
