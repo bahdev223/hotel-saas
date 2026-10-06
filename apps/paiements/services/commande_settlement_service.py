@@ -37,8 +37,7 @@ class CommandeSettlementService:
         notes='',
     ):
         from apps.pos.models import Commande, CaissePointVente
-        from apps.pos.constants import ActionPOS, POINTS_VENTE_OPERATIONNELS
-        from apps.pos.services.access_service import POSAccessService
+        from apps.pos.constants import POINTS_VENTE_OPERATIONNELS
         from apps.paiements.models import Paiement
         from apps.tresorerie.services.mouvement_service import MouvementService
         from apps.restaurant.services.consumption_service import RestaurantConsumptionService
