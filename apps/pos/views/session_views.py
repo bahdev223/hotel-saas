@@ -416,32 +416,56 @@ def api_verifier_etat_pos(request, point_vente_id):
 
 @login_required
 def api_caissiers_disponibles(request, point_vente_id):
-    point_vente = get_object_or_404(PointVente, id=point_vente_id)
+    point_vente = get_object_or_404(
+        PointVente,
+        id=point_vente_id,
+        actif=True,
+        type__in=POINTS_VENTE_OPERATIONNELS,
+    )
 
     if not _user_can_gerer_sessions(request.user):
-        employe = getattr(request.user, 'employe', None)
-        pv_ids = _get_employe_pv_ids(employe)
-        a_acces = employe and (point_vente.id in pv_ids or _get_planning_actif(employe, point_vente) is not None)
-        if not a_acces:
-            return JsonResponse({'success': False, 'error': 'Non autoris\u00e9'}, status=403)
+        demandeur = POSAccessService.check(
+            user=request.user,
+            point_vente=point_vente,
+            action=ActionPOS.ACCEDER,
+        )
+        if not demandeur.allowed:
+            return JsonResponse({
+                'success': False,
+                'error_code': demandeur.reason,
+                'error': f"Accès refusé ({demandeur.reason}).",
+            }, status=403)
 
-    affectations = AffectationPointVente.objects.filter(
-        point_vente=point_vente, actif=True
-    ).filter(
-        Q(peut_ouvrir_caisse=True) | Q(peut_encaisser=True)
-    ).select_related('employe')
+    employes = Employe.objects.filter(
+        actif=True,
+        user__isnull=False,
+    ).select_related("user", "poste").order_by("nom", "prenom")
 
-    return JsonResponse({
-        'success': True,
-        'caissiers': [
-            {
-                'id': a.employe.id, 'nom': a.employe.nom, 'prenom': a.employe.prenom,
-                'nom_complet': a.employe.nom_complet, 'matricule': a.employe.matricule,
-                'role': a.get_role_display(),
-            }
-            for a in affectations
-        ]
-    })
+    caissiers = []
+    for employe in employes:
+        decision = POSAccessService.check(
+            user=employe.user,
+            employe=employe,
+            point_vente=point_vente,
+            action=ActionPOS.OUVRIR_CAISSE,
+        )
+        if not decision.allowed:
+            continue
+        caissiers.append({
+            'id': employe.id,
+            'nom': employe.nom,
+            'prenom': employe.prenom,
+            'nom_complet': employe.nom_complet,
+            'matricule': employe.matricule,
+            'mode_acces': decision.mode,
+            'access_reason': decision.reason,
+            'expires_at': (
+                decision.expires_at.isoformat()
+                if decision.expires_at else None
+            ),
+        })
+
+    return JsonResponse({'success': True, 'caissiers': caissiers})
 
 
 import csv
