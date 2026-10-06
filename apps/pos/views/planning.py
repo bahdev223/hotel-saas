@@ -10,7 +10,27 @@ import json
 from django.db.models import Q
 
 from ..models import PointVente, ShiftEmploye, AffectationPointVente
+from ..constants import ModeAccesPOS, POINTS_VENTE_OPERATIONNELS
 from apps.rh.models import Employe
+from apps.authentication.groups import MANAGER, PATRON
+
+
+def _can_manage_planning(user):
+    return bool(
+        user
+        and user.is_authenticated
+        and (
+            user.is_superuser
+            or user.groups.filter(name__in=[PATRON, MANAGER]).exists()
+        )
+    )
+
+
+def _refus_planning():
+    return JsonResponse(
+        {'success': False, 'error': 'Planning réservé à la direction et au manager.'},
+        status=403,
+    )
 
 
 def _intervalle_planning(debut_dt, fin_dt):
@@ -40,7 +60,12 @@ def _message_conflits(conflits):
 
 @login_required
 def planning_view(request):
-    points = PointVente.objects.filter(actif=True)
+    if not _can_manage_planning(request.user):
+        return _refus_planning()
+    points = PointVente.objects.filter(
+        actif=True,
+        type__in=POINTS_VENTE_OPERATIONNELS,
+    )
     employes = Employe.objects.filter(actif=True).order_by('nom', 'prenom')
     context = {'points': points, 'employes': employes}
     return render(request, 'pos/planning.html', context)
@@ -48,12 +73,16 @@ def planning_view(request):
 
 @login_required
 def api_planning_liste(request):
+    if not _can_manage_planning(request.user):
+        return _refus_planning()
     date_debut = request.GET.get('debut')
     date_fin = request.GET.get('fin')
     point_vente_id = request.GET.get('point_vente')
     employe_id = request.GET.get('employe')
 
-    shifts = ShiftEmploye.objects.all().select_related('affectation__point_vente', 'affectation__employe')
+    shifts = ShiftEmploye.objects.filter(
+        affectation__point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+    ).select_related('affectation__point_vente', 'affectation__employe')
 
     if date_debut:
         shifts = shifts.filter(debut_prevu__date__gte=date_debut)
@@ -94,16 +123,32 @@ def api_planning_liste(request):
 @login_required
 @require_http_methods(["POST"])
 def api_planning_creer(request):
+    if not _can_manage_planning(request.user):
+        return _refus_planning()
     try:
         data = json.loads(request.body)
         shift_id = data.get('id')
 
-        point_vente = get_object_or_404(PointVente, id=data['point_vente_id'])
-        employe = get_object_or_404(Employe, id=data['employe_id'])
+        point_vente = get_object_or_404(
+            PointVente,
+            id=data['point_vente_id'],
+            actif=True,
+            type__in=POINTS_VENTE_OPERATIONNELS,
+        )
+        employe = get_object_or_404(Employe, id=data['employe_id'], actif=True)
 
         affectation, _ = AffectationPointVente.objects.get_or_create(
-            employe=employe, point_vente=point_vente,
-            defaults={'role': 'CAISSIER', 'actif': True, 'peut_vendre': True, 'peut_encaisser': True},
+            employe=employe,
+            point_vente=point_vente,
+            defaults={
+                'role': 'CAISSIER',
+                'mode_acces': ModeAccesPOS.PLANNING,
+                'actif': True,
+                'peut_vendre': True,
+                'peut_encaisser': True,
+                'peut_ouvrir_caisse': True,
+                'peut_fermer_caisse': True,
+            },
         )
 
         p_date = datetime.strptime(data['date'], '%Y-%m-%d').date()
@@ -161,6 +206,8 @@ def api_planning_creer(request):
 @login_required
 @require_http_methods(["POST"])
 def api_planning_supprimer(request):
+    if not _can_manage_planning(request.user):
+        return _refus_planning()
     try:
         data = json.loads(request.body)
         shift = get_object_or_404(ShiftEmploye, id=data['id'])
@@ -174,6 +221,8 @@ def api_planning_supprimer(request):
 @login_required
 @require_http_methods(["POST"])
 def api_planning_creer_masse(request):
+    if not _can_manage_planning(request.user):
+        return _refus_planning()
     try:
         data = json.loads(request.body)
         employe_id = data.get('employe_id')
@@ -187,11 +236,25 @@ def api_planning_creer_masse(request):
         notes = data.get('notes', '')
 
         employe = get_object_or_404(Employe, id=employe_id)
-        point_vente = get_object_or_404(PointVente, id=point_vente_id)
+        point_vente = get_object_or_404(
+            PointVente,
+            id=point_vente_id,
+            actif=True,
+            type__in=POINTS_VENTE_OPERATIONNELS,
+        )
 
         affectation, _ = AffectationPointVente.objects.get_or_create(
-            employe=employe, point_vente=point_vente,
-            defaults={'role': 'CAISSIER', 'actif': True, 'peut_vendre': True, 'peut_encaisser': True},
+            employe=employe,
+            point_vente=point_vente,
+            defaults={
+                'role': 'CAISSIER',
+                'mode_acces': ModeAccesPOS.PLANNING,
+                'actif': True,
+                'peut_vendre': True,
+                'peut_encaisser': True,
+                'peut_ouvrir_caisse': True,
+                'peut_fermer_caisse': True,
+            },
         )
 
         if date_debut_d > date_fin_d:
@@ -248,12 +311,16 @@ def api_planning_creer_masse(request):
 
 @login_required
 def api_planning_employes(request):
+    if not _can_manage_planning(request.user):
+        return _refus_planning()
     point_id = request.GET.get('point_vente')
     if not point_id:
         return JsonResponse({'success': False, 'error': 'point_vente requis'})
 
     affectations = AffectationPointVente.objects.filter(
-        point_vente_id=point_id, actif=True
+        point_vente_id=point_id,
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+        actif=True,
     ).select_related('employe')
     employes = [a.employe for a in affectations if a.employe]
 
@@ -278,6 +345,8 @@ def api_planning_employes(request):
 @login_required
 @require_http_methods(["POST"])
 def api_set_horaire(request):
+    if not _can_manage_planning(request.user):
+        return _refus_planning()
     try:
         data = json.loads(request.body)
         employe_id = data.get('employe_id')
