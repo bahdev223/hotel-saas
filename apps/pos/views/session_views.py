@@ -357,6 +357,7 @@ def api_demarrer_passation(request):
         session = CaisseSessionService.demarrer_passation(
             session,
             motif=data.get("motif", "Passation manuelle"),
+            par=demandeur,
         )
         return JsonResponse({
             "success": True,
