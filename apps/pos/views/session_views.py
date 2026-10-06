@@ -128,7 +128,7 @@ def session_detail(request, session_id):
     ventes_list = list(ventes)
 
     stats_paiement = {}
-    for mode in ('ESPECES', 'CARTE', 'MOBILE_MONEY', 'COMPTE_CLIENT'):
+    for mode in ('ESPECES', 'CARTE', 'MOBILE_MONEY', 'CHEQUE', 'COMPTE_CLIENT'):
         stats_paiement[mode] = sum(
             v.montant_total for v in ventes_list if v.mode_paiement == mode and v.statut == 'PAYEE'
         )
@@ -598,6 +598,7 @@ def api_verifier_etat_pos(request, point_vente_id):
             ),
             'total_carte': float(session_a_fermer.total_carte),
             'total_mobile_money': float(session_a_fermer.total_mobile_money),
+            'total_cheque': float(session_a_fermer.total_cheque),
             'date_passation': (
                 session_a_fermer.date_passation.isoformat()
                 if session_a_fermer.date_passation else None
