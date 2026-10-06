@@ -305,6 +305,7 @@ def liste_commandes_api(request):
             'id': c.id,
             'numero': c.numero,
             'point_vente': c.point_vente.nom,
+            'point_vente_type': c.point_vente.type,
             'type': c.get_type_commande_display(),
             'type_code': c.type_commande,
             'statut': c.get_statut_display(),
