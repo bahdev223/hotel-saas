@@ -88,6 +88,15 @@ class SessionCaisse(models.Model):
         return Vente.objects.filter(session_caisse=self, statut='PAYEE', mode_paiement='MOBILE_MONEY').aggregate(total=Sum('montant_total'))['total'] or 0
 
     @property
+    def total_cheque(self):
+        from .vente import Vente
+        return Vente.objects.filter(
+            session_caisse=self,
+            statut='PAYEE',
+            mode_paiement='CHEQUE',
+        ).aggregate(total=Sum('montant_total'))['total'] or 0
+
+    @property
     def total_ventes(self):
         from .vente import Vente
         return Vente.objects.filter(session_caisse=self, statut='PAYEE').aggregate(total=Sum('montant_total'))['total'] or 0
