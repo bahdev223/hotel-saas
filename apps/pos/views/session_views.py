@@ -266,23 +266,15 @@ def api_fermeture_session(request):
         est_supervision = _user_can_gerer_sessions(request.user)
 
         if not est_supervision:
-            if not demandeur or session.ouverte_par_id != demandeur.id:
-                return JsonResponse({
-                    "success": False,
-                    "error_code": "SESSION_APPARTIENT_A_UN_AUTRE_CAISSIER",
-                    "error": "Seul le caissier propriétaire peut clôturer sa session.",
-                }, status=403)
-            decision = POSAccessService.check_capability(
-                user=request.user,
-                employe=demandeur,
-                point_vente=session.point_vente,
-                action=ActionPOS.FERMER_CAISSE,
+            autorise, raison = CaisseSessionService.autoriser_finalisation_session(
+                session,
+                demandeur,
             )
-            if not decision.allowed:
+            if not autorise:
                 return JsonResponse({
                     "success": False,
-                    "error_code": decision.reason,
-                    "error": f"Fermeture de caisse refusée ({decision.reason}).",
+                    "error_code": raison,
+                    "error": f"Fermeture de caisse refusée ({raison}).",
                 }, status=403)
             fermee_par = demandeur
         elif fermee_par_id:
@@ -540,12 +532,10 @@ def api_verifier_etat_pos(request, point_vente_id):
     )
     peut_finaliser = False
     if est_proprietaire:
-        peut_finaliser = POSAccessService.check_capability(
-            user=request.user,
-            employe=employe,
-            point_vente=point_vente,
-            action=ActionPOS.FERMER_CAISSE,
-        ).allowed
+        peut_finaliser, _ = CaisseSessionService.autoriser_finalisation_session(
+            session_non_finalisee,
+            employe,
+        )
 
     if (
         not decision.allowed
