@@ -151,7 +151,10 @@ def api_mon_espace(request):
             'nb_commandes_ajd': nb_commandes_ajd,
             'nb_commandes_encours': nb_commandes_encours,
             'nb_sessions': len(sessions),
-            'nb_ouvertes': sum(1 for s in sessions_data if s['statut'] == 'OUVERTE'),
+            'nb_ouvertes': sum(
+                1 for s in sessions_data
+                if s['statut'] in ('OUVERTE', 'EN_PASSATION', 'EN_COMPTAGE')
+            ),
             'nb_fermees': sum(1 for s in sessions_data if s['statut'] == 'FERMEE'),
         },
         'ventes_par_mode': ventes_par_mode_ajd, 'sessions': sessions_data,
