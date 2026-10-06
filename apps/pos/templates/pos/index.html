@@ -446,6 +446,33 @@
 
 <!-- ========== DIALOG SESSION — FIN DE PLANNING / OUVERTURE ========== -->
 <div x-data="posSessionDialog()">
+    <!-- PASSATION : non bloquante pendant la fenêtre de grâce -->
+    <template x-if="step === 'passation' && session">
+        <div class="fixed top-4 right-4 z-[180] w-[min(92vw,390px)] rounded-2xl border border-amber-300 bg-surface-container-low shadow-2xl p-4">
+            <div class="flex items-start gap-3">
+                <div class="w-10 h-10 rounded-full bg-amber-100 text-amber-700 flex items-center justify-center shrink-0">
+                    <i class="fas fa-right-left"></i>
+                </div>
+                <div class="min-w-0 flex-1">
+                    <div class="font-bold">Passation de caisse</div>
+                    <p class="text-xs text-on-surface-variant mt-1">
+                        Vous pouvez encore encaisser les commandes déjà engagées.
+                        Aucune nouvelle responsabilité financière ne doit être ouverte.
+                    </p>
+                    <div class="mt-2 flex items-center justify-between text-xs">
+                        <span class="text-on-surface-variant">Grâce restante</span>
+                        <span class="font-bold text-amber-700" x-text="tempsPassation"></span>
+                    </div>
+                    <button @click="ouvrirComptage()"
+                            class="mt-3 w-full py-2 rounded-lg bg-secondary text-black text-sm font-semibold">
+                        <i class="fas fa-scale-balanced mr-1"></i>Compter et clôturer maintenant
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+
+    <!-- COMPTAGE : bloquant après la grâce ou sur demande -->
     <!-- STEP 1: Clôture de l'ancienne session -->
     <template x-if="step === 'cloture' && session"><div class="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-sm">
         <div class="w-full max-w-md mx-4 bg-surface-container-low rounded-2xl shadow-2xl overflow-hidden border border-outline/10">
@@ -533,13 +560,15 @@
                 <div class="w-16 h-16 rounded-full bg-green-900/30 flex items-center justify-center mx-auto mb-4">
                     <i class="fas fa-check-circle text-3xl text-green-400"></i>
                 </div>
-                <h2 class="text-xl font-bold">Session clôturée</h2>
-                <p class="text-sm text-on-surface-variant mt-2">Un nouveau planning est actif. Ouvrez une nouvelle session pour commencer.</p>
+                <h2 class="text-xl font-bold">Ouverture de caisse</h2>
+                <p class="text-sm text-on-surface-variant mt-2">
+                    Votre accès caisse est autorisé. Ouvrez votre session financière avant d'encaisser.
+                </p>
             </div>
             <div class="px-6 pb-2 space-y-3">
                 <div class="bg-surface-container-high rounded-xl p-4 space-y-2">
                     <div class="flex justify-between text-sm">
-                        <span class="text-on-surface-variant">Nouveau planning</span>
+                        <span class="text-on-surface-variant">Point de vente</span>
                         <span class="font-medium" x-text="nouveauPlanning.point_vente"></span>
                     </div>
                     <div class="flex justify-between text-sm">
@@ -580,10 +609,10 @@
                 </div>
                 <h2 class="text-xl font-bold">Session de caisse requise</h2>
                 <p class="text-sm text-on-surface-variant mt-2">
-                    Aucune session n'est ouverte sur ce point de vente et vous n'avez pas de planning actif en ce moment.
+                    Aucune session financière ne vous permet d'encaisser sur ce point de vente actuellement.
                 </p>
                 <p class="text-sm text-on-surface-variant mt-1">
-                    Contactez votre manager pour créer un planning, puis revenez ouvrir votre session.
+                    Vérifiez votre affectation, vos horaires ou votre planning avec le responsable.
                 </p>
             </div>
             <div class="flex items-center gap-3 px-6 py-4 border-t border-outline/10">
