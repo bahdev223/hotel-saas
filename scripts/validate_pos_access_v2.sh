@@ -28,6 +28,7 @@ python manage.py migrate --noinput
 echo "== POS access / schedule / scope tests =="
 python manage.py test \
   apps.pos.tests.test_access_service \
+  apps.pos.tests.test_access_admin \
   apps.pos.tests.test_access_admin_api \
   apps.pos.tests.test_order_scope \
   apps.pos.tests.test_session_verifier_access \
