@@ -55,7 +55,7 @@ def get_session_autorisee(session_id, user, require_open=False, allow_owner_fina
                     f"Session non autorisée pour ce profil ({decision.reason})."
                 )
 
-    if require_open and session.statut not in ("OUVERTE", "EN_COMPTAGE"):
+    if require_open and session.statut not in ("OUVERTE", "EN_PASSATION", "EN_COMPTAGE"):
         raise PermissionDenied("Cette session n'est plus ouverte.")
     return session
 
@@ -71,11 +71,12 @@ def get_session_non_finalisee_caisse(caisse):
         return None
     return SessionCaisse.objects.filter(
         caisse=caisse,
-        statut__in=("OUVERTE", "EN_COMPTAGE"),
+        statut__in=("OUVERTE", "EN_PASSATION", "EN_COMPTAGE"),
     ).order_by("-date_ouverture").first()
 
 
 def get_session_active_pv(point_vente):
+    """Session OUVERTE uniquement (nouvelle activité / nouvel encaissement)."""
     if not point_vente:
         return None
     cpv = CaissePointVente.objects.filter(point_vente=point_vente, actif=True).select_related('caisse').first()
@@ -84,7 +85,19 @@ def get_session_active_pv(point_vente):
     return get_session_active_caisse(cpv.caisse)
 
 
+def get_session_encaissement_caisse(caisse):
+    """Session pouvant encore solder de l'existant : OUVERTE ou PASSATION."""
+    if not caisse:
+        return None
+    return SessionCaisse.objects.filter(
+        caisse=caisse,
+        statut__in=("OUVERTE", "EN_PASSATION"),
+    ).order_by("-date_ouverture").first()
+
+
 class CaisseSessionService:
+
+    ECART_JUSTIFICATION_SEUIL = Decimal("5000")
 
     @staticmethod
     @transaction.atomic
@@ -136,6 +149,28 @@ class CaisseSessionService:
                 "Fermez ou validez la session pr\u00e9c\u00e9dente."
             )
 
+        permissions_snapshot = {}
+        if decision.affectation_id:
+            affectation = AffectationPointVente.objects.filter(
+                pk=decision.affectation_id,
+            ).first()
+            if affectation:
+                permissions_snapshot = {
+                    "role": affectation.role,
+                    "peut_vendre": affectation.peut_vendre,
+                    "peut_encaisser": affectation.peut_encaisser,
+                    "peut_ouvrir_caisse": affectation.peut_ouvrir_caisse,
+                    "peut_fermer_caisse": affectation.peut_fermer_caisse,
+                    "peut_annuler_vente": affectation.peut_annuler_vente,
+                    "peut_accorder_remise": affectation.peut_accorder_remise,
+                    "peut_consulter_rapports": affectation.peut_consulter_rapports,
+                }
+        else:
+            permissions_snapshot = {
+                "scope": "DIRECTION_TOTAL",
+                "peut_ouvrir_caisse": True,
+            }
+
         session = SessionCaisse.objects.create(
             caisse=caisse_verrouillee,
             point_vente=point_vente,
@@ -143,8 +178,90 @@ class CaisseSessionService:
             solde_initial=caisse_verrouillee.solde,
             shift=shift,
             statut='OUVERTE',
+            mode_acces_ouverture=decision.mode or "",
+            raison_acces_ouverture=decision.reason,
+            affectation_ouverture_id=decision.affectation_id,
+            shift_ouverture_id=decision.shift_id,
+            acces_expire_le=decision.expires_at,
+            permissions_ouverture=permissions_snapshot,
         )
         return session
+
+    @staticmethod
+    @transaction.atomic
+    def demarrer_passation(session, motif="", moment=None):
+        session = (
+            SessionCaisse.objects.select_for_update()
+            .select_related("point_vente")
+            .get(pk=session.pk)
+        )
+        if session.statut == "EN_PASSATION":
+            return session
+        if session.statut != "OUVERTE":
+            raise ValueError("Seule une session ouverte peut passer en passation.")
+
+        now = moment or timezone.now()
+        delai = int(getattr(session.point_vente, "delai_passation_minutes", 15) or 0)
+        session.statut = "EN_PASSATION"
+        session.date_passation = now
+        session.passation_jusqua = now + timedelta(minutes=max(0, delai))
+        session.motif_passation = (motif or "Fin de créneau / passation")[:255]
+        session.save(update_fields=[
+            "statut",
+            "date_passation",
+            "passation_jusqua",
+            "motif_passation",
+            "updated_at",
+        ])
+        return session
+
+    @staticmethod
+    def autoriser_encaissement_session(session, encaisseur, commande=None, moment=None):
+        """Protège la responsabilité financière d'une session.
+
+        Une session appartient à son ouvreur. En PASSATION, il peut uniquement
+        terminer un encaissement concernant une commande créée avant la
+        passation, pendant la fenêtre de grâce.
+        """
+        from apps.pos.constants import ActionPOS
+        from apps.pos.services.access_service import POSAccessService
+
+        now = moment or timezone.now()
+        if not session or not encaisseur or session.ouverte_par_id != encaisseur.id:
+            return False, "SESSION_APPARTIENT_A_UN_AUTRE_CAISSIER"
+
+        if session.statut == "OUVERTE":
+            decision = POSAccessService.check(
+                user=encaisseur.user,
+                employe=encaisseur,
+                point_vente=session.point_vente,
+                action=ActionPOS.ENCAISSER,
+                moment=now,
+            )
+            return decision.allowed, decision.reason
+
+        if session.statut == "EN_PASSATION":
+            if session.passation_jusqua and now > session.passation_jusqua:
+                return False, "PASSATION_EXPIREE"
+            if (
+                commande is not None
+                and session.date_passation
+                and commande.date_commande > session.date_passation
+            ):
+                return False, "COMMANDE_APRES_PASSATION"
+
+            decision = POSAccessService.check_capability(
+                user=encaisseur.user,
+                employe=encaisseur,
+                point_vente=session.point_vente,
+                action=ActionPOS.ENCAISSER,
+                moment=now,
+            )
+            return decision.allowed, (
+                "PASSATION_GRACE_ACTIVE" if decision.allowed else decision.reason
+            )
+
+        return False, "SESSION_NON_ENCAISSABLE"
 
     @staticmethod
     @transaction.atomic
@@ -152,53 +269,89 @@ class CaisseSessionService:
                           montant_carte=None, montant_mobile=None, montant_cheque=None,
                           depot=None):
         session = SessionCaisse.objects.select_for_update().get(pk=session.pk)
-        if session.statut not in ('OUVERTE', 'EN_COMPTAGE'):
-            raise ValueError("La session n'est pas ouverte/en comptage")
-
-        session.statut = 'EN_COMPTAGE'
-        session.save(update_fields=['statut'])
+        if session.statut not in ('OUVERTE', 'EN_PASSATION', 'EN_COMPTAGE'):
+            raise ValueError("La session n'est pas ouverte, en passation ou en comptage")
 
         ventes = Vente.objects.filter(session_caisse=session, statut='PAYEE')
-        total_especes = ventes.filter(mode_paiement='ESPECES').aggregate(total=Sum('montant_total'))['total'] or 0
+        total_especes = ventes.filter(
+            mode_paiement='ESPECES'
+        ).aggregate(total=Sum('montant_total'))['total'] or Decimal('0')
         total_carte = ventes.filter(
             mode_paiement__in=['CARTE', 'VISA', 'MASTERCARD']
-        ).aggregate(total=Sum('montant_total'))['total'] or 0
-        total_mobile = ventes.filter(mode_paiement='MOBILE_MONEY').aggregate(total=Sum('montant_total'))['total'] or 0
-        total_cheque = ventes.filter(mode_paiement='CHEQUE').aggregate(total=Sum('montant_total'))['total'] or 0
+        ).aggregate(total=Sum('montant_total'))['total'] or Decimal('0')
+        total_mobile = ventes.filter(
+            mode_paiement='MOBILE_MONEY'
+        ).aggregate(total=Sum('montant_total'))['total'] or Decimal('0')
+        total_cheque = ventes.filter(
+            mode_paiement='CHEQUE'
+        ).aggregate(total=Sum('montant_total'))['total'] or Decimal('0')
 
-        carte_val = Decimal(str(montant_carte)) if montant_carte is not None else total_carte
-        mobile_val = Decimal(str(montant_mobile)) if montant_mobile is not None else total_mobile
-        cheque_val = Decimal(str(montant_cheque)) if montant_cheque is not None else total_cheque
+        # Le comptage espèces porte sur le contenu physique attendu du tiroir :
+        # fonds d'ouverture + ventes espèces de la session.
+        especes_attendues = Decimal(str(session.solde_initial or 0)) + Decimal(str(total_especes))
+        especes_comptees_val = Decimal(str(especes_comptees))
+        carte_val = Decimal(str(montant_carte)) if montant_carte is not None else Decimal(str(total_carte))
+        mobile_val = Decimal(str(montant_mobile)) if montant_mobile is not None else Decimal(str(total_mobile))
+        cheque_val = Decimal(str(montant_cheque)) if montant_cheque is not None else Decimal(str(total_cheque))
         depot_val = Decimal(str(depot)) if depot is not None else Decimal('0')
 
-        ecart = Decimal(str(especes_comptees)) - total_especes
+        ecart_especes = especes_comptees_val - especes_attendues
+        ecart_carte = carte_val - Decimal(str(total_carte))
+        ecart_mobile = mobile_val - Decimal(str(total_mobile))
+        ecart_cheque = cheque_val - Decimal(str(total_cheque))
+        ecart_total = ecart_especes + ecart_carte + ecart_mobile + ecart_cheque
 
-        ComptageSession.objects.create(
+        if (
+            abs(ecart_total) > CaisseSessionService.ECART_JUSTIFICATION_SEUIL
+            and not (notes or "").strip()
+        ):
+            raise ValueError(
+                "Un motif est obligatoire pour un écart supérieur à 5 000 F."
+            )
+
+        session.statut = 'EN_COMPTAGE'
+        session.save(update_fields=['statut', 'updated_at'])
+
+        ComptageSession.objects.update_or_create(
             session=session,
-            especes_attendues=total_especes,
-            especes_comptees=especes_comptees,
-            ecart_especes=ecart,
-            carte_attendue=total_carte,
-            carte_constatee=carte_val,
-            mobile_attendu=total_mobile,
-            mobile_constate=mobile_val,
-            cheque_attendu=total_cheque,
-            cheque_constate=cheque_val,
-            motif_ecart=notes if abs(ecart) > 5000 else '',
-            compte_par=fermee_par,
+            defaults={
+                'especes_attendues': especes_attendues,
+                'especes_comptees': especes_comptees_val,
+                'ecart_especes': ecart_especes,
+                'carte_attendue': total_carte,
+                'carte_constatee': carte_val,
+                'mobile_attendu': total_mobile,
+                'mobile_constate': mobile_val,
+                'cheque_attendu': total_cheque,
+                'cheque_constate': cheque_val,
+                'ecart_carte': ecart_carte,
+                'ecart_mobile': ecart_mobile,
+                'ecart_cheque': ecart_cheque,
+                'ecart_total': ecart_total,
+                'motif_ecart': (notes or '').strip(),
+                'compte_par': fermee_par,
+            },
         )
 
         session.fermee_par = fermee_par
         session.date_fermeture = timezone.now()
         session.statut = 'FERMEE'
         session.notes = notes
-        session.save()
+        session.save(update_fields=[
+            'fermee_par',
+            'date_fermeture',
+            'statut',
+            'notes',
+            'updated_at',
+        ])
 
         if depot_val > 0:
             from apps.tresorerie.models import MouvementCaisse
             MouvementCaisse.objects.create(
-                caisse=session.caisse, type_mouvement='SORTIE', montant=depot_val,
-                libelle=f"D\u00e9p\u00f4t cl\u00f4ture session #{session.id}",
+                caisse=session.caisse,
+                type_mouvement='SORTIE',
+                montant=depot_val,
+                libelle=f"Dépôt clôture session #{session.id}",
                 reference=f"DEP-SES-{session.id}",
                 created_by=fermee_par.user if fermee_par and fermee_par.user else None,
                 date=session.date_fermeture or timezone.now(),
@@ -206,10 +359,35 @@ class CaisseSessionService:
 
         return {
             'session': session,
-            'ecart': ecart,
+            'ecart': ecart_total,
+            'ecart_especes': ecart_especes,
+            'ecart_carte': ecart_carte,
+            'ecart_mobile': ecart_mobile,
+            'ecart_cheque': ecart_cheque,
+            'especes_attendues': especes_attendues,
             'total_ventes': session.total_ventes,
             'nombre_ventes': session.nombre_ventes,
         }
+
+    @staticmethod
+    @transaction.atomic
+    def valider_session(session, validee_par):
+        session = SessionCaisse.objects.select_for_update().get(pk=session.pk)
+        if session.statut != 'FERMEE':
+            raise ValueError("Seule une session fermée peut être validée.")
+        if not validee_par or not validee_par.actif:
+            raise ValueError("Un validateur actif est obligatoire.")
+
+        session.statut = 'VALIDEE'
+        session.validee_par = validee_par
+        session.date_validation = timezone.now()
+        session.save(update_fields=[
+            'statut',
+            'validee_par',
+            'date_validation',
+            'updated_at',
+        ])
+        return session
 
     @staticmethod
     @transaction.atomic
