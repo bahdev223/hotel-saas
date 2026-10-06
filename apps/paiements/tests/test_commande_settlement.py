@@ -59,8 +59,11 @@ class CommandeSettlementServiceTest(TestCase):
         )
 
         self.commande = Commande.objects.create(
-            point_vente=self.point_vente, entrepot=self.entrepot,
-            type_commande='SUR_PLACE', montant_total=2000,
+            point_vente=self.point_vente,
+            entrepot=self.entrepot,
+            type_commande='SUR_PLACE',
+            statut='SERVIE',
+            montant_total=2000,
         )
         self.recette = RecetteModel.objects.create(
             nom="Gateau", type_recette='DESSERT',
@@ -150,7 +153,7 @@ class CommandeSettlementServiceTest(TestCase):
                 mode_paiement="ESPECES",
                 utilisateur=self.user,
             )
-        self.assertIn("Encaissement non autorisé", str(ctx.exception))
+        self.assertIn("PERMISSION_METIER_REFUSEE", str(ctx.exception))
 
     def test_double_paiement_refuse(self):
         CommandeSettlementService.regler(
