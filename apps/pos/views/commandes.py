@@ -346,14 +346,6 @@ def changer_statut_commande(request, commande_id):
                 'error': f"Accès refusé ({decision.reason}).",
             }, status=403)
 
-        # Verrou : servir/livrer sort le stock et facture — session obligatoire
-        if nouveau_statut in ('SERVIE', 'LIVREE') and not get_session_active_pv(commande.point_vente):
-            return JsonResponse({
-                'success': False,
-                'error_code': 'SESSION_REQUISE',
-                'error': f"Aucune session ouverte sur {commande.point_vente.nom} — impossible de servir/livrer."
-            }, status=403)
-
         if nouveau_statut == 'EN_PREPARATION':
             commande.passer_en_preparation()
         elif nouveau_statut == 'PRETE':
@@ -487,14 +479,6 @@ def api_creer_commande(request):
                 'success': False,
                 'error_code': decision.reason,
                 'error': f"Création de commande refusée ({decision.reason}).",
-            }, status=403)
-
-        # Verrou : aucune commande sans session de caisse ouverte sur ce PV
-        if not get_session_active_pv(point_vente):
-            return JsonResponse({
-                'success': False,
-                'error_code': 'SESSION_REQUISE',
-                'error': f"Aucune session de caisse ouverte sur {point_vente.nom}. Ouvrez une session avant de commander."
             }, status=403)
 
         # Prévalidation complète AVANT toute écriture SQL.
