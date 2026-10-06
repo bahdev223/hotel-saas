@@ -1,5 +1,12 @@
 # apps/restaurant/views/__init__.py
 from .dashboard import dashboard
+from .salle import (
+    salle_dashboard,
+    api_salle_etat,
+    api_table_occuper,
+    api_table_liberer,
+    api_servir_commande,
+)
 from .file_attente import file_attente
 from .produits import produits_stock, entree_stock, mouvement_stock, ajouter_produit, modifier_produit, supprimer_produit, transfert_central_restaurant, api_ajouter_produit, api_produit_infos, api_modifier_produit, api_entree_stock, api_liste_produits_stock, api_supprimer_produit
 from .recettes import (
@@ -66,6 +73,13 @@ __all__ = [
     # Dashboard
     'dashboard',
     
+    # Salle
+    'salle_dashboard',
+    'api_salle_etat',
+    'api_table_occuper',
+    'api_table_liberer',
+    'api_servir_commande',
+
     # File d'attente
     'file_attente',
     
