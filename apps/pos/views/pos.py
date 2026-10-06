@@ -311,6 +311,7 @@ def pos_by_slug(request, slug):
             ),
             'total_carte': float(session_non_finalisee.total_carte),
             'total_mobile_money': float(session_non_finalisee.total_mobile_money),
+            'total_cheque': float(session_non_finalisee.total_cheque),
             'date_passation': (
                 session_non_finalisee.date_passation.isoformat()
                 if session_non_finalisee.date_passation else None
