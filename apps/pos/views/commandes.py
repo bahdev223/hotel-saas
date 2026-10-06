@@ -16,6 +16,10 @@ from apps.restaurant.models import TableModel
 from apps.stock.models import Produit, StockEntrepot, Entrepot
 from apps.stock.services.mouvement_service import MouvementStockService
 from apps.restaurant.models import MenuModel
+from apps.restaurant.services.restaurant_service import (
+    RestaurantService,
+    RestaurantWorkflowError,
+)
 from apps.rh.models import Employe
 from .pos import a_vue_globale_commandes, get_pv_courant_id
 from ..services.access_service import POSAccessService
@@ -311,79 +315,132 @@ def liste_commandes_api(request):
 @require_http_methods(["POST"])
 @transaction.atomic
 def changer_statut_commande(request, commande_id):
-    """Changer le statut d'une commande"""
+    """Transition contrôlée d'une commande Bar / Restaurant."""
     try:
-        data = json.loads(request.body)
+        data = json.loads(request.body or "{}")
         commande = get_object_or_404(
-            Commande.objects.select_related("point_vente"),
+            Commande.objects.select_related("point_vente", "table"),
             id=commande_id,
             point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
         )
-        nouveau_statut = data.get('statut')
+        nouveau_statut = data.get("statut")
         statuts_valides = {value for value, _ in Commande.STATUT_CHOICES}
         if nouveau_statut not in statuts_valides:
             return JsonResponse({
-                'success': False,
-                'error_code': 'STATUT_COMMANDE_INVALIDE',
-                'error': "Statut de commande invalide.",
+                "success": False,
+                "error_code": "STATUT_COMMANDE_INVALIDE",
+                "error": "Statut de commande invalide.",
             }, status=400)
 
-        action_requise = (
-            ActionPOS.ANNULER_VENTE
-            if nouveau_statut == 'ANNULEE'
-            else ActionPOS.ACCEDER
-        )
-        decision = POSAccessService.check(
-            user=request.user,
-            point_vente=commande.point_vente,
-            action=action_requise,
-        )
-        if not decision.allowed:
-            return JsonResponse({
-                'success': False,
-                'error_code': decision.reason,
-                'error': f"Accès refusé ({decision.reason}).",
-            }, status=403)
+        # Restaurant sur place : le workflow métier est strictement séquencé.
+        if commande.point_vente.type == "RESTAURATION":
+            if nouveau_statut == "EN_PREPARATION":
+                commande = RestaurantService.demarrer_preparation(
+                    commande=commande,
+                    user=request.user,
+                )
+            elif nouveau_statut == "PRETE":
+                commande = RestaurantService.marquer_prete(
+                    commande=commande,
+                    user=request.user,
+                )
+            elif nouveau_statut == "SERVIE":
+                commande = RestaurantService.servir(
+                    commande=commande,
+                    user=request.user,
+                )
+            elif nouveau_statut == "ANNULEE":
+                decision = POSAccessService.check(
+                    user=request.user,
+                    point_vente=commande.point_vente,
+                    action=ActionPOS.ANNULER_VENTE,
+                )
+                if not decision.allowed:
+                    return JsonResponse({
+                        "success": False,
+                        "error_code": decision.reason,
+                        "error": f"Annulation refusée ({decision.reason}).",
+                    }, status=403)
+                commande.annuler()
+                RestaurantService.liberer_table_si_terminee(commande)
+            elif (
+                commande.type_commande == "LIVRAISON"
+                and nouveau_statut in ("EN_COURS_DE_LIVRAISON", "LIVREE")
+            ):
+                decision = POSAccessService.check(
+                    user=request.user,
+                    point_vente=commande.point_vente,
+                    action=ActionPOS.SERVIR_COMMANDE,
+                )
+                if not decision.allowed:
+                    return JsonResponse({
+                        "success": False,
+                        "error_code": decision.reason,
+                        "error": f"Service refusé ({decision.reason}).",
+                    }, status=403)
+                if nouveau_statut == "EN_COURS_DE_LIVRAISON":
+                    if commande.statut != "PRETE":
+                        raise RestaurantWorkflowError(
+                            "Une livraison doit être prête avant son départ."
+                        )
+                    commande.demarrer_livraison()
+                else:
+                    if commande.statut != "EN_COURS_DE_LIVRAISON":
+                        raise RestaurantWorkflowError(
+                            "La commande doit être en cours de livraison."
+                        )
+                    commande.livrer()
+            else:
+                raise RestaurantWorkflowError(
+                    "Transition Restaurant interdite. Utilisez Cuisine → Prête → Service."
+                )
 
-        if nouveau_statut == 'EN_PREPARATION':
-            commande.passer_en_preparation()
-        elif nouveau_statut == 'PRETE':
-            commande.marquer_prete()
-        elif nouveau_statut == 'EN_COURS_DE_LIVRAISON':
-            commande.demarrer_livraison()
-        elif nouveau_statut == 'SERVIE':
-            commande.servir()
-            from apps.restaurant.services.consumption_service import RestaurantConsumptionService
-            RestaurantConsumptionService.consommer_commande(
-                commande=commande,
-                entrepot=commande.entrepot or commande.point_vente.entrepot,
-                utilisateur=request.user.username,
-            )
-            _generer_facture_commande(commande)
-        elif nouveau_statut == 'LIVREE':
-            commande.livrer()
-            from apps.restaurant.services.consumption_service import RestaurantConsumptionService
-            RestaurantConsumptionService.consommer_commande(
-                commande=commande,
-                entrepot=commande.entrepot or commande.point_vente.entrepot,
-                utilisateur=request.user.username,
-            )
-            _generer_facture_commande(commande)
-        elif nouveau_statut == 'ANNULEE':
-            commande.annuler()
+        # Bar : workflow court, sans KDS Restaurant obligatoire.
         else:
-            commande.statut = nouveau_statut
-            commande.save()
-        
+            action_requise = (
+                ActionPOS.ANNULER_VENTE
+                if nouveau_statut == "ANNULEE"
+                else ActionPOS.VENDRE
+            )
+            decision = POSAccessService.check(
+                user=request.user,
+                point_vente=commande.point_vente,
+                action=action_requise,
+            )
+            if not decision.allowed:
+                return JsonResponse({
+                    "success": False,
+                    "error_code": decision.reason,
+                    "error": f"Accès refusé ({decision.reason}).",
+                }, status=403)
+
+            if nouveau_statut == "ANNULEE":
+                commande.annuler()
+            elif nouveau_statut == "SERVIE":
+                if commande.statut not in ("EN_ATTENTE", "PRETE"):
+                    raise ValueError("Commande Bar non servable dans cet état.")
+                commande.servir()
+            else:
+                commande.statut = nouveau_statut
+                commande.save(update_fields=["statut", "updated_at"])
+
         return JsonResponse({
-            'success': True,
-            'statut': commande.statut,
-            'statut_display': commande.get_statut_display(),
-            'message': f'Commande #{commande.numero} : {commande.get_statut_display()}'
+            "success": True,
+            "statut": commande.statut,
+            "statut_display": commande.get_statut_display(),
+            "message": f"Commande #{commande.numero} : {commande.get_statut_display()}",
         })
-        
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)})
+
+    except RestaurantWorkflowError as exc:
+        return JsonResponse(
+            {"success": False, "error": str(exc)},
+            status=409,
+        )
+    except Exception as exc:
+        return JsonResponse(
+            {"success": False, "error": str(exc)},
+            status=400,
+        )
 
 
 @csrf_exempt
@@ -584,6 +641,40 @@ def api_creer_commande(request):
                 'error': "Type de commande invalide.",
             }, status=400)
 
+        restaurant_table = None
+        nombre_couverts = data.get('nombre_couverts')
+        if point_vente.type == 'RESTAURATION' and type_commande == 'SUR_PLACE':
+            table_id = data.get('table_id')
+            if not table_id:
+                return JsonResponse({
+                    'success': False,
+                    'error_code': 'TABLE_REQUISE',
+                    'error': "Une commande sur place Restaurant doit être liée à une table.",
+                }, status=400)
+            restaurant_table = (
+                TableModel.objects
+                .select_for_update()
+                .filter(
+                    id=table_id,
+                    actif=True,
+                    salle__point_vente=point_vente,
+                )
+                .select_related('salle')
+                .first()
+            )
+            if restaurant_table is None:
+                return JsonResponse({
+                    'success': False,
+                    'error_code': 'TABLE_INVALIDE',
+                    'error': "Cette table n'appartient pas à ce Restaurant.",
+                }, status=400)
+            if RestaurantService.commande_active_table(restaurant_table):
+                return JsonResponse({
+                    'success': False,
+                    'error_code': 'TABLE_OCCUPEE',
+                    'error': f"Table {restaurant_table.numero} possède déjà une commande active.",
+                }, status=409)
+
         client_id = data.get('client_id')
         client_obj = None
         if client_id:
@@ -656,8 +747,17 @@ def api_creer_commande(request):
                 total += qte * prix
         
         commande.montant_total = total + commande.frais_livraison
-        commande.save()
-        
+        commande.save(update_fields=['montant_total', 'updated_at'])
+
+        if restaurant_table is not None:
+            RestaurantService.lier_commande_table(
+                commande=commande,
+                table=restaurant_table,
+                employe=employe,
+                user=request.user,
+                nombre_couverts=nombre_couverts,
+            )
+
         # Créer une livraison si le type est LIVRAISON
         if commande.type_commande == 'LIVRAISON' and commande.adresse_livraison:
             Livraison.objects.create(
@@ -680,6 +780,8 @@ def api_creer_commande(request):
             'numero': commande.numero,
             'montant_total': float(commande.montant_total),
             'frais_livraison': float(commande.frais_livraison),
+            'table_id': commande.table_id,
+            'table_numero': commande.table.numero if commande.table else None,
             'message': 'Commande créée avec succès'
         })
         
