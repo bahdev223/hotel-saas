@@ -199,9 +199,25 @@ class CaisseSessionService:
             return False, "SESSION_APPARTIENT_A_UN_AUTRE_CAISSIER"
         if not employe.actif:
             return False, "EMPLOYE_INACTIF"
-        if bool((session.permissions_ouverture or {}).get("peut_fermer_caisse")):
-            return True, "SNAPSHOT_FERMETURE_AUTORISEE"
-        return False, "PERMISSION_FERMETURE_ABSENTE_A_OUVERTURE"
+        snapshot = session.permissions_ouverture or {}
+        if "peut_fermer_caisse" in snapshot:
+            if bool(snapshot.get("peut_fermer_caisse")):
+                return True, "SNAPSHOT_FERMETURE_AUTORISEE"
+            return False, "PERMISSION_FERMETURE_ABSENTE_A_OUVERTURE"
+
+        # Compatibilité : sessions déjà ouvertes avant Session Caisse V2.
+        from apps.pos.constants import ActionPOS
+        from apps.pos.services.access_service import POSAccessService
+        decision = POSAccessService.check_capability(
+            user=employe.user,
+            employe=employe,
+            point_vente=session.point_vente,
+            action=ActionPOS.FERMER_CAISSE,
+        )
+        return decision.allowed, (
+            "LEGACY_CAPACITE_FERMETURE"
+            if decision.allowed else decision.reason
+        )
 
     @staticmethod
     @transaction.atomic
@@ -268,9 +284,25 @@ class CaisseSessionService:
 
             if not encaisseur.actif:
                 return False, "EMPLOYE_INACTIF"
-            if not bool((session.permissions_ouverture or {}).get("peut_encaisser")):
-                return False, "PERMISSION_ENCAISSEMENT_ABSENTE_A_OUVERTURE"
-            return True, "PASSATION_GRACE_ACTIVE"
+
+            snapshot = session.permissions_ouverture or {}
+            if "peut_encaisser" in snapshot:
+                if not bool(snapshot.get("peut_encaisser")):
+                    return False, "PERMISSION_ENCAISSEMENT_ABSENTE_A_OUVERTURE"
+                return True, "PASSATION_GRACE_ACTIVE"
+
+            # Compatibilité : session créée avant l'introduction du snapshot.
+            decision = POSAccessService.check_capability(
+                user=encaisseur.user,
+                employe=encaisseur,
+                point_vente=session.point_vente,
+                action=ActionPOS.ENCAISSER,
+                moment=now,
+            )
+            return decision.allowed, (
+                "PASSATION_GRACE_LEGACY"
+                if decision.allowed else decision.reason
+            )
 
         return False, "SESSION_NON_ENCAISSABLE"
 
