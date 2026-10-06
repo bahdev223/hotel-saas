@@ -139,11 +139,24 @@ def session_detail(request, session_id):
     employes_ids = set(v.caissier_id for v in ventes_list if v.caissier_id)
     employes_session = list(Employe.objects.filter(id__in=employes_ids).values_list('id', 'nom', 'prenom'))
 
+    comptage = getattr(session, 'comptage', None)
+    especes_attendues = (
+        comptage.especes_attendues
+        if comptage
+        else Decimal(str(session.solde_initial or 0))
+        + Decimal(str(session.total_especes or 0))
+    )
     context = {
-        'session': session, 'ventes': ventes_list,
-        'stats_paiement': stats_paiement, 'top_produits': top_produits,
-        'produit_list': produit_list, 'employe_id': employe_id,
+        'session': session,
+        'ventes': ventes_list,
+        'stats_paiement': stats_paiement,
+        'top_produits': top_produits,
+        'produit_list': produit_list,
+        'employe_id': employe_id,
         'employes_session': employes_session,
+        'comptage': comptage,
+        'especes_attendues': especes_attendues,
+        'can_manage_sessions': _user_can_gerer_sessions(request.user),
     }
     return render(request, 'pos/sessions/detail.html', context)
 
