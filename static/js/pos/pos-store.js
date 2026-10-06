@@ -33,6 +33,7 @@ export function createPosStore() {
         planningFinHeure: null,
         searchTerm: '',
         pointVenteId: null,
+        requiresCashSession: false,
 
         async init() {
             const c = window.PAGE_CONFIG || {};
@@ -45,6 +46,7 @@ export function createPosStore() {
             this.pointVenteSlug = c.point_vente_slug || '';
             this.planningFinHeure = c.planning_fin_heure || null;
             this.pointVenteId = c.point_vente_id;
+            this.requiresCashSession = !!c.requires_cash_session;
 
             this.selectedClient = null;
             await this.chargerClients();
@@ -203,9 +205,16 @@ export function createPosStore() {
                     window.dispatchEvent(new CustomEvent('pos:session-cloture-requise', {
                         detail: { session: d.session_a_fermer, nouveauPlanning: d.nouveau_planning }
                     }));
-                } else if (!d.session_active && !d.nouveau_planning) {
+                } else if (
+                    this.requiresCashSession
+                    && !d.session_active
+                    && !d.nouveau_planning
+                    && !d.session_a_fermer
+                ) {
                     this.planningBloque = true;
-                    this.blocageMessage = 'Session fermée';
+                    this.blocageMessage = 'Caisse indisponible';
+                } else {
+                    this.planningBloque = false;
                 }
             } catch (e) {}
         },
