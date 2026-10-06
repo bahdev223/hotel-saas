@@ -1,119 +1,150 @@
 {% extends "restaurant/base_restaurant.html" %}
 
-{% block title %}File d'attente{% endblock %}
+{% block title %}File d'attente — Restaurant{% endblock %}
 
 {% block content %}
-<div class="flex items-center justify-between mb-6">
-    <div>
-        <h1 class="text-2xl font-bold text-on-surface tracking-tight">File d'attente</h1>
-        <p class="text-sm text-on-surface-muted">Gérez l'affluence et placez les clients</p>
-    </div>
-</div>
-
-<div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-    
-    <!-- File d'attente -->
-    <div class="card-bro overflow-hidden">
-        <div class="px-6 py-4 border-b border-border">
-            <h3 class="font-semibold">File d'attente</h3>
-            <p class="text-sm text-on-surface-muted">{{ file_attente|length }} client(s) en attente</p>
+<div class="space-y-6">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+            <h1 class="text-2xl font-bold text-on-surface">File d'attente</h1>
+            <p class="text-sm text-on-surface-muted">
+                Accueil des clients et placement dans une vraie table de salle.
+            </p>
         </div>
-        
-        <div class="divide-y divide-border/20">
-            {% for client in file_attente %}
-            <div class="p-4 hover:bg-surface-soft">
-                <div class="flex items-start justify-between">
-                    <div>
-                        <div class="font-medium">
-                            {{ client.nom_client|default:"Client anonyme" }}
-                            <span class="px-2 py-0.5 text-xs rounded-full bg-surface-soft text-on-surface-muted">{{ client.nombre_personnes }} pers.</span>
+        {% if points|length > 1 %}
+        <form method="get">
+            <select name="point_vente" onchange="this.form.submit()"
+                    class="border border-border rounded-lg px-3 py-2 bg-surface-card text-sm">
+                {% for p in points %}
+                <option value="{{ p.id }}" {% if point_vente.id == p.id %}selected{% endif %}>{{ p.nom }}</option>
+                {% endfor %}
+            </select>
+        </form>
+        {% endif %}
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <section class="lg:col-span-2 card-bro card-bro-static overflow-hidden">
+            <div class="px-5 py-4 border-b border-border">
+                <h2 class="font-semibold">Clients en attente</h2>
+                <p class="text-xs text-on-surface-muted">{{ file_attente|length }} client(s)</p>
+            </div>
+
+            <div class="divide-y divide-border">
+                {% for client in file_attente %}
+                <div class="p-4">
+                    <div class="flex flex-col xl:flex-row xl:items-center gap-4">
+                        <div class="min-w-0 xl:w-52">
+                            <div class="font-semibold truncate">{{ client.nom_client|default:"Client anonyme" }}</div>
+                            <div class="text-xs text-on-surface-muted mt-1">
+                                {{ client.nombre_personnes }} pers. · {{ client.date_entree|date:"H:i" }}
+                                {% if client.telephone %} · {{ client.telephone }}{% endif %}
+                            </div>
                         </div>
-                        <div class="text-sm text-on-surface-muted">
-                            <i class="fas fa-clock"></i> {{ client.date_entree|date:"H:i" }}
-                            {% if client.telephone %}
-                            <span class="ml-2"><i class="fas fa-phone"></i> {{ client.telephone }}</span>
-                            {% endif %}
-                        </div>
-                    </div>
-                    <div x-data="{ open: false }" class="relative">
-                        <button @click="open = !open" class="px-3 py-1.5 text-xs font-medium text-white rounded-xl bg-primary hover:bg-primary/90">
-                            <i class="fas fa-chair"></i> Placer
-                        </button>
-                        <ul x-show="open" @click.away="open = false" x-cloak class="absolute right-0 z-10 w-48 py-1 mt-1 bg-surface-card border border-border rounded-xl shadow-lg">
-                            {% for table in tables_libres %}
-                            <li>
-                                <a href="{% url 'restaurant:placer_client' client.id table.numero %}" class="block px-4 py-2 text-sm hover:bg-surface-soft">
-                                    Table {{ table.numero }} ({{ table.capacite }} pers.)
-                                </a>
-                            </li>
-                            {% empty %}
-                            <li><span class="block px-4 py-2 text-sm text-on-surface-muted">Aucune table libre</span></li>
-                            {% endfor %}
-                        </ul>
+
+                        <form method="post" class="flex-1 flex flex-col sm:flex-row gap-2">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="placer">
+                            <input type="hidden" name="file_id" value="{{ client.id }}">
+                            <input type="hidden" name="point_vente" value="{{ point_vente.id }}">
+
+                            <select name="table_id" required
+                                    class="flex-1 border border-border rounded-lg px-3 py-2 bg-surface-card text-sm">
+                                <option value="">Choisir une table…</option>
+                                {% for table in tables_libres %}
+                                    {% if table.capacite >= client.nombre_personnes %}
+                                    <option value="{{ table.id }}">
+                                        {{ table.salle.nom }} · Table {{ table.numero }} · {{ table.capacite }} places
+                                    </option>
+                                    {% endif %}
+                                {% endfor %}
+                            </select>
+                            <button type="submit"
+                                    class="px-4 py-2 bg-primary text-white rounded-lg text-sm font-medium">
+                                <i class="fas fa-chair mr-1"></i>Placer
+                            </button>
+                        </form>
+
+                        <form method="post">
+                            {% csrf_token %}
+                            <input type="hidden" name="action" value="parti">
+                            <input type="hidden" name="file_id" value="{{ client.id }}">
+                            <input type="hidden" name="point_vente" value="{{ point_vente.id }}">
+                            <button type="submit"
+                                    class="px-3 py-2 border border-red-200 text-red-600 rounded-lg text-xs">
+                                Parti
+                            </button>
+                        </form>
                     </div>
                 </div>
+                {% empty %}
+                <div class="p-10 text-center text-on-surface-muted">
+                    <i class="fas fa-check-circle text-3xl mb-2"></i>
+                    <p>Aucun client en attente.</p>
+                </div>
+                {% endfor %}
             </div>
-            {% empty %}
-            <div class="p-8 text-center text-on-surface-muted">
-                <i class="mb-2 text-4xl fas fa-check-circle"></i>
-                <p>Aucun client en file d'attente</p>
-            </div>
-            {% endfor %}
-        </div>
-    </div>
-    
-    <!-- Ajouter à la file d'attente -->
-    <div class="card-bro overflow-hidden">
-        <div class="px-6 py-4 border-b border-border">
-            <h3 class="font-semibold">Ajouter un client</h3>
-            <p class="text-sm text-on-surface-muted">Enregistrer un client dans la file d'attente</p>
-        </div>
-        
-        <form method="post" class="p-6 space-y-4">
-            {% csrf_token %}
-            
-            <div>
-                <label class="block mb-1 text-sm font-medium text-on-surface">Nom du client (optionnel)</label>
-                <input type="text" name="nom_client" class="w-full px-3 py-2 border border-border bg-surface-card rounded-xl" placeholder="Nom">
-            </div>
-            
-            <div>
-                <label class="block mb-1 text-sm font-medium text-on-surface">Téléphone (optionnel)</label>
-                <input type="tel" name="telephone" class="w-full px-3 py-2 border border-border bg-surface-card rounded-xl" placeholder="Numéro de téléphone">
-            </div>
-            
-            <div>
-                <label class="block mb-1 text-sm font-medium text-on-surface">Nombre de personnes <span class="text-red-600">*</span></label>
-                <input type="number" name="nombre_personnes" class="w-full px-3 py-2 border border-border bg-surface-card rounded-xl" value="2" min="1" required>
-            </div>
-            
-            <button type="submit" class="w-full px-4 py-2 text-sm font-medium text-white rounded-xl bg-primary hover:bg-primary/90">
-                <i class="fas fa-plus"></i> Ajouter à la file d'attente
-            </button>
-        </form>
-    </div>
-</div>
+        </section>
 
-<!-- Tables libres -->
-<div class="mt-6 card-bro overflow-hidden">
-    <div class="px-6 py-4 border-b border-border">
-        <h3 class="font-semibold">Tables disponibles</h3>
-        <p class="text-sm text-on-surface-muted">{{ tables_libres|length }} table(s) libre(s)</p>
+        <section class="card-bro card-bro-static p-5">
+            <h2 class="font-semibold">Ajouter un client</h2>
+            <p class="text-xs text-on-surface-muted mt-1 mb-4">Restaurant : {{ point_vente.nom }}</p>
+
+            <form method="post" class="space-y-4">
+                {% csrf_token %}
+                <input type="hidden" name="action" value="ajouter">
+                <input type="hidden" name="point_vente" value="{{ point_vente.id }}">
+
+                <div>
+                    <label class="text-xs text-on-surface-muted">Nom</label>
+                    <input type="text" name="nom_client"
+                           class="w-full mt-1 border border-border rounded-lg px-3 py-2 bg-surface-card">
+                </div>
+                <div>
+                    <label class="text-xs text-on-surface-muted">Téléphone</label>
+                    <input type="tel" name="telephone"
+                           class="w-full mt-1 border border-border rounded-lg px-3 py-2 bg-surface-card">
+                </div>
+                <div>
+                    <label class="text-xs text-on-surface-muted">Nombre de personnes *</label>
+                    <input type="number" name="nombre_personnes" value="2" min="1" required
+                           class="w-full mt-1 border border-border rounded-lg px-3 py-2 bg-surface-card">
+                </div>
+                <button type="submit"
+                        class="w-full bg-primary text-white rounded-lg py-2.5 text-sm font-medium">
+                    <i class="fas fa-plus mr-1"></i>Ajouter
+                </button>
+            </form>
+        </section>
     </div>
-    <div class="grid grid-cols-2 gap-3 p-4 md:grid-cols-4 lg:grid-cols-6">
-        {% for table in tables_libres %}
-        <div class="p-3 text-center transition border border-border/30 rounded-xl hover:shadow-md">
-            <div class="text-xl font-bold text-emerald-600">Table {{ table.numero }}</div>
-            <div class="text-sm text-on-surface-muted">{{ table.capacite }} places</div>
-            <div class="mt-2">
-                <a href="{% url 'restaurant:nouvelle_commande' table.numero %}" class="block w-full px-3 py-1.5 text-xs font-medium text-center text-white rounded-xl bg-emerald-600 hover:bg-emerald-500">
-                    <i class="fas fa-utensils"></i> Commander
+
+    <section class="card-bro card-bro-static overflow-hidden">
+        <div class="px-5 py-4 border-b border-border flex justify-between items-center">
+            <div>
+                <h2 class="font-semibold">Tables libres</h2>
+                <p class="text-xs text-on-surface-muted">{{ tables_libres|length }} disponible(s)</p>
+            </div>
+            <a href="{% url 'restaurant:salle_dashboard' %}?point_vente={{ point_vente.id }}"
+               class="text-sm text-primary hover:underline">
+                Voir toute la salle
+            </a>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-6 gap-3 p-4">
+            {% for table in tables_libres %}
+            <div class="border border-border rounded-xl p-3">
+                <div class="text-xs text-on-surface-muted">{{ table.salle.nom }}</div>
+                <div class="font-bold mt-1">Table {{ table.numero }}</div>
+                <div class="text-xs text-on-surface-muted">{{ table.capacite }} places</div>
+                <a href="{% url 'pos:pos_by_slug' point_vente.code %}?table_id={{ table.id }}"
+                   class="block mt-3 text-center px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-medium">
+                    Commander
                 </a>
             </div>
+            {% empty %}
+            <div class="col-span-full py-8 text-center text-on-surface-muted">Aucune table libre.</div>
+            {% endfor %}
         </div>
-        {% empty %}
-        <div class="py-4 text-center text-on-surface-muted col-span-full">Aucune table libre</div>
-        {% endfor %}
-    </div>
+    </section>
 </div>
 {% endblock %}
