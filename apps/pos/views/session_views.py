@@ -227,8 +227,6 @@ def api_ouverture_session(request):
 @login_required
 @require_http_methods(["POST"])
 def api_fermeture_session(request):
-    if not _user_can_gerer_sessions(request.user):
-        return JsonResponse({'success': False, 'error': 'Seuls la comptabilit\u00e9 et la direction peuvent fermer les sessions.'}, status=403)
     try:
         data = json.loads(request.body)
         session_id = data.get('session_id')
@@ -238,10 +236,27 @@ def api_fermeture_session(request):
         depot = data.get('depot')
 
         session = get_session_autorisee(session_id, request.user, require_open=True)
-        if fermee_par_id:
-            fermee_par = get_object_or_404(Employe, id=fermee_par_id)
+        demandeur = getattr(request.user, "employe", None)
+        est_supervision = _user_can_gerer_sessions(request.user)
+
+        if not est_supervision:
+            decision = POSAccessService.check(
+                user=request.user,
+                employe=demandeur,
+                point_vente=session.point_vente,
+                action=ActionPOS.FERMER_CAISSE,
+            )
+            if not decision.allowed:
+                return JsonResponse({
+                    "success": False,
+                    "error_code": decision.reason,
+                    "error": f"Fermeture de caisse refusée ({decision.reason}).",
+                }, status=403)
+            fermee_par = demandeur
+        elif fermee_par_id:
+            fermee_par = get_object_or_404(Employe, id=fermee_par_id, actif=True)
         else:
-            fermee_par = session.ouverte_par
+            fermee_par = demandeur or session.ouverte_par
 
         resultat = CaisseSessionService.fermeture_session(
             session=session, especes_comptees=especes_comptees,
