@@ -45,10 +45,13 @@ class Command(BaseCommand):
         # 1. Accès POS expiré/révoqué pendant une session ouverte.
         self._checker_acces_expire(now)
 
-        # 2. Sessions OUVERTE > 24h
+        # 2. Passations dont la fenêtre de grâce est terminée.
+        self._checker_passations_expirees(now)
+
+        # 3. Sessions non finalisées > 24h.
         self._checker_session_orpheline(now)
 
-        # 3. Multiples sessions OUVERTE sur même caisse
+        # 4. Multiples sessions non finalisées sur même caisse.
         self._checker_multi_sessions()
 
         # Bilan
@@ -125,8 +128,34 @@ class Command(BaseCommand):
             )
 
             def fix(sess=session, reason=decision.reason):
+                CaisseSessionService.demarrer_passation(
+                    sess,
+                    motif=f"Accès POS expiré/révoqué: {reason}",
+                    moment=now,
+                )
+
+            self._apply(fix)
+            self._corriger(entry, "Session passée en EN_PASSATION")
+
+    def _checker_passations_expirees(self, now):
+        from apps.pos.models import SessionCaisse
+
+        sessions = SessionCaisse.objects.filter(
+            statut='EN_PASSATION',
+            passation_jusqua__isnull=False,
+            passation_jusqua__lt=now,
+        ).select_related('point_vente')
+
+        for session in sessions:
+            entry = self._log_anomalie(
+                session,
+                'PASSATION_EXPIREE',
+                "Fenêtre de passation terminée — comptage requis",
+            )
+
+            def fix(sess=session):
                 sess.statut = 'EN_COMPTAGE'
-                suffix = f"Accès POS expiré/révoqué: {reason}"
+                suffix = "Fenêtre de passation expirée"
                 sess.notes = f"{sess.notes} | {suffix}" if sess.notes else suffix
                 sess.save(update_fields=['statut', 'notes'])
 
@@ -135,7 +164,9 @@ class Command(BaseCommand):
 
     def _checker_session_orpheline(self, now):
         from apps.pos.models import SessionCaisse
-        sessions = SessionCaisse.objects.filter(statut='OUVERTE').select_related('point_vente')
+        sessions = SessionCaisse.objects.filter(
+            statut__in=('OUVERTE', 'EN_PASSATION', 'EN_COMPTAGE')
+        ).select_related('point_vente')
 
         for s in sessions:
             if s.date_ouverture and (now - s.date_ouverture) > timedelta(hours=24):
@@ -152,7 +183,9 @@ class Command(BaseCommand):
 
     def _checker_multi_sessions(self):
         from apps.pos.models import SessionCaisse
-        sessions = SessionCaisse.objects.filter(statut='OUVERTE').select_related('caisse', 'point_vente').order_by('-date_ouverture')
+        sessions = SessionCaisse.objects.filter(
+            statut__in=('OUVERTE', 'EN_PASSATION', 'EN_COMPTAGE')
+        ).select_related('caisse', 'point_vente').order_by('-date_ouverture')
 
         par_caisse = defaultdict(list)
         for s in sessions:
@@ -170,6 +203,10 @@ class Command(BaseCommand):
 
                 def fix(sess=s):
                     sess.statut = 'EN_COMPTAGE'
-                    sess.save(update_fields=['statut'])
+                    sess.notes = (
+                        f"{sess.notes} | Conflit multi-session"
+                        if sess.notes else "Conflit multi-session"
+                    )
+                    sess.save(update_fields=['statut', 'notes'])
                 self._apply(fix)
                 self._corriger(entry, "Session passée en EN_COMPTAGE (conflit)")
