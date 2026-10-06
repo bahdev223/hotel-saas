@@ -19,3 +19,9 @@ __all__ = [
     "StockService",
     "RestaurantConsumptionService",
 ]
+from .restaurant_service import RestaurantService, RestaurantWorkflowError
+
+__all__ = list(globals().get("__all__", [])) + [
+    "RestaurantService",
+    "RestaurantWorkflowError",
+]
