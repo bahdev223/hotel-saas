@@ -457,6 +457,13 @@ def api_creer_commande(request):
             type__in=POINTS_VENTE_OPERATIONNELS,
         )
         employe = Employe.objects.filter(user=request.user, actif=True).first()
+        if employe is None:
+            return JsonResponse({
+                'success': False,
+                'error_code': 'AUCUN_PROFIL_EMPLOYE',
+                'error': "Un profil employé actif est obligatoire pour créer une commande POS.",
+            }, status=403)
+
         decision = POSAccessService.check(
             user=request.user,
             employe=employe,
@@ -502,6 +509,14 @@ def api_creer_commande(request):
                         'error': f"Stock insuffisant pour {nom} dans cet entrepôt: {float(stock_total)} disponible(s), {float(qte)} demandé(s)"
                     })
 
+        type_commande = data.get('type_commande', 'SUR_PLACE')
+        if type_commande not in dict(Commande.TYPE_CHOICES):
+            return JsonResponse({
+                'success': False,
+                'error_code': 'TYPE_COMMANDE_INVALIDE',
+                'error': "Type de commande invalide.",
+            }, status=400)
+
         client_id = data.get('client_id')
         client_obj = None
         if client_id:
@@ -513,7 +528,7 @@ def api_creer_commande(request):
         commande = Commande.objects.create(
             point_vente=point_vente,
             entrepot_id=entrepot_utilise,
-            type_commande=data.get('type_commande', 'SUR_PLACE'),
+            type_commande=type_commande,
             client=client_obj,
             client_nom=data.get('client_nom', ''),
             client_telephone=data.get('client_telephone', ''),
@@ -528,7 +543,19 @@ def api_creer_commande(request):
         
         for item in data.get('lignes', []):
             type_art = item.get('type_article', 'PRODUIT')
+            if type_art not in ('PRODUIT', 'MENU', 'LOCATION'):
+                return JsonResponse({
+                    'success': False,
+                    'error_code': 'TYPE_ARTICLE_INVALIDE',
+                    'error': f"Type d'article POS inconnu : {type_art}.",
+                }, status=400)
             qte = Decimal(str(item.get('quantite', 1)))
+            if qte <= 0:
+                return JsonResponse({
+                    'success': False,
+                    'error_code': 'QUANTITE_INVALIDE',
+                    'error': "La quantité doit être strictement positive.",
+                }, status=400)
             
             if type_art == 'LOCATION':
                 return JsonResponse({
