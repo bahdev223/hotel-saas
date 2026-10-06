@@ -81,7 +81,15 @@ class RestaurantService:
 
     @classmethod
     @transaction.atomic
-    def lier_commande_table(cls, *, commande, table, employe, user):
+    def lier_commande_table(
+        cls,
+        *,
+        commande,
+        table,
+        employe,
+        user,
+        nombre_couverts=None,
+    ):
         commande = Commande.objects.select_for_update().select_related(
             "point_vente"
         ).get(pk=commande.pk)
@@ -111,7 +119,14 @@ class RestaurantService:
         table.statut = "COMMANDE_EN_COURS"
         table.serveur_actuel = employe
         table.heure_arrivee = table.heure_arrivee or timezone.now()
-        if table.nombre_couverts <= 0:
+        if nombre_couverts is not None:
+            couverts = max(1, int(nombre_couverts))
+            if couverts > table.capacite:
+                raise RestaurantWorkflowError(
+                    f"Table {table.numero}: capacité maximale {table.capacite}."
+                )
+            table.nombre_couverts = couverts
+        elif table.nombre_couverts <= 0:
             table.nombre_couverts = 1
         table.save(update_fields=[
             "statut", "serveur_actuel", "heure_arrivee",
