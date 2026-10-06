@@ -1,4 +1,5 @@
 from decimal import Decimal
+from datetime import timedelta
 from django.test import TestCase
 from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
@@ -217,12 +218,11 @@ class CommandeSettlementServiceTest(TestCase):
     def test_owner_can_settle_existing_order_during_handover_grace(self):
         session = self.caisse.sessions_pos.get(statut="OUVERTE")
         now = timezone.now()
-        self.commande.date_commande = now
-        self.commande.save()
+        # La commande de setUp a été créée avant le début de la passation.
         session = CaisseSessionService.demarrer_passation(
             session,
             motif="Fin de créneau",
-            moment=now + timezone.timedelta(minutes=1),
+            moment=now,
         )
 
         result = CommandeSettlementService.regler(
@@ -246,7 +246,7 @@ class CommandeSettlementServiceTest(TestCase):
         # auto_now_add n'est pas modifiable via save(); update permet de simuler
         # une commande créée après le début de la passation.
         type(self.commande).objects.filter(pk=self.commande.pk).update(
-            date_commande=now + timezone.timedelta(minutes=1)
+            date_commande=now + timedelta(minutes=1)
         )
         self.commande.refresh_from_db()
 
