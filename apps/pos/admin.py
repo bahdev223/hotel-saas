@@ -1,6 +1,7 @@
 from django.contrib import admin
 from unfold.admin import ModelAdmin, TabularInline
 
+from .constants import TypePointVente
 from .models import (
     PointVente, Vente, LigneVente, SessionCaisse,
     Commande, LigneCommande, CaissePointVente, ShiftEmploye,
@@ -42,6 +43,14 @@ class PointVenteAdmin(ModelAdmin):
     search_fields = ['code', 'nom']
     autocomplete_fields = []
     inlines = [CaissePointVenteInline, AffectationInline]
+
+    def formfield_for_choice_field(self, db_field, request, **kwargs):
+        if db_field.name == "type":
+            kwargs["choices"] = [
+                (TypePointVente.BAR, "Bar"),
+                (TypePointVente.RESTAURATION, "Restaurant"),
+            ]
+        return super().formfield_for_choice_field(db_field, request, **kwargs)
 
 
 @admin.register(Vente)
