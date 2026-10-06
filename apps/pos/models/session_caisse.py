@@ -3,7 +3,7 @@ from django.db.models import Sum, Q
 from decimal import Decimal
 from apps.tresorerie.models import Caisse
 from apps.rh.models import Employe
-from ..constants import StatutSession
+from ..constants import ModeAccesPOS, StatutSession
 
 
 class SessionCaisse(models.Model):
@@ -23,7 +23,24 @@ class SessionCaisse(models.Model):
     )
 
     date_ouverture = models.DateTimeField(auto_now_add=True)
+    date_passation = models.DateTimeField(null=True, blank=True)
+    passation_jusqua = models.DateTimeField(null=True, blank=True)
     date_fermeture = models.DateTimeField(null=True, blank=True)
+    date_validation = models.DateTimeField(null=True, blank=True)
+
+    # Snapshot de l'autorisation ayant permis l'ouverture. On conserve des IDs
+    # et les permissions même si l'affectation/shift sont modifiés plus tard.
+    mode_acces_ouverture = models.CharField(
+        max_length=20,
+        choices=ModeAccesPOS.choices,
+        blank=True,
+    )
+    raison_acces_ouverture = models.CharField(max_length=80, blank=True)
+    affectation_ouverture_id = models.PositiveBigIntegerField(null=True, blank=True)
+    shift_ouverture_id = models.PositiveBigIntegerField(null=True, blank=True)
+    acces_expire_le = models.DateTimeField(null=True, blank=True)
+    permissions_ouverture = models.JSONField(default=dict, blank=True)
+    motif_passation = models.CharField(max_length=255, blank=True)
 
     solde_initial = models.DecimalField(max_digits=12, decimal_places=2, default=0)
 
@@ -41,7 +58,7 @@ class SessionCaisse(models.Model):
         constraints = [
             models.UniqueConstraint(
                 fields=['caisse'],
-                condition=Q(statut__in=['OUVERTE', 'EN_COMPTAGE']),
+                condition=Q(statut__in=['OUVERTE', 'EN_PASSATION', 'EN_COMPTAGE']),
                 name='unique_session_active_par_caisse',
             ),
         ]
@@ -79,6 +96,22 @@ class SessionCaisse(models.Model):
     def nombre_ventes(self):
         from .vente import Vente
         return Vente.objects.filter(session_caisse=self, statut='PAYEE').count()
+
+    @property
+    def est_non_finalisee(self):
+        return self.statut in {
+            StatutSession.OUVERTE,
+            StatutSession.EN_PASSATION,
+            StatutSession.EN_COMPTAGE,
+        }
+
+    @property
+    def accepte_nouveaux_encaissements(self):
+        return self.statut == StatutSession.OUVERTE
+
+    @property
+    def en_passation(self):
+        return self.statut == StatutSession.EN_PASSATION
 
     @property
     def duree(self):
