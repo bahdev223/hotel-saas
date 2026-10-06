@@ -12,6 +12,9 @@ from django.db import models
 
 from ..models import RecetteModel, IngredientModel, MenuModel, LigneMenuModel
 from apps.stock.models import Produit, StockEntrepot, Entrepot
+from apps.pos.constants import ActionPOS, TypePointVente
+from apps.pos.models import PointVenteEntrepot
+from apps.pos.services.access_service import POSAccessService
 
 
 @login_required
@@ -68,126 +71,181 @@ def api_statistiques(request):
 
 @login_required
 def api_dashboard(request):
-    """API JSON - Données du tableau de bord restaurant"""
-    from datetime import date, timedelta, datetime
+    """Dashboard Restaurant limité aux points de vente supervisables."""
+    from datetime import date, timedelta
     from apps.pos.models import Commande, Vente, LigneCommande
     from django.db.models import Q
     from ..models import FileAttenteModel, Production
 
-    today = date.today()
-    now = datetime.now()
-    entrepot_id = request.GET.get('entrepot_id')
-    restaurant_entrepot = get_object_or_404(Entrepot, id=entrepot_id) if entrepot_id else None
+    points = POSAccessService.points_accessibles(
+        user=request.user,
+        action=ActionPOS.CONSULTER_RAPPORTS,
+    ).filter(type=TypePointVente.RESTAURATION)
+    point_ids = list(points.values_list("id", flat=True))
+    if not point_ids:
+        return JsonResponse(
+            {"success": False, "error": "Accès rapports Restaurant refusé."},
+            status=403,
+        )
 
-    # ── Ventes du jour (payées, restaurant uniquement) ──
+    point_filter = request.GET.get("point_vente")
+    if point_filter:
+        try:
+            point_filter_id = int(point_filter)
+        except (TypeError, ValueError):
+            return JsonResponse(
+                {"success": False, "error": "Point de vente invalide."},
+                status=400,
+            )
+        if point_filter_id not in point_ids:
+            return JsonResponse(
+                {"success": False, "error": "Restaurant non autorisé."},
+                status=403,
+            )
+        point_ids = [point_filter_id]
+
+    today = date.today()
+    entrepot_id = request.GET.get("entrepot_id")
+    restaurant_entrepot = None
+    if entrepot_id:
+        authorized_entrepots = PointVenteEntrepot.objects.filter(
+            point_vente_id__in=point_ids,
+            actif=True,
+            entrepot__actif=True,
+        ).values_list("entrepot_id", flat=True)
+        restaurant_entrepot = get_object_or_404(
+            Entrepot,
+            id=entrepot_id,
+            id__in=authorized_entrepots,
+        )
+
     ventes_jour = Vente.objects.filter(
-        created_at__date=today, statut='PAYEE',
-        point_vente__type='RESTAURATION'
+        created_at__date=today,
+        statut="PAYEE",
+        point_vente_id__in=point_ids,
     )
-    ca_jour = float(ventes_jour.aggregate(total=models.Sum('montant_total'))['total'] or 0)
+    ca_jour = float(
+        ventes_jour.aggregate(total=models.Sum("montant_total"))["total"] or 0
+    )
     nb_ventes_jour = ventes_jour.count()
 
-    # ── Commandes du jour (restaurant uniquement) ──
     commandes_jour = Commande.objects.filter(
         created_at__date=today,
-        point_vente__type='RESTAURATION'
+        point_vente_id__in=point_ids,
     )
     nb_commandes_jour = commandes_jour.count()
-    commandes_attente = commandes_jour.filter(statut='EN_ATTENTE').count()
-    commandes_preparation = commandes_jour.filter(statut='EN_PREPARATION').count()
-
-    # ── CA semaine (restaurant) ──
-    week_ago = today - timedelta(days=7)
-    ca_semaine = float(Vente.objects.filter(
-        created_at__date__gte=week_ago, statut='PAYEE',
-        point_vente__type='RESTAURATION'
-    ).aggregate(total=models.Sum('montant_total'))['total'] or 0)
-
-    # ── CA 7 derniers jours (restaurant) ──
-    ca_7jours = []
-    for i in range(6, -1, -1):
-        d = today - timedelta(days=i)
-        total = float(Vente.objects.filter(
-            created_at__date=d, statut='PAYEE',
-            point_vente__type='RESTAURATION'
-        ).aggregate(t=models.Sum('montant_total'))['t'] or 0)
-        ca_7jours.append({'date': d.strftime('%a %d/%m'), 'total': total})
-
-    # ── Stock alerte ──
-    stock_alertes = []
-    if restaurant_entrepot:
-        stocks = StockEntrepot.objects.filter(
-            entrepot=restaurant_entrepot,
-            produit__actif=True,
-            produit__est_vendable=True,
-            quantite__lte=models.F('produit__seuil_alerte'),
-        ).select_related('produit')[:8]
-        stock_alertes = [
-            {
-                'produit_id': s.produit_id,
-                'produit_nom': s.produit.nom,
-                'produit_code': s.produit.code,
-                'stock': float(s.quantite),
-                'seuil': float(s.produit.seuil_alerte),
-            }
-            for s in stocks if float(s.quantite) > 0
-        ]
-
-    # ── Top articles vendus aujourd'hui (RESTAURANT seulement) ──
-    top_articles = []
-    lignes_today = LigneCommande.objects.filter(
-        commande__created_at__date=today,
-        commande__statut__in=['SERVIE', 'LIVREE', 'PRETE'],
-    ).filter(
-        Q(menu__isnull=False) | Q(produit__domaine__nom='RESTAURANT')
-    ).values('menu__nom', 'produit__nom').annotate(
-        qte=models.Sum('quantite'),
-        total=models.Sum(models.F('quantite') * models.F('prix_unitaire')),
-    ).order_by('-qte')[:5]
-    for l in lignes_today:
-        nom = l['menu__nom'] or l['produit__nom'] or 'Inconnu'
-        if nom:
-            top_articles.append({
-                'nom': nom,
-                'quantite': float(l['qte']),
-                'total': float(l['total']),
-            })
-
-    # ── Dernières commandes ──
-    dernieres_commandes = commandes_jour.order_by('-created_at')[:5]
-    recentes = []
-    for c in dernieres_commandes:
-        recentes.append({
-            'numero': c.numero,
-            'type': c.get_type_commande_display(),
-            'statut': c.get_statut_display(),
-            'total': float(c.montant_total),
-            'nb_articles': c.lignes.count(),
-            'date': c.created_at.strftime('%H:%M'),
-        })
-
-    # ── Productions en cours ──
-    nb_productions = Production.objects.filter(
-        statut__in=['EN_ATTENTE', 'EN_COURS'],
-        date_production=today,
+    commandes_attente = commandes_jour.filter(statut="EN_ATTENTE").count()
+    commandes_preparation = commandes_jour.filter(statut="EN_PREPARATION").count()
+    commandes_pretes = commandes_jour.filter(statut="PRETE").count()
+    commandes_a_encaisser = commandes_jour.filter(
+        statut="SERVIE",
+        vente__isnull=True,
     ).count()
 
-    # ── File d'attente ──
-    nb_file_attente = FileAttenteModel.objects.filter(statut='EN_ATTENTE').count()
+    week_ago = today - timedelta(days=7)
+    ca_semaine = float(
+        Vente.objects.filter(
+            created_at__date__gte=week_ago,
+            statut="PAYEE",
+            point_vente_id__in=point_ids,
+        ).aggregate(total=models.Sum("montant_total"))["total"] or 0
+    )
+
+    ca_7jours = []
+    for i in range(6, -1, -1):
+        current = today - timedelta(days=i)
+        total = float(
+            Vente.objects.filter(
+                created_at__date=current,
+                statut="PAYEE",
+                point_vente_id__in=point_ids,
+            ).aggregate(t=models.Sum("montant_total"))["t"] or 0
+        )
+        ca_7jours.append({"date": current.strftime("%a %d/%m"), "total": total})
+
+    stock_alertes = []
+    if restaurant_entrepot:
+        stocks = (
+            StockEntrepot.objects.filter(
+                entrepot=restaurant_entrepot,
+                produit__actif=True,
+                produit__est_vendable=True,
+                quantite__lte=models.F("produit__seuil_alerte"),
+            )
+            .select_related("produit")[:8]
+        )
+        stock_alertes = [
+            {
+                "produit_id": stock.produit_id,
+                "produit_nom": stock.produit.nom,
+                "produit_code": stock.produit.code,
+                "stock": float(stock.quantite),
+                "seuil": float(stock.produit.seuil_alerte),
+            }
+            for stock in stocks
+            if float(stock.quantite) > 0
+        ]
+
+    lignes_today = (
+        LigneCommande.objects.filter(
+            commande__created_at__date=today,
+            commande__point_vente_id__in=point_ids,
+            commande__statut__in=["PRETE", "SERVIE", "PAYEE"],
+        )
+        .filter(Q(menu__isnull=False) | Q(produit__domaine__nom="RESTAURANT"))
+        .values("menu__nom", "produit__nom")
+        .annotate(
+            qte=models.Sum("quantite"),
+            total=models.Sum(models.F("quantite") * models.F("prix_unitaire")),
+        )
+        .order_by("-qte")[:5]
+    )
+    top_articles = [
+        {
+            "nom": row["menu__nom"] or row["produit__nom"] or "Inconnu",
+            "quantite": float(row["qte"]),
+            "total": float(row["total"]),
+        }
+        for row in lignes_today
+    ]
+
+    recentes = [
+        {
+            "numero": commande.numero,
+            "type": commande.get_type_commande_display(),
+            "statut": commande.get_statut_display(),
+            "total": float(commande.montant_total),
+            "nb_articles": commande.lignes.count(),
+            "date": commande.created_at.strftime("%H:%M"),
+        }
+        for commande in commandes_jour.order_by("-created_at")[:5]
+    ]
+
+    nb_productions = Production.objects.filter(
+        statut__in=["EN_ATTENTE", "EN_COURS"],
+        date_production=today,
+    ).count()
+    nb_file_attente = FileAttenteModel.objects.filter(
+        point_vente_id__in=point_ids,
+        statut="EN_ATTENTE",
+    ).count()
 
     return JsonResponse({
-        'ca_jour': ca_jour,
-        'ca_semaine': ca_semaine,
-        'ca_7jours': ca_7jours,
-        'ventes_jour': nb_ventes_jour,
-        'commandes_jour': nb_commandes_jour,
-        'commandes_attente': commandes_attente,
-        'commandes_preparation': commandes_preparation,
-        'stock_alertes': stock_alertes,
-        'top_articles': top_articles,
-        'dernieres_commandes': recentes,
-        'nb_productions': nb_productions,
-        'nb_file_attente': nb_file_attente,
+        "success": True,
+        "ca_jour": ca_jour,
+        "ca_semaine": ca_semaine,
+        "ca_7jours": ca_7jours,
+        "ventes_jour": nb_ventes_jour,
+        "commandes_jour": nb_commandes_jour,
+        "commandes_attente": commandes_attente,
+        "commandes_preparation": commandes_preparation,
+        "commandes_pretes": commandes_pretes,
+        "commandes_a_encaisser": commandes_a_encaisser,
+        "stock_alertes": stock_alertes,
+        "top_articles": top_articles,
+        "dernieres_commandes": recentes,
+        "nb_productions": nb_productions,
+        "nb_file_attente": nb_file_attente,
     })
 
 
