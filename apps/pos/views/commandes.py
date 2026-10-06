@@ -363,6 +363,11 @@ def changer_statut_commande(request, commande_id):
                         "error_code": decision.reason,
                         "error": f"Annulation refusée ({decision.reason}).",
                     }, status=403)
+                from apps.restaurant.services.consumption_service import RestaurantConsumptionService
+                RestaurantConsumptionService.annuler_consommation_commande(
+                    commande,
+                    utilisateur=request.user,
+                )
                 commande.annuler()
                 RestaurantService.liberer_table_si_terminee(commande)
             elif (
