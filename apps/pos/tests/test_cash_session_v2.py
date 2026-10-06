@@ -12,6 +12,7 @@ from apps.pos.models import (
     CaissePointVente,
     PointVente,
     SessionCaisse,
+    ShiftEmploye,
     Vente,
 )
 from apps.pos.services.caisse_session_service import CaisseSessionService
@@ -319,4 +320,54 @@ class CashSessionV2Tests(TestCase):
         self.assertEqual(response.status_code, 403)
         session.refresh_from_db()
         self.assertEqual(session.statut, "OUVERTE")
+
+    def test_server_access_does_not_keep_expired_cashier_session_open(self):
+        # Même employé : serveur permanent + caissier uniquement sur planning.
+        self.assignment.role = RolePOS.SERVEUR
+        self.assignment.mode_acces = ModeAccesPOS.PERMANENT
+        self.assignment.peut_vendre = True
+        self.assignment.peut_encaisser = False
+        self.assignment.peut_ouvrir_caisse = False
+        self.assignment.peut_fermer_caisse = False
+        self.assignment.save()
+
+        cashier_assignment = AffectationPointVente.objects.create(
+            employe=self.cashier,
+            point_vente=self.pv,
+            role=RolePOS.CAISSIER,
+            mode_acces=ModeAccesPOS.PLANNING,
+            actif=True,
+            peut_vendre=True,
+            peut_encaisser=True,
+            peut_ouvrir_caisse=True,
+            peut_fermer_caisse=True,
+        )
+        now = timezone.now()
+        shift = ShiftEmploye.objects.create(
+            affectation=cashier_assignment,
+            debut_prevu=now - timedelta(hours=1),
+            fin_prevue=now + timedelta(hours=1),
+            statut="CONFIRME",
+            cree_par=self.user,
+        )
+        session = CaisseSessionService.ouverture_session(
+            caisse=self.caisse,
+            point_vente=self.pv,
+            caissier=self.cashier,
+            shift=shift,
+        )
+
+        # Le shift caisse finit, mais l'affectation serveur permanente reste.
+        shift.fin_prevue = now - timedelta(minutes=1)
+        shift.save(update_fields=["fin_prevue"])
+
+        self.client.force_login(self.user)
+        response = self.client.get(
+            f"/pos/api/sessions/verifier-etat/{self.pv.id}/"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        session.refresh_from_db()
+        self.assertEqual(session.statut, "EN_PASSATION")
+        self.assertTrue(response.json()["planning_expire"])
 
