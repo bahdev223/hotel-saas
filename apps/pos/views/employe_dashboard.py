@@ -5,7 +5,9 @@ from django.views.decorators.http import require_http_methods
 from django.http import JsonResponse
 from django.db.models import Q, Sum, Prefetch, Count
 from django.utils import timezone
-from ..models import SessionCaisse, Vente, LigneVente, Commande, LigneCommande, ShiftEmploye, AffectationPointVente, CaissePointVente
+from ..models import SessionCaisse, Vente, LigneVente, Commande, LigneCommande, ShiftEmploye, CaissePointVente
+from ..constants import ActionPOS, POINTS_VENTE_OPERATIONNELS
+from ..services.access_service import POSAccessService
 from apps.rh.models import Pointage
 from decimal import Decimal
 from collections import defaultdict
@@ -14,7 +16,11 @@ from collections import defaultdict
 def _build_timeline(employe, aujourdhui, limit=30):
     items = []
 
-    for v in Vente.objects.filter(caissier=employe, statut='PAYEE').select_related('point_vente').order_by('-created_at')[:15]:
+    for v in Vente.objects.filter(
+        caissier=employe,
+        statut='PAYEE',
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+    ).select_related('point_vente').order_by('-created_at')[:15]:
         items.append({
             'date': v.created_at, 'type': 'vente', 'icon': 'fa-cash-register',
             'color': 'text-green-400', 'title': f"Vente {v.numero}",
@@ -22,7 +28,10 @@ def _build_timeline(employe, aujourdhui, limit=30):
             'point_vente': v.point_vente.nom if v.point_vente else '',
         })
 
-    for v in Vente.objects.filter(encaisse_par=employe).exclude(caissier=employe, statut='PAYEE').select_related('point_vente', 'caissier').order_by('-created_at')[:10]:
+    for v in Vente.objects.filter(
+        encaisse_par=employe,
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+    ).exclude(caissier=employe, statut='PAYEE').select_related('point_vente', 'caissier').order_by('-created_at')[:10]:
         items.append({
             'date': v.created_at, 'type': 'encaissement', 'icon': 'fa-hand-holding-usd',
             'color': 'text-blue-400', 'title': f"Encaissement {v.numero}",
@@ -30,7 +39,11 @@ def _build_timeline(employe, aujourdhui, limit=30):
             'point_vente': v.point_vente.nom if v.point_vente else '',
         })
 
-    for v in Vente.objects.filter(caissier=employe, statut='ANNULEE').select_related('point_vente').order_by('-updated_at')[:10]:
+    for v in Vente.objects.filter(
+        caissier=employe,
+        statut='ANNULEE',
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+    ).select_related('point_vente').order_by('-updated_at')[:10]:
         items.append({
             'date': v.updated_at, 'type': 'annulation', 'icon': 'fa-ban',
             'color': 'text-red-400', 'title': f"Annulation {v.numero}",
@@ -38,7 +51,10 @@ def _build_timeline(employe, aujourdhui, limit=30):
             'point_vente': v.point_vente.nom if v.point_vente else '',
         })
 
-    for c in Commande.objects.filter(created_by=employe).select_related('point_vente').annotate(nb_lignes=Count('lignes')).order_by('-date_commande')[:15]:
+    for c in Commande.objects.filter(
+        created_by=employe,
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+    ).select_related('point_vente').annotate(nb_lignes=Count('lignes')).order_by('-date_commande')[:15]:
         items.append({
             'date': c.date_commande, 'type': 'commande', 'icon': 'fa-clipboard-list',
             'color': 'text-orange-400', 'title': f"Commande {c.numero}",
@@ -46,7 +62,10 @@ def _build_timeline(employe, aujourdhui, limit=30):
             'point_vente': c.point_vente.nom if c.point_vente else '',
         })
 
-    for s in SessionCaisse.objects.filter(ouverte_par=employe).select_related('point_vente').order_by('-date_ouverture')[:10]:
+    for s in SessionCaisse.objects.filter(
+        ouverte_par=employe,
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+    ).select_related('point_vente').order_by('-date_ouverture')[:10]:
         items.append({
             'date': s.date_ouverture, 'type': 'session_ouverte', 'icon': 'fa-play-circle',
             'color': 'text-green-400', 'title': f"Session #{s.id} ouverte",
@@ -54,7 +73,11 @@ def _build_timeline(employe, aujourdhui, limit=30):
             'point_vente': s.point_vente.nom if s.point_vente else '',
         })
 
-    for s in SessionCaisse.objects.filter(fermee_par=employe, date_fermeture__isnull=False).select_related('point_vente').order_by('-date_fermeture')[:10]:
+    for s in SessionCaisse.objects.filter(
+        fermee_par=employe,
+        date_fermeture__isnull=False,
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+    ).select_related('point_vente').order_by('-date_fermeture')[:10]:
         comptage = getattr(s, 'comptage', None)
         ecart = comptage.ecart_especes if comptage else 0
         items.append({
@@ -92,7 +115,8 @@ def employe_dashboard(request):
     aujourdhui = timezone.localdate()
 
     sessions = SessionCaisse.objects.filter(
-        Q(ouverte_par=employe) | Q(fermee_par=employe)
+        Q(ouverte_par=employe) | Q(fermee_par=employe),
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
     ).select_related('point_vente', 'caisse').order_by('-date_ouverture')[:30]
 
     session_ids = [s.id for s in sessions]
@@ -106,19 +130,27 @@ def employe_dashboard(request):
         for v in ventes:
             ventes_par_session.setdefault(v.session_caisse_id, []).append(v)
 
-    affectations = AffectationPointVente.objects.filter(employe=employe, actif=True).values_list('point_vente_id', flat=True)
     shifts = ShiftEmploye.objects.filter(
         affectation__employe=employe,
+        affectation__point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
     ).exclude(statut='ANNULE').select_related('affectation__point_vente').order_by('-debut_prevu')[:20]
 
-    ventes_ajd = Vente.objects.filter(caissier=employe, created_at__date=aujourdhui)
+    ventes_ajd = Vente.objects.filter(
+        caissier=employe,
+        created_at__date=aujourdhui,
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+    )
     ventes_ajd_payee = ventes_ajd.filter(statut='PAYEE')
     ca_aujourdhui = ventes_ajd_payee.aggregate(total=Sum('montant_total'))['total'] or 0
     marge_aujourdhui = ventes_ajd_payee.aggregate(total=Sum('marge_totale'))['total'] or 0
     nb_ventes_aujourdhui = ventes_ajd_payee.count()
     nb_annulations_ajd = ventes_ajd.filter(statut='ANNULEE').count()
 
-    commandes_ajd = Commande.objects.filter(created_by=employe, date_commande__date=aujourdhui)
+    commandes_ajd = Commande.objects.filter(
+        created_by=employe,
+        date_commande__date=aujourdhui,
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+    )
     nb_commandes_ajd = commandes_ajd.count()
     nb_commandes_encours = commandes_ajd.exclude(statut__in=['SERVIE', 'LIVREE', 'ANNULEE']).count()
 
@@ -131,13 +163,15 @@ def employe_dashboard(request):
         }
 
     toutes_ventes = Vente.objects.filter(
-        caissier=employe
+        caissier=employe,
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
     ).select_related('point_vente', 'session_caisse', 'client', 'table').prefetch_related(
         Prefetch('lignes', queryset=LigneVente.objects.select_related('produit', 'menu'))
     ).order_by('-created_at')[:100]
 
     dernieres_commandes = Commande.objects.filter(
-        created_by=employe
+        created_by=employe,
+        point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
     ).select_related('point_vente').annotate(
         nb_lignes=Count('lignes')
     ).order_by('-date_commande')[:20]
@@ -145,9 +179,11 @@ def employe_dashboard(request):
     timeline = _build_timeline(employe, aujourdhui)
 
     user_groups = list(request.user.groups.values_list('name', flat=True))
-    pv_ids = set(affectations)
-    a_un_acces_pos = len(pv_ids) > 0
-    pvs = PointVente.objects.filter(id__in=pv_ids, actif=True) if pv_ids else PointVente.objects.none()
+    pvs = POSAccessService.points_accessibles(
+        user=request.user,
+        action=ActionPOS.ACCEDER,
+    )
+    a_un_acces_pos = pvs.exists()
     pv_unique = pvs.first() if pvs.count() == 1 else None
 
     for s in sessions:
@@ -184,6 +220,33 @@ def employe_dashboard(request):
     return render(request, 'pos/employe/dashboard.html', context)
 
 
+def _resolve_pos_encaissement(request, employe):
+    """Résout un POS courant où l'employé peut encaisser maintenant."""
+    if not employe or not getattr(employe, "user", None):
+        return None
+
+    courant_id = request.session.get("point_vente_courant_id")
+    if courant_id:
+        from apps.pos.models import PointVente
+        courant = PointVente.objects.filter(
+            id=courant_id,
+            actif=True,
+            type__in=POINTS_VENTE_OPERATIONNELS,
+        ).first()
+        if courant and POSAccessService.can(
+            user=request.user,
+            employe=employe,
+            point_vente=courant,
+            action=ActionPOS.ENCAISSER,
+        ):
+            return courant
+
+    return POSAccessService.points_accessibles(
+        user=request.user,
+        action=ActionPOS.ENCAISSER,
+    ).first()
+
+
 @login_required
 def employe_paiement_clients(request):
     employe = getattr(request.user, 'employe', None)
@@ -191,17 +254,13 @@ def employe_paiement_clients(request):
         messages.error(request, "Aucun profil employ\u00e9 trouv\u00e9.")
         return redirect('pos:employe_dashboard')
 
-    aujourdhui = timezone.localdate()
-    affectations = AffectationPointVente.objects.filter(employe=employe, actif=True).select_related('point_vente')
-    shift = ShiftEmploye.objects.filter(
-        affectation__in=affectations, debut_prevu__date=aujourdhui,
-    ).exclude(statut='ANNULE').select_related('affectation__point_vente').first()
-
-    if not shift:
-        messages.error(request, "Aucun planning aujourd'hui.")
+    pv = _resolve_pos_encaissement(request, employe)
+    if not pv:
+        messages.error(
+            request,
+            "Aucun Bar ou Restaurant ne vous autorise à encaisser actuellement.",
+        )
         return redirect('pos:employe_dashboard')
-
-    pv = shift.affectation.point_vente if shift.affectation else None
     cpv = CaissePointVente.objects.filter(point_vente=pv, actif=True).select_related('caisse').first() if pv else None
     caisse = cpv.caisse if cpv else None
     if not caisse:
@@ -210,20 +269,17 @@ def employe_paiement_clients(request):
 
     return render(request, 'pos/employe/paiement_clients.html', {
         'caisse': caisse, 'point_vente': pv,
-        'clients_employe': _get_clients_employe(employe),
+        'clients_employe': _get_clients_employe(employe, pv),
     })
 
 
-def _get_clients_employe(employe):
+def _get_clients_employe(employe, point_vente=None):
     from apps.paiements.models import Paiement
     from django.utils import timezone
 
-    aujourdhui = timezone.localdate()
-    affectations = AffectationPointVente.objects.filter(employe=employe, actif=True).select_related('point_vente')
-    if not affectations.exists():
+    pv = point_vente
+    if pv is None:
         return []
-
-    pv = affectations.first().point_vente
     cpv = CaissePointVente.objects.filter(point_vente=pv, actif=True).select_related('caisse').first() if pv else None
     caisse = cpv.caisse if cpv else None
     if not caisse:
@@ -284,16 +340,13 @@ def api_paiement_clients_processer(request):
         if not employe:
             return JsonResponse({'success': False, 'error': 'Employ\u00e9 introuvable'})
 
-        aujourdhui = timezone.localdate()
-        affectations = AffectationPointVente.objects.filter(employe=employe, actif=True)
-        shift = ShiftEmploye.objects.filter(
-            affectation__in=affectations, debut_prevu__date=aujourdhui,
-        ).exclude(statut='ANNULE').select_related('affectation__point_vente').first()
-
-        if not shift:
-            return JsonResponse({'success': False, 'error': 'Aucun planning actif aujourd\'hui'})
-
-        pv = shift.affectation.point_vente if shift.affectation else None
+        pv = _resolve_pos_encaissement(request, employe)
+        if not pv:
+            return JsonResponse({
+                'success': False,
+                'error_code': 'ENCAISSEMENT_NON_AUTORISE',
+                'error': "Aucun Bar ou Restaurant ne vous autorise à encaisser actuellement.",
+            }, status=403)
         cpv = CaissePointVente.objects.filter(point_vente=pv, actif=True).select_related('caisse').first() if pv else None
         caisse = cpv.caisse if cpv else None
         if not caisse:
