@@ -234,7 +234,7 @@ class POSAccessServiceTests(TestCase):
         ))
 
     def test_manager_has_total_access_without_assignment(self):
-        manager = Group.objects.create(name=MANAGER)
+        manager, _ = Group.objects.get_or_create(name=MANAGER)
         self.user.groups.add(manager)
 
         decision = POSAccessService.check(
