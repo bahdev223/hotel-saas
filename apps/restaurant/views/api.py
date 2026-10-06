@@ -36,36 +36,41 @@ def api_produits(request):
 
 @login_required
 def api_statistiques(request):
-    """API pour les statistiques (AJAX)"""
+    """Statistiques Restaurant limitées aux points supervisables."""
     from apps.pos.models import Vente
     from ..models import RecetteModel
     from datetime import date, timedelta
-    
+
+    points = POSAccessService.points_accessibles(
+        user=request.user,
+        action=ActionPOS.CONSULTER_RAPPORTS,
+    ).filter(type=TypePointVente.RESTAURATION)
+    point_ids = list(points.values_list("id", flat=True))
+    if not point_ids:
+        return JsonResponse(
+            {"success": False, "error": "Accès statistiques Restaurant refusé."},
+            status=403,
+        )
+
     today = date.today()
     week_ago = today - timedelta(days=7)
-    
-    # CA du jour (restaurant uniquement)
     ca_jour = Vente.objects.filter(
         created_at__date=today,
-        statut='PAYEE',
-        point_vente__type='RESTAURATION'
-    ).aggregate(total=models.Sum('montant_total'))['total'] or 0
-    
-    # CA semaine (restaurant uniquement)
+        statut="PAYEE",
+        point_vente_id__in=point_ids,
+    ).aggregate(total=models.Sum("montant_total"))["total"] or 0
     ca_semaine = Vente.objects.filter(
         created_at__date__gte=week_ago,
-        statut='PAYEE',
-        point_vente__type='RESTAURATION'
-    ).aggregate(total=models.Sum('montant_total'))['total'] or 0
-    
-    # Nombre de recettes
-    nb_recettes = RecetteModel.objects.filter(actif=True).count()
-    
+        statut="PAYEE",
+        point_vente_id__in=point_ids,
+    ).aggregate(total=models.Sum("montant_total"))["total"] or 0
+
     return JsonResponse({
-        'ca_jour': float(ca_jour),
-        'ca_semaine': float(ca_semaine),
-        'nb_recettes': nb_recettes,
-        'top_ventes': []
+        "success": True,
+        "ca_jour": float(ca_jour),
+        "ca_semaine": float(ca_semaine),
+        "nb_recettes": RecetteModel.objects.filter(actif=True).count(),
+        "top_ventes": [],
     })
 
 
