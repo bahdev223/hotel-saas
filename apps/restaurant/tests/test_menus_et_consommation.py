@@ -244,3 +244,93 @@ class TestAgregationBesoins(TestCase):
         self.assertFalse(result['disponible'])
         self.assertEqual(len(result['manques']), 1)
         self.assertEqual(result['manques'][0]['requis'], Decimal('2'))
+
+
+class TestAnnulationConsommationCommande(TestCase):
+    def setUp(self):
+        self.unite_kg, _ = UniteMesure.objects.get_or_create(
+            symbole="kg",
+            defaults={"nom": "Kg", "type_unite": "MASSE"},
+        )
+        self.entrepot = Entrepot.objects.create(
+            nom="Cuisine annulation",
+            code="CUISINE-ANN",
+        )
+        self.riz = Produit.objects.create(
+            code="RIZ-ANN",
+            nom="Riz annulation",
+            prix_achat=500,
+            unite_mesure=self.unite_kg,
+        )
+        MouvementStockService.entree_stock(
+            self.riz,
+            self.entrepot,
+            10,
+            "Test",
+            motif=SourceOperationType.ACHAT,
+            valeur_unitaire=500,
+        )
+        self.recette = RecetteModel.objects.create(
+            nom="Riz annulation",
+            type_recette="PLAT",
+            rendement_quantite=1,
+        )
+        IngredientModel.objects.create(
+            recette=self.recette,
+            produit=self.riz,
+            quantite=1,
+            unite_mesure=self.unite_kg,
+            type_ingredient="DEDUIRE",
+        )
+        self.point_vente = PointVente.objects.create(
+            code="PV-ANN-CONS",
+            nom="Restaurant annulation",
+            type="RESTAURATION",
+        )
+        self.commande = Commande.objects.create(
+            point_vente=self.point_vente,
+            entrepot=self.entrepot,
+            type_commande="SUR_PLACE",
+            montant_total=1000,
+        )
+        LigneCommande.objects.create(
+            commande=self.commande,
+            recette=self.recette,
+            quantite=1,
+            prix_unitaire=1000,
+        )
+
+    def test_annulation_reintegre_exactement_la_consommation(self):
+        RestaurantConsumptionService.consommer_commande(
+            self.commande,
+            self.entrepot,
+        )
+        stock_apres_sortie = StockEntrepot.objects.get(
+            produit=self.riz,
+            entrepot=self.entrepot,
+        ).quantite
+        self.assertEqual(stock_apres_sortie, Decimal("9"))
+
+        result = RestaurantConsumptionService.annuler_consommation_commande(
+            self.commande,
+            utilisateur="Test",
+        )
+        self.assertTrue(result["success"])
+        self.assertFalse(result["idempotent"])
+
+        stock_retabli = StockEntrepot.objects.get(
+            produit=self.riz,
+            entrepot=self.entrepot,
+        ).quantite
+        self.assertEqual(stock_retabli, Decimal("10"))
+
+        second = RestaurantConsumptionService.annuler_consommation_commande(
+            self.commande,
+            utilisateur="Test",
+        )
+        self.assertTrue(second["idempotent"])
+        stock_final = StockEntrepot.objects.get(
+            produit=self.riz,
+            entrepot=self.entrepot,
+        ).quantite
+        self.assertEqual(stock_final, Decimal("10"))
