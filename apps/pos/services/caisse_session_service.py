@@ -89,6 +89,41 @@ class CaisseSessionService:
     @staticmethod
     @transaction.atomic
     def ouverture_session(caisse, point_vente, caissier, shift=None):
+        from apps.pos.constants import ActionPOS, ModeAccesPOS, POINTS_VENTE_OPERATIONNELS
+        from apps.pos.services.access_service import POSAccessService
+
+        if (
+            not point_vente
+            or not point_vente.actif
+            or point_vente.type not in POINTS_VENTE_OPERATIONNELS
+        ):
+            raise ValueError("La caisse POS est limitée aux points Bar/Restaurant actifs.")
+        if not caissier or not caissier.actif or not caissier.user_id:
+            raise ValueError("Le caissier doit être un employé actif avec un compte utilisateur.")
+
+        if not CaissePointVente.objects.filter(
+            point_vente=point_vente,
+            caisse=caisse,
+            actif=True,
+        ).exists():
+            raise ValueError("Cette caisse n'est pas rattachée à ce point de vente.")
+
+        decision = POSAccessService.check(
+            user=caissier.user,
+            employe=caissier,
+            point_vente=point_vente,
+            action=ActionPOS.OUVRIR_CAISSE,
+        )
+        if not decision.allowed:
+            raise ValueError(
+                f"Ouverture de caisse non autorisée ({decision.reason})."
+            )
+        if decision.mode == ModeAccesPOS.PLANNING:
+            if shift is None or shift.id != decision.shift_id:
+                raise ValueError(
+                    "Le shift actif autorisant cette ouverture doit être fourni."
+                )
+
         caisse_verrouillee = Caisse.objects.select_for_update().get(pk=caisse.pk)
         session_active = SessionCaisse.objects.select_for_update().filter(
             caisse=caisse_verrouillee,
