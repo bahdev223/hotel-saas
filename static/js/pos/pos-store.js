@@ -371,17 +371,30 @@ export function createPosStore() {
 
         boutonsStatut(c) {
             let btns = '';
+            const restaurant = c.point_vente_type === 'RESTAURATION';
+
             if (c.statut_code === 'EN_ATTENTE') {
                 btns += `<button onclick="modifierCommande(${c.id})" title="Modifier" class="text-xs bg-blue-600 text-white w-7 h-7 rounded-full hover:bg-blue-700"><i class="fas fa-edit"></i></button>`;
-                btns += `<button onclick="supprimerCommande(${c.id})" title="Supprimer" class="text-xs bg-red-600 text-white w-7 h-7 rounded-full hover:bg-red-700"><i class="fas fa-trash"></i></button>`;
-                if (this.cashPaymentAvailable) {
-                    btns += `<button onclick="payerCommande(${c.id})" class="text-xs bg-secondary text-black px-3 py-1.5 rounded hover:bg-secondary/80 font-bold">Payer</button>`;
-                } else {
-                    const owner = this.cashSessionOwner
-                        ? `Caisse: ${this.cashSessionOwner}`
-                        : 'Ouvrez votre caisse';
-                    btns += `<span class="text-[11px] text-on-surface-muted px-2 py-1">${owner}</span>`;
-                }
+                btns += `<button onclick="supprimerCommande(${c.id})" title="Annuler" class="text-xs bg-red-600 text-white w-7 h-7 rounded-full hover:bg-red-700"><i class="fas fa-trash"></i></button>`;
+            }
+
+            let payable = false;
+            if (!restaurant) {
+                payable = ['EN_ATTENTE', 'SERVIE', 'LIVREE'].includes(c.statut_code);
+            } else if (c.type_code === 'SUR_PLACE') {
+                payable = c.statut_code === 'SERVIE';
+            } else if (c.type_code === 'EMPORTER') {
+                payable = ['PRETE', 'SERVIE'].includes(c.statut_code);
+            } else if (c.type_code === 'LIVRAISON') {
+                payable = c.statut_code === 'LIVREE';
+            }
+
+            if (payable) {
+                btns += `<button onclick="payerCommande(${c.id})" class="text-xs bg-secondary text-black px-3 py-1.5 rounded hover:bg-secondary/80 font-bold">Encaisser</button>`;
+            } else if (restaurant && c.statut_code === 'PRETE' && c.type_code === 'SUR_PLACE') {
+                btns += '<span class="text-[11px] text-emerald-600 font-semibold px-2">Prête · à servir</span>';
+            } else if (restaurant && c.statut_code === 'EN_PREPARATION') {
+                btns += '<span class="text-[11px] text-orange-600 font-semibold px-2">En cuisine</span>';
             }
             return btns;
         },
