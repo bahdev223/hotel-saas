@@ -348,27 +348,37 @@ function accessPosApp() {
             CAISSIER: {
                 peut_vendre:true, peut_encaisser:true, peut_ouvrir_caisse:true,
                 peut_fermer_caisse:true, peut_annuler_vente:false,
-                peut_accorder_remise:false, peut_consulter_rapports:false
+                peut_accorder_remise:false, peut_consulter_rapports:false,
+                peut_gerer_salle:false, peut_gerer_cuisine:false,
+                peut_servir_commande:false
             },
             SERVEUR: {
                 peut_vendre:true, peut_encaisser:false, peut_ouvrir_caisse:false,
                 peut_fermer_caisse:false, peut_annuler_vente:false,
-                peut_accorder_remise:false, peut_consulter_rapports:false
+                peut_accorder_remise:false, peut_consulter_rapports:false,
+                peut_gerer_salle:true, peut_gerer_cuisine:false,
+                peut_servir_commande:true
             },
             RESPONSABLE: {
                 peut_vendre:true, peut_encaisser:true, peut_ouvrir_caisse:true,
                 peut_fermer_caisse:true, peut_annuler_vente:true,
-                peut_accorder_remise:true, peut_consulter_rapports:true
+                peut_accorder_remise:true, peut_consulter_rapports:true,
+                peut_gerer_salle:true, peut_gerer_cuisine:true,
+                peut_servir_commande:true
             },
             SUPERVISEUR: {
                 peut_vendre:true, peut_encaisser:true, peut_ouvrir_caisse:true,
                 peut_fermer_caisse:true, peut_annuler_vente:true,
-                peut_accorder_remise:true, peut_consulter_rapports:true
+                peut_accorder_remise:true, peut_consulter_rapports:true,
+                peut_gerer_salle:true, peut_gerer_cuisine:true,
+                peut_servir_commande:true
             },
             PREPARATEUR: {
                 peut_vendre:false, peut_encaisser:false, peut_ouvrir_caisse:false,
                 peut_fermer_caisse:false, peut_annuler_vente:false,
-                peut_accorder_remise:false, peut_consulter_rapports:false
+                peut_accorder_remise:false, peut_consulter_rapports:false,
+                peut_gerer_salle:false, peut_gerer_cuisine:true,
+                peut_servir_commande:false
             }
         },
         modalAffectation: false,
