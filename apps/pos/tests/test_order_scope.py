@@ -12,8 +12,10 @@ from apps.pos.models import (
     CaissePointVente,
     Commande,
     PointVente,
+    PointVenteEntrepot,
     SessionCaisse,
 )
+from apps.stock.models import Entrepot, Produit, StockEntrepot, UniteMesure
 from apps.pos.services.caisse_session_service import CaisseSessionService
 from apps.rh.models import Employe
 from apps.tresorerie.models import Caisse
@@ -114,11 +116,46 @@ class POSOrderScopeTests(TestCase):
         affectation.peut_fermer_caisse = False
         affectation.save()
 
-        response = self.post_order([])
+        unite, _ = UniteMesure.objects.get_or_create(
+            symbole="u",
+            defaults={"nom": "Unité", "type_unite": "UNITE"},
+        )
+        entrepot = Entrepot.objects.create(
+            code="BAR-NO-CASH-STOCK",
+            nom="Stock Bar sans caisse",
+        )
+        produit = Produit.objects.create(
+            code="EAU-NO-CASH",
+            nom="Eau",
+            prix_achat=100,
+            prix_vente=500,
+            unite_mesure=unite,
+            actif=True,
+            est_vendable=True,
+        )
+        StockEntrepot.objects.create(
+            entrepot=entrepot,
+            produit=produit,
+            quantite=10,
+        )
+        PointVenteEntrepot.objects.create(
+            point_vente=self.point,
+            entrepot=entrepot,
+            principal=True,
+            autorise_vente=True,
+            actif=True,
+        )
+
+        response = self.post_order([{
+            "type_article": "PRODUIT",
+            "produit_id": produit.id,
+            "quantite": 1,
+        }])
 
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.json()["success"])
         commande = Commande.objects.get(id=response.json()["commande_id"])
         self.assertEqual(commande.created_by_id, self.employe.id)
         self.assertEqual(commande.point_vente_id, self.point.id)
+        self.assertEqual(commande.lignes.count(), 1)
 
