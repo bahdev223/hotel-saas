@@ -115,7 +115,7 @@ class Command(BaseCommand):
                 user=employe.user,
                 employe=employe,
                 point_vente=session.point_vente,
-                action=ActionPOS.ACCEDER,
+                action=ActionPOS.ENCAISSER,
                 moment=now,
             )
             if decision.allowed:
@@ -123,14 +123,14 @@ class Command(BaseCommand):
 
             entry = self._log_anomalie(
                 session,
-                'ACCES_POS_EXPIRE',
-                f"Accès POS non valide ({decision.reason}) — comptage requis",
+                'ACCES_CAISSE_EXPIRE',
+                f"Droit d'encaisser non valide ({decision.reason}) — passation requise",
             )
 
             def fix(sess=session, reason=decision.reason):
                 CaisseSessionService.demarrer_passation(
                     sess,
-                    motif=f"Accès POS expiré/révoqué: {reason}",
+                    motif=f"Droit caisse expiré/révoqué: {reason}",
                     moment=now,
                 )
 
