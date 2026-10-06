@@ -33,6 +33,7 @@ export function createPosStore() {
         planningFinHeure: null,
         searchTerm: '',
         pointVenteId: null,
+        pointVenteType: null,
         requiresCashSession: false,
         cashPaymentAvailable: false,
         cashSessionOwner: null,
@@ -50,12 +51,17 @@ export function createPosStore() {
             this.pointVenteSlug = c.point_vente_slug || '';
             this.planningFinHeure = c.planning_fin_heure || null;
             this.pointVenteId = c.point_vente_id;
+            this.pointVenteType = c.point_vente_type || null;
             this.requiresCashSession = !!c.requires_cash_session;
             this.cashPaymentAvailable = !!c.cash_payment_available;
             this.cashSessionOwner = c.cash_session_owner || null;
             this.selectedTable = c.selected_table || null;
             this.commandeAEncaisserId = c.commande_a_encaisser_id || null;
-            if (this.selectedTable) this.typeCommande = 'SUR_PLACE';
+            if (this.selectedTable) {
+                this.typeCommande = 'SUR_PLACE';
+            } else if (this.pointVenteType === 'RESTAURATION') {
+                this.typeCommande = 'EMPORTER';
+            }
 
             this.selectedClient = null;
             await this.chargerClients();
