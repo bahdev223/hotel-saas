@@ -15,9 +15,6 @@ from ..services.pos_service import PointVenteService
 from apps.restaurant.models import TableModel
 from apps.stock.models import Produit, StockEntrepot, Entrepot
 from apps.stock.services.mouvement_service import MouvementStockService
-from apps.hotel.models import UniteModel, LocationModel
-from django.utils import timezone
-from datetime import timedelta
 from apps.restaurant.models import MenuModel
 from apps.rh.models import Employe
 from .pos import a_vue_globale_commandes, get_pv_courant_id
