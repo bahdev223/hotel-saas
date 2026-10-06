@@ -326,11 +326,17 @@ def api_session_active(request, point_vente_id):
     point_vente = get_object_or_404(PointVente, id=point_vente_id)
 
     if not _user_can_gerer_sessions(request.user):
-        employe = getattr(request.user, 'employe', None)
-        pv_ids = _get_employe_pv_ids(employe)
-        a_acces = employe and (point_vente.id in pv_ids or _get_planning_actif(employe, point_vente) is not None)
-        if not a_acces:
-            return JsonResponse({'success': False, 'error': 'Non autoris\u00e9'}, status=403)
+        decision = POSAccessService.check(
+            user=request.user,
+            point_vente=point_vente,
+            action=ActionPOS.ACCEDER,
+        )
+        if not decision.allowed:
+            return JsonResponse({
+                'success': False,
+                'error_code': decision.reason,
+                'error': f"Accès refusé ({decision.reason}).",
+            }, status=403)
 
     cpv = CaissePointVente.objects.filter(point_vente=point_vente, actif=True).select_related('caisse').first()
     if not cpv:
@@ -369,14 +375,25 @@ def api_verifier_etat_pos(request, point_vente_id):
         return JsonResponse({'success': False, 'error': 'Employ\u00e9 ou caisse non trouv\u00e9'})
     caisse = cpv.caisse
 
-    if not _user_can_gerer_sessions(request.user):
-        pv_ids = _get_employe_pv_ids(employe)
-        a_acces = point_vente.id in pv_ids or _get_planning_actif(employe, point_vente) is not None
-        if not a_acces:
-            return JsonResponse({'success': False, 'error': 'Non autoris\u00e9 sur ce point de vente'}, status=403)
+    decision = POSAccessService.check(
+        user=request.user,
+        employe=employe,
+        point_vente=point_vente,
+        action=ActionPOS.ACCEDER,
+    )
+    if not decision.allowed and not _user_can_gerer_sessions(request.user):
+        return JsonResponse({
+            'success': False,
+            'error_code': decision.reason,
+            'error': f"Accès refusé ({decision.reason}).",
+        }, status=403)
 
     session_active = get_session_active_caisse(caisse)
-    planning_actif = _get_planning_actif(employe, point_vente)
+    from ..models import ShiftEmploye
+    planning_actif = (
+        ShiftEmploye.objects.filter(pk=decision.shift_id).first()
+        if decision.shift_id else None
+    )
 
     return JsonResponse({
         'success': True,
@@ -393,6 +410,7 @@ def api_verifier_etat_pos(request, point_vente_id):
             'debut': planning_actif.debut_prevu.strftime('%H:%M'),
             'fin': planning_actif.fin_prevue.strftime('%H:%M'),
         } if planning_actif else None,
+        'acces': decision.to_dict(),
     })
 
 
