@@ -412,6 +412,7 @@ def pos_by_slug(request, slug):
         'stocks_par_entrepot': stocks_par_entrepot,
         'point_vente_slug': point_vente.code,
         'point_vente_id': point_vente.id,
+        'point_vente_type': point_vente.type,
         'caisse_id': caisse.id,
         'employe_id': employe.id,
         'planning_fin_heure': (
