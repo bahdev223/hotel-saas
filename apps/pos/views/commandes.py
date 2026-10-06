@@ -534,35 +534,14 @@ def api_creer_commande(request):
             qte = Decimal(str(item.get('quantite', 1)))
             
             if type_art == 'LOCATION':
-                unite = get_object_or_404(UniteModel, id=item.get('unite_id'))
-                quantite = int(item.get('heures', 1))
-                type_tarif = item.get('type_tarif', 'HEURE')
-                now = timezone.localtime()
-                if type_tarif == 'JOUR':
-                    prix = Decimal(str(item.get('prix', unite.prix_jour or unite.prix)))
-                    date_fin = now + timedelta(days=quantite)
-                else:
-                    prix = Decimal(str(item.get('prix', unite.prix)))
-                    date_fin = now + timedelta(hours=quantite)
-
-                montant_ligne = Decimal(str(item.get('total', 0))) or (prix * Decimal(str(quantite)))
-
-                location = LocationModel.objects.create(
-                    client=client_obj or Client.get_passager(),
-                    unite=unite,
-                    type_location=unite.type_unite or 'CHAMBRE',
-                    type_tarif=type_tarif,
-                    date_debut=now,
-                    date_fin=date_fin,
-                    montant_total=montant_ligne,
-                    notes=data.get('notes', ''),
-                )
-                
-                LigneCommande.objects.create(
-                    commande=commande, unite=unite,
-                    heures=quantite, quantite=1, prix_unitaire=prix
-                )
-                total += montant_ligne
+                return JsonResponse({
+                    'success': False,
+                    'error_code': 'HORS_PERIMETRE_POS',
+                    'error': (
+                        "Le POS Bar/Restaurant ne gère pas les chambres ou locations. "
+                        "Utilisez le domaine Hébergement."
+                    ),
+                }, status=400)
             elif type_art == 'MENU':
                 menu = get_object_or_404(MenuModel, id=item.get('menu_id'), actif=True)
                 # Validation des choix avant création
