@@ -1,14 +1,11 @@
-# apps/comptabilite/services/__init__.py
-"""
-Services de l'application comptabilité
-"""
+"""Services métier du module Vente/POS."""
 
-from .vente_compta_service import VenteComptaService  
+from .access_service import POSAccessDecision, POSAccessDenied, POSAccessService
+from .vente_compta_service import VenteComptaService
 
-__all__ = ['VenteComptaService']
-
-
-
-
-
-
+__all__ = [
+    "POSAccessDecision",
+    "POSAccessDenied",
+    "POSAccessService",
+    "VenteComptaService",
+]
