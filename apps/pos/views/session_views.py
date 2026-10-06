@@ -11,6 +11,8 @@ from decimal import Decimal
 
 from ..models import PointVente, SessionCaisse, LigneVente, AffectationPointVente, CaissePointVente
 from ..services.caisse_session_service import CaisseSessionService, get_session_autorisee, get_session_active_caisse
+from ..services.access_service import POSAccessService
+from ..constants import ActionPOS, ModeAccesPOS, POINTS_VENTE_OPERATIONNELS
 from apps.rh.models import Employe
 from apps.authentication.groups import PATRON, MANAGER, COMPTABLE, RAF
 from apps.tresorerie.models import Caisse
@@ -23,29 +25,26 @@ def _user_can_gerer_sessions(user):
 
 
 def _get_employe_pv_ids(employe):
-    if not employe:
+    if not employe or not getattr(employe, "user", None):
         return []
-    return list(AffectationPointVente.objects.filter(employe=employe, actif=True).values_list('point_vente_id', flat=True))
+    return list(
+        POSAccessService.points_accessibles(user=employe.user)
+        .values_list("id", flat=True)
+    )
 
 
 def _get_planning_actif(employe, point_vente):
-    """Retourne le ShiftEmploye actif, ou None."""
     if not employe or not point_vente:
         return None
-    from django.utils import timezone
-    from ..models import ShiftEmploye
-    now = timezone.localtime()
-    affectation = AffectationPointVente.objects.filter(
-        employe=employe, point_vente=point_vente, actif=True,
-    ).first()
-    if not affectation:
+    decision = POSAccessService.check(
+        employe=employe,
+        point_vente=point_vente,
+        action=ActionPOS.ACCEDER,
+    )
+    if not decision.allowed or not decision.shift_id:
         return None
-    return ShiftEmploye.objects.filter(
-        affectation=affectation,
-        debut_prevu__lte=now,
-        fin_prevue__gte=now,
-        statut__in=('PLANIFIE', 'CONFIRME', 'EN_COURS'),
-    ).first()
+    from ..models import ShiftEmploye
+    return ShiftEmploye.objects.filter(pk=decision.shift_id).first()
 
 
 @login_required
@@ -54,7 +53,7 @@ def sessions_liste(request):
     employe = getattr(request.user, 'employe', None)
     est_admin = request.user.is_superuser or _user_can_gerer_sessions(request.user)
 
-    sessions = SessionCaisse.objects.all()
+    sessions = SessionCaisse.objects.filter(point_vente__type__in=POINTS_VENTE_OPERATIONNELS)
     if not est_admin:
         pv_ids = _get_employe_pv_ids(employe)
         sessions = sessions.filter(point_vente_id__in=pv_ids) if pv_ids else sessions.none()
@@ -75,7 +74,13 @@ def sessions_liste(request):
     pv_ids = _get_employe_pv_ids(employe)
     context = {
         'sessions': sessions[:100],
-        'points_vente': PointVente.objects.filter(actif=True) if est_admin else PointVente.objects.filter(id__in=pv_ids) if pv_ids else PointVente.objects.none(),
+        'points_vente': (
+            PointVente.objects.filter(actif=True, type__in=POINTS_VENTE_OPERATIONNELS)
+            if est_admin
+            else PointVente.objects.filter(id__in=pv_ids, type__in=POINTS_VENTE_OPERATIONNELS)
+            if pv_ids
+            else PointVente.objects.none()
+        ),
         'sessions_aujourdhui': sessions_aujourdhui,
         'sessions_ouvertes': sessions_ouvertes,
         'ca_total': ca_total,
@@ -149,27 +154,63 @@ def api_ouverture_session(request):
         caissier_id = data.get('caissier_id')
 
         caisse = get_object_or_404(Caisse, id=caisse_id)
-        point_vente = get_object_or_404(PointVente, id=point_vente_id)
-        caissier = get_object_or_404(Employe, id=caissier_id)
+        point_vente = get_object_or_404(
+            PointVente,
+            id=point_vente_id,
+            actif=True,
+            type__in=POINTS_VENTE_OPERATIONNELS,
+        )
+        caissier = get_object_or_404(Employe, id=caissier_id, actif=True)
 
-        if not _user_can_gerer_sessions(request.user):
-            employe = getattr(request.user, 'employe', None)
-            if not employe:
-                return JsonResponse({'success': False, 'error': 'Non autoris\u00e9 sur ce point de vente'}, status=403)
-            pv_ids = _get_employe_pv_ids(employe)
-            a_acces = point_vente.id in pv_ids or _get_planning_actif(employe, point_vente) is not None
-            if not a_acces:
-                return JsonResponse({'success': False, 'error': 'Non autoris\u00e9 sur ce point de vente'}, status=403)
-
-        shift = _get_planning_actif(caissier, point_vente)
-        if not shift:
+        if not CaissePointVente.objects.filter(
+            point_vente=point_vente,
+            caisse=caisse,
+            actif=True,
+        ).exists():
             return JsonResponse({
-                'success': False, 'error_code': 'PLANNING_REQUIS',
-                'error': f"{caissier.nom_complet} n'a aucun shift actif sur {point_vente.nom}."
+                'success': False,
+                'error_code': 'CAISSE_POINT_VENTE_INVALIDE',
+                'error': "Cette caisse n'est pas rattachée à ce point de vente.",
+            }, status=400)
+
+        demandeur = getattr(request.user, 'employe', None)
+        if not _user_can_gerer_sessions(request.user):
+            if not demandeur or demandeur.id != caissier.id:
+                return JsonResponse({
+                    'success': False,
+                    'error_code': 'OUVERTURE_POUR_AUTRUI_INTERDITE',
+                    'error': "Un employé ne peut ouvrir que sa propre session.",
+                }, status=403)
+
+        decision = POSAccessService.check(
+            user=caissier.user,
+            employe=caissier,
+            point_vente=point_vente,
+            action=ActionPOS.OUVRIR_CAISSE,
+        )
+        if not decision.allowed:
+            return JsonResponse({
+                'success': False,
+                'error_code': decision.reason,
+                'error': f"Ouverture de caisse refusée pour {caissier.nom_complet} ({decision.reason}).",
             }, status=403)
 
+        shift = None
+        if decision.mode == ModeAccesPOS.PLANNING:
+            from ..models import ShiftEmploye
+            shift = ShiftEmploye.objects.filter(pk=decision.shift_id).first()
+            if shift is None:
+                return JsonResponse({
+                    'success': False,
+                    'error_code': 'PLANNING_REQUIS',
+                    'error': f"{caissier.nom_complet} n'a aucun shift actif sur {point_vente.nom}.",
+                }, status=403)
+
         session = CaisseSessionService.ouverture_session(
-            caisse=caisse, point_vente=point_vente, caissier=caissier, shift=shift,
+            caisse=caisse,
+            point_vente=point_vente,
+            caissier=caissier,
+            shift=shift,
         )
 
         return JsonResponse({
