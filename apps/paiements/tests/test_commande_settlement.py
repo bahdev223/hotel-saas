@@ -128,9 +128,10 @@ class CommandeSettlementServiceTest(TestCase):
         )
 
         vente = result["vente"]
-        self.assertEqual(vente.caissier_id, serveur.id)
+        self.assertEqual(vente.serveur_id, serveur.id)
+        self.assertEqual(vente.caissier_id, self.employe.id)
         self.assertEqual(vente.encaisse_par_id, self.employe.id)
-        self.assertNotEqual(vente.caissier_id, vente.encaisse_par_id)
+        self.assertNotEqual(vente.serveur_id, vente.caissier_id)
 
     def test_reglement_refuse_sans_permission_encaisser(self):
         affectation = AffectationPointVente.objects.get(
