@@ -13,6 +13,7 @@ export function posSessionDialog() {
         caisseId: null,
         employeId: null,
         requiresCashSession: false,
+        nowTs: Date.now(),
         comptage: {
             especes_comptees: '',
             montant_carte: '',
@@ -29,31 +30,70 @@ export function posSessionDialog() {
             this.caisseId = config.caisse_id;
             this.employeId = config.employe_id;
             this.requiresCashSession = !!config.requires_cash_session;
-            this.session = config.session_a_fermer || this.session;
-            if (this.session) {
-                this.comptage.especes_comptees = String(
-                    this.session.especes_attendues ?? this.session.solde_initial ?? ''
-                );
-                this.comptage.montant_carte = String(this.session.total_carte ?? '');
-                this.comptage.montant_mobile = String(this.session.total_mobile_money ?? '');
-                this.comptage.montant_cheque = String(this.session.total_cheque ?? '');
-            }
-            this.nouveauPlanning = config.nouveau_planning || this.nouveauPlanning;
+            this.nouveauPlanning = config.nouveau_planning || null;
 
-            if (this.session) {
-                this.step = 'cloture';
-            } else if (this.nouveauPlanning) {
-                this.step = 'ouverture';
-            } else if (!this.sessionOuverte && this.requiresCashSession) {
-                this.step = 'aucun_planning';
-            } else {
-                this.step = 'none';
+            this.appliquerSession(config.session_a_fermer || null);
+
+            if (!this.session) {
+                if (this.nouveauPlanning) {
+                    this.step = 'ouverture';
+                } else if (!this.sessionOuverte && this.requiresCashSession) {
+                    this.step = 'aucun_planning';
+                } else {
+                    this.step = 'none';
+                }
             }
+
+            setInterval(() => {
+                this.nowTs = Date.now();
+                if (
+                    this.step === 'passation'
+                    && !this.passationGraceActive(this.session)
+                ) {
+                    this.step = 'cloture';
+                }
+            }, 15000);
+
             window.addEventListener('pos:session-cloture-requise', (e) => {
-                this.session = e.detail.session;
-                this.nouveauPlanning = e.detail.nouveauPlanning;
-                this.step = 'cloture';
+                this.nouveauPlanning = e.detail.nouveauPlanning || null;
+                this.appliquerSession(e.detail.session || null);
             });
+        },
+
+        appliquerSession(session) {
+            this.session = session;
+            if (!session) return;
+
+            this.comptage.especes_comptees = String(
+                session.especes_attendues ?? session.solde_initial ?? ''
+            );
+            this.comptage.montant_carte = String(session.total_carte ?? '');
+            this.comptage.montant_mobile = String(session.total_mobile_money ?? '');
+            this.comptage.montant_cheque = String(session.total_cheque ?? '');
+
+            this.step = this.passationGraceActive(session)
+                ? 'passation'
+                : 'cloture';
+        },
+
+        passationGraceActive(session) {
+            if (!session || session.statut !== 'EN_PASSATION') return false;
+            if (!session.passation_jusqua) return true;
+            return new Date(session.passation_jusqua).getTime() > this.nowTs;
+        },
+
+        get tempsPassation() {
+            if (!this.session?.passation_jusqua) return '';
+            const ms = Math.max(
+                0,
+                new Date(this.session.passation_jusqua).getTime() - this.nowTs
+            );
+            const minutes = Math.ceil(ms / 60000);
+            return minutes > 0 ? `${minutes} min` : 'terminée';
+        },
+
+        ouvrirComptage() {
+            this.step = 'cloture';
         },
 
         async cloturer() {
