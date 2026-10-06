@@ -12,6 +12,7 @@ from apps.pos.models import (
     CaissePointVente,
     Commande,
     PointVente,
+    SessionCaisse,
 )
 from apps.pos.services.caisse_session_service import CaisseSessionService
 from apps.rh.models import Employe
@@ -99,3 +100,25 @@ class POSOrderScopeTests(TestCase):
         self.assertEqual(response.status_code, 400)
         self.assertEqual(response.json()["error_code"], "TYPE_ARTICLE_INVALIDE")
         self.assertEqual(Commande.objects.count(), 0)
+
+    def test_server_can_create_order_without_cash_session(self):
+        SessionCaisse.objects.all().delete()
+        affectation = AffectationPointVente.objects.get(
+            employe=self.employe,
+            point_vente=self.point,
+        )
+        affectation.role = "SERVEUR"
+        affectation.peut_vendre = True
+        affectation.peut_encaisser = False
+        affectation.peut_ouvrir_caisse = False
+        affectation.peut_fermer_caisse = False
+        affectation.save()
+
+        response = self.post_order([])
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()["success"])
+        commande = Commande.objects.get(id=response.json()["commande_id"])
+        self.assertEqual(commande.created_by_id, self.employe.id)
+        self.assertEqual(commande.point_vente_id, self.point.id)
+
