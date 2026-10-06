@@ -477,10 +477,13 @@ def api_verifier_etat_pos(request, point_vente_id):
     )
     employe = getattr(request.user, 'employe', None)
 
-    cpv = CaissePointVente.objects.filter(
-        point_vente=point_vente,
-        actif=True,
-    ).select_related('caisse').order_by("-principale", "id").first()
+    cpv = (
+        CaissePointVente.objects
+        .filter(point_vente=point_vente, actif=True)
+        .select_related('caisse')
+        .order_by("-principale", "id")
+        .first()
+    )
     if not employe or not cpv:
         return JsonResponse({
             'success': False,
@@ -488,22 +491,40 @@ def api_verifier_etat_pos(request, point_vente_id):
         }, status=400)
     caisse = cpv.caisse
 
+    # Décision du demandeur : sert à savoir s'il peut utiliser le POS maintenant.
     decision = POSAccessService.check(
         user=request.user,
         employe=employe,
         point_vente=point_vente,
         action=ActionPOS.ACCEDER,
     )
+
     session_non_finalisee = get_session_non_finalisee_caisse(caisse)
+
+    # La transition financière dépend du propriétaire de la session, jamais du
+    # simple visiteur qui interroge cet endpoint.
+    owner_decision = None
+    if session_non_finalisee and session_non_finalisee.ouverte_par:
+        owner = session_non_finalisee.ouverte_par
+        if owner.user_id:
+            owner_decision = POSAccessService.check(
+                user=owner.user,
+                employe=owner,
+                point_vente=point_vente,
+                action=ActionPOS.ACCEDER,
+            )
+
     if (
         session_non_finalisee
         and session_non_finalisee.statut == 'OUVERTE'
-        and not decision.allowed
+        and owner_decision is not None
+        and not owner_decision.allowed
     ):
         session_non_finalisee = CaisseSessionService.demarrer_passation(
             session_non_finalisee,
-            motif=f"Accès expiré: {decision.reason}",
+            motif=f"Accès propriétaire expiré: {owner_decision.reason}",
         )
+
     if (
         session_non_finalisee
         and session_non_finalisee.statut == 'EN_PASSATION'
@@ -526,8 +547,6 @@ def api_verifier_etat_pos(request, point_vente_id):
             action=ActionPOS.FERMER_CAISSE,
         ).allowed
 
-    # Quand le créneau vient d'expirer, le caissier propriétaire doit encore
-    # recevoir l'état de la session afin d'effectuer son comptage de sortie.
     if (
         not decision.allowed
         and not _user_can_gerer_sessions(request.user)
@@ -548,10 +567,7 @@ def api_verifier_etat_pos(request, point_vente_id):
     session_a_fermer = (
         session_non_finalisee
         if session_non_finalisee
-        and (
-            session_non_finalisee.statut in ('EN_PASSATION', 'EN_COMPTAGE')
-            or not decision.allowed
-        )
+        and session_non_finalisee.statut in ('EN_PASSATION', 'EN_COMPTAGE')
         and est_proprietaire
         and peut_finaliser
         else None
@@ -560,19 +576,26 @@ def api_verifier_etat_pos(request, point_vente_id):
     from ..models import ShiftEmploye
     planning_actif = (
         ShiftEmploye.objects.filter(pk=decision.shift_id).first()
-        if decision.shift_id else None
+        if decision.allowed and decision.shift_id else None
+    )
+
+    raison_session = (
+        owner_decision.reason
+        if owner_decision is not None
+        else decision.reason
     )
 
     return JsonResponse({
         'success': True,
         'session_active': session_active.id if session_active else None,
-        'planning_expire': bool(not decision.allowed and est_proprietaire),
+        'planning_expire': bool(session_a_fermer),
         'session_a_fermer': {
             'id': session_a_fermer.id,
             'statut': session_a_fermer.statut,
             'point_vente': point_vente.nom,
-            'raison': decision.reason,
+            'raison': raison_session,
             'solde_initial': float(session_a_fermer.solde_initial),
+            'total_ventes': float(session_a_fermer.total_ventes),
             'total_especes': float(session_a_fermer.total_especes),
             'especes_attendues': float(
                 Decimal(str(session_a_fermer.solde_initial or 0))
@@ -590,6 +613,7 @@ def api_verifier_etat_pos(request, point_vente_id):
             ),
         } if session_a_fermer else None,
         'nouveau_planning': {
+            'date': timezone.localdate().strftime('%d/%m/%Y'),
             'debut': planning_actif.debut_prevu.strftime('%H:%M'),
             'fin': planning_actif.fin_prevue.strftime('%H:%M'),
             'solde_initial': float(caisse.solde),
@@ -600,6 +624,10 @@ def api_verifier_etat_pos(request, point_vente_id):
             'fin': planning_actif.fin_prevue.strftime('%H:%M'),
         } if planning_actif else None,
         'acces': decision.to_dict(),
+        'session_owner_access': (
+            owner_decision.to_dict()
+            if owner_decision is not None else None
+        ),
     })
 
 
