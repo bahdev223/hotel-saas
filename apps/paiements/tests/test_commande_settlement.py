@@ -4,7 +4,8 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from apps.stock.models import Produit, Entrepot, UniteMesure, StockEntrepot
 from apps.restaurant.models.recette import RecetteModel, IngredientModel
-from apps.pos.models import Commande, LigneCommande, PointVente
+from apps.pos.models import Commande, LigneCommande, PointVente, AffectationPointVente
+from apps.pos.constants import ModeAccesPOS, TypePointVente
 from apps.pos.models.caisse_point_vente import CaissePointVente
 from apps.pos.services.caisse_session_service import CaisseSessionService
 from apps.paiements.services.commande_settlement_service import (
@@ -24,7 +25,11 @@ class CommandeSettlementServiceTest(TestCase):
         self.farine = Produit.objects.create(code="FARINE", nom="Farine", prix_achat=1000, unite_mesure=self.unite_kg)
         MouvementStockService.entree_stock(self.farine, self.entrepot, 10, "Test", motif=SourceOperationType.ACHAT, valeur_unitaire=1000)
 
-        self.point_vente = PointVente.objects.create(code="PV-TEST", nom="Test", type="RESTAURANT")
+        self.point_vente = PointVente.objects.create(
+            code="PV-TEST",
+            nom="Test",
+            type=TypePointVente.RESTAURATION,
+        )
         self.caisse = Caisse.objects.create(
             nom="Caisse Test", code="C-TEST", type_financier='ESPECES',
             solde=0, actif=True, point_vente=self.point_vente,
@@ -34,6 +39,17 @@ class CommandeSettlementServiceTest(TestCase):
         self.user = User.objects.create_user(username="testuser", password="12345")
         self.employe = Employe.objects.create(
             user=self.user, nom="Test", prenom="User",
+        )
+        AffectationPointVente.objects.create(
+            employe=self.employe,
+            point_vente=self.point_vente,
+            role="CAISSIER",
+            mode_acces=ModeAccesPOS.PERMANENT,
+            peut_vendre=True,
+            peut_encaisser=True,
+            peut_ouvrir_caisse=True,
+            peut_fermer_caisse=True,
+            actif=True,
         )
 
         CaisseSessionService.ouverture_session(
@@ -84,6 +100,54 @@ class CommandeSettlementServiceTest(TestCase):
         # Chaque portion consomme 1/10 kg = 0.1 kg, donc 2 * 0.1 = 0.2 kg
         stock = StockEntrepot.objects.get(produit=self.farine, entrepot=self.entrepot)
         self.assertAlmostEqual(float(stock.quantite), 9.8)
+
+    def test_vendeur_et_encaisseur_restent_distincts(self):
+        serveur_user = User.objects.create_user(username="serveur", password="12345")
+        serveur = Employe.objects.create(
+            user=serveur_user,
+            nom="Serveur",
+            prenom="A",
+            actif=True,
+        )
+        AffectationPointVente.objects.create(
+            employe=serveur,
+            point_vente=self.point_vente,
+            role="SERVEUR",
+            mode_acces=ModeAccesPOS.PERMANENT,
+            peut_vendre=True,
+            actif=True,
+        )
+        self.commande.created_by = serveur
+        self.commande.save(update_fields=["created_by"])
+
+        result = CommandeSettlementService.regler(
+            commande=self.commande,
+            montant=2000,
+            mode_paiement="ESPECES",
+            utilisateur=self.user,
+        )
+
+        vente = result["vente"]
+        self.assertEqual(vente.caissier_id, serveur.id)
+        self.assertEqual(vente.encaisse_par_id, self.employe.id)
+        self.assertNotEqual(vente.caissier_id, vente.encaisse_par_id)
+
+    def test_reglement_refuse_sans_permission_encaisser(self):
+        affectation = AffectationPointVente.objects.get(
+            employe=self.employe,
+            point_vente=self.point_vente,
+        )
+        affectation.peut_encaisser = False
+        affectation.save(update_fields=["peut_encaisser"])
+
+        with self.assertRaises(CommandeSettlementError) as ctx:
+            CommandeSettlementService.regler(
+                commande=self.commande,
+                montant=2000,
+                mode_paiement="ESPECES",
+                utilisateur=self.user,
+            )
+        self.assertIn("Encaissement non autorisé", str(ctx.exception))
 
     def test_double_paiement_refuse(self):
         CommandeSettlementService.regler(
