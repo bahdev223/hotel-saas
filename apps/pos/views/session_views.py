@@ -277,10 +277,15 @@ def api_fermeture_session(request):
                     "error": f"Fermeture de caisse refusée ({raison}).",
                 }, status=403)
             fermee_par = demandeur
+        elif demandeur is not None:
+            # Le superviseur est lui-même l'acteur de la clôture : on ne permet
+            # pas de signer arbitrairement l'opération au nom d'un autre employé.
+            fermee_par = demandeur
         elif fermee_par_id:
+            # Fallback réservé aux comptes techniques superuser sans profil RH.
             fermee_par = get_object_or_404(Employe, id=fermee_par_id, actif=True)
         else:
-            fermee_par = demandeur or session.ouverte_par
+            fermee_par = session.ouverte_par
 
         resultat = CaisseSessionService.fermeture_session(
             session=session,
