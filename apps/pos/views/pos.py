@@ -254,6 +254,15 @@ def pos_by_slug(request, slug):
         if session_non_finalisee and session_non_finalisee.statut == 'OUVERTE'
         else None
     )
+    owns_cash_session = bool(
+        session_non_finalisee
+        and session_non_finalisee.ouverte_par_id == employe.id
+    )
+    cash_payment_available = bool(
+        can_cash
+        and session_active
+        and session_active.ouverte_par_id == employe.id
+    )
     planning_actif = (
         ShiftEmploye.objects.filter(pk=access_decision.shift_id).first()
         if access_decision.allowed and access_decision.shift_id
@@ -355,6 +364,13 @@ def pos_by_slug(request, slug):
             can_cash or can_open_cash or finalisation_only
         ),
         'finalisation_only': finalisation_only,
+        'owns_cash_session': owns_cash_session,
+        'cash_payment_available': cash_payment_available,
+        'cash_session_owner': (
+            session_non_finalisee.ouverte_par.nom_complet
+            if session_non_finalisee and session_non_finalisee.ouverte_par
+            else None
+        ),
     }
 
     context = {
