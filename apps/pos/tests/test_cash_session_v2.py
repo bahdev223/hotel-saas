@@ -226,3 +226,97 @@ class CashSessionV2Tests(TestCase):
         self.assertEqual(validated.statut, "VALIDEE")
         self.assertEqual(validated.validee_par_id, self.cashier.id)
         self.assertIsNotNone(validated.date_validation)
+
+    def test_handover_blocks_new_session_until_finalized(self):
+        session = self.open_session()
+        CaisseSessionService.demarrer_passation(
+            session,
+            motif="Passation",
+        )
+
+        with self.assertRaises(ValueError):
+            CaisseSessionService.ouverture_session(
+                caisse=self.caisse,
+                point_vente=self.pv,
+                caissier=self.other_cashier,
+            )
+
+    def test_handover_uses_immutable_opening_permissions(self):
+        session = self.open_session()
+
+        self.assignment.peut_encaisser = False
+        self.assignment.peut_fermer_caisse = False
+        self.assignment.actif = False
+        self.assignment.save(update_fields=[
+            "peut_encaisser",
+            "peut_fermer_caisse",
+            "actif",
+        ])
+
+        now = timezone.now()
+        session = CaisseSessionService.demarrer_passation(
+            session,
+            motif="Droits modifiés après ouverture",
+            moment=now,
+        )
+        existing_order = SimpleNamespace(
+            date_commande=now - timedelta(minutes=1),
+        )
+
+        allowed, reason = CaisseSessionService.autoriser_encaissement_session(
+            session=session,
+            encaisseur=self.cashier,
+            commande=existing_order,
+            moment=now + timedelta(minutes=1),
+        )
+        self.assertTrue(allowed)
+        self.assertEqual(reason, "PASSATION_GRACE_ACTIVE")
+
+        can_close, close_reason = (
+            CaisseSessionService.autoriser_finalisation_session(
+                session,
+                self.cashier,
+            )
+        )
+        self.assertTrue(can_close)
+        self.assertEqual(close_reason, "SNAPSHOT_FERMETURE_AUTORISEE")
+
+    def test_inactive_employee_cannot_use_handover_grace(self):
+        session = self.open_session()
+        now = timezone.now()
+        session = CaisseSessionService.demarrer_passation(
+            session,
+            motif="Fin de service",
+            moment=now,
+        )
+        self.cashier.actif = False
+        self.cashier.save(update_fields=["actif"])
+
+        allowed, reason = CaisseSessionService.autoriser_encaissement_session(
+            session=session,
+            encaisseur=self.cashier,
+            commande=SimpleNamespace(
+                date_commande=now - timedelta(minutes=1),
+            ),
+            moment=now + timedelta(minutes=1),
+        )
+        self.assertFalse(allowed)
+        self.assertEqual(reason, "EMPLOYE_INACTIF")
+
+    def test_other_cashier_cannot_close_owned_session_via_api(self):
+        session = self.open_session()
+        self.client.force_login(self.other_user)
+
+        response = self.client.post(
+            "/pos/api/sessions/fermer/",
+            data={
+                "session_id": session.id,
+                "especes_comptees": "10000",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 403)
+        session.refresh_from_db()
+        self.assertEqual(session.statut, "OUVERTE")
+
