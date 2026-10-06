@@ -116,11 +116,25 @@ class AnnulationService:
             )
             return
 
+        from apps.stock.enums.sources import SourceOperationType
         from apps.stock.services.mouvement_service import MouvementStockService
-        from apps.restaurant.models import MenuModel
-        from apps.hotel.models import UniteModel
+        from apps.pos.models import PointVenteEntrepot
 
-        entrepot = commande.entrepot or commande.point_vente.entrepot
+        entrepot = commande.entrepot
+        if not entrepot:
+            liaison = (
+                PointVenteEntrepot.objects
+                .filter(
+                    point_vente=commande.point_vente,
+                    actif=True,
+                    autorise_retour=True,
+                    entrepot__actif=True,
+                )
+                .select_related("entrepot")
+                .order_by("-principal", "priorite", "id")
+                .first()
+            )
+            entrepot = liaison.entrepot if liaison else None
         if not entrepot:
             return
 
@@ -129,17 +143,15 @@ class AnnulationService:
             if not produit:
                 continue
             quantite = ligne.quantite
-            if ligne.unite_id and ligne.heures:
+            if getattr(ligne, "unite_id", None) and getattr(ligne, "heures", None):
                 quantite = ligne.heures
 
-            try:
-                MouvementStockService.entree_stock(
-                    produit=produit,
-                    entrepot=entrepot,
-                    quantite=quantite,
-                    utilisateur=user,
-                    libelle=f"Annulation commande #{commande.id}",
-                )
-            except Exception:
-                import traceback
-                traceback.print_exc()
+            MouvementStockService.entree_stock(
+                produit=produit,
+                entrepot=entrepot,
+                quantite=quantite,
+                utilisateur=user,
+                motif=SourceOperationType.ANNULATION,
+                reference=f"ANN-{commande.numero}",
+                raison=f"Annulation commande #{commande.numero}",
+            )
