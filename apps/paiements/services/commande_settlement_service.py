@@ -232,11 +232,38 @@ class CommandeSettlementService:
             from apps.restaurant.services.restaurant_service import RestaurantService
             RestaurantService.liberer_table_si_terminee(commande)
 
-        # 10. Consommer le stock (ÉCHEC = ANNULATION TOTALE)
+        # 10. Consommer le stock (ÉCHEC = ANNULATION TOTALE).
+        # Restaurant a normalement déjà consommé au démarrage cuisine :
+        # le service est idempotent. Bar consomme ici au règlement.
+        entrepot_stock = commande.entrepot
+        if entrepot_stock is None:
+            from apps.pos.models import PointVenteEntrepot
+            liaison_stock = (
+                PointVenteEntrepot.objects
+                .filter(
+                    point_vente=pv,
+                    actif=True,
+                    autorise_vente=True,
+                    entrepot__actif=True,
+                )
+                .select_related("entrepot")
+                .order_by("-principal", "priorite", "id")
+                .first()
+            )
+            entrepot_stock = liaison_stock.entrepot if liaison_stock else None
+        if entrepot_stock is None:
+            raise CommandeSettlementError(
+                f"Aucun entrepôt de vente actif pour {pv.nom}."
+            )
+
         RestaurantConsumptionService.consommer_commande(
             commande=commande,
-            entrepot=commande.entrepot or pv.entrepot,
-            utilisateur=utilisateur.username if hasattr(utilisateur, 'username') else str(utilisateur),
+            entrepot=entrepot_stock,
+            utilisateur=(
+                utilisateur.username
+                if hasattr(utilisateur, 'username')
+                else str(utilisateur)
+            ),
         )
 
         # 11. Comptabilité (échec enregistré, ne bloque pas le règlement)
