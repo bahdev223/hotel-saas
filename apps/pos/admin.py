@@ -76,13 +76,13 @@ class SessionCaisseAdmin(ModelAdmin):
     list_display = [
         'caisse', 'point_vente', 'ouverte_par', 'date_ouverture',
         'mode_acces_ouverture', 'statut', 'date_passation',
-        'date_fermeture', 'validee_par',
+        'passation_par', 'date_fermeture', 'validee_par',
     ]
     list_filter = ['statut', 'mode_acces_ouverture', 'date_ouverture']
     search_fields = ['caisse__nom', 'point_vente__nom']
     autocomplete_fields = ['caisse', 'point_vente', 'ouverte_par', 'fermee_par', 'validee_par', 'shift']
     readonly_fields = [
-        'date_ouverture', 'date_passation', 'passation_jusqua',
+        'date_ouverture', 'date_passation', 'passation_jusqua', 'passation_par',
         'date_fermeture', 'date_validation', 'mode_acces_ouverture',
         'raison_acces_ouverture', 'affectation_ouverture_id',
         'shift_ouverture_id', 'acces_expire_le', 'permissions_ouverture',
