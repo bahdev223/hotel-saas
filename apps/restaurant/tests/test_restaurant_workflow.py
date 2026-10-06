@@ -5,6 +5,10 @@ from django.test import TestCase
 
 from apps.pos.constants import ModeAccesPOS, RolePOS, TypePointVente
 from apps.pos.models import AffectationPointVente, Commande, PointVente
+from apps.paiements.services.commande_settlement_service import (
+    CommandeSettlementError,
+    CommandeSettlementService,
+)
 from apps.restaurant.models import SalleModel, TableModel
 from apps.restaurant.services.restaurant_service import (
     RestaurantService,
@@ -270,4 +274,23 @@ class RestaurantWorkflowTests(TestCase):
                 employe=self.server,
                 user=self.server_user,
                 nombre_couverts=5,
+            )
+
+    def test_restaurant_table_order_cannot_be_paid_before_service(self):
+        commande = self.command(statut="EN_ATTENTE")
+        RestaurantService.lier_commande_table(
+            commande=commande,
+            table=self.table,
+            employe=self.server,
+            user=self.server_user,
+        )
+
+        with self.assertRaisesMessage(
+            CommandeSettlementError,
+            "doit être servie",
+        ):
+            CommandeSettlementService.regler(
+                commande=commande,
+                utilisateur=self.server_user,
+                mode_paiement="ESPECES",
             )
