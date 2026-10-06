@@ -363,7 +363,7 @@
                 </div>
                 <div>
                     <label class="text-[11px] text-on-surface-muted">Chèque</label>
-                    <input type="number" id="montantCheque" step="100" value="0"
+                    <input type="number" id="montantCheque" step="100" value="{{ stats_paiement.CHEQUE|floatformat:0 }}"
                            class="w-full border border-border rounded-lg text-xs mt-1 bg-surface-card px-2 py-2">
                 </div>
             </div>
