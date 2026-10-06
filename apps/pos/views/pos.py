@@ -137,6 +137,31 @@ def pos_by_slug(request, slug):
 
     request.session['point_vente_courant_id'] = point_vente.id
 
+    can_sell = POSAccessService.can(
+        user=request.user,
+        employe=employe,
+        point_vente=point_vente,
+        action=ActionPOS.VENDRE,
+    )
+    can_cash = POSAccessService.can(
+        user=request.user,
+        employe=employe,
+        point_vente=point_vente,
+        action=ActionPOS.ENCAISSER,
+    )
+    can_open_cash = POSAccessService.can(
+        user=request.user,
+        employe=employe,
+        point_vente=point_vente,
+        action=ActionPOS.OUVRIR_CAISSE,
+    )
+    can_close_cash = POSAccessService.check_capability(
+        user=request.user,
+        employe=employe,
+        point_vente=point_vente,
+        action=ActionPOS.FERMER_CAISSE,
+    ).allowed
+
     cpv = CaissePointVente.objects.filter(point_vente=point_vente, actif=True).select_related('caisse').first()
     caisse = cpv.caisse if cpv else None
     if not caisse or not caisse.actif:
@@ -199,6 +224,11 @@ def pos_by_slug(request, slug):
         'access_mode': access_decision.mode,
         'access_reason': access_decision.reason,
         'access_expires_at': access_decision.expires_at.isoformat() if access_decision.expires_at else None,
+        'can_sell': can_sell,
+        'can_cash': can_cash,
+        'can_open_cash': can_open_cash,
+        'can_close_cash': can_close_cash,
+        'requires_cash_session': bool(can_cash or can_open_cash),
     }
 
     context = {
@@ -222,6 +252,10 @@ def pos_by_slug(request, slug):
         'access_mode': access_decision.mode,
         'access_reason': access_decision.reason,
         'access_expires_at': access_decision.expires_at,
+        'can_sell': can_sell,
+        'can_cash': can_cash,
+        'can_open_cash': can_open_cash,
+        'can_close_cash': can_close_cash,
     }
     return render(request, 'pos/index.html', context)
 
