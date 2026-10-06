@@ -1,0 +1,299 @@
+{% extends 'restaurant/base_restaurant.html' %}
+
+{% block title %}Salle — Restaurant{% endblock %}
+
+{% block content %}
+<div x-data="salleRestaurantApp()" x-init="init()" class="space-y-5">
+    <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+            <h1 class="text-2xl font-bold text-on-surface">
+                <i class="fas fa-chair text-primary mr-2"></i>Salle
+            </h1>
+            <p class="text-sm text-on-surface-muted mt-1">
+                Tables, commandes en cours, plats prêts et encaissements à faire.
+            </p>
+        </div>
+
+        {% if points|length > 1 %}
+        <select x-model="pointVenteId" @change="charger()"
+                class="border border-border rounded-lg px-3 py-2 bg-surface-card text-sm">
+            {% for p in points %}
+            <option value="{{ p.id }}">{{ p.nom }}</option>
+            {% endfor %}
+        </select>
+        {% endif %}
+    </div>
+
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <div class="card-bro card-bro-static p-4">
+            <div class="text-xs text-on-surface-muted">Libres</div>
+            <div class="text-2xl font-bold text-emerald-600" x-text="stats.libres"></div>
+        </div>
+        <div class="card-bro card-bro-static p-4">
+            <div class="text-xs text-on-surface-muted">Commandes</div>
+            <div class="text-2xl font-bold text-blue-600" x-text="stats.commandes"></div>
+        </div>
+        <div class="card-bro card-bro-static p-4">
+            <div class="text-xs text-on-surface-muted">Prêtes</div>
+            <div class="text-2xl font-bold text-amber-600" x-text="stats.pretes"></div>
+        </div>
+        <div class="card-bro card-bro-static p-4">
+            <div class="text-xs text-on-surface-muted">À encaisser</div>
+            <div class="text-2xl font-bold text-red-600" x-text="stats.encaisser"></div>
+        </div>
+    </div>
+
+    <template x-for="salle in salles" :key="salle.id">
+        <section class="space-y-3">
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-bold" x-text="salle.nom"></h2>
+                <span class="text-xs text-on-surface-muted"
+                      x-text="salle.tables.length + ' table(s)'"></span>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <template x-for="table in salle.tables" :key="table.id">
+                    <article class="card-bro card-bro-static p-4 border-l-4"
+                             :class="tableBorder(table)">
+                        <div class="flex items-start justify-between gap-3">
+                            <div>
+                                <div class="text-xl font-bold">
+                                    Table <span x-text="table.numero"></span>
+                                </div>
+                                <div class="text-xs text-on-surface-muted mt-1">
+                                    <span x-text="table.capacite + ' places'"></span>
+                                    <span x-show="table.nombre_couverts">
+                                        · <span x-text="table.nombre_couverts"></span> couvert(s)
+                                    </span>
+                                </div>
+                            </div>
+                            <span class="px-2 py-1 rounded-full text-[11px] font-semibold"
+                                  :class="statusClass(table.statut)"
+                                  x-text="table.statut_label"></span>
+                        </div>
+
+                        <div x-show="table.serveur" class="mt-3 text-xs">
+                            <i class="fas fa-user text-on-surface-muted mr-1"></i>
+                            <span x-text="table.serveur"></span>
+                        </div>
+
+                        <template x-if="table.commande">
+                            <div class="mt-3 rounded-lg bg-surface-soft p-3 space-y-2">
+                                <div class="flex justify-between gap-2">
+                                    <span class="font-mono text-xs" x-text="'#' + table.commande.numero"></span>
+                                    <span class="text-xs font-semibold"
+                                          x-text="table.commande.statut_label"></span>
+                                </div>
+                                <div class="flex justify-between text-xs">
+                                    <span class="text-on-surface-muted">Attente</span>
+                                    <span x-text="table.commande.temps_attente + ' min'"></span>
+                                </div>
+                                <div class="flex justify-between text-sm font-semibold">
+                                    <span>Total</span>
+                                    <span x-text="formatMoney(table.commande.montant) + ' F'"></span>
+                                </div>
+                            </div>
+                        </template>
+
+                        <div class="mt-4 flex flex-wrap gap-2">
+                            <button x-show="table.statut === 'LIBRE'"
+                                    @click="ouvrirOccupation(table)"
+                                    class="px-3 py-2 rounded-lg border border-border text-xs font-medium hover:bg-surface-soft">
+                                <i class="fas fa-user-plus mr-1"></i>Installer
+                            </button>
+
+                            <a x-show="['LIBRE','OCCUPEE'].includes(table.statut)"
+                               :href="table.commande_url"
+                               class="px-3 py-2 rounded-lg bg-primary text-white text-xs font-medium">
+                                <i class="fas fa-plus mr-1"></i>Commander
+                            </a>
+
+                            <button x-show="table.commande?.statut === 'PRETE'"
+                                    @click="servir(table)"
+                                    class="px-3 py-2 rounded-lg bg-emerald-600 text-white text-xs font-medium">
+                                <i class="fas fa-bell-concierge mr-1"></i>Servir
+                            </button>
+
+                            <a x-show="table.statut === 'A_ENCAISSER' && table.commande"
+                               :href="table.commande_url + '&commande_id=' + table.commande.id"
+                               class="px-3 py-2 rounded-lg bg-amber-500 text-black text-xs font-bold">
+                                <i class="fas fa-cash-register mr-1"></i>Encaisser
+                            </a>
+
+                            <button x-show="!table.commande && table.statut !== 'LIBRE'"
+                                    @click="liberer(table)"
+                                    class="px-3 py-2 rounded-lg text-red-600 border border-red-200 text-xs">
+                                Libérer
+                            </button>
+                        </div>
+                    </article>
+                </template>
+            </div>
+        </section>
+    </template>
+
+    <div x-show="!loading && !salles.length"
+         class="card-bro card-bro-static p-12 text-center text-on-surface-muted">
+        <i class="fas fa-chair text-4xl mb-3"></i>
+        <p class="font-medium">Aucune salle configurée.</p>
+    </div>
+
+    <div x-show="loading" class="card-bro card-bro-static p-12 text-center text-on-surface-muted">
+        <i class="fas fa-spinner fa-spin mr-2"></i>Chargement de la salle…
+    </div>
+
+    <div x-show="occupationOpen" x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+        <div @click.outside="occupationOpen=false"
+             class="bg-surface-card rounded-xl shadow-xl w-full max-w-sm">
+            <div class="p-4 border-b border-border flex justify-between items-center">
+                <h3 class="font-bold">Installer des clients</h3>
+                <button @click="occupationOpen=false">×</button>
+            </div>
+            <form @submit.prevent="occuper()" class="p-4 space-y-4">
+                <div>
+                    <label class="text-xs text-on-surface-muted">Table</label>
+                    <div class="font-semibold mt-1" x-text="'Table ' + (selectedTable?.numero || '')"></div>
+                </div>
+                <div>
+                    <label class="text-xs text-on-surface-muted">Nombre de couverts</label>
+                    <input x-model.number="nombreCouverts" type="number" min="1"
+                           :max="selectedTable?.capacite || 1"
+                           class="w-full mt-1 border border-border rounded-lg px-3 py-2 bg-surface-card">
+                </div>
+                <div class="flex gap-2">
+                    <button type="submit" class="flex-1 bg-primary text-white py-2 rounded-lg">
+                        Installer
+                    </button>
+                    <button type="button" @click="occupationOpen=false"
+                            class="flex-1 border border-border py-2 rounded-lg">
+                        Annuler
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function salleRestaurantApp() {
+    return {
+        loading: false,
+        salles: [],
+        pointVenteId: '{{ point_vente.id|default:"" }}',
+        occupationOpen: false,
+        selectedTable: null,
+        nombreCouverts: 1,
+
+        async init() {
+            await this.charger();
+            setInterval(() => this.charger(false), 12000);
+        },
+
+        async charger(spinner=true) {
+            if (spinner) this.loading = true;
+            try {
+                const params = new URLSearchParams();
+                if (this.pointVenteId) params.set('point_vente', this.pointVenteId);
+                const r = await fetch("{% url 'restaurant:api_salle_etat' %}?" + params.toString());
+                const d = await r.json();
+                if (d.success) {
+                    this.salles = d.salles || [];
+                    this.pointVenteId = String(d.point_vente?.id || this.pointVenteId);
+                }
+            } finally {
+                this.loading = false;
+            }
+        },
+
+        get allTables() {
+            return this.salles.flatMap(s => s.tables || []);
+        },
+
+        get stats() {
+            return {
+                libres: this.allTables.filter(t => t.statut === 'LIBRE').length,
+                commandes: this.allTables.filter(t => t.statut === 'COMMANDE_EN_COURS').length,
+                pretes: this.allTables.filter(t => t.commande?.statut === 'PRETE').length,
+                encaisser: this.allTables.filter(t => t.statut === 'A_ENCAISSER').length,
+            };
+        },
+
+        ouvrirOccupation(table) {
+            this.selectedTable = table;
+            this.nombreCouverts = Math.min(2, table.capacite || 1);
+            this.occupationOpen = true;
+        },
+
+        async occuper() {
+            const r = await fetch(
+                "{% url 'restaurant:api_table_occuper' 999999 %}".replace('999999', this.selectedTable.id),
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': this.csrf(),
+                    },
+                    body: JSON.stringify({nombre_couverts: this.nombreCouverts}),
+                }
+            );
+            const d = await r.json();
+            if (!d.success) { alert(d.error || 'Impossible'); return; }
+            this.occupationOpen = false;
+            await this.charger();
+        },
+
+        async servir(table) {
+            const r = await fetch(
+                "{% url 'restaurant:api_servir_commande' 999999 %}".replace('999999', table.commande.id),
+                {method:'POST', headers:{'X-CSRFToken':this.csrf()}}
+            );
+            const d = await r.json();
+            if (!d.success) { alert(d.error || 'Impossible'); return; }
+            await this.charger();
+        },
+
+        async liberer(table) {
+            const r = await fetch(
+                "{% url 'restaurant:api_table_liberer' 999999 %}".replace('999999', table.id),
+                {method:'POST', headers:{'X-CSRFToken':this.csrf()}}
+            );
+            const d = await r.json();
+            if (!d.success) { alert(d.error || 'Impossible'); return; }
+            await this.charger();
+        },
+
+        tableBorder(table) {
+            return {
+                LIBRE: 'border-emerald-400',
+                OCCUPEE: 'border-slate-400',
+                COMMANDE_EN_COURS: 'border-blue-500',
+                A_ENCAISSER: 'border-amber-500',
+                RESERVEE: 'border-violet-500',
+                HORS_SERVICE: 'border-red-500',
+            }[table.statut] || 'border-slate-300';
+        },
+
+        statusClass(status) {
+            return {
+                LIBRE: 'bg-emerald-50 text-emerald-700',
+                OCCUPEE: 'bg-slate-100 text-slate-700',
+                COMMANDE_EN_COURS: 'bg-blue-50 text-blue-700',
+                A_ENCAISSER: 'bg-amber-50 text-amber-800',
+                RESERVEE: 'bg-violet-50 text-violet-700',
+                HORS_SERVICE: 'bg-red-50 text-red-700',
+            }[status] || 'bg-surface-soft text-on-surface-muted';
+        },
+
+        formatMoney(v) {
+            return Number(v || 0).toLocaleString('fr-FR');
+        },
+
+        csrf() {
+            const value = ('; ' + document.cookie).split('; csrftoken=');
+            return value.length === 2 ? value.pop().split(';').shift() : '';
+        },
+    }
+}
+</script>
+{% endblock %}
