@@ -39,7 +39,7 @@
         <div x-show="activeTab === 'commandes'" class="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             <template x-for="commande in commandes" :key="commande.id">
                 <div class="bg-surface-card rounded-xl shadow-md overflow-hidden border-l-4 cursor-pointer hover:shadow-md transition"
-                     :class="commande.statut === 'EN_PREPARATION' ? 'border-orange-500' : 'border-blue-500'"
+                     :class="commande.statut === 'PRETE' ? 'border-emerald-500' : (commande.statut === 'EN_PREPARATION' ? 'border-orange-500' : 'border-blue-500')"
                      @click="voirDetail(commande.id)">
                     
                     <!-- En-tête commande -->
@@ -50,7 +50,7 @@
                                 <span class="ml-2 text-xs font-mono" x-text="commande.temps_attente + ' min'"></span>
                             </div>
                             <span class="px-2 py-1 text-xs rounded-full"
-                                  :class="commande.statut === 'EN_PREPARATION' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700'"
+                                  :class="commande.statut === 'PRETE' ? 'bg-emerald-50 text-emerald-700' : (commande.statut === 'EN_PREPARATION' ? 'bg-orange-50 text-orange-700' : 'bg-blue-50 text-blue-700')"
                                   x-text="commande.statut_display"></span>
                         </div>
                         <div class="mt-2">
@@ -85,6 +85,10 @@
                                 class="flex-1 bg-emerald-500 text-white py-2 rounded-lg text-sm font-medium hover:bg-emerald-600 transition">
                             <i class="fas fa-check-circle mr-1"></i> Prête
                         </button>
+                        <div x-show="commande.statut === 'PRETE'"
+                             class="flex-1 bg-emerald-50 text-emerald-700 border border-emerald-200 py-2 rounded-lg text-sm font-semibold text-center">
+                            <i class="fas fa-bell mr-1"></i>Attente service
+                        </div>
                         <button @click="voirDetail(commande.id)" class="px-4 py-2 border-border/30 rounded-lg text-sm hover:bg-surface-soft">
                             <i class="fas fa-eye"></i>
                         </button>
@@ -233,6 +237,7 @@
 function cuisineApp() {
     return {
         activeTab: 'commandes',
+        pointVenteId: '',
         commandes: [],
         historique: [],
         loading: false,
@@ -262,7 +267,9 @@ function cuisineApp() {
         
         async refreshCommandes() {
             try {
-                const res = await fetch('/restaurant/api/cuisine/commandes/');
+                const params = new URLSearchParams();
+                if (this.pointVenteId) params.set('point_vente', this.pointVenteId);
+                const res = await fetch('/restaurant/api/cuisine/commandes/?' + params.toString());
                 const data = await res.json();
                 if (data.success) {
                     const oldCount = this.commandes.length;
