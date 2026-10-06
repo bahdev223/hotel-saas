@@ -33,15 +33,18 @@ class PointVenteService:
 
     @staticmethod
     def get_entrepot_ids(point_vente):
-        """Retourne la liste des IDs d'entrepôts liés à un point de vente"""
+        """Entrepôts utilisables pour la vente, ordonnés par priorité métier."""
         from ..models import PointVenteEntrepot
-        entrepot_ids = []
-        if point_vente.entrepot:
-            entrepot_ids.append(point_vente.entrepot_id)
-        pve_ids = list(PointVenteEntrepot.objects.filter(
-            point_vente=point_vente
-        ).values_list('entrepot_id', flat=True))
-        return list(set(entrepot_ids + pve_ids))
+        return list(
+            PointVenteEntrepot.objects.filter(
+                point_vente=point_vente,
+                actif=True,
+                autorise_vente=True,
+                entrepot__actif=True,
+            )
+            .order_by('-principal', 'priorite', 'id')
+            .values_list('entrepot_id', flat=True)
+        )
 
     @staticmethod
     def get_entrepot_utilise(point_vente, entrepot_id_from_request=None):
