@@ -17,6 +17,9 @@
         <a href="{% url 'pos:liste_ventes' %}" class="{% if request.resolver_match.url_name == 'liste_ventes' %}active{% endif %}">
             <i class="fas fa-history mr-1"></i>Ventes
         </a>
+        <a href="{% url 'pos:acces' %}" class="{% if request.resolver_match.url_name == 'acces' %}active{% endif %}">
+            <i class="fas fa-user-shield mr-1"></i>Accès POS
+        </a>
         <a href="{% url 'pos:planning' %}" class="{% if request.resolver_match.url_name == 'planning' %}active{% endif %}">
             <i class="fas fa-calendar-alt mr-1"></i>Planning
         </a>
