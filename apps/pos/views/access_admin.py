@@ -318,6 +318,9 @@ def acces_view(request):
         ("peut_annuler_vente", "Annuler une vente"),
         ("peut_accorder_remise", "Accorder une remise"),
         ("peut_consulter_rapports", "Consulter les rapports"),
+        ("peut_gerer_salle", "Gérer la salle"),
+        ("peut_gerer_cuisine", "Gérer la cuisine / KDS"),
+        ("peut_servir_commande", "Servir les commandes"),
     ]
 
     return render(request, "pos/acces.html", {
