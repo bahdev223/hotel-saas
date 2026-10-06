@@ -50,6 +50,38 @@ class ActionPOS:
     CONSULTER_RAPPORTS = "CONSULTER_RAPPORTS"
 
 
+ROLE_PERMISSION_PRESETS = {
+    RolePOS.CAISSIER: {
+        ActionPOS.VENDRE: True,
+        ActionPOS.ENCAISSER: True,
+        ActionPOS.OUVRIR_CAISSE: True,
+        ActionPOS.FERMER_CAISSE: True,
+    },
+    RolePOS.SERVEUR: {
+        ActionPOS.VENDRE: True,
+    },
+    RolePOS.RESPONSABLE: {
+        ActionPOS.VENDRE: True,
+        ActionPOS.ENCAISSER: True,
+        ActionPOS.OUVRIR_CAISSE: True,
+        ActionPOS.FERMER_CAISSE: True,
+        ActionPOS.ANNULER_VENTE: True,
+        ActionPOS.ACCORDER_REMISE: True,
+        ActionPOS.CONSULTER_RAPPORTS: True,
+    },
+    RolePOS.SUPERVISEUR: {
+        ActionPOS.VENDRE: True,
+        ActionPOS.ENCAISSER: True,
+        ActionPOS.OUVRIR_CAISSE: True,
+        ActionPOS.FERMER_CAISSE: True,
+        ActionPOS.ANNULER_VENTE: True,
+        ActionPOS.ACCORDER_REMISE: True,
+        ActionPOS.CONSULTER_RAPPORTS: True,
+    },
+    RolePOS.PREPARATEUR: {},
+}
+
+
 class StatutSession(models.TextChoices):
     OUVERTE = "OUVERTE", "Ouverte"
     EN_COMPTAGE = "EN_COMPTAGE", "En comptage"
