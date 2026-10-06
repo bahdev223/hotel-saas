@@ -26,7 +26,7 @@
                 {% if session.shift %}
                 <div class="flex justify-between">
                     <span class="text-on-surface-muted">Planning:</span>
-                    <span class="font-medium">{{ session.shift.employe.nom_complet }} {{ session.shift.heure_debut|time:"H:i" }}-{{ session.shift.heure_fin|time:"H:i" }}</span>
+                    <span class="font-medium">{{ session.shift.employe.nom_complet }} {{ session.shift.debut_prevu|date:"H:i" }}-{{ session.shift.fin_prevue|date:"H:i" }}</span>
                 </div>
                 {% endif %}
                 <div class="flex justify-between">
@@ -392,25 +392,6 @@ function closeFermetureModal() { closeModal('fermetureModal'); }
 function openModal(id) { const el = document.getElementById(id); el.classList.remove('hidden'); el.classList.add('flex'); }
 function closeModal(id) { const el = document.getElementById(id); el.classList.add('hidden'); el.classList.remove('flex'); }
 
-async function validerSession() {
-    if (!confirm('Valider définitivement cette session ?')) return;
-    try {
-        const r = await fetch('/pos/api/sessions/valider/', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]')?.value || ''
-            },
-            body: JSON.stringify({ session_id: {{ session.id }} })
-        });
-        const d = await r.json();
-        if (d.success) window.location.reload();
-        else notifyError(d.error || 'Validation impossible');
-    } catch (e) {
-        notifyError('Erreur réseau');
-    }
-}
-
 document.getElementById('fermetureForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const btn = this.querySelector('button[type="submit"]');
@@ -443,4 +424,30 @@ document.getElementById('fermetureForm').addEventListener('submit', async functi
 });
 </script>
 {% endif %}
+
+<script>
+function posCsrfToken() {
+    const parts = ('; ' + document.cookie).split('; csrftoken=');
+    return parts.length === 2 ? parts.pop().split(';').shift() : '';
+}
+
+async function validerSession() {
+    if (!confirm('Valider définitivement cette session ?')) return;
+    try {
+        const r = await fetch('/pos/api/sessions/valider/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': posCsrfToken()
+            },
+            body: JSON.stringify({ session_id: {{ session.id }} })
+        });
+        const d = await r.json();
+        if (d.success) window.location.reload();
+        else notifyError(d.error || 'Validation impossible');
+    } catch (e) {
+        notifyError('Erreur réseau');
+    }
+}
+</script>
 {% endblock %}
