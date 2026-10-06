@@ -121,14 +121,27 @@ class CommandeSettlementService:
             )
         _caisse = CaisseModel.objects.select_for_update().get(pk=liaison.caisse_id)
 
-        # 4. Session obligatoire SUR CETTE caisse.
-        from apps.pos.services.caisse_session_service import get_session_active_caisse
-        session = get_session_active_caisse(_caisse)
+        # 4. Session obligatoire SUR CETTE caisse. Une session en PASSATION
+        # peut uniquement terminer des commandes engagées avant la passation.
+        from apps.pos.services.caisse_session_service import (
+            CaisseSessionService,
+            get_session_encaissement_caisse,
+        )
+        session = get_session_encaissement_caisse(_caisse)
         if not session or session.point_vente_id != pv.id:
             from apps.paiements.services.paiement_engine import SessionRequiseError
             raise SessionRequiseError(
-                f"Aucune session de caisse ouverte sur {pv.nom} "
-                f"— ouvrez une session pour encaisser."
+                f"Aucune session encaissable sur {pv.nom} — ouvrez une session."
+            )
+
+        autorise, raison_session = CaisseSessionService.autoriser_encaissement_session(
+            session=session,
+            encaisseur=encaisseur,
+            commande=commande,
+        )
+        if not autorise:
+            raise CommandeSettlementError(
+                f"Encaissement interdit sur cette session ({raison_session})."
             )
 
         # 5. Les responsabilités restent distinctes :
