@@ -16,6 +16,13 @@ class FileAttenteModel(models.Model):
     telephone = models.CharField(max_length=20, blank=True, null=True)
     date_entree = models.DateTimeField(auto_now_add=True)
     table_assigned = models.CharField(max_length=10, blank=True, null=True)
+    table = models.ForeignKey(
+        'restaurant.TableModel',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='placements_file_attente',
+    )
     statut = models.CharField(max_length=20, choices=STATUT_CHOICES, default='EN_ATTENTE')
     
     class Meta:
