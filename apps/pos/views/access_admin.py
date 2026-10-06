@@ -90,11 +90,24 @@ def _parse_time(value, field):
         raise ValueError(f"{field}: heure invalide (HH:MM).") from exc
 
 
+def _effective_date_range(item):
+    start = item.get("date_debut") or date.min
+    end = item.get("date_fin") or date.max
+    if (
+        end != date.max
+        and item.get("heure_debut") is not None
+        and item.get("heure_fin") is not None
+        and item["heure_fin"] < item["heure_debut"]
+    ):
+        # Le dernier créneau autorisé se termine le lendemain.
+        from datetime import timedelta
+        end = end + timedelta(days=1)
+    return start, end
+
+
 def _date_ranges_overlap(a, b):
-    a_start = a.get("date_debut") or date.min
-    a_end = a.get("date_fin") or date.max
-    b_start = b.get("date_debut") or date.min
-    b_end = b.get("date_fin") or date.max
+    a_start, a_end = _effective_date_range(a)
+    b_start, b_end = _effective_date_range(b)
     return a_start <= b_end and b_start <= a_end
 
 
@@ -183,6 +196,10 @@ def _normaliser_horaires(raw_horaires):
             "date_fin": _parse_date(raw.get("date_fin"), f"Horaire #{index} date_fin"),
             "actif": bool(raw.get("actif", True)),
         }
+        if item["heure_debut"] == item["heure_fin"]:
+            raise ValueError(
+                f"Horaire #{index}: heure_debut et heure_fin doivent être différentes."
+            )
         if item["date_debut"] and item["date_fin"] and item["date_debut"] > item["date_fin"]:
             raise ValueError(f"Horaire #{index}: date_debut est après date_fin.")
         result.append(item)
