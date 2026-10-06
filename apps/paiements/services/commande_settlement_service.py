@@ -81,6 +81,21 @@ class CommandeSettlementService:
                 f"Commande #{commande.numero} annulée — impossible de régler"
             )
 
+        # Restaurant V1 : l'encaissement est la dernière étape du cycle métier.
+        if pv.type == 'RESTAURATION':
+            if commande.type_commande == 'SUR_PLACE' and commande.statut != 'SERVIE':
+                raise CommandeSettlementError(
+                    "Une commande sur place doit être servie avant l'encaissement."
+                )
+            if commande.type_commande == 'EMPORTER' and commande.statut not in ('PRETE', 'SERVIE'):
+                raise CommandeSettlementError(
+                    "Une commande à emporter doit être prête avant l'encaissement."
+                )
+            if commande.type_commande == 'LIVRAISON' and commande.statut != 'LIVREE':
+                raise CommandeSettlementError(
+                    "Une livraison doit être livrée avant l'encaissement."
+                )
+
         # CREDIT interdit pour les clients passagers
         if mode_paiement == 'CREDIT':
             from apps.clients.models import Client
@@ -211,7 +226,11 @@ class CommandeSettlementService:
         # 9. Lier la vente à la commande
         commande.vente = vente
         commande.statut = 'PAYEE'
-        commande.save(update_fields=['vente', 'statut'])
+        commande.save(update_fields=['vente', 'statut', 'updated_at'])
+
+        if pv.type == 'RESTAURATION' and commande.table_id:
+            from apps.restaurant.services.restaurant_service import RestaurantService
+            RestaurantService.liberer_table_si_terminee(commande)
 
         # 10. Consommer le stock (ÉCHEC = ANNULATION TOTALE)
         RestaurantConsumptionService.consommer_commande(
