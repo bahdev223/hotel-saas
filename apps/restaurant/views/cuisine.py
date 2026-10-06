@@ -8,54 +8,90 @@ from django.utils import timezone
 import json
 
 from apps.pos.models import Commande, LigneCommande
+from apps.pos.constants import ActionPOS, TypePointVente
+from apps.pos.services.access_service import POSAccessService
+from ..services.restaurant_service import RestaurantService, RestaurantWorkflowError
 
 
 @login_required
 def cuisine_dashboard(request):
-    """Écran cuisine - affiche les commandes à préparer (depuis POS)"""
-    return render(request, 'restaurant/cuisine/dashboard.html')
+    """KDS Restaurant : uniquement les préparateurs autorisés."""
+    points = POSAccessService.points_accessibles(
+        user=request.user,
+        action=ActionPOS.GERER_CUISINE,
+    ).filter(type=TypePointVente.RESTAURATION)
+    if not points.exists():
+        return render(
+            request,
+            'restaurant/cuisine/dashboard.html',
+            {'points': [], 'access_denied': True},
+            status=403,
+        )
+    return render(
+        request,
+        'restaurant/cuisine/dashboard.html',
+        {'points': points, 'access_denied': False},
+    )
 
 
 @login_required
 def api_cuisine_commandes(request):
-    """API pour récupérer les commandes à préparer depuis POS"""
-    # Commandes de type restaurant ou bar qui ne sont pas encore servies
+    """Commandes Restaurant visibles par le KDS autorisé."""
+    points = POSAccessService.points_accessibles(
+        user=request.user,
+        action=ActionPOS.GERER_CUISINE,
+    ).filter(type=TypePointVente.RESTAURATION)
+    point_ids = list(points.values_list("id", flat=True))
+    if not point_ids:
+        return JsonResponse(
+            {'success': False, 'error': 'Accès cuisine refusé.'},
+            status=403,
+        )
+
     commandes = Commande.objects.filter(
+        point_vente_id__in=point_ids,
         statut__in=['EN_ATTENTE', 'EN_PREPARATION', 'PRETE'],
-        type_commande__in=['SUR_PLACE', 'EMPORTER']  # Commandes restaurant
-    ).select_related('table', 'point_vente').order_by('-created_at')
+        type_commande__in=['SUR_PLACE', 'EMPORTER'],
+    ).select_related(
+        'table', 'point_vente', 'created_by'
+    ).prefetch_related(
+        'lignes__produit', 'lignes__menu'
+    ).order_by('created_at')
+
+    point_filter = request.GET.get('point_vente')
+    if point_filter:
+        commandes = commandes.filter(point_vente_id=point_filter)
 
     data = []
     for commande in commandes:
         temps_attente = int((timezone.now() - commande.created_at).total_seconds() / 60)
-
         lignes = []
         for ligne in commande.lignes.all():
-            # Récupérer le nom du produit ou menu
-            if ligne.produit:
-                nom = ligne.produit.nom
-            elif ligne.menu:
-                nom = ligne.menu.nom
-            else:
-                nom = "Article"
-            
+            nom = (
+                ligne.produit.nom if ligne.produit
+                else ligne.menu.nom if ligne.menu
+                else "Article"
+            )
             lignes.append({
+                'id': ligne.id,
                 'nom': nom,
                 'quantite': float(ligne.quantite),
-                'notes': ligne.notes or ""
+                'notes': ligne.notes or "",
             })
 
         data.append({
             'id': commande.id,
             'numero': commande.numero,
             'table': commande.table.numero if commande.table else 'Emporter',
+            'serveur': commande.created_by.nom_complet if commande.created_by else '',
+            'point_vente_id': commande.point_vente_id,
             'point_vente': commande.point_vente.nom if commande.point_vente else '',
             'type': commande.get_type_commande_display(),
             'statut': commande.statut,
             'statut_display': commande.get_statut_display(),
             'temps_attente': temps_attente,
             'lignes': lignes,
-            'notes': commande.notes or ""
+            'notes': commande.notes or "",
         })
 
     return JsonResponse({'success': True, 'commandes': data})
@@ -65,51 +101,61 @@ def api_cuisine_commandes(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def api_cuisine_changer_statut(request, commande_id):
-    """Changer le statut d'une commande (en préparation, prêt, servi)"""
     try:
-        commande = get_object_or_404(Commande, id=commande_id)
+        commande = get_object_or_404(
+            Commande.objects.select_related("point_vente"),
+            id=commande_id,
+            point_vente__type=TypePointVente.RESTAURATION,
+        )
+        data = (
+            json.loads(request.body or "{}")
+            if request.content_type == "application/json"
+            else request.POST
+        )
+        nouveau_statut = data.get("statut")
 
-        if request.content_type == 'application/json':
-            data = json.loads(request.body)
-            nouveau_statut = data.get('statut')
+        if nouveau_statut == "EN_PREPARATION":
+            commande = RestaurantService.demarrer_preparation(
+                commande=commande,
+                user=request.user,
+            )
+        elif nouveau_statut == "PRETE":
+            commande = RestaurantService.marquer_prete(
+                commande=commande,
+                user=request.user,
+            )
         else:
-            nouveau_statut = request.POST.get('statut')
+            return JsonResponse({
+                'success': False,
+                'error': (
+                    "La cuisine ne peut gérer que EN_PREPARATION et PRETE. "
+                    "Le service en salle marque ensuite la commande SERVIE."
+                ),
+            }, status=400)
 
-        # Mapping des statuts POS
-        statut_mapping = {
-            'EN_PREPARATION': 'EN_PREPARATION',
-            'PRETE': 'PRETE',
-            'SERVIE': 'SERVIE'
-        }
-        
-        if nouveau_statut and nouveau_statut in statut_mapping:
-            if nouveau_statut == 'EN_PREPARATION':
-                commande.passer_en_preparation()
-            elif nouveau_statut == 'PRETE':
-                commande.marquer_prete()
-            elif nouveau_statut == 'SERVIE':
-                commande.servir()
-            
-            # Déstocker les ingrédients via le service centralisé
-            if nouveau_statut == 'EN_PREPARATION':
-                from ..services.consumption_service import RestaurantConsumptionService
-                RestaurantConsumptionService.consommer_commande(
-                    commande=commande,
-                    entrepot=commande.entrepot,
-                    utilisateur=request.user.username,
-                )
-
-        return JsonResponse({'success': True, 'statut': commande.statut})
-
-    except Exception as e:
-        return JsonResponse({'success': False, 'error': str(e)})
+        return JsonResponse({
+            'success': True,
+            'statut': commande.statut,
+            'statut_display': commande.get_statut_display(),
+        })
+    except RestaurantWorkflowError as exc:
+        return JsonResponse({'success': False, 'error': str(exc)}, status=403)
+    except Exception as exc:
+        return JsonResponse({'success': False, 'error': str(exc)}, status=400)
 
 
 @login_required
 def api_cuisine_historique(request):
     """API pour l'historique des commandes servies"""
+    point_ids = POSAccessService.points_accessibles(
+        user=request.user,
+        action=ActionPOS.GERER_CUISINE,
+    ).filter(
+        type=TypePointVente.RESTAURATION,
+    ).values_list("id", flat=True)
     commandes = Commande.objects.filter(
-        statut__in=['SERVIE', 'LIVREE']
+        point_vente_id__in=point_ids,
+        statut__in=['SERVIE', 'PAYEE'],
     ).select_related('table').order_by('-updated_at')[:50]
 
     data = []
@@ -128,7 +174,18 @@ def api_cuisine_historique(request):
 @login_required
 def api_cuisine_commande_detail(request, commande_id):
     """API pour le détail d'une commande"""
-    commande = get_object_or_404(Commande, id=commande_id)
+    commande = get_object_or_404(
+        Commande.objects.select_related("point_vente"),
+        id=commande_id,
+        point_vente__type=TypePointVente.RESTAURATION,
+    )
+    decision = POSAccessService.check(
+        user=request.user,
+        point_vente=commande.point_vente,
+        action=ActionPOS.GERER_CUISINE,
+    )
+    if not decision.allowed:
+        return JsonResponse({'success': False, 'error': 'Accès cuisine refusé.'}, status=403)
 
     lignes = []
     for ligne in commande.lignes.all():
