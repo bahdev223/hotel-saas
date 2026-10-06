@@ -249,6 +249,113 @@ class POSAccessService:
         )
 
     @classmethod
+    def check_capability(
+        cls,
+        *,
+        point_vente,
+        action,
+        user=None,
+        employe=None,
+        moment=None,
+    ) -> POSAccessDecision:
+        """Vérifie une capacité métier sans appliquer la fenêtre horaire.
+
+        Usage volontairement limité aux opérations de finalisation d'un état
+        déjà engagé, notamment fermer/compter une session ouverte avant
+        l'expiration du shift. Cette méthode ne doit pas être utilisée pour
+        vendre ou encaisser hors créneau.
+        """
+        moment = cls._normaliser_moment(moment)
+        point_vente = cls._point(point_vente)
+
+        if point_vente is None:
+            return cls._deny("POINT_VENTE_INTROUVABLE", action=action)
+        if not point_vente.actif:
+            return cls._deny(
+                "POINT_VENTE_INACTIF",
+                action=action,
+                point_vente=point_vente,
+            )
+        if point_vente.type not in POINTS_VENTE_OPERATIONNELS:
+            return cls._deny(
+                "HORS_PERIMETRE_POS_BAR_RESTAURANT",
+                action=action,
+                point_vente=point_vente,
+            )
+
+        if employe is None and user is not None:
+            employe = getattr(user, "employe", None)
+        if user is None and employe is not None:
+            user = getattr(employe, "user", None)
+
+        if user is not None and (
+            user.is_superuser
+            or user.groups.filter(name__in=cls.GROUPES_ACCES_TOTAL).exists()
+        ):
+            return POSAccessDecision(
+                allowed=True,
+                reason="CAPACITE_TOTAL_DIRECTION",
+                mode=ModeAccesPOS.TOTAL,
+                action=action,
+                point_vente_id=point_vente.id,
+            )
+
+        if employe is None:
+            return cls._deny(
+                "AUCUN_PROFIL_EMPLOYE",
+                action=action,
+                point_vente=point_vente,
+            )
+        if not employe.actif:
+            return cls._deny(
+                "EMPLOYE_INACTIF",
+                action=action,
+                point_vente=point_vente,
+            )
+
+        affectations = list(
+            AffectationPointVente.objects.filter(
+                employe=employe,
+                actif=True,
+            )
+            .filter(
+                Q(date_debut__isnull=True) | Q(date_debut__lte=moment.date()),
+                Q(date_fin__isnull=True) | Q(date_fin__gte=moment.date()),
+            )
+            .select_related("point_vente")
+            .order_by("-principal", "id")
+        )
+        candidates = [
+            a
+            for a in affectations
+            if a.mode_acces == ModeAccesPOS.TOTAL
+            or a.point_vente_id == point_vente.id
+        ]
+        if not candidates:
+            return cls._deny(
+                "AUCUNE_AFFECTATION_POS",
+                action=action,
+                point_vente=point_vente,
+            )
+
+        for affectation in candidates:
+            if cls._permission_ok(affectation, action):
+                return POSAccessDecision(
+                    allowed=True,
+                    reason="CAPACITE_METIER_ACTIVE",
+                    mode=affectation.mode_acces,
+                    action=action,
+                    point_vente_id=point_vente.id,
+                    affectation_id=affectation.id,
+                )
+
+        return cls._deny(
+            "PERMISSION_METIER_REFUSEE",
+            action=action,
+            point_vente=point_vente,
+        )
+
+    @classmethod
     def assert_allowed(cls, **kwargs) -> POSAccessDecision:
         decision = cls.check(**kwargs)
         if not decision.allowed:
