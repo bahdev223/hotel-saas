@@ -6,6 +6,9 @@ from .salle import (
     api_table_occuper,
     api_table_liberer,
     api_servir_commande,
+    api_salle_enregistrer,
+    api_table_enregistrer,
+    api_table_desactiver,
 )
 from .file_attente import file_attente
 from .produits import produits_stock, entree_stock, mouvement_stock, ajouter_produit, modifier_produit, supprimer_produit, transfert_central_restaurant, api_ajouter_produit, api_produit_infos, api_modifier_produit, api_entree_stock, api_liste_produits_stock, api_supprimer_produit
@@ -79,6 +82,9 @@ __all__ = [
     'api_table_occuper',
     'api_table_liberer',
     'api_servir_commande',
+    'api_salle_enregistrer',
+    'api_table_enregistrer',
+    'api_table_desactiver',
 
     # File d'attente
     'file_attente',
