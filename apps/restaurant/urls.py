@@ -15,6 +15,9 @@ urlpatterns = [
     path('api/tables/<int:table_id>/occuper/', views.api_table_occuper, name='api_table_occuper'),
     path('api/tables/<int:table_id>/liberer/', views.api_table_liberer, name='api_table_liberer'),
     path('api/commandes/<int:commande_id>/servir/', views.api_servir_commande, name='api_servir_commande'),
+    path('api/salles/enregistrer/', views.api_salle_enregistrer, name='api_salle_enregistrer'),
+    path('api/tables/enregistrer/', views.api_table_enregistrer, name='api_table_enregistrer'),
+    path('api/tables/<int:table_id>/desactiver/', views.api_table_desactiver, name='api_table_desactiver'),
 
     # ========== FILE D'ATTENTE ==========
     path('file-attente/', views.file_attente, name='file_attente'),
