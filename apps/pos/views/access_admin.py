@@ -408,6 +408,30 @@ def api_affectation_enregistrer(request):
                     "error": "Seul le patron/superuser peut modifier un accès TOTAL.",
                 }, status=403)
 
+            sessions_existantes = SessionCaisse.objects.filter(
+                ouverte_par=existing.employe,
+                statut__in=("OUVERTE", "EN_COMPTAGE"),
+                point_vente__type__in=POINTS_VENTE_OPERATIONNELS,
+            )
+            if existing.mode_acces != ModeAccesPOS.TOTAL:
+                sessions_existantes = sessions_existantes.filter(
+                    point_vente=existing.point_vente
+                )
+
+            change_scope = (
+                employe.id != existing.employe_id
+                or point_vente.id != existing.point_vente_id
+            )
+            desactivation = not bool(data.get("actif", existing.actif))
+            if sessions_existantes.exists() and (change_scope or desactivation):
+                return JsonResponse({
+                    "success": False,
+                    "error": (
+                        "Fermez d'abord la session de caisse active avant de "
+                        "déplacer ou désactiver cette affectation."
+                    ),
+                }, status=409)
+
         if mode == ModeAccesPOS.TOTAL:
             other_total = AffectationPointVente.objects.filter(
                 employe=employe,
