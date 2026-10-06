@@ -235,12 +235,17 @@ def api_fermeture_session(request):
         notes = data.get('notes', '')
         depot = data.get('depot')
 
-        session = get_session_autorisee(session_id, request.user, require_open=True)
+        session = get_session_autorisee(
+            session_id,
+            request.user,
+            require_open=True,
+            allow_owner_finalize=True,
+        )
         demandeur = getattr(request.user, "employe", None)
         est_supervision = _user_can_gerer_sessions(request.user)
 
         if not est_supervision:
-            decision = POSAccessService.check(
+            decision = POSAccessService.check_capability(
                 user=request.user,
                 employe=demandeur,
                 point_vente=session.point_vente,
