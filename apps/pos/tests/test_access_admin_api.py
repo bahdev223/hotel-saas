@@ -181,6 +181,86 @@ class POSAccessAdminAPITests(TestCase):
             ],
         )
 
+    def test_recurring_hours_conflict_across_bar_and_restaurant(self):
+        self.client.force_login(self.manager_user)
+        bar_access = AffectationPointVente.objects.create(
+            employe=self.employe,
+            point_vente=self.bar,
+            role="SERVEUR",
+            mode_acces=ModeAccesPOS.HORAIRES,
+            peut_vendre=True,
+            actif=True,
+        )
+        restaurant_access = AffectationPointVente.objects.create(
+            employe=self.employe,
+            point_vente=self.restaurant,
+            role="SERVEUR",
+            mode_acces=ModeAccesPOS.HORAIRES,
+            peut_vendre=True,
+            actif=True,
+        )
+
+        bar_url = reverse(
+            "pos:api_horaires_remplacer",
+            kwargs={"affectation_id": bar_access.id},
+        )
+        restaurant_url = reverse(
+            "pos:api_horaires_remplacer",
+            kwargs={"affectation_id": restaurant_access.id},
+        )
+
+        first = self.post_json(bar_url, {
+            "horaires": [{
+                "jour_semaine": 0,
+                "heure_debut": "18:00",
+                "heure_fin": "23:00",
+            }],
+        })
+        self.assertEqual(first.status_code, 200, first.content)
+
+        conflict = self.post_json(restaurant_url, {
+            "horaires": [{
+                "jour_semaine": 0,
+                "heure_debut": "20:00",
+                "heure_fin": "23:30",
+            }],
+        })
+        self.assertEqual(conflict.status_code, 409)
+        self.assertIn("Bar API", conflict.json()["error"])
+        self.assertFalse(
+            HoraireAffectation.objects.filter(
+                affectation=restaurant_access
+            ).exists()
+        )
+
+    def test_zero_length_recurring_hour_is_rejected(self):
+        self.client.force_login(self.manager_user)
+        affectation = AffectationPointVente.objects.create(
+            employe=self.employe,
+            point_vente=self.bar,
+            role="SERVEUR",
+            mode_acces=ModeAccesPOS.HORAIRES,
+            peut_vendre=True,
+            actif=True,
+        )
+        response = self.post_json(
+            reverse(
+                "pos:api_horaires_remplacer",
+                kwargs={"affectation_id": affectation.id},
+            ),
+            {
+                "horaires": [{
+                    "jour_semaine": 1,
+                    "heure_debut": "08:00",
+                    "heure_fin": "08:00",
+                }],
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertFalse(
+            HoraireAffectation.objects.filter(affectation=affectation).exists()
+        )
+
     def test_access_list_exposes_only_bar_restaurant_assignments(self):
         reception = PointVente.objects.create(
             code="REC-LEGACY",
