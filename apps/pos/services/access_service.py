@@ -28,6 +28,9 @@ ACTION_PERMISSION_FIELDS = {
     ActionPOS.ANNULER_VENTE: "peut_annuler_vente",
     ActionPOS.ACCORDER_REMISE: "peut_accorder_remise",
     ActionPOS.CONSULTER_RAPPORTS: "peut_consulter_rapports",
+    ActionPOS.GERER_SALLE: "peut_gerer_salle",
+    ActionPOS.GERER_CUISINE: "peut_gerer_cuisine",
+    ActionPOS.SERVIR_COMMANDE: "peut_servir_commande",
 }
 
 
